@@ -15,7 +15,7 @@ from app.schemas import (
 from app.auth import get_current_user
 from app.config import settings
 from app.logger import logger
-
+from app.queue import publish_kubeconfig_uploaded, publish_kubeconfig_deleted, publish_kubeconfig_activated
 kubeconfig_router = APIRouter()
 
 def execute_command(command: str):

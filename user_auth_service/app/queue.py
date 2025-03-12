@@ -22,7 +22,7 @@ class RabbitMQClient:
             
             # Declare exchanges
             self.channel.exchange_declare(
-                exchange='kubeconfig_events',
+                exchange='user_events',
                 exchange_type='topic',
                 durable=True
             )
@@ -30,65 +30,32 @@ class RabbitMQClient:
             # Setup queues and bindings
             self.setup_queues()
             
-            # Setup consumer for user events
-            self.setup_user_events_consumer()
-            
         except Exception as e:
             logger.error(f"Failed to connect to RabbitMQ: {str(e)}")
             raise
 
     def setup_queues(self):
-        """Setup queues and bindings for kubeconfig events"""
-        # Kubeconfig service queues
-        self.channel.queue_declare(queue='kubeconfig_uploaded', durable=True)
-        self.channel.queue_declare(queue='kubeconfig_deleted', durable=True)
-        self.channel.queue_declare(queue='kubeconfig_activated', durable=True)
+        """Setup queues and bindings"""
+        # User service queues
+        self.channel.queue_declare(queue='user_created', durable=True)
+        self.channel.queue_declare(queue='user_updated', durable=True)
+        self.channel.queue_declare(queue='user_deleted', durable=True)
         
         # Bindings
         self.channel.queue_bind(
-            exchange='kubeconfig_events',
-            queue='kubeconfig_uploaded',
-            routing_key='kubeconfig.uploaded'
-        )
-        self.channel.queue_bind(
-            exchange='kubeconfig_events',
-            queue='kubeconfig_deleted',
-            routing_key='kubeconfig.deleted'
-        )
-        self.channel.queue_bind(
-            exchange='kubeconfig_events',
-            queue='kubeconfig_activated',
-            routing_key='kubeconfig.activated'
-        )
-
-    def setup_user_events_consumer(self):
-        """Setup consumer for user events"""
-        # Declare user events exchange
-        self.channel.exchange_declare(
             exchange='user_events',
-            exchange_type='topic',
-            durable=True
+            queue='user_created',
+            routing_key='user.created'
         )
-        
-        # Create queue for this service to consume user events
-        result = self.channel.queue_declare(
-            queue='kubeconfig_service_user_events',
-            durable=True
-        )
-        queue_name = result.method.queue
-        
-        # Bind to user events we're interested in
         self.channel.queue_bind(
             exchange='user_events',
-            queue=queue_name,
-            routing_key='user.deleted'  # Listen for user deletion events
+            queue='user_updated',
+            routing_key='user.updated'
         )
-        
-        # Setup consumer
-        self.channel.basic_consume(
-            queue=queue_name,
-            on_message_callback=self._process_user_event,
-            auto_ack=False
+        self.channel.queue_bind(
+            exchange='user_events',
+            queue='user_deleted',
+            routing_key='user.deleted'
         )
 
     def publish_event(self, routing_key: str, message: Dict[str, Any], correlation_id: str = None):
@@ -99,7 +66,7 @@ class RabbitMQClient:
         try:
             message_id = correlation_id or str(uuid.uuid4())
             self.channel.basic_publish(
-                exchange='kubeconfig_events',
+                exchange='user_events',
                 routing_key=routing_key,
                 body=json.dumps(message),
                 properties=pika.BasicProperties(
@@ -123,6 +90,13 @@ class RabbitMQClient:
         if not self.connection or self.connection.is_closed:
             self.connect()
             
+        for queue in ['user_created', 'user_updated', 'user_deleted']:
+            self.channel.basic_consume(
+                queue=queue,
+                on_message_callback=self._process_message,
+                auto_ack=False
+            )
+        
         logger.info("Starting to consume messages from RabbitMQ")
         try:
             self.channel.start_consuming()
@@ -131,25 +105,22 @@ class RabbitMQClient:
         except Exception as e:
             logger.error(f"Error during message consumption: {str(e)}")
             self.channel.stop_consuming()
-    
-    def _process_user_event(self, ch, method, properties, body):
-        """Process user events"""
+            
+    def _process_message(self, ch, method, properties, body):
+        """Process incoming messages"""
         try:
             event_type = method.routing_key
             message = json.loads(body)
-            logger.info(f"Received user event: {event_type} - {message}")
+            logger.info(f"Received message: {event_type} - {message}")
             
-            if event_type == 'user.deleted':
-                # Handle user deletion event
-                user_id = message.get('user_id')
-                if user_id:
-                    # Process user deletion (e.g., delete all user's kubeconfigs)
-                    from app.services import delete_user_kubeconfigs
-                    delete_user_kubeconfigs(user_id)
-            
-            ch.basic_ack(delivery_tag=method.delivery_tag)
+            if event_type in self.event_handlers:
+                self.event_handlers[event_type](message)
+                ch.basic_ack(delivery_tag=method.delivery_tag)
+            else:
+                logger.warning(f"No handler for event type: {event_type}")
+                ch.basic_ack(delivery_tag=method.delivery_tag)
         except Exception as e:
-            logger.error(f"Error processing user event: {str(e)}")
+            logger.error(f"Error processing message: {str(e)}")
             ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
     
     def close(self):
@@ -162,11 +133,11 @@ class RabbitMQClient:
 rabbitmq_client = RabbitMQClient()
 
 # Helper functions to publish common events
-def publish_kubeconfig_uploaded(kubeconfig_data: Dict[str, Any]):
-    rabbitmq_client.publish_event('kubeconfig.uploaded', kubeconfig_data)
+def publish_user_created(user_data: Dict[str, Any]):
+    rabbitmq_client.publish_event('user.created', user_data)
 
-def publish_kubeconfig_deleted(kubeconfig_data: Dict[str, Any]):
-    rabbitmq_client.publish_event('kubeconfig.deleted', kubeconfig_data)
+def publish_user_updated(user_data: Dict[str, Any]):
+    rabbitmq_client.publish_event('user.updated', user_data)
 
-def publish_kubeconfig_activated(kubeconfig_data: Dict[str, Any]):
-    rabbitmq_client.publish_event('kubeconfig.activated', kubeconfig_data)
+def publish_user_deleted(user_id: int):
+    rabbitmq_client.publish_event('user.deleted', {'user_id': user_id})

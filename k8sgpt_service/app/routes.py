@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import JSONResponse
-from sqlmodel import Session
-from typing import Dict, List, Optional
+from sqlmodel import Session, select
+from typing import List, Dict, Any, Optional
+import uuid
 import json
+from datetime import datetime
 
 from app.database import get_session
-from app.auth import get_current_user
+from app.models import AIBackend, AnalysisResult
 from app.services import (
     run_k8sgpt_analysis,
     get_analysis_result,
@@ -15,7 +16,9 @@ from app.services import (
     get_ai_backend,
     delete_ai_backend,
     set_default_ai_backend,
-    get_available_analyzers
+    get_available_analyzers,
+    execute_k8sgpt_command,
+    save_analysis_result
 )
 from app.schemas import (
     AnalysisRequest,
@@ -26,10 +29,19 @@ from app.schemas import (
     AIBackendsList,
     MessageResponse
 )
+from app.auth import get_current_user
+from app.cache import cache_get, cache_set
+from app.queue import (
+    publish_analysis_started,
+    publish_analysis_completed,
+    publish_analysis_failed,
+    publish_backend_added,
+    publish_backend_updated,
+    publish_backend_deleted
+)
 from app.logger import logger
 
 k8sgpt_router = APIRouter()
-
 @k8sgpt_router.post("/analyze", response_model=AnalysisResultResponse)
 async def analyze_cluster(
     analysis_request: AnalysisRequest,

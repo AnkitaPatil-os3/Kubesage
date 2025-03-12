@@ -1,26 +1,25 @@
 version: '3.8'
 
 services:
-  kubeconfig-service:
+  user-auth-service:
     build: .
-    container_name: kubeconfig-service
+    container_name: user-auth-service
     ports:
-      - "8001:8001"
+      - "8000:8000"
     volumes:
       - ./:/app
       - ./logs:/app/logs
-      - ./uploaded_kubeconfigs:/app/uploaded_kubeconfigs
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
-      - POSTGRES_DB=kubeconfig_db
+      - POSTGRES_DB=user_auth_db
       - RABBITMQ_USER=guest
       - RABBITMQ_PASSWORD=guest
       - RABBITMQ_HOST=rabbitmq
       - RABBITMQ_PORT=5672
-      - USER_SERVICE_URL=https://user-auth-service:8000
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-here}
       - DEBUG=${DEBUG:-false}
     depends_on:
       - postgres
@@ -28,18 +27,28 @@ services:
 
   postgres:
     image: postgres:14-alpine
-    container_name: kubeconfig-postgres
+    container_name: user-auth-postgres
     ports:
-      - "5433:5432"  # Different host port to avoid conflict with user-auth-service database
+      - "5432:5432"
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=kubeconfig_db
+      - POSTGRES_DB=user_auth_db
     volumes:
       - postgres-data:/var/lib/postgresql/data
 
-  # We don't include RabbitMQ here as it should be shared across services
-  # and defined in the main docker-compose file
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"   # AMQP protocol port
+      - "15672:15672" # Management console port
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
 
 volumes:
   postgres-data:
+  rabbitmq-data:

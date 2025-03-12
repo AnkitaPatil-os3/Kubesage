@@ -23,56 +23,66 @@ def get_cache_key(user_id: int, key: str) -> str:
     """Generate a cache key specific to a user"""
     return f"user:{user_id}:{key}"
 
-def cache_get(user_id: int, key: str):
-    """Get a value from the cache for a specific user"""
-    if redis_cache:
-        try:
-            cache_key = get_cache_key(user_id, key)
-            data = redis_cache.get(cache_key)
-            if data:
-                return json.loads(data)
-        except Exception as e:
-            logger.error(f"Cache get error: {str(e)}")
-    return None
+def cache_get(key: str) -> Optional[Dict[str, Any]]:
+    """Get a value from cache"""
+    if not redis_client:
+        logger.warning("Redis client not initialized")
+        return None
+    
+    try:
+        value = redis_client.get(key)
+        if value:
+            return json.loads(value)
+        return None
+    except Exception as e:
+        logger.error(f"Error getting from cache: {str(e)}")
+        return None
 
-def cache_set(user_id: int, key: str, value: any, expiry: int = None):
-    """Set a value in the cache for a specific user with optional expiry in seconds"""
-    if redis_cache:
-        try:
-            cache_key = get_cache_key(user_id, key)
-            if expiry:
-                redis_cache.setex(cache_key, expiry, json.dumps(value))
-            else:
-                redis_cache.set(cache_key, json.dumps(value))
-            return True
-        except Exception as e:
-            logger.error(f"Cache set error: {str(e)}")
-    return False
+def cache_set(key: str, value: Dict[str, Any], expire_seconds: int = 3600) -> bool:
+    """Set a value in cache with expiration"""
+    if not redis_client:
+        logger.warning("Redis client not initialized")
+        return False
+    
+    try:
+        json_value = json.dumps(value)
+        redis_client.set(key, json_value, ex=expire_seconds)
+        return True
+    except Exception as e:
+        logger.error(f"Error setting cache: {str(e)}")
+        return False
 
-def cache_delete(user_id: int, key: str):
-    """Delete a value from the cache for a specific user"""
-    if redis_cache:
-        try:
-            cache_key = get_cache_key(user_id, key)
-            redis_cache.delete(cache_key)
-            return True
-        except Exception as e:
-            logger.error(f"Cache delete error: {str(e)}")
-    return False
+def cache_delete(key: str) -> bool:
+    """Delete a value from cache"""
+    if not redis_client:
+        logger.warning("Redis client not initialized")
+        return False
+    
+    try:
+        redis_client.delete(key)
+        return True
+    except Exception as e:
+        logger.error(f"Error deleting from cache: {str(e)}")
+        return False
 
-def cache_flush_user(user_id: int):
-    """Flush all cache values for a specific user"""
-    if redis_cache:
-        try:
-            pattern = f"user:{user_id}:*"
-            keys = redis_cache.keys(pattern)
-            if keys:
-                redis_cache.delete(*keys)
-            return True
-        except Exception as e:
-            logger.error(f"Cache flush error: {str(e)}")
-    return False
-
+def cache_flush_user(user_id: int) -> bool:
+    """Flush all cache entries for a specific user"""
+    if not redis_client:
+        logger.warning("Redis client not initialized")
+        return False
+    
+    try:
+        # Find all keys for this user
+        pattern = f"user:{user_id}:*"
+        keys = redis_client.keys(pattern)
+        
+        if keys:
+            redis_client.delete(*keys)
+            logger.info(f"Flushed {len(keys)} cache entries for user {user_id}")
+        return True
+    except Exception as e:
+        logger.error(f"Error flushing user cache: {str(e)}")
+        return False
 def user_cached(expiry: int = None):
     """Decorator to cache function results per user"""
     def decorator(func):

@@ -1,20 +1,81 @@
-import os
 import json
-import shlex
-import subprocess
+import os
 import uuid
-import httpx
-from typing import Dict, Any, List, Optional
-from sqlmodel import Session, select, update
-from fastapi import HTTPException
-
-from app.models import AnalysisResult, AIBackendConfig
-from app.config import settings
+import subprocess
+import shlex
+from typing import Dict, List, Any, Optional
+from sqlmodel import Session, select
+from app.models import AIBackend, AnalysisResult
 from app.logger import logger
-from app.cache import cache_get, cache_set
+from app.config import settings
+from app.cache import cache_delete, cache_flush_user
 
-async def get_active_kubeconfig_path(user_id: int) -> Dict[str, Any]:
-    """Get the active kubeconfig path from the kubeconfig service"""
+def delete_user_data(user_id: int):
+    """Delete all data belonging to a specific user when they are deleted"""
+    from sqlmodel import Session
+    from app.database import engine
+    
+    try:
+        with Session(engine) as session:
+            # Delete AI backends
+            delete_user_ai_backends(user_id, session)
+            
+            # Delete analysis results
+            delete_user_analysis_results(user_id, session)
+            
+            # Clear user cache
+            cache_flush_user(user_id)
+            
+            logger.info(f"Deleted all data for user {user_id}")
+    except Exception as e:
+        logger.error(f"Error deleting data for user {user_id}: {str(e)}")
+
+def delete_user_ai_backends(user_id: int, session: Session):
+    """Delete all AI backends belonging to a user"""
+    from app.models import AIBackend
+    
+    # Find all AI backends for this user
+    backends = session.exec(
+        select(AIBackend).where(AIBackend.user_id == user_id)
+    ).all()
+    
+    # Delete each backend
+    for backend in backends:
+        session.delete(backend)
+    
+    # Commit the changes
+    session.commit()
+    logger.info(f"Deleted all AI backends for user {user_id}")
+
+def delete_user_analysis_results(user_id: int, session: Session):
+    """Delete all analysis results belonging to a user"""
+    from app.models import AnalysisResult
+    import os
+    
+    # Find all analysis results for this user
+    results = session.exec(
+        select(AnalysisResult).where(AnalysisResult.user_id == user_id)
+    ).all()
+    
+    # Delete each result and its associated file
+    for result in results:
+        # Delete the result file if it exists
+        file_path = result.file_path
+        if file_path and os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+                logger.info(f"Deleted analysis result file: {file_path}")
+            except Exception as e:
+                logger.error(f"Error deleting analysis result file {file_path}: {str(e)}")
+        
+        # Delete the database entry
+        session.delete(result)
+    
+    # Commit all deletions
+    session.commit()
+    logger.info(f"Deleted all analysis results for user {user_id}")
+
+async def get_active_kubeconfig_path(user_id: int) -> Dict[str, Any]:    """Get the active kubeconfig path from the kubeconfig service"""
     try:
         async with httpx.AsyncClient(verify=False) as client:
             response = await client.get(

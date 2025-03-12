@@ -1,43 +1,28 @@
-from fastapi import HTTPException, Depends, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi import HTTPException, Header
+from typing import Dict, Any, Optional
 import httpx
 from app.config import settings
 from app.logger import logger
-from typing import Dict
 
-# Token handling
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
-async def get_current_user(token: str = Depends(oauth2_scheme)) -> Dict:
-    """
-    Validate token with user service and get current user information
-    """
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
+async def get_current_user(authorization: Optional[str] = Header(None)) -> Dict[str, Any]:
+    """Validate JWT token with User Service and return user info"""
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Authorization header missing")
     
     try:
-        # Call user service to validate token and get user info
         async with httpx.AsyncClient(verify=False) as client:
             response = await client.get(
-                f"{settings.USER_SERVICE_URL}/auth/validate-token",
-                headers={"Authorization": f"Bearer {token}"}
+                f"{settings.USER_SERVICE_URL}/auth/verify",
+                headers={"Authorization": authorization}
             )
             
-            if response.status_code == 200:
-                user_data = response.json()
-                return user_data
-            else:
-                logger.error(f"Token validation failed: {response.text}")
-                raise credentials_exception
+            if response.status_code != 200:
+                raise HTTPException(
+                    status_code=response.status_code,
+                    detail="Invalid or expired token"
+                )
+            
+            return response.json()
     except httpx.RequestError as e:
-        logger.error(f"Error connecting to user service: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="User authentication service unavailable"
-        )
-    except Exception as e:
-        logger.error(f"Error in authentication: {str(e)}")
-        raise credentials_exception
+        logger.error(f"Error connecting to User Service: {str(e)}")
+        raise HTTPException(status_code=503, detail="User Service unavailable")

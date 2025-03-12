@@ -4,7 +4,7 @@ from typing import Optional
 
 class Settings(BaseSettings):
     # App settings
-    APP_NAME: str = "KubeSage K8sGPT Operations Service"
+    APP_NAME: str = "KubeSage User Authentication Service"
     DEBUG: bool = False
     
     # PostgreSQL connection
@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str = "postgres"
     POSTGRES_HOST: str = "postgres"
     POSTGRES_PORT: str = "5432"
-    POSTGRES_DB: str = "k8sgpt_db"
+    POSTGRES_DB: str = "user_auth_db"
     DATABASE_URL: str = ""  # Will be constructed from above settings
     
     # RabbitMQ settings
@@ -23,34 +23,24 @@ class Settings(BaseSettings):
     RABBITMQ_VHOST: str = "/"
     RABBITMQ_URL: str = ""  # Will be constructed from above settings
     
-    # Redis settings
-    REDIS_HOST: str = "redis"
-    REDIS_PORT: int = 6379
-    REDIS_PASSWORD: str = ""
-    
-    # Service URLs
-    USER_SERVICE_URL: str = "https://user-service:8000"
-    KUBECONFIG_SERVICE_URL: str = "https://kubeconfig-service:8001"
+    # Token settings
+    SECRET_KEY: str = "your-secret-key-here"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
     # SSL
     SSL_KEYFILE: Optional[str] = "key.pem"
     SSL_CERTFILE: Optional[str] = "cert.pem"
-    
-    # Analysis results directory
-    ANALYSIS_DIR: str = "analysis_results"
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         # Construct DATABASE_URL and RABBITMQ_URL
         self.DATABASE_URL = f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
         self.RABBITMQ_URL = f"amqp://{self.RABBITMQ_USER}:{self.RABBITMQ_PASSWORD}@{self.RABBITMQ_HOST}:{self.RABBITMQ_PORT}/{self.RABBITMQ_VHOST}"
-    
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
         case_sensitive = True
 
 settings = Settings()
-
-# Ensure the analysis directory exists
-os.makedirs(settings.ANALYSIS_DIR, exist_ok=True)

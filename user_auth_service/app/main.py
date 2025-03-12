@@ -2,12 +2,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import threading
 
-from app.routes import kubeconfig_router
+from app.routes import auth_router, user_router
 from app.database import create_db_and_tables
 from app.queue import rabbitmq_client
 from app.logger import logger
 
-app = FastAPI(title="KubeSage Kubeconfig Management Service")
+app = FastAPI(title="KubeSage User Authentication Service")
 
 # Configure CORS
 app.add_middleware(
@@ -18,12 +18,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include router
-app.include_router(kubeconfig_router, tags=["Kubeconfig Management"])
+# Include routers
+app.include_router(auth_router, prefix="/auth", tags=["Authentication"])
+app.include_router(user_router, prefix="/users", tags=["Users"])
 
 @app.on_event("startup")
 def on_startup():
-    logger.info("Starting Kubeconfig Management Service")
+    logger.info("Starting User Authentication Service")
     create_db_and_tables()
     
     # Start RabbitMQ consumer in a separate thread
@@ -37,7 +38,7 @@ def on_startup():
 
 @app.on_event("shutdown")
 def on_shutdown():
-    logger.info("Shutting down Kubeconfig Management Service")
+    logger.info("Shutting down User Authentication Service")
     rabbitmq_client.close()
 
 @app.get("/health")
@@ -49,7 +50,7 @@ if __name__ == "__main__":
     uvicorn.run(
         "app.main:app",
         host="0.0.0.0",
-        port=8001,
+        port=8000,
         ssl_keyfile="key.pem",
         ssl_certfile="cert.pem"
     )

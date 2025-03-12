@@ -27,18 +27,38 @@ spec:
             cpu: "100m"
             memory: "256Mi"
         env:
-        - name: DATABASE_URL
+        - name: POSTGRES_USER
           valueFrom:
             secretKeyRef:
-              name: kubeconfig-service-secrets
-              key: database-url
+              name: kubeconfig-db-credentials
+              key: username
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: kubeconfig-db-credentials
+              key: password
+        - name: POSTGRES_HOST
+          value: postgres-kubeconfig
+        - name: POSTGRES_PORT
+          value: "5432"
+        - name: POSTGRES_DB
+          value: kubeconfig_db
+        - name: RABBITMQ_USER
+          valueFrom:
+            secretKeyRef:
+              name: rabbitmq-credentials
+              key: username
+        - name: RABBITMQ_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: rabbitmq-credentials
+              key: password
+        - name: RABBITMQ_HOST
+          value: rabbitmq
+        - name: RABBITMQ_PORT
+          value: "5672"
         - name: USER_SERVICE_URL
-          value: https://user-service.${NAMESPACE}.svc.cluster.local:8000
-        - name: REDIS_HOST
-          value: redis-service
-        - name: REDIS_PORT
-          value: "6379"
-        volumeMounts:
+          value: https://user-auth-service.${NAMESPACE}.svc.cluster.local:8000        volumeMounts:
         - name: ssl-certs
           mountPath: /app/cert.pem
           subPath: cert.pem
