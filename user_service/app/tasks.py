@@ -5,7 +5,7 @@ from app.logger import logger
 from app.models import User, UserToken
 from app.database import engine
 from sqlmodel import Session, select, delete
-from app.queue import consume_message
+from user_service.app.queue import consume_message
 
 async def cleanup_expired_tokens():
     """Background task to clean up expired tokens"""

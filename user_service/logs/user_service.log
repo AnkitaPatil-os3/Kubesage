@@ -15,3 +15,46 @@
 2025-03-12 03:28:35,742 - user_service - INFO - Creating database and tables if they don't exist
 2025-03-12 03:28:37,518 - user_service - INFO - Starting User Authentication Service
 2025-03-12 03:28:37,518 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-12 06:20:20,333 - user_service - INFO - Starting User Authentication Service
+2025-03-12 06:20:20,334 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-12 06:20:57,886 - user_service - INFO - Starting User Authentication Service
+2025-03-12 06:20:57,888 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-12 06:23:19,773 - user_service - INFO - Starting User Authentication Service
+2025-03-12 06:23:19,785 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-12 06:35:56,879 - user_service - INFO - Starting User Authentication Service
+2025-03-12 06:35:56,882 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-12 06:52:58,946 - user_service - INFO - Starting User Authentication Service
+2025-03-12 06:52:58,947 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-12 06:56:49,808 - user_service - INFO - User testuser registered successfully
+2025-03-12 07:05:18,668 - user_service - INFO - User testuser logged in successfully
+2025-03-12 07:06:50,432 - user_service - INFO - User testuser logged in successfully
+2025-03-12 07:14:12,020 - user_service - INFO - Starting User Authentication Service
+2025-03-12 07:14:12,020 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-12 07:15:29,692 - user_service - INFO - Starting User Authentication Service
+2025-03-12 07:15:29,692 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-12 07:15:41,829 - user_service - INFO - Starting User Authentication Service
+2025-03-12 07:15:41,829 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-12 07:16:07,479 - user_service - INFO - Starting User Authentication Service
+2025-03-12 07:16:07,479 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-12 07:16:22,257 - user_service - INFO - Starting User Authentication Service
+2025-03-12 07:16:22,257 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-12 07:17:27,178 - user_service - INFO - Starting User Authentication Service
+2025-03-12 07:17:27,179 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-12 07:17:36,314 - user_service - INFO - Starting User Authentication Service
+2025-03-12 07:17:36,314 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-12 07:20:09,469 - user_service - INFO - Starting User Authentication Service
+2025-03-12 07:20:09,469 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-12 07:20:48,238 - user_service - INFO - Starting User Authentication Service
+2025-03-12 07:20:48,238 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-12 07:52:18,706 - user_service - INFO - User nisha registered successfully
+2025-03-12 09:47:23,230 - user_service - INFO - User nisha logged in successfully
+2025-03-12 10:13:30,671 - user_service - INFO - Password changed for user nisha
+2025-03-12 10:13:57,592 - user_service - INFO - User nisha logged in successfully
+2025-03-12 10:20:27,206 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-12 10:20:47,773 - user_service - INFO - User nisha logged in successfully
+2025-03-12 10:21:42,604 - user_service - INFO - Starting User Authentication Service
+2025-03-12 10:21:42,604 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-12 10:21:43,500 - user_service - INFO - User nisha updated successfully
+2025-03-12 11:08:12,828 - user_service - INFO - Starting User Authentication Service
+2025-03-12 11:08:12,830 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-12 11:08:22,920 - user_service - INFO - User nisha logged in successfully
