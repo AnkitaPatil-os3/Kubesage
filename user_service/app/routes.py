@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select
 from typing import List
 import datetime
+from fastapi.security import OAuth2PasswordRequestForm
 
 
 from app.database import get_session
@@ -22,22 +23,28 @@ from datetime import timedelta
 # Auth router
 auth_router = APIRouter()
 
-@auth_router.post("/token", response_model=Token)
-async def login(login_data: LoginRequest, session: Session = Depends(get_session)):
-    user = authenticate_user(session, login_data.username, login_data.password)
+@auth_router.post("/token")
+async def login(
+    form_data: OAuth2PasswordRequestForm = Depends(), 
+    session: Session = Depends(get_session)
+):
+    user = authenticate_user(session, form_data.username, form_data.password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token, expires_at = create_access_token(
         data={"sub": str(user.id)}, expires_delta=access_token_expires
     )
+
     logger.info(f"User {user.username} logged in successfully")
+
     return {
-        "access_token": access_token, 
+        "access_token": access_token,
         "token_type": "bearer",
         "expires_at": expires_at
     }

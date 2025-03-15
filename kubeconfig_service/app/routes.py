@@ -12,7 +12,7 @@ from app.schemas import (
     MessageResponse, 
     ClusterNamesResponse
 )
-from app.auth import get_current_user
+from app.auth import get_current_user , get_current_user_from_token
 from app.config import settings
 from app.logger import logger
 
@@ -55,7 +55,8 @@ def get_active_kubeconfig(session: Session, user_id: int) -> Kubeconf:
 async def upload_kubeconfig(
     file: UploadFile = File(...), 
     session: Session = Depends(get_session),
-    current_user: Dict = Depends(get_current_user)
+    # current_user: Dict = Depends(get_current_user)
+    current_user: Dict = Depends(get_current_user_from_token)
 ):
     try:
         # Generate a unique filename
@@ -103,7 +104,7 @@ async def upload_kubeconfig(
 async def set_active_kubeconfig(
         filename: str, 
         session: Session = Depends(get_session),
-        current_user: Dict = Depends(get_current_user)
+        current_user: Dict = Depends(get_current_user_from_token)
 ):
         # Find the kubeconfig to activate
         kubeconf_to_activate = session.exec(
@@ -134,7 +135,7 @@ async def set_active_kubeconfig(
 @kubeconfig_router.get("/list", response_model=KubeconfigList)
 async def list_kubeconfigs(
         session: Session = Depends(get_session),
-        current_user: Dict = Depends(get_current_user)
+        current_user: Dict = Depends(get_current_user_from_token)
 ):
         kubeconfigs = session.exec(
             select(Kubeconf)
@@ -147,7 +148,7 @@ async def list_kubeconfigs(
 @kubeconfig_router.get("/clusters", response_model=ClusterNamesResponse)
 async def get_cluster_names(
         session: Session = Depends(get_session),
-        current_user: Dict = Depends(get_current_user)
+        current_user: Dict = Depends(get_current_user_from_token)
 ):
         cluster_names = []
         errors = []
@@ -213,7 +214,7 @@ async def get_cluster_names(
 async def remove_kubeconfig(
         filename: str = Query(..., description="Filename of the kubeconfig to remove"),
         session: Session = Depends(get_session),
-        current_user: Dict = Depends(get_current_user)
+        current_user: Dict = Depends(get_current_user_from_token)
 ):
         # Check if the file exists in the database and belongs to the current user
         kubeconf = session.exec(
@@ -259,7 +260,7 @@ async def remove_kubeconfig(
 @kubeconfig_router.post("/install-operator")
 async def install_operator(
         session: Session = Depends(get_session),
-        current_user: Dict = Depends(get_current_user)
+        current_user: Dict = Depends(get_current_user_from_token)
 ):
         active_kubeconf = get_active_kubeconfig(session, current_user["id"])
         kubeconfig_path = active_kubeconf.path
@@ -298,7 +299,7 @@ async def install_operator(
 @kubeconfig_router.get("/namespaces")
 async def get_namespaces(
         session: Session = Depends(get_session),
-        current_user: Dict = Depends(get_current_user)
+        current_user: Dict = Depends(get_current_user_from_token)
 ):
         active_kubeconf = get_active_kubeconfig(session, current_user["id"])
         kubeconfig_path = active_kubeconf.path

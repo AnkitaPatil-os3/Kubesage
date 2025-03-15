@@ -58,3 +58,73 @@
 2025-03-12 11:08:12,828 - user_service - INFO - Starting User Authentication Service
 2025-03-12 11:08:12,830 - user_service - INFO - Creating database and tables if they don't exist
 2025-03-12 11:08:22,920 - user_service - INFO - User nisha logged in successfully
+2025-03-15 06:31:19,515 - user_service - INFO - Starting User Authentication Service
+2025-03-15 06:31:19,515 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-15 07:09:16,435 - user_service - INFO - Starting User Authentication Service
+2025-03-15 07:09:16,436 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-15 07:10:40,304 - user_service - INFO - Starting User Authentication Service
+2025-03-15 07:10:40,304 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-15 07:10:52,028 - user_service - INFO - Starting User Authentication Service
+2025-03-15 07:10:52,028 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-15 07:11:39,454 - user_service - INFO - Starting User Authentication Service
+2025-03-15 07:11:39,455 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-15 07:11:57,758 - user_service - INFO - Starting User Authentication Service
+2025-03-15 07:11:57,759 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-15 07:12:06,082 - user_service - INFO - Starting User Authentication Service
+2025-03-15 07:12:06,082 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-15 07:12:13,704 - user_service - INFO - Starting User Authentication Service
+2025-03-15 07:12:13,704 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-15 07:13:59,415 - user_service - INFO - Starting User Authentication Service
+2025-03-15 07:13:59,416 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-15 07:14:10,633 - user_service - INFO - Starting User Authentication Service
+2025-03-15 07:14:10,633 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-15 07:14:34,086 - user_service - INFO - Starting User Authentication Service
+2025-03-15 07:14:34,086 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-15 07:14:42,718 - user_service - INFO - Starting User Authentication Service
+2025-03-15 07:14:42,718 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-15 07:17:35,489 - user_service - INFO - Starting User Authentication Service
+2025-03-15 07:17:35,490 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-15 07:17:39,909 - user_service - INFO - Starting User Authentication Service
+2025-03-15 07:17:39,909 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-15 09:41:27,821 - user_service - INFO - Starting User Authentication Service
+2025-03-15 09:41:27,821 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-15 09:41:33,753 - user_service - INFO - Starting User Authentication Service
+2025-03-15 09:41:33,753 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-15 09:43:35,852 - user_service - INFO - User new registered successfully
+2025-03-15 09:43:59,170 - user_service - INFO - User new logged in successfully
+2025-03-15 09:45:12,446 - user_service - INFO - Starting User Authentication Service
+2025-03-15 09:45:12,446 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-15 10:01:00,180 - user_service - INFO - Starting User Authentication Service
+2025-03-15 10:01:00,180 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-15 10:02:46,809 - user_service - INFO - Starting User Authentication Service
+2025-03-15 10:02:46,809 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-15 10:03:24,366 - user_service - INFO - User new logged in successfully
+2025-03-15 10:12:00,846 - user_service - INFO - User new logged in successfully
+2025-03-15 10:12:26,771 - user_service - INFO - Starting User Authentication Service
+2025-03-15 10:12:26,771 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-15 10:12:49,080 - user_service - INFO - User new logged in successfully
+2025-03-15 10:13:44,430 - user_service - INFO - Starting User Authentication Service
+2025-03-15 10:13:44,430 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-15 10:31:11,705 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-15 10:32:44,889 - user_service - INFO - User new logged in successfully
+2025-03-15 10:45:06,400 - user_service - INFO - User new logged in successfully
+2025-03-15 10:50:48,277 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-15 10:51:02,902 - user_service - INFO - User new logged in successfully
+2025-03-15 11:05:48,974 - user_service - INFO - Starting User Authentication Service
+2025-03-15 11:05:48,974 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-15 11:15:01,062 - user_service - INFO - User new logged in successfully
+2025-03-15 11:20:36,439 - user_service - INFO - Starting User Authentication Service
+2025-03-15 11:20:36,439 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-15 11:21:04,684 - user_service - INFO - User new logged in successfully
+2025-03-15 11:45:04,581 - user_service - INFO - User new logged in successfully
+2025-03-15 12:16:42,205 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-15 12:17:07,476 - user_service - INFO - User new logged in successfully
+2025-03-15 12:24:15,379 - user_service - INFO - Starting User Authentication Service
+2025-03-15 12:24:15,379 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-15 12:24:27,453 - user_service - INFO - Starting User Authentication Service
+2025-03-15 12:24:27,453 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-15 12:29:00,035 - user_service - INFO - User new logged in successfully
+2025-03-15 12:36:36,305 - user_service - INFO - User new logged in successfully
+2025-03-15 12:44:24,840 - user_service - INFO - User ramnath registered successfully
+2025-03-15 12:44:56,490 - user_service - INFO - User ramnath logged in successfully
+2025-03-15 12:46:05,106 - user_service - INFO - User new logged in successfully

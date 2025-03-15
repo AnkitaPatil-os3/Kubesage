@@ -7,9 +7,10 @@ from app.logger import logger
 from typing import Dict, Optional
 
 # Token handling
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="http://127.0.0.1:8000/auth/token/")
 
 async def get_current_user_from_token(token: str = Depends(oauth2_scheme)) -> Dict:
+    print("get_current_user_from_token ............" , token)
     """
     Validate token with user service and get current user information
     """
@@ -23,7 +24,7 @@ async def get_current_user_from_token(token: str = Depends(oauth2_scheme)) -> Di
         # Call user service to validate token and get user info
         async with httpx.AsyncClient(verify=False) as client:
             response = await client.get(
-                f"{settings.USER_SERVICE_URL}/auth/validate-token",
+                "http://127.0.0.1:8000/users/me",
                 headers={"Authorization": f"Bearer {token}"}
             )
             
