@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Query
 from fastapi.responses import JSONResponse
 from sqlmodel import Session, select, update
 from typing import List, Dict, Optional
-import os, uuid, json, subprocess, shlex
+import os, uuid, json, subprocess, shlex, datetime  # Added datetime
 
 from app.database import get_session
 from app.models import Kubeconf
@@ -15,7 +15,8 @@ from app.schemas import (
 from app.auth import get_current_user
 from app.config import settings
 from app.logger import logger
-from app.queue import publish_kubeconfig_uploaded, publish_kubeconfig_deleted, publish_kubeconfig_activated
+from app.queue import publish_message  # Updated to use our new queue implementation
+
 kubeconfig_router = APIRouter()
 
 def execute_command(command: str):
@@ -94,6 +95,19 @@ async def upload_kubeconfig(
         session.refresh(new_kubeconf)
         
         logger.info(f"User {current_user['id']} uploaded kubeconfig: {unique_filename}")
+        
+        # Publish kubeconfig uploaded event
+        publish_message("kubeconfig_events", {
+            "event_type": "kubeconfig_uploaded",
+            "kubeconfig_id": new_kubeconf.id,
+            "user_id": current_user["id"],
+            "username": current_user.get("username", "unknown"),
+            "filename": unique_filename,
+            "cluster_name": cluster_name,
+            "context_name": context_name,
+            "timestamp": datetime.datetime.now().isoformat()
+        })
+        
         return new_kubeconf
     except Exception as e:
             logger.error(f"Error uploading kubeconfig: {str(e)}")
@@ -129,6 +143,19 @@ async def set_active_kubeconfig(
         session.commit()
     
         logger.info(f"User {current_user['id']} activated kubeconfig: {filename}")
+        
+        # Publish kubeconfig activated event
+        publish_message("kubeconfig_events", {
+            "event_type": "kubeconfig_activated",
+            "kubeconfig_id": kubeconf_to_activate.id,
+            "user_id": current_user["id"],
+            "username": current_user.get("username", "unknown"),
+            "filename": filename,
+            "cluster_name": kubeconf_to_activate.cluster_name,
+            "context_name": kubeconf_to_activate.context_name,
+            "timestamp": datetime.datetime.now().isoformat()
+        })
+        
         return JSONResponse(content={"message": f"Kubeconfig '{filename}' set as active"}, status_code=200)
 
 @kubeconfig_router.get("/list", response_model=KubeconfigList)
@@ -227,6 +254,14 @@ async def remove_kubeconfig(
             raise HTTPException(status_code=404, detail=f"Kubeconfig '{filename}' not found or does not belong to you")
 
         file_path = kubeconf.path
+        
+        # Save kubeconf info before deletion for event publishing
+        kubeconf_info = {
+            "id": kubeconf.id,
+            "filename": kubeconf.filename,
+            "cluster_name": kubeconf.cluster_name,
+            "context_name": kubeconf.context_name
+        }
     
         # Check if the file exists on disk
         if not os.path.exists(file_path):
@@ -234,6 +269,20 @@ async def remove_kubeconfig(
             session.delete(kubeconf)
             session.commit()
             logger.info(f"User {current_user['id']} removed kubeconfig {filename} from database (file not found)")
+            
+            # Publish kubeconfig deleted event
+            publish_message("kubeconfig_events", {
+                "event_type": "kubeconfig_deleted",
+                "kubeconfig_id": kubeconf_info["id"],
+                "user_id": current_user["id"],
+                "username": current_user.get("username", "unknown"),
+                "filename": filename,
+                "cluster_name": kubeconf_info["cluster_name"],
+                "context_name": kubeconf_info["context_name"],
+                "file_existed": False,
+                "timestamp": datetime.datetime.now().isoformat()
+            })
+            
             return JSONResponse(content={
                 "message": f"Kubeconfig '{filename}' removed from database. File was not found on disk."
             }, status_code=200)
@@ -245,6 +294,19 @@ async def remove_kubeconfig(
             # Remove the entry from the database
             session.delete(kubeconf)
             session.commit()
+            
+            # Publish kubeconfig deleted event
+            publish_message("kubeconfig_events", {
+                "event_type": "kubeconfig_deleted",
+                "kubeconfig_id": kubeconf_info["id"],
+                "user_id": current_user["id"],
+                "username": current_user.get("username", "unknown"),
+                "filename": filename,
+                "cluster_name": kubeconf_info["cluster_name"],
+                "context_name": kubeconf_info["context_name"],
+                "file_existed": True,
+                "timestamp": datetime.datetime.now().isoformat()
+            })
         
             logger.info(f"User {current_user['id']} removed kubeconfig {filename}")
             return JSONResponse(content={
@@ -283,46 +345,91 @@ async def install_operator(
                 results.append({"command": command, "error": str(e.detail)})
                 success = False
                 break  # Stop execution if a command fails
+            if success:
+                session.add(active_kubeconf)
+                session.commit()
+                logger.info(f"User {current_user['id']} installed operator on cluster {active_kubeconf.cluster_name}")
+            
+                # Publish operator installed event
+                publish_message("kubeconfig_events", {
+                    "event_type": "operator_installed",
+                    "kubeconfig_id": active_kubeconf.id,
+                    "user_id": current_user["id"],
+                    "username": current_user.get("username", "unknown"),
+                    "cluster_name": active_kubeconf.cluster_name,
+                    "success": True,
+                    "timestamp": datetime.datetime.now().isoformat()
+                })
+            else:
+                # Publish operator installation failed event
+                publish_message("kubeconfig_events", {
+                    "event_type": "operator_installation_failed",
+                    "kubeconfig_id": active_kubeconf.id,
+                    "user_id": current_user["id"],
+                    "username": current_user.get("username", "unknown"),
+                    "cluster_name": active_kubeconf.cluster_name,
+                    "error": results[-1].get("error", "Unknown error"),
+                    "timestamp": datetime.datetime.now().isoformat()
+                })
 
-        if success:
-            active_kubeconf.is_operator_installed = True
-            session.add(active_kubeconf)
-            session.commit()
-            logger.info(f"User {current_user['id']} installed operator on cluster {active_kubeconf.cluster_name}")
-
-        return JSONResponse(
-            content={"results": results, "operator_installed": success}, 
-            status_code=200
-        )
+            return JSONResponse(
+                content={"results": results, "operator_installed": success}, 
+                status_code=200
+            )
 
 @kubeconfig_router.get("/namespaces")
 async def get_namespaces(
-        session: Session = Depends(get_session),
-        current_user: Dict = Depends(get_current_user)
+            session: Session = Depends(get_session),
+            current_user: Dict = Depends(get_current_user)
 ):
-        active_kubeconf = get_active_kubeconfig(session, current_user["id"])
-        kubeconfig_path = active_kubeconf.path
+            active_kubeconf = get_active_kubeconfig(session, current_user["id"])
+            kubeconfig_path = active_kubeconf.path
 
-        if not os.path.exists(kubeconfig_path):
-            raise HTTPException(status_code=404, detail="Active kubeconfig file not found on disk")
+            if not os.path.exists(kubeconfig_path):
+                raise HTTPException(status_code=404, detail="Active kubeconfig file not found on disk")
 
-        command = f"kubectl get namespaces -o jsonpath='{{.items[*].metadata.name}}' --kubeconfig {kubeconfig_path}"
+            command = f"kubectl get namespaces -o jsonpath='{{.items[*].metadata.name}}' --kubeconfig {kubeconfig_path}"
 
-        try:
-            result = execute_command(command)
+            try:
+                result = execute_command(command)
         
-            # Check if result is a dictionary with 'stdout' key
-            if isinstance(result, dict) and 'stdout' in result:
-                namespaces = result['stdout'].strip().split()
-            else:
-                # If result is not in the expected format, raise an exception
-                raise ValueError("Unexpected result format from execute_command")
+                # Check if result is a dictionary with 'stdout' key
+                if isinstance(result, dict) and 'stdout' in result:
+                    namespaces = result['stdout'].strip().split()
+                else:
+                    # If result is not in the expected format, raise an exception
+                    raise ValueError("Unexpected result format from execute_command")
 
-            logger.info(f"User {current_user['id']} retrieved namespaces from cluster {active_kubeconf.cluster_name}")
-            return JSONResponse(content={"namespaces": namespaces}, status_code=200)
-        except HTTPException as he:
-            # Re-raise HTTP exceptions
-            raise he
-        except Exception as e:
-            logger.error(f"Error fetching namespaces: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Error fetching namespaces: {str(e)}")
+                logger.info(f"User {current_user['id']} retrieved namespaces from cluster {active_kubeconf.cluster_name}")
+            
+                # Publish namespaces retrieved event
+                publish_message("kubeconfig_events", {
+                    "event_type": "namespaces_retrieved",
+                    "kubeconfig_id": active_kubeconf.id,
+                    "user_id": current_user["id"],
+                    "username": current_user.get("username", "unknown"),
+                    "cluster_name": active_kubeconf.cluster_name,
+                    "namespace_count": len(namespaces),
+                    "timestamp": datetime.datetime.now().isoformat()
+                })
+            
+                return JSONResponse(content={"namespaces": namespaces}, status_code=200)
+            except HTTPException as he:
+                # Re-raise HTTP exceptions
+                raise he
+            except Exception as e:
+                logger.error(f"Error fetching namespaces: {str(e)}")
+            
+                # Publish namespace retrieval failed event
+                publish_message("kubeconfig_events", {
+                    "event_type": "namespaces_retrieval_failed",
+                    "kubeconfig_id": active_kubeconf.id,
+                    "user_id": current_user["id"],
+                    "username": current_user.get("username", "unknown"),
+                    "cluster_name": active_kubeconf.cluster_name,
+                    "error": str(e),
+                    "timestamp": datetime.datetime.now().isoformat()
+                })
+            
+                raise HTTPException(status_code=500, detail=f"Error fetching namespaces: {str(e)}")     
+                # active_kubeconf.is_operator_installed = True

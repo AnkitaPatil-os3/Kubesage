@@ -1,55 +1,25 @@
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-import threading
-
 from app.routes import kubeconfig_router
 from app.database import create_db_and_tables
-from app.queue import rabbitmq_client
+from app.consumer import start_consumers
 from app.logger import logger
 
-app = FastAPI(title="KubeSage Kubeconfig Management Service")
-
-# Configure CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Configure properly in production
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Include router
-app.include_router(kubeconfig_router, tags=["Kubeconfig Management"])
+app = FastAPI(title="KubeSage KubeConfig Service")
 
 @app.on_event("startup")
-def on_startup():
-    logger.info("Starting Kubeconfig Management Service")
+async def startup_event():
     create_db_and_tables()
-    
-    # Start RabbitMQ consumer in a separate thread
-    def start_rabbitmq_consumer():
-        try:
-            rabbitmq_client.start_consuming()
-        except Exception as e:
-            logger.error(f"RabbitMQ consumer error: {str(e)}")
-    
-    threading.Thread(target=start_rabbitmq_consumer, daemon=True).start()
-
-@app.on_event("shutdown")
-def on_shutdown():
-    logger.info("Shutting down Kubeconfig Management Service")
-    rabbitmq_client.close()
+    # Start message consumers
+    start_consumers()
+    logger.info("KubeConfig service started")
 
 @app.get("/health")
 def health_check():
     return {"status": "healthy"}
 
+# Include routers
+app.include_router(kubeconfig_router, prefix="/kubeconfig", tags=["kubeconfig"])
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(
-        "app.main:app",
-        host="0.0.0.0",
-        port=8001,
-        ssl_keyfile="key.pem",
-        ssl_certfile="cert.pem"
-    )
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8001, reload=True)

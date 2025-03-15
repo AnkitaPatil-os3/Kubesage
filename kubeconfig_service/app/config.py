@@ -8,9 +8,9 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     
     # PostgreSQL connection
-    POSTGRES_USER: str = "postgres"
-    POSTGRES_PASSWORD: str = "postgres"
-    POSTGRES_HOST: str = "postgres"
+    POSTGRES_USER: str = "test"
+    POSTGRES_PASSWORD: str = "linux"
+    POSTGRES_HOST: str = "10.0.32.123"
     POSTGRES_PORT: str = "5432"
     POSTGRES_DB: str = "kubeconfig_db"
     DATABASE_URL: str = ""  # Will be constructed from above settings
@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     # RabbitMQ settings
     RABBITMQ_USER: str = "guest"
     RABBITMQ_PASSWORD: str = "guest"
-    RABBITMQ_HOST: str = "rabbitmq"
+    RABBITMQ_HOST: str = "localhost"
     RABBITMQ_PORT: str = "5672"
     RABBITMQ_VHOST: str = "/"
     RABBITMQ_URL: str = ""  # Will be constructed from above settings

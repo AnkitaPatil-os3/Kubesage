@@ -1,72 +1,51 @@
+# Add to existing deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: user-service
+  name: user-auth-service
   labels:
-    app: user-service
+    app: user-auth-service
 spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app: user-service
+  # ... existing spec
   template:
-    metadata:
-      labels:
-        app: user-service
+    # ... existing metadata
     spec:
       containers:
-      - name: user-service
-        image: ${DOCKER_REGISTRY}/user-service:latest
-        ports:
-        - containerPort: 8000
-        resources:
-          limits:
-            cpu: "500m"
-            memory: "512Mi"
-          requests:
-            cpu: "100m"
-            memory: "256Mi"
+      - name: user-auth-service
+        # ... existing configuration
         env:
-        - name: DATABASE_URL
+        - name: POSTGRES_USER
           valueFrom:
             secretKeyRef:
-              name: user-service-secrets
-              key: database-url
+              name: user-auth-db-credentials
+              key: username
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: user-auth-db-credentials
+              key: password
+        - name: POSTGRES_HOST
+          value: postgres-user-auth
+        - name: POSTGRES_PORT
+          value: "5432"
+        - name: POSTGRES_DB
+          value: user_auth_db
+        - name: RABBITMQ_USER
+          valueFrom:
+            secretKeyRef:
+              name: rabbitmq-credentials
+              key: username
+        - name: RABBITMQ_PASSWORD
+                valueFrom:
+                  secretKeyRef:
+                    name: rabbitmq-credentials
+                    key: password
+        - name: RABBITMQ_HOST
+                value: rabbitmq
+        - name: RABBITMQ_PORT
+                value: "5672"
         - name: SECRET_KEY
           valueFrom:
             secretKeyRef:
-              name: user-service-secrets
-              key: secret-key
-        - name: REDIS_HOST
-          value: redis-service
-        - name: REDIS_PORT
-          value: "6379"
-        volumeMounts:
-        - name: ssl-certs
-          mountPath: /app/cert.pem
-          subPath: cert.pem
-        - name: ssl-certs
-          mountPath: /app/key.pem
-          subPath: key.pem
-        - name: logs
-          mountPath: /app/logs
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 8000
-            scheme: HTTPS
-          initialDelaySeconds: 30
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /health
-            port: 8000
-            scheme: HTTPS
-          initialDelaySeconds: 5
-          periodSeconds: 10
-      volumes:
-      - name: ssl-certs
-        secret:
-          secretName: user-service-ssl
-      - name: logs
-        emptyDir: {}
+              name: user-auth-service-secrets
+                key: secret-key

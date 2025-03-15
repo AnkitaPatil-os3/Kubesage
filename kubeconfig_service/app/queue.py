@@ -1,172 +1,174 @@
-import json
 import pika
-import uuid
-from typing import Dict, Any, Callable
+import json
 from app.config import settings
 from app.logger import logger
 
-class RabbitMQClient:
-    def __init__(self):
-        self.connection = None
-        self.channel = None
-        self.event_handlers = {}
-        self.connect()
+# RabbitMQ connection
+connection = None
+channel = None
 
-    def connect(self):
-        """Establish connection to RabbitMQ server"""
+try:
+    # Initialize RabbitMQ connection
+    credentials = pika.PlainCredentials(
+        username=settings.RABBITMQ_USER if hasattr(settings, 'RABBITMQ_USER') else 'guest',
+        password=settings.RABBITMQ_PASSWORD if hasattr(settings, 'RABBITMQ_PASSWORD') else 'guest'
+    )
+    
+    connection_params = pika.ConnectionParameters(
+        host=settings.RABBITMQ_HOST if hasattr(settings, 'RABBITMQ_HOST') else 'localhost',
+        port=settings.RABBITMQ_PORT if hasattr(settings, 'RABBITMQ_PORT') else 5672,
+        credentials=credentials,
+        heartbeat=600,
+        blocked_connection_timeout=300
+    )
+    
+    connection = pika.BlockingConnection(connection_params)
+    channel = connection.channel()
+    logger.info("RabbitMQ connection established")
+except Exception as e:
+    logger.warning(f"RabbitMQ connection failed: {str(e)}")
+
+def publish_message(queue_name: str, message: dict):
+    """Publish a message to a RabbitMQ queue"""
+    global connection, channel
+    
+    if not connection or connection.is_closed:
         try:
-            parameters = pika.URLParameters(settings.RABBITMQ_URL)
-            self.connection = pika.BlockingConnection(parameters)
-            self.channel = self.connection.channel()
-            logger.info("Connected to RabbitMQ server")
-            
-            # Declare exchanges
-            self.channel.exchange_declare(
-                exchange='kubeconfig_events',
-                exchange_type='topic',
-                durable=True
+            # Reestablish connection if needed
+            credentials = pika.PlainCredentials(
+                username=settings.RABBITMQ_USER if hasattr(settings, 'RABBITMQ_USER') else 'guest',
+                password=settings.RABBITMQ_PASSWORD if hasattr(settings, 'RABBITMQ_PASSWORD') else 'guest'
             )
             
-            # Setup queues and bindings
-            self.setup_queues()
-            
-            # Setup consumer for user events
-            self.setup_user_events_consumer()
-            
-        except Exception as e:
-            logger.error(f"Failed to connect to RabbitMQ: {str(e)}")
-            raise
-
-    def setup_queues(self):
-        """Setup queues and bindings for kubeconfig events"""
-        # Kubeconfig service queues
-        self.channel.queue_declare(queue='kubeconfig_uploaded', durable=True)
-        self.channel.queue_declare(queue='kubeconfig_deleted', durable=True)
-        self.channel.queue_declare(queue='kubeconfig_activated', durable=True)
-        
-        # Bindings
-        self.channel.queue_bind(
-            exchange='kubeconfig_events',
-            queue='kubeconfig_uploaded',
-            routing_key='kubeconfig.uploaded'
-        )
-        self.channel.queue_bind(
-            exchange='kubeconfig_events',
-            queue='kubeconfig_deleted',
-            routing_key='kubeconfig.deleted'
-        )
-        self.channel.queue_bind(
-            exchange='kubeconfig_events',
-            queue='kubeconfig_activated',
-            routing_key='kubeconfig.activated'
-        )
-
-    def setup_user_events_consumer(self):
-        """Setup consumer for user events"""
-        # Declare user events exchange
-        self.channel.exchange_declare(
-            exchange='user_events',
-            exchange_type='topic',
-            durable=True
-        )
-        
-        # Create queue for this service to consume user events
-        result = self.channel.queue_declare(
-            queue='kubeconfig_service_user_events',
-            durable=True
-        )
-        queue_name = result.method.queue
-        
-        # Bind to user events we're interested in
-        self.channel.queue_bind(
-            exchange='user_events',
-            queue=queue_name,
-            routing_key='user.deleted'  # Listen for user deletion events
-        )
-        
-        # Setup consumer
-        self.channel.basic_consume(
-            queue=queue_name,
-            on_message_callback=self._process_user_event,
-            auto_ack=False
-        )
-
-    def publish_event(self, routing_key: str, message: Dict[str, Any], correlation_id: str = None):
-        """Publish an event to RabbitMQ"""
-        if not self.connection or self.connection.is_closed:
-            self.connect()
-            
-        try:
-            message_id = correlation_id or str(uuid.uuid4())
-            self.channel.basic_publish(
-                exchange='kubeconfig_events',
-                routing_key=routing_key,
-                body=json.dumps(message),
-                properties=pika.BasicProperties(
-                    delivery_mode=2,  # make message persistent
-                    content_type='application/json',
-                    message_id=message_id,
-                    correlation_id=message_id
-                )
+            connection_params = pika.ConnectionParameters(
+                host=settings.RABBITMQ_HOST if hasattr(settings, 'RABBITMQ_HOST') else 'localhost',
+                port=settings.RABBITMQ_PORT if hasattr(settings, 'RABBITMQ_PORT') else 5672,
+                credentials=credentials
             )
-            logger.info(f"Published message with routing key {routing_key}: {message}")
+            
+            connection = pika.BlockingConnection(connection_params)
+            channel = connection.channel()
         except Exception as e:
-            logger.error(f"Failed to publish message: {str(e)}")
-            raise
+            logger.error(f"Failed to reestablish RabbitMQ connection: {str(e)}")
+            return False
     
-    def register_handler(self, event_type: str, handler: Callable):
-        """Register a handler for a specific event type"""
-        self.event_handlers[event_type] = handler
+    try:
+        # Ensure queue exists
+        channel.queue_declare(queue=queue_name, durable=True)
+        
+        # Publish message
+        message_str = json.dumps(message)
+        channel.basic_publish(
+            exchange='',  # Default exchange
+            routing_key=queue_name,
+            body=message_str,
+            properties=pika.BasicProperties(
+                delivery_mode=2,  # Make message persistent
+                content_type='application/json'
+            )
+        )
+        logger.debug(f"Message published to {queue_name}: {message}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to publish message: {str(e)}")
+        return False
+
+def consume_message(queue_name: str):
+    """Consume a message from a RabbitMQ queue (non-blocking)"""
+    global connection, channel
     
-    def start_consuming(self):
-        """Start consuming messages from the queues"""
-        if not self.connection or self.connection.is_closed:
-            self.connect()
-            
-        logger.info("Starting to consume messages from RabbitMQ")
+    if not connection or connection.is_closed:
         try:
-            self.channel.start_consuming()
-        except KeyboardInterrupt:
-            self.channel.stop_consuming()
+            # Reestablish connection if needed
+            credentials = pika.PlainCredentials(
+                username=settings.RABBITMQ_USER if hasattr(settings, 'RABBITMQ_USER') else 'guest',
+                password=settings.RABBITMQ_PASSWORD if hasattr(settings, 'RABBITMQ_PASSWORD') else 'guest'
+            )
+            
+            connection_params = pika.ConnectionParameters(
+                host=settings.RABBITMQ_HOST if hasattr(settings, 'RABBITMQ_HOST') else 'localhost',
+                port=settings.RABBITMQ_PORT if hasattr(settings, 'RABBITMQ_PORT') else 5672,
+                credentials=credentials
+            )
+            
+            connection = pika.BlockingConnection(connection_params)
+            channel = connection.channel()
         except Exception as e:
-            logger.error(f"Error during message consumption: {str(e)}")
-            self.channel.stop_consuming()
+            logger.error(f"Failed to reestablish RabbitMQ connection: {str(e)}")
+            return None
     
-    def _process_user_event(self, ch, method, properties, body):
-        """Process user events"""
+    try:
+        # Ensure queue exists
+        channel.queue_declare(queue=queue_name, durable=True)
+        
+        # Get a message (non-blocking)
+        method_frame, header_frame, body = channel.basic_get(queue=queue_name, auto_ack=True)
+        
+        if method_frame:
+            message_str = body.decode('utf-8')
+            message = json.loads(message_str)
+            logger.debug(f"Message consumed from {queue_name}: {message}")
+            return message
+        return None
+    except Exception as e:
+        logger.error(f"Failed to consume message: {str(e)}")
+        return None
+
+def setup_consumer(queue_name: str, callback):
+    """Set up a consumer that will process messages as they arrive"""
+    global connection, channel
+    
+    if not connection or connection.is_closed:
         try:
-            event_type = method.routing_key
-            message = json.loads(body)
-            logger.info(f"Received user event: {event_type} - {message}")
+            # Establish connection
+            credentials = pika.PlainCredentials(
+                username=settings.RABBITMQ_USER if hasattr(settings, 'RABBITMQ_USER') else 'guest',
+                password=settings.RABBITMQ_PASSWORD if hasattr(settings, 'RABBITMQ_PASSWORD') else 'guest'
+            )
             
-            if event_type == 'user.deleted':
-                # Handle user deletion event
-                user_id = message.get('user_id')
-                if user_id:
-                    # Process user deletion (e.g., delete all user's kubeconfigs)
-                    from app.services import delete_user_kubeconfigs
-                    delete_user_kubeconfigs(user_id)
+            connection_params = pika.ConnectionParameters(
+                host=settings.RABBITMQ_HOST if hasattr(settings, 'RABBITMQ_HOST') else 'localhost',
+                port=settings.RABBITMQ_PORT if hasattr(settings, 'RABBITMQ_PORT') else 5672,
+                credentials=credentials
+            )
             
+            connection = pika.BlockingConnection(connection_params)
+            channel = connection.channel()
+        except Exception as e:
+            logger.error(f"Failed to establish RabbitMQ connection: {str(e)}")
+            return False
+    
+    try:
+        # Ensure queue exists
+        channel.queue_declare(queue=queue_name, durable=True)
+        
+        # Set up consumer
+        def message_handler(ch, method, properties, body):
+            message_str = body.decode('utf-8')
+            message = json.loads(message_str)
+            callback(message)
             ch.basic_ack(delivery_tag=method.delivery_tag)
+        
+        channel.basic_consume(queue=queue_name, on_message_callback=message_handler)
+        logger.info(f"Consumer set up for queue {queue_name}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to set up consumer: {str(e)}")
+        return False
+
+def start_consuming():
+    """Start consuming messages (this will block the thread)"""
+    global channel
+    if channel:
+        try:
+            logger.info("Starting to consume messages")
+            channel.start_consuming()
         except Exception as e:
-            logger.error(f"Error processing user event: {str(e)}")
-            ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
-    
-    def close(self):
-        """Close the connection to RabbitMQ"""
-        if self.connection and self.connection.is_open:
-            self.connection.close()
-            logger.info("Closed connection to RabbitMQ")
+            logger.error(f"Error while consuming messages: {str(e)}")
 
-# Create a singleton instance
-rabbitmq_client = RabbitMQClient()
-
-# Helper functions to publish common events
-def publish_kubeconfig_uploaded(kubeconfig_data: Dict[str, Any]):
-    rabbitmq_client.publish_event('kubeconfig.uploaded', kubeconfig_data)
-
-def publish_kubeconfig_deleted(kubeconfig_data: Dict[str, Any]):
-    rabbitmq_client.publish_event('kubeconfig.deleted', kubeconfig_data)
-
-def publish_kubeconfig_activated(kubeconfig_data: Dict[str, Any]):
-    rabbitmq_client.publish_event('kubeconfig.activated', kubeconfig_data)
+def close_connection():
+    """Close the RabbitMQ connection"""
+    global connection
+    if connection and not connection.is_closed:
+        connection.close()
+        logger.info("RabbitMQ connection closed")

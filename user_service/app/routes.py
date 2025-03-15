@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select
 from typing import List
+import datetime  # Added for timestamp
 
 from app.database import get_session
 from app.models import User
@@ -16,6 +17,7 @@ from app.auth import (
 from app.config import settings
 from app.logger import logger
 from datetime import timedelta
+from app.queue import publish_message  # Import the queue functionality
 
 # Auth router
 auth_router = APIRouter()
@@ -34,6 +36,15 @@ async def login(login_data: LoginRequest, session: Session = Depends(get_session
         data={"sub": str(user.id)}, expires_delta=access_token_expires
     )
     logger.info(f"User {user.username} logged in successfully")
+    
+    # Publish login event
+    publish_message("user_events", {
+        "event_type": "user_login",
+        "user_id": user.id,
+        "username": user.username,
+        "timestamp": datetime.datetime.now().isoformat()
+    })
+    
     return {
         "access_token": access_token, 
         "token_type": "bearer",
@@ -75,6 +86,20 @@ async def register_user(user_data: UserCreate, session: Session = Depends(get_se
     session.refresh(db_user)
     
     logger.info(f"User {db_user.username} registered successfully")
+    
+    # Publish user registration event
+    publish_message("user_events", {
+        "event_type": "user_created",
+        "user_id": db_user.id,
+        "username": db_user.username,
+        "email": db_user.email,
+        "first_name": db_user.first_name,
+        "last_name": db_user.last_name,
+        "is_active": db_user.is_active,
+        "is_admin": db_user.is_admin,
+        "timestamp": datetime.datetime.now().isoformat()
+    })
+    
     return db_user
 
 @auth_router.post("/change-password", status_code=status.HTTP_200_OK)
@@ -96,6 +121,15 @@ async def change_password(
     session.commit()
     
     logger.info(f"Password changed for user {current_user.username}")
+    
+    # Publish password change event
+    publish_message("user_events", {
+        "event_type": "password_changed",
+        "user_id": current_user.id,
+        "username": current_user.username,
+        "timestamp": datetime.datetime.now().isoformat()
+    })
+    
     return {"detail": "Password updated successfully"}
 
 # User router
@@ -155,6 +189,16 @@ async def update_user(
     session.refresh(db_user)
     
     logger.info(f"User {db_user.username} updated successfully")
+    
+    # Publish user update event
+    publish_message("user_events", {
+        "event_type": "user_updated",
+        "user_id": db_user.id,
+        "username": db_user.username,
+        "updated_fields": list(user_data.keys()),
+        "timestamp": datetime.datetime.now().isoformat()
+    })
+    
     return db_user
 
 @user_router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -174,8 +218,23 @@ async def delete_user(
             detail="Cannot delete your own account"
         )
     
+    # Store user info before deletion for event publishing
+    user_info = {
+        "user_id": db_user.id,
+        "username": db_user.username
+    }
+    
     session.delete(db_user)
     session.commit()
     
-    logger.info(f"User {db_user.username} deleted successfully")
+    logger.info(f"User {user_info['username']} deleted successfully")
+    
+    # Publish user deletion event
+    publish_message("user_events", {
+        "event_type": "user_deleted",
+        "user_id": user_info["user_id"],
+        "username": user_info["username"],
+        "timestamp": datetime.datetime.now().isoformat()
+    })
+    
     return None
