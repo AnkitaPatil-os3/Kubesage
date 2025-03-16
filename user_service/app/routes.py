@@ -18,13 +18,13 @@ from app.config import settings
 from app.logger import logger
 from datetime import timedelta
 from app.queue import publish_message  # Import the queue functionality
-
+from fastapi.security import OAuth2PasswordRequestForm
 # Auth router
 auth_router = APIRouter()
 
-@auth_router.post("/token", response_model=Token)
-async def login(login_data: LoginRequest, session: Session = Depends(get_session)):
-    user = authenticate_user(session, login_data.username, login_data.password)
+@auth_router.post("/token")
+async def login(form_data: OAuth2PasswordRequestForm = Depends(), session: Session = Depends(get_session)):
+    user = authenticate_user(session, form_data.username, form_data.password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
