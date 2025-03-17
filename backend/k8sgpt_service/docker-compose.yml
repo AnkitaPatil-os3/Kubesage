@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  k8sgpt-service:
+    build: .
+    container_name: k8sgpt-service
+    ports:
+      - "8002:8002"
+    volumes:
+      - ./:/app
+      - ./logs:/app/logs
+      - ./analysis_results:/app/analysis_results
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=k8sgpt_db
+      - RABBITMQ_USER=guest
+      - RABBITMQ_PASSWORD=guest
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=
+      - USER_SERVICE_URL=https://user-auth-service:8000
+      - KUBECONFIG_SERVICE_URL=https://kubeconfig-service:8001
+      - DEBUG=${DEBUG:-false}
+    depends_on:
+      - postgres
+      - redis
+
+  postgres:
+    image: postgres:14-alpine
+    container_name: k8sgpt-postgres
+    ports:
+      - "5434:5432"  # Different host port to avoid conflict with other databases
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=k8sgpt_db
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:alpine
+    container_name: k8sgpt-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+
+volumes:
+  postgres-data:
+  redis-data:

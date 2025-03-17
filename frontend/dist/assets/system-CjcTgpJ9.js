@@ -1,0 +1,1 @@
+import{bu as t}from"./index-Bby_nErz.js";function n(){return t.Get("/getUserRoutes")}function u(){return t.Get("/userPage")}function c(){return t.Get("/role/list")}function o(e){const r={code:e};return t.Get("/dict/list",{params:r})}export{u as a,c as b,n as c,o as f};

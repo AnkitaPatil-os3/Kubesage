@@ -1,0 +1,1 @@
+import{j as n,o,c as r,w as _,e as s}from"./index-Bby_nErz.js";import{_ as a}from"./Alert-BrMmTLTr.js";const c={};function i(p,t){const e=a;return o(),r(e,{title:"目前可公开的情报",type:"warning"},{default:_(()=>t[0]||(t[0]=[s(" 这是详情子页，他不会出现在侧边栏,他其实是上个页面的同级，并不是下级，这个要注意 ")])),_:1})}const m=n(c,[["render",i]]);export{m as default};

@@ -1,0 +1,1 @@
+<template>hello wazuh2</template>
