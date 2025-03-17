@@ -5,17 +5,35 @@ from app.database import create_db_and_tables
 from app.consumer import start_consumers
 from app.logger import logger
 import uvicorn
+import uuid, ssl
 
 app = FastAPI(title="KubeSage User Service")
+
+# Allow frontend requests
+origins = [
+    "http://localhost:9980",  # Frontend running locally
+    "https://10.0.34.129:8000", # If using HTTPS locally
+    "https://10.0.34.129:9980",  # Backend API
+]
 
 # ✅ Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins, or specify allowed origins
+    allow_origins=origins,  # Allow all origins, or specify allowed origins
     allow_credentials=True,
     allow_methods=["*"],  # Allow all HTTP methods
     allow_headers=["*"],  # Allow all headers
 )
+
+
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origin_regex="https?://.*",  # Allow all origins starting with http/https
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
+
 
 @app.on_event("startup")
 async def startup_event():
@@ -33,5 +51,5 @@ app.include_router(auth_router, prefix="/auth", tags=["auth"])
 app.include_router(user_router, prefix="/users", tags=["users"])
 
 if __name__ == "__main__":
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True , ssl_keyfile="key.pem", ssl_certfile="cert.pem")
 

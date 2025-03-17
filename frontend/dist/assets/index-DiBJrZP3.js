@@ -1,1 +1,0 @@
-import{j as e,o as r,l as s}from"./index-Bby_nErz.js";const c={},t={src:"https://staging-cn.vuejs.org/",frameborder:"0",class:"wh-full"};function o(n,a){return r(),s("iframe",t)}const f=e(c,[["render",o]]);export{f as default};

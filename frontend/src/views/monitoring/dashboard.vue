@@ -43,7 +43,7 @@ const isDark = computed(() => {
     return localStorage.getItem("vueuse-color-scheme") === "dark";
 });
 // const theme = ref(localStorage.getItem("vueuse-color-scheme") || "light");
-const theme = isDark.value ? "dark" : "light";
+let theme = isDark.value ? "dark" : "light";
 
 // Computed properties for iframe URLs based on theme
 const getLinuxIframeSrc = computed(() => {

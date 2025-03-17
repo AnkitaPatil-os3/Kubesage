@@ -9,12 +9,30 @@ export const routes: RouteRecordRaw[] = [
     children: [
     ],
   },
+  // {
+  //   path: '/login',
+  //   name: 'login',
+  //   component: () => import('@/views/login/index.vue'), // Note that the file extension .vue must be included
+  //   meta: {
+  //     title: 'Login',
+  //     withoutTab: true,
+  //   },
+  // },
   {
     path: '/login',
     name: 'login',
-    component: () => import('@/views/login/index.vue'), // Note that the file extension .vue must be included
+    component: () => import('@/auth/login.vue'), // Note that the file extension .vue should be included here
     meta: {
       title: 'Login',
+      withoutTab: true,
+    },
+  },
+  {
+    path: '/register',
+    name: 'register',
+    component: () => import('@/auth/register.vue'), // Note that the file extension .vue should be included here
+    meta: {
+      title: 'Register',
       withoutTab: true,
     },
   },

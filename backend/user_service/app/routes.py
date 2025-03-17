@@ -53,6 +53,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), session: Sessi
 
 @auth_router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register_user(user_data: UserCreate, session: Session = Depends(get_session)):
+    print(user_data)
     # Check if username exists
     existing_user = session.exec(select(User).where(User.username == user_data.username)).first()
     if existing_user:
@@ -68,7 +69,7 @@ async def register_user(user_data: UserCreate, session: Session = Depends(get_se
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email already registered"
         )
-    
+ 
     # Create new user
     hashed_password = get_password_hash(user_data.password)
     db_user = User(
@@ -79,6 +80,7 @@ async def register_user(user_data: UserCreate, session: Session = Depends(get_se
         last_name=user_data.last_name,
         is_active=user_data.is_active,
         is_admin=user_data.is_admin
+        # is_admin="true"
     )
     
     session.add(db_user)

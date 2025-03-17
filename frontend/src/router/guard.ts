@@ -2,7 +2,6 @@ import type { Router } from 'vue-router'
 import { useAppStore, useRouteStore, useTabStore } from '@/store'
 import { local } from '@/utils'
 
-
 const title = import.meta.env.VITE_APP_NAME
 
 export function setupRouterGuard(router: Router) {
@@ -22,10 +21,10 @@ export function setupRouterGuard(router: Router) {
     // 判断有无TOKEN,登录鉴权
     const isLogin = Boolean(local.get('accessToken'))
     if (!isLogin) {
-      if (to.name === 'login')
+      if (to.name === 'login' || to.name === 'register')
         next()
 
-      if (to.name !== 'login') {
+      if (to.name !== 'login' && to.name !== 'register') {
         const redirect = to.name === '404' ? undefined : to.fullPath
         next({ path: '/login', query: { redirect } })
       }
@@ -37,7 +36,7 @@ export function setupRouterGuard(router: Router) {
       await routeStore.initAuthRoute()
       // 动态路由加载完回到根路由
       if (to.name === '404') {
-      // 等待权限路由加载好了，回到之前的路由,否则404
+        // 等待权限路由加载好了，回到之前的路由,否则404
         next({
           path: to.fullPath,
           replace: true,
@@ -48,8 +47,8 @@ export function setupRouterGuard(router: Router) {
       }
     }
 
-    // 判断当前页是否在login,则定位去首页
-    if (to.name === 'login') {
+    // 判断当前页是否在login或register,则定位去首页
+    if (to.name === 'login' || to.name === 'register') {
       next({ path: '/' })
       return false
     }

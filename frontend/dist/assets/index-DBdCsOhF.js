@@ -1,0 +1,1 @@
+import{_ as e,o as c,a as r}from"./index-BdUTWwbS.js";const s={},t={src:"https://cn.vitejs.dev/guide/",frameborder:"0",class:"wh-full"};function o(n,a){return c(),r("iframe",t)}const f=e(s,[["render",o]]);export{f as default};
