@@ -59,382 +59,570 @@ def delete_user_analysis_results(user_id: int, session: Session):
     
     # Delete each result and its associated file
     for result in results:
-        # Delete the result file if it exists
-        file_path = result.file_path
-        if file_path and os.path.exists(file_path):
-            try:
-                os.remove(file_path)
-                logger.info(f"Deleted analysis result file: {file_path}")
-            except Exception as e:
-                logger.error(f"Error deleting analysis result file {file_path}: {str(e)}")
+            # Delete the result file if it exists
+            file_path = result.file_path
+            if file_path and os.path.exists(file_path):
+                try:
+                    os.remove(file_path)
+                    logger.info(f"Deleted analysis result file: {file_path}")
+                except Exception as e:
+                    logger.error(f"Error deleting analysis result file {file_path}: {str(e)}")
         
-        # Delete the database entry
-        session.delete(result)
+            # Delete the database entry
+            session.delete(result)
     
-    # Commit all deletions
-    session.commit()
-    logger.info(f"Deleted all analysis results for user {user_id}")
+            # Commit all deletions
+            session.commit()
+            logger.info(f"Deleted all analysis results for user {user_id}")
 
-async def get_active_kubeconfig_path(user_id: int) -> Dict[str, Any]:    """Get the active kubeconfig path from the kubeconfig service"""
-    try:
-        async with httpx.AsyncClient(verify=False) as client:
-            response = await client.get(
-                f"{settings.KUBECONFIG_SERVICE_URL}/kubeconfig/active",
-                headers={"X-User-ID": str(user_id)}
-            )
-            
-            if response.status_code == 200:
-                return response.json()
-            else:
-                logger.error(f"Error getting active kubeconfig: {response.text}")
-                raise HTTPException(
-                    status_code=response.status_code, 
-                    detail=f"Failed to get active kubeconfig: {response.text}"
-                )
-    except httpx.RequestError as e:
-        logger.error(f"Error connecting to kubeconfig service: {str(e)}")
-        raise HTTPException(
-            status_code=503,
-            detail="Kubeconfig service unavailable"
-        )
-
-def execute_command(command: str) -> Dict[str, Any]:
-    """Execute a shell command and return the result"""
-    logger.debug(f"Executing command: {command}")
-    try:
-        args = shlex.split(command)
-        result = subprocess.run(args, check=True, capture_output=True, text=True)
-        
+def execute_k8sgpt_command(command: str) -> Dict[str, Any]:
+        """Execute a K8sGPT CLI command and return the result"""
+        logger.info(f"Executing command: {command}")
         try:
-            output = json.loads(result.stdout)
-            return output
-        except json.JSONDecodeError:
-            return {"stdout": result.stdout}
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Command execution failed: {e.stderr}")
-        raise HTTPException(status_code=500, detail=f"Command execution failed: {e.stderr}")
-    except Exception as e:
-        logger.error(f"Error executing command: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
-
-async def run_k8sgpt_analysis(
-    user_id: int,
-    parameters: Dict[str, Any],
-    session: Session
-) -> AnalysisResult:
-    """Run K8sGPT analysis with the given parameters and return results"""
-    # Get active kubeconfig
-    active_kubeconfig = await get_active_kubeconfig_path(user_id)
-    kubeconfig_path = active_kubeconfig["path"]
-    cluster_name = active_kubeconfig["cluster_name"]
-    
-    if not os.path.exists(kubeconfig_path):
-        raise HTTPException(status_code=404, detail="Active kubeconfig file not found on disk")
-
-    # Build k8sgpt analyze command
-    command = "k8sgpt analyze"
-    
-    if parameters.get("backend"):
-        command += f" --backend {parameters['backend']}"
-    if parameters.get("custom_analysis"):
-        command += " --custom-analysis"
-    if parameters.get("custom_headers"):
-        for header in parameters["custom_headers"]:
-            command += f" --custom-headers {header}"
-    if parameters.get("explain"):
-        command += " --explain"
-    if parameters.get("filter_analyzers"):
-        for f in parameters["filter_analyzers"]:
-            command += f" --filter {f}"
-    if parameters.get("interactive"):
-        command += " --interactive"
-    if parameters.get("language") and parameters["language"] != "english":
-        command += f" --language {parameters['language']}"
-    if parameters.get("max_concurrency") and parameters["max_concurrency"] != 10:
-        command += f" --max-concurrency {parameters['max_concurrency']}"
-    if parameters.get("namespace"):
-        command += f" --namespace {parameters['namespace']}"
-    if parameters.get("no_cache"):
-        command += " --no-cache"
-    # Always use JSON output for structured data storage
-    command += " --output json"
-    if parameters.get("selector"):
-        command += f" --selector {parameters['selector']}"
-    if parameters.get("with_doc"):
-        command += " --with-doc"
-    
-    # Add the active kubeconfig path
-    command += f" --kubeconfig {kubeconfig_path}"
-
-    try:
-        # Execute the k8sgpt command
-        result = execute_command(command)
+            args = shlex.split(command)
+            result = subprocess.run(args, check=True, capture_output=True, text=True)
         
-        # Generate a unique ID for this analysis result
-        result_id = str(uuid.uuid4())
-        
-        # Store the result in the database
+            # Try to parse the output as JSON
+            try:
+                output = json.loads(result.stdout)
+                return output
+            except json.JSONDecodeError:
+                # If parsing fails, return the raw output
+                return {"stdout": result.stdout}
+
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Command execution failed: {e.stderr}")
+            return {"error": e.stderr}
+        except Exception as e:
+            logger.error(f"An error occurred: {str(e)}")
+            return {"error": str(e)}
+
+def save_analysis_result(user_id: int, result: Dict[str, Any], namespace: Optional[str] = None) -> AnalysisResult:
+        """Save analysis result to database and file system"""
+        from app.database import engine
+    
+        # Generate unique filename
+        filename = f"analysis_{user_id}_{uuid.uuid4()}.json"
+        file_path = os.path.join(settings.ANALYSIS_DIR, filename)
+    
+        # Save result to file
+        with open(file_path, 'w') as f:
+            json.dump(result, f, indent=2)
+    
+        # Create analysis result object
         analysis_result = AnalysisResult(
             user_id=user_id,
-            cluster_name=cluster_name,
-            namespace=parameters.get("namespace"),
-            result_id=result_id,
-            result_json=json.dumps(result),
-            parameters=json.dumps(parameters)
+            file_path=file_path,
+            namespace=namespace,
+            summary=extract_summary(result)
         )
-        
-        session.add(analysis_result)
-        session.commit()
-        session.refresh(analysis_result)
-        
-        # Cache the result
-        cache_key = f"analysis_result:{result_id}"
-        cache_set(user_id, cache_key, {
-            "result_id": result_id,
-            "result": result,
-            "parameters": parameters
-        })
-        
+    
+        # Save to database
+        with Session(engine) as session:
+            session.add(analysis_result)
+            session.commit()
+            session.refresh(analysis_result)
+    
         return analysis_result
-    except HTTPException:
-        # Re-raise HTTP exceptions
-        raise
-    except Exception as e:
-        logger.error(f"Error during k8sgpt analysis: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error during analysis: {str(e)}")
 
-async def get_analysis_result(
+def extract_summary(result: Dict[str, Any]) -> str:
+        """Extract a summary from analysis result"""
+        try:
+            # This will depend on the format of your K8sGPT output
+            if "results" in result and isinstance(result["results"], list):
+                issues = len(result["results"])
+                return f"Found {issues} potential issues in the cluster"
+            return "Analysis completed"
+        except Exception as e:
+            logger.error(f"Error extracting summary: {str(e)}")
+            return "Analysis completed"
+
+def run_k8sgpt_analysis(
     user_id: int,
-    result_id: str,
-    session: Session
+    kubeconfig_path: str,
+    namespace: Optional[str] = None,
+    filters: Optional[List[str]] = None,
+    anonymize: bool = False,
+    explain: bool = True,
+    language: str = "english",
+    output_format: str = "json",
+    no_cache: bool = False,
+    with_doc: bool = False
 ) -> Dict[str, Any]:
-    """Get a specific analysis result"""
-    # Try to get from cache first
-    cache_key = f"analysis_result:{result_id}"
-    cached_result = cache_get(user_id, cache_key)
-    if cached_result:
-        return cached_result
+    """
+    Run a K8sGPT analysis using the specified parameters
     
-    # If not in cache, get from database
-    analysis_result = session.exec(
-        select(AnalysisResult).where(
-            AnalysisResult.user_id == user_id,
-            AnalysisResult.result_id == result_id
-        )
-    ).first()
+    Args:
+        user_id: ID of the user running the analysis
+        kubeconfig_path: Path to the kubeconfig file
+        namespace: Optional namespace to analyze
+        filters: Optional list of analyzers to filter
+        anonymize: Whether to anonymize data
+        explain: Whether to explain the problem
+        language: Language to use for AI
+        output_format: Output format (text, json)
+        no_cache: Whether to use cached data
+        with_doc: Whether to include documentation
+        
+    Returns:
+        Dictionary containing the analysis results
+    """
     
-    if not analysis_result:
-        raise HTTPException(status_code=404, detail=f"Analysis result {result_id} not found")
+    # Construct the command
+    command = "k8sgpt analyze"
     
-    result = {
-        "result_id": analysis_result.result_id,
-        "cluster_name": analysis_result.cluster_name,
-        "namespace": analysis_result.namespace,
-        "result": json.loads(analysis_result.result_json),
-        "created_at": analysis_result.created_at,
-        "parameters": json.loads(analysis_result.parameters)
-    }
+    if anonymize:
+        command += " --anonymize"
+    if explain:
+        command += " --explain"
+    if filters:
+        for f in filters:
+            command += f" --filter {f}"
+    if language and language != "english":
+        command += f" --language {language}"
+    if namespace:
+        command += f" --namespace {namespace}"
+    if no_cache:
+        command += " --no-cache"
+    if output_format:
+        command += f" --output {output_format}"
+    if with_doc:
+        command += " --with-doc"
     
-    # Update cache
-    cache_set(user_id, cache_key, result)
+    # Add the kubeconfig path
+    command += f" --kubeconfig {kubeconfig_path}"
     
-    return result
+    # Execute the command
+    analysis_result = execute_k8sgpt_command(command)
+    
+    # Save the analysis result if it was successful
+    if "error" not in analysis_result:
+        saved_result = save_analysis_result(user_id, analysis_result, namespace)
+        analysis_result["result_id"] = saved_result.id
+    
+    return analysis_result
 
-async def list_analysis_results(
+def get_analysis_result(result_id: int, user_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
+    """
+    Retrieve an analysis result by ID
+    
+    Args:
+        result_id: ID of the analysis result to retrieve
+        user_id: Optional user ID for permission check
+        
+    Returns:
+        Dictionary containing the analysis result data or None if not found
+    """
+    from app.database import engine
+    from sqlmodel import Session, select
+    
+    with Session(engine) as session:
+        query = select(AnalysisResult).where(AnalysisResult.id == result_id)
+        
+        # If user_id is provided, add it to the query to ensure the user owns this result
+        if user_id is not None:
+            query = query.where(AnalysisResult.user_id == user_id)
+            
+        result = session.exec(query).first()
+        
+        if not result:
+            return None
+            
+        # Load the result data from file
+        try:
+            with open(result.file_path, 'r') as f:
+                analysis_data = json.load(f)
+                
+            # Combine database metadata with file content
+            return {
+                "id": result.id,
+                "user_id": result.user_id,
+                "namespace": result.namespace,
+                "summary": result.summary,
+                "created_at": result.created_at.isoformat(),
+                "analysis": analysis_data
+            }
+        except Exception as e:
+            logger.error(f"Error reading analysis result file {result.file_path}: {str(e)}")
+            return {
+                "id": result.id,
+                "user_id": result.user_id,
+                "namespace": result.namespace,
+                "summary": result.summary,
+                "created_at": result.created_at.isoformat(),
+                "error": "Failed to load analysis data file"
+            }
+
+def list_analysis_results(
     user_id: int,
-    session: Session,
-    limit: int = 10,
-    offset: int = 0
+    namespace: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 100,
+    sort_by: str = "created_at",
+    sort_desc: bool = True
 ) -> List[Dict[str, Any]]:
-    """List analysis results for a user"""
-    analysis_results = session.exec(
-        select(AnalysisResult)
-        .where(AnalysisResult.user_id == user_id)
-        .order_by(AnalysisResult.created_at.desc())
-        .offset(offset)
-        .limit(limit)
-    ).all()
+    """
+    List analysis results for a specific user with optional filtering
     
-    return [
-        {
-            "result_id": ar.result_id,
-            "cluster_name": ar.cluster_name,
-            "namespace": ar.namespace,
-            "created_at": ar.created_at,
-            "parameters": json.loads(ar.parameters)
-        }
-        for ar in analysis_results
-    ]
-
-async def add_ai_backend(
+    Args:
+        user_id: ID of the user whose results to retrieve
+        namespace: Optional namespace to filter results
+        skip: Number of records to skip (for pagination)
+        limit: Maximum number of records to return
+        sort_by: Field to sort by
+        sort_desc: Whether to sort in descending order
+        
+    Returns:
+        List of dictionaries containing analysis result metadata
+    """
+    from app.database import engine
+    from sqlmodel import Session, select, col
+    
+    with Session(engine) as session:
+        query = select(AnalysisResult).where(AnalysisResult.user_id == user_id)
+        
+        # Apply namespace filter if provided
+        if namespace:
+            query = query.where(AnalysisResult.namespace == namespace)
+        
+        # Apply sorting
+        if hasattr(AnalysisResult, sort_by):
+            sort_col = getattr(AnalysisResult, sort_by)
+            if sort_desc:
+                query = query.order_by(sort_col.desc())
+            else:
+                query = query.order_by(sort_col)
+        
+        # Apply pagination
+        query = query.offset(skip).limit(limit)
+        
+        # Execute query
+        results = session.exec(query).all()
+        
+        # Format results
+        formatted_results = []
+        for result in results:
+            formatted_results.append({
+                "id": result.id,
+                "namespace": result.namespace,
+                "summary": result.summary,
+                "created_at": result.created_at.isoformat()
+            })
+        
+        return formatted_results
+    
+def add_ai_backend(
     user_id: int,
-    backend_config: Dict[str, Any],
-    session: Session
-) -> AIBackendConfig:
-    """Add or update an AI backend configuration"""
-    backend_name = backend_config.pop("backend")
-    is_default = backend_config.pop("is_default", False)
+    backend_type: str,
+    name: str,
+    api_key: str,
+    model: str = "gpt-3.5-turbo",
+    organization_id: Optional[str] = None,
+    base_url: Optional[str] = None,
+    engine: Optional[str] = None,
+    temperature: float = 0.7,
+    max_tokens: int = 2048,
+    set_as_default: bool = False
+) -> AIBackend:
+    """
+    Add a new AI backend for a user
     
-    # Check if this backend already exists for this user
-    existing_backend = session.exec(
-        select(AIBackendConfig).where(
-            AIBackendConfig.user_id == user_id,
-            AIBackendConfig.backend_name == backend_name
-        )
-    ).first()
+    Args:
+        user_id: ID of the user
+        backend_type: Type of AI backend (openai, azureopenai, etc.)
+        name: Name of the backend
+        api_key: API key for the backend
+        model: Model to use
+        organization_id: Optional organization ID
+        base_url: Optional base URL for the API
+        engine: Optional engine name (for Azure)
+        temperature: Temperature for generation
+        max_tokens: Maximum tokens for generation
+        set_as_default: Whether to set this as the default backend
+        
+    Returns:
+        The created AIBackend instance
+    """
+    from app.database import engine
+    from sqlmodel import Session, select
+    from app.queue import publish_backend_added
     
-    if existing_backend:
-        # Update existing backend
-        existing_backend.config_json = json.dumps(backend_config)
-        existing_backend.is_default = is_default
-        session.add(existing_backend)
-    else:
+    with Session(engine) as session:
+        # If set_as_default is True, unset any existing default backends
+        if set_as_default:
+            existing_defaults = session.exec(
+                select(AIBackend).where(
+                    AIBackend.user_id == user_id,
+                    AIBackend.is_default == True
+                )
+            ).all()
+            
+            for default_backend in existing_defaults:
+                default_backend.is_default = False
+                session.add(default_backend)
+        
         # Create new backend
-        new_backend = AIBackendConfig(
+        new_backend = AIBackend(
             user_id=user_id,
-            backend_name=backend_name,
-            is_default=is_default,
-            config_json=json.dumps(backend_config)
+            backend_type=backend_type,
+            name=name,
+            api_key=api_key,
+            model=model,
+            organization_id=organization_id,
+            base_url=base_url,
+            engine=engine,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            is_default=set_as_default
         )
+        
         session.add(new_backend)
-    
-    # If this backend is set as default, update all others to non-default
-    if is_default:
-        session.exec(
-            update(AIBackendConfig)
-            .where(
-                AIBackendConfig.user_id == user_id,
-                AIBackendConfig.backend_name != backend_name
-            )
-            .values(is_default=False)
-        )
-    
-    session.commit()
-    
-    # Re-fetch the backend to get updated values
-    backend = session.exec(
-        select(AIBackendConfig).where(
-            AIBackendConfig.user_id == user_id,
-            AIBackendConfig.backend_name == backend_name
-        )
-    ).first()
-    
-    return backend
-
-async def list_ai_backends(
-    user_id: int,
-    session: Session
-) -> List[Dict[str, Any]]:
-    """List AI backends for a user"""
-    backends = session.exec(
-        select(AIBackendConfig)
-        .where(AIBackendConfig.user_id == user_id)
-        .order_by(AIBackendConfig.backend_name)
-    ).all()
-    
-    return [
-        {
-            "id": backend.id,
-            "backend_name": backend.backend_name,
-            "is_default": backend.is_default,
-            "config": json.loads(backend.config_json),
-            "created_at": backend.created_at,
-            "updated_at": backend.updated_at
+        session.commit()
+        session.refresh(new_backend)
+        
+        # Publish event to message queue
+        backend_data = {
+            "id": new_backend.id,
+            "user_id": new_backend.user_id,
+            "backend_type": new_backend.backend_type,
+            "name": new_backend.name,
+            "is_default": new_backend.is_default
         }
-        for backend in backends
-    ]
+        publish_backend_added(backend_data)
+        
+        return new_backend
 
-async def get_ai_backend(
+def list_ai_backends(
     user_id: int,
-    backend_name: str,
-    session: Session
-) -> Dict[str, Any]:
-    """Get a specific AI backend configuration"""
-    backend = session.exec(
-        select(AIBackendConfig).where(
-            AIBackendConfig.user_id == user_id,
-            AIBackendConfig.backend_name == backend_name
-        )
-    ).first()
+    backend_type: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 100
+) -> List[Dict[str, Any]]:
+    """
+    List AI backends for a specific user with optional filtering
     
-    if not backend:
-        raise HTTPException(status_code=404, detail=f"AI backend {backend_name} not found")
+    Args:
+        user_id: ID of the user whose backends to retrieve
+        backend_type: Optional backend type to filter by
+        skip: Number of records to skip (for pagination)
+        limit: Maximum number of records to return
+        
+    Returns:
+        List of dictionaries containing AI backend data
+    """
+    from app.database import engine
+    from sqlmodel import Session, select
     
-    return {
-        "id": backend.id,
-        "backend_name": backend.backend_name,
-        "is_default": backend.is_default,
-        "config": json.loads(backend.config_json),
-        "created_at": backend.created_at,
-        "updated_at": backend.updated_at
-    }
+    with Session(engine) as session:
+        query = select(AIBackend).where(AIBackend.user_id == user_id)
+        
+        # Apply backend type filter if provided
+        if backend_type:
+            query = query.where(AIBackend.backend_type == backend_type)
+        
+        # Apply pagination
+        query = query.offset(skip).limit(limit)
+        
+        # Execute query
+        backends = session.exec(query).all()
+        
+        # Format results (hiding sensitive information like API keys)
+        formatted_backends = []
+        for backend in backends:
+            formatted_backends.append({
+                "id": backend.id,
+                "name": backend.name,
+                "backend_type": backend.backend_type,
+                "model": backend.model,
+                "is_default": backend.is_default,
+                "organization_id": backend.organization_id,
+                "base_url": backend.base_url,
+                "engine": backend.engine,
+                "temperature": backend.temperature,
+                "max_tokens": backend.max_tokens,
+                "created_at": backend.created_at.isoformat(),
+                "updated_at": backend.updated_at.isoformat()
+            })
+        
+        return formatted_backends
 
-async def delete_ai_backend(
-    user_id: int,
-    backend_name: str,
-    session: Session
-) -> bool:
-    """Delete an AI backend configuration"""
-    backend = session.exec(
-        select(AIBackendConfig).where(
-            AIBackendConfig.user_id == user_id,
-            AIBackendConfig.backend_name == backend_name
-        )
-    ).first()
+def get_ai_backend(backend_id: int, user_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
+    """
+    Get a specific AI backend by ID
     
-    if not backend:
-        raise HTTPException(status_code=404, detail=f"AI backend {backend_name} not found")
+    Args:
+        backend_id: ID of the backend to retrieve
+        user_id: Optional user ID for permission check
+        
+    Returns:
+        Dictionary containing the backend data or None if not found
+    """
+    from app.database import engine
+    from sqlmodel import Session, select
     
-    session.delete(backend)
-    session.commit()
-    
-    return True
+    with Session(engine) as session:
+        query = select(AIBackend).where(AIBackend.id == backend_id)
+        
+        # If user_id is provided, add it to the query to ensure the user owns this backend
+        if user_id is not None:
+            query = query.where(AIBackend.user_id == user_id)
+            
+        backend = session.exec(query).first()
+        
+        if not backend:
+            return None
+            
+        # Return backend data (excluding sensitive information like API key)
+        return {
+            "id": backend.id,
+            "user_id": backend.user_id,
+            "name": backend.name,
+            "backend_type": backend.backend_type,
+            "model": backend.model,
+            "is_default": backend.is_default,
+            "organization_id": backend.organization_id,
+            "base_url": backend.base_url,
+            "engine": backend.engine,
+            "temperature": backend.temperature,
+            "max_tokens": backend.max_tokens,
+            "created_at": backend.created_at.isoformat(),
+            "updated_at": backend.updated_at.isoformat()
+        }
 
-async def set_default_ai_backend(
-    user_id: int,
-    backend_name: str,
-    session: Session
-) -> bool:
-    """Set a backend as the default for a user"""
-    backend = session.exec(
-        select(AIBackendConfig).where(
-            AIBackendConfig.user_id == user_id,
-            AIBackendConfig.backend_name == backend_name
+def delete_ai_backend(backend_id: int, user_id: int) -> bool:
+    """
+    Delete an AI backend by ID
+    
+    Args:
+        backend_id: ID of the backend to delete
+        user_id: User ID for permission check
+        
+    Returns:
+        True if successfully deleted, False otherwise
+    """
+    from app.database import engine
+    from sqlmodel import Session, select
+    from app.queue import publish_backend_deleted
+    
+    with Session(engine) as session:
+        # Find the backend with user_id check for permission
+        query = select(AIBackend).where(
+            AIBackend.id == backend_id,
+            AIBackend.user_id == user_id
         )
-    ).first()
-    
-    if not backend:
-        raise HTTPException(status_code=404, detail=f"AI backend {backend_name} not found")
-    
-    # Set all backends to non-default
-    session.exec(
-        update(AIBackendConfig)
-        .where(AIBackendConfig.user_id == user_id)
-        .values(is_default=False)
-    )
-    
-    # Set this backend as default
-    backend.is_default = True
-    session.add(backend)
-    session.commit()
-    
-    return True
+        backend = session.exec(query).first()
+        
+        if not backend:
+            return False
+            
+        # Store backend info for event publishing
+        backend_data = {
+            "id": backend.id,
+            "user_id": backend.user_id,
+            "name": backend.name,
+            "backend_type": backend.backend_type
+        }
+        
+        # Delete the backend
+        session.delete(backend)
+        session.commit()
+        
+        # Publish event to message queue
+        publish_backend_deleted(backend_data)
+        
+        return True
 
-async def get_available_analyzers(user_id: int) -> List[str]:
-    """Get a list of available k8sgpt analyzers"""
-    # Get active kubeconfig
-    active_kubeconfig = await get_active_kubeconfig_path(user_id)
-    kubeconfig_path = active_kubeconfig["path"]
+def set_default_ai_backend(backend_id: int, user_id: int) -> bool:
+    """
+    Set an AI backend as the default for a user
     
-    command = f"k8sgpt filters list --kubeconfig {kubeconfig_path}"
+    Args:
+        backend_id: ID of the backend to set as default
+        user_id: User ID for permission check
+        
+    Returns:
+        True if successfully set as default, False otherwise
+    """
+    from app.database import engine
+    from sqlmodel import Session, select
+    from app.queue import publish_backend_updated
     
-    try:
-        result = execute_command(command)
+    with Session(engine) as session:
+        # Find the backend with user_id check for permission
+        query = select(AIBackend).where(
+            AIBackend.id == backend_id,
+            AIBackend.user_id == user_id
+        )
+        backend = session.exec(query).first()
+        
+        if not backend:
+            return False
+        
+        # Unset any existing default backends for this user
+        existing_defaults = session.exec(
+            select(AIBackend).where(
+                AIBackend.user_id == user_id,
+                AIBackend.is_default == True,
+                AIBackend.id != backend_id  # Don't include the one we're setting
+            )
+        ).all()
+        
+        for default_backend in existing_defaults:
+            default_backend.is_default = False
+            session.add(default_backend)
+        
+        # Set the selected backend as default
+        backend.is_default = True
+        session.add(backend)
+        session.commit()
+        
+        # Publish event to message queue
+        backend_data = {
+            "id": backend.id,
+            "user_id": backend.user_id,
+            "name": backend.name,
+            "backend_type": backend.backend_type,
+            "is_default": True
+        }
+        publish_backend_updated(backend_data)
+        
+        return True
+
+def get_available_analyzers(kubeconfig_path: Optional[str] = None) -> List[str]:
+    """
+    Get a list of available analyzers from k8sgpt
+    
+    Args:
+        kubeconfig_path: Optional path to a kubeconfig file
+        
+    Returns:
+        List of available analyzer names
+    """
+    # Construct the command to list filters
+    command = "k8sgpt filters list"
+    
+    # Add kubeconfig path if provided
+    if kubeconfig_path:
+        command += f" --kubeconfig {kubeconfig_path}"
+    
+    # Execute the command
+    result = execute_k8sgpt_command(command)
+    
+    # Parse the result
+    analyzers = []
+    
+    if isinstance(result, dict):
+        # Handle different output formats
         if "stdout" in result:
-            # Parse stdout to get analyzers list
-            analyzers = [line.strip() for line in result["stdout"].split("\n") if line.strip()]
-            return analyzers
-        return []
-    except Exception as e:
-        logger.error(f"Error getting analyzers: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error getting analyzers: {str(e)}")
+            # Line-by-line output format
+            analyzers = [
+                line.strip() 
+                for line in result["stdout"].split("\n") 
+                if line.strip()
+            ]
+        elif isinstance(result, list):
+            # JSON list format
+            analyzers = result
+        
+    logger.info(f"Found {len(analyzers)} available analyzers")
+    return analyzers

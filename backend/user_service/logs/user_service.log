@@ -33624,3 +33624,205 @@
 2025-03-17 15:03:54,636 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
 2025-03-17 15:03:54,642 - user_service - INFO - RabbitMQ connection established
 2025-03-17 15:03:54,644 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-18 04:59:28,419 - user_service - INFO - User new logged in successfully
+2025-03-18 04:59:28,425 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-18 04:59:28,425 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-18 04:59:28,435 - user_service - INFO - RabbitMQ connection established
+2025-03-18 04:59:28,436 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-18 05:22:57,093 - user_service - INFO - User new logged in successfully
+2025-03-18 05:22:57,101 - user_service - ERROR - Failed to publish message: ('_AsyncTransportBase._initate_abort() expected _STATE_ABORTED_BY_USER', 2)
+2025-03-18 05:22:57,102 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-18 05:22:57,111 - user_service - INFO - RabbitMQ connection established
+2025-03-18 05:22:57,112 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-18 06:16:40,602 - user_service - ERROR - Error while consuming messages: (320, "CONNECTION_FORCED - broker forced connection closure with reason 'shutdown'")
+2025-03-18 06:16:42,615 - user_service - WARNING - RabbitMQ connection attempt 1/5 failed: 
+2025-03-18 06:16:47,624 - user_service - WARNING - RabbitMQ connection attempt 2/5 failed: 
+2025-03-18 06:16:52,639 - user_service - INFO - RabbitMQ connection established
+2025-03-18 06:16:52,641 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-18 06:28:03,299 - user_service - ERROR - Error while consuming messages: (320, "CONNECTION_FORCED - broker forced connection closure with reason 'shutdown'")
+2025-03-18 06:28:05,309 - user_service - WARNING - RabbitMQ connection attempt 1/5 failed: 
+2025-03-18 06:28:10,319 - user_service - WARNING - RabbitMQ connection attempt 2/5 failed: 
+2025-03-18 06:28:15,333 - user_service - INFO - RabbitMQ connection established
+2025-03-18 06:28:15,335 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-18 06:36:32,345 - user_service - INFO - User new logged in successfully
+2025-03-18 06:36:32,348 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-18 06:36:32,348 - user_service - ERROR - Failed to publish message: _CallbackResult was not set
+2025-03-18 06:36:32,356 - user_service - INFO - RabbitMQ connection established
+2025-03-18 06:36:32,357 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-18 07:38:00,477 - user_service - INFO - RabbitMQ connection established
+2025-03-18 07:38:00,508 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-18 07:38:44,720 - user_service - INFO - RabbitMQ connection established
+2025-03-18 07:38:44,749 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-18 07:39:15,750 - user_service - INFO - RabbitMQ connection established
+2025-03-18 07:39:15,780 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-18 07:40:06,801 - user_service - INFO - RabbitMQ connection established
+2025-03-18 07:40:06,831 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-18 07:41:56,477 - user_service - INFO - RabbitMQ connection established
+2025-03-18 07:41:56,508 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-18 07:46:04,421 - user_service - INFO - RabbitMQ connection established
+2025-03-18 07:46:04,452 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-18 07:46:04,512 - user_service - INFO - Event consumers started in background
+2025-03-18 07:46:04,512 - user_service - INFO - User service started
+2025-03-18 07:46:04,514 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-18 07:51:34,698 - user_service - INFO - RabbitMQ connection established
+2025-03-18 07:51:34,728 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-18 07:51:34,796 - user_service - INFO - Event consumers started in background
+2025-03-18 07:51:34,796 - user_service - INFO - User service started
+2025-03-18 07:51:34,799 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-18 07:52:40,649 - user_service - INFO - User new logged in successfully
+2025-03-18 07:52:40,654 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-18 07:52:40,654 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-18 07:52:40,663 - user_service - INFO - RabbitMQ connection established
+2025-03-18 07:52:40,665 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-18 07:57:15,537 - user_service - INFO - User new logged in successfully
+2025-03-18 07:57:15,540 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-18 07:57:15,540 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-18 07:57:15,552 - user_service - INFO - RabbitMQ connection established
+2025-03-18 07:57:15,553 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-18 07:58:12,285 - user_service - INFO - User new logged in successfully
+2025-03-18 07:58:12,287 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-18 07:58:12,288 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-18 07:58:12,296 - user_service - INFO - RabbitMQ connection established
+2025-03-18 07:58:12,298 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-18 08:01:29,207 - user_service - INFO - User new logged in successfully
+2025-03-18 08:01:29,210 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-18 08:01:29,211 - user_service - ERROR - Failed to publish message: _CallbackResult was not set
+2025-03-18 08:01:29,219 - user_service - INFO - RabbitMQ connection established
+2025-03-18 08:01:29,220 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-18 09:27:36,090 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 09:33:56,670 - user_service - INFO - User new logged in successfully
+2025-03-18 09:33:56,674 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-18 09:33:56,674 - user_service - ERROR - Failed to publish message: _CallbackResult was not set
+2025-03-18 09:33:56,682 - user_service - INFO - RabbitMQ connection established
+2025-03-18 09:33:56,684 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-18 09:34:59,390 - user_service - INFO - Received kubeconfig event: kubeconfig_uploaded
+2025-03-18 09:35:03,470 - user_service - INFO - Received kubeconfig event: kubeconfig_uploaded
+2025-03-18 09:50:03,114 - user_service - INFO - Received kubeconfig event: kubeconfig_uploaded
+2025-03-18 10:01:12,330 - user_service - ERROR - JWT error: The specified alg value is not allowed
+2025-03-18 10:03:16,780 - user_service - INFO - RabbitMQ connection established
+2025-03-18 10:03:16,812 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-18 10:03:16,867 - user_service - INFO - Event consumers started in background
+2025-03-18 10:03:16,868 - user_service - INFO - User service started
+2025-03-18 10:03:16,870 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-18 10:03:34,564 - user_service - INFO - Received kubeconfig event: kubeconfig_uploaded
+2025-03-18 10:04:02,419 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 10:04:07,704 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 10:04:35,551 - user_service - INFO - User new logged in successfully
+2025-03-18 10:04:35,556 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-18 10:04:35,563 - user_service - INFO - RabbitMQ connection established
+2025-03-18 10:04:35,565 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-18 10:08:25,497 - user_service - ERROR - JWT error: The specified alg value is not allowed
+2025-03-18 10:08:29,902 - user_service - ERROR - JWT error: The specified alg value is not allowed
+2025-03-18 10:12:49,306 - user_service - INFO - User new logged in successfully
+2025-03-18 10:12:49,308 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-18 10:12:49,308 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-18 10:12:49,316 - user_service - INFO - RabbitMQ connection established
+2025-03-18 10:12:49,317 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-18 10:15:34,967 - user_service - INFO - Received kubeconfig event: kubeconfig_uploaded
+2025-03-18 10:27:08,346 - user_service - INFO - User new logged in successfully
+2025-03-18 10:27:08,351 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-18 10:27:08,351 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-18 10:27:08,360 - user_service - INFO - RabbitMQ connection established
+2025-03-18 10:27:08,361 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-18 10:36:51,010 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 10:39:22,003 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 10:39:31,686 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 10:40:05,242 - user_service - INFO - User new logged in successfully
+2025-03-18 10:40:05,246 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-18 10:40:05,246 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-18 10:40:05,255 - user_service - INFO - RabbitMQ connection established
+2025-03-18 10:40:05,257 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-18 11:00:19,261 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 11:01:27,303 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 11:01:51,118 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 11:02:05,193 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 11:02:07,488 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 11:02:21,237 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 11:02:41,447 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 11:02:46,309 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 11:02:48,987 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 11:02:50,841 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 11:02:53,303 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 11:02:55,947 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 11:02:58,175 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 11:03:00,373 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 11:03:06,349 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 11:03:18,234 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 11:03:20,374 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 11:03:23,150 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 11:03:26,713 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 11:03:41,924 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 11:03:46,191 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 11:03:59,590 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 11:04:01,548 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 11:04:17,313 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 11:04:30,039 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 11:10:44,763 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 11:10:49,700 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 11:10:51,710 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 11:12:04,771 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 11:12:11,668 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 11:12:14,719 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 11:12:17,778 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 11:12:20,738 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 11:12:23,757 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 11:12:25,738 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 11:12:28,780 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 11:12:32,790 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 11:12:36,757 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 11:12:43,934 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 11:12:54,743 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 11:13:10,816 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 11:13:36,748 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 11:15:20,354 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 11:15:42,864 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 11:15:56,174 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 11:16:01,252 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 11:16:03,111 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 11:16:04,616 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 12:09:11,641 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 12:10:21,526 - user_service - INFO - RabbitMQ connection established
+2025-03-18 12:10:21,556 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-18 12:10:21,617 - user_service - INFO - Event consumers started in background
+2025-03-18 12:10:21,617 - user_service - INFO - User service started
+2025-03-18 12:10:21,620 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-18 12:10:51,048 - user_service - INFO - User nfkfvhj registered successfully
+2025-03-18 12:10:51,051 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-18 12:10:51,051 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-18 12:10:51,061 - user_service - INFO - RabbitMQ connection established
+2025-03-18 12:10:51,062 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-18 12:12:38,181 - user_service - INFO - User os3-user registered successfully
+2025-03-18 12:12:38,184 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-18 12:12:38,184 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-18 12:12:38,192 - user_service - INFO - RabbitMQ connection established
+2025-03-18 12:12:38,193 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-18 12:12:53,285 - user_service - INFO - User os3-user logged in successfully
+2025-03-18 12:12:53,287 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-18 12:12:53,288 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-18 12:12:53,296 - user_service - INFO - RabbitMQ connection established
+2025-03-18 12:12:53,297 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-18 12:13:58,724 - user_service - INFO - Received kubeconfig event: kubeconfig_uploaded
+2025-03-18 12:34:46,864 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 12:34:49,770 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 12:34:51,737 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 12:34:54,711 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 12:35:31,746 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 12:35:36,751 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 12:35:38,698 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 12:35:47,895 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 12:36:10,753 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 12:39:10,150 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 12:39:20,467 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 12:42:16,651 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 12:45:53,001 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 12:45:53,047 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 12:47:07,582 - user_service - INFO - User new logged in successfully
+2025-03-18 12:47:07,587 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-18 12:47:07,587 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-18 12:47:07,597 - user_service - INFO - RabbitMQ connection established
+2025-03-18 12:47:07,599 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-18 12:51:13,293 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 12:51:30,254 - user_service - INFO - Received kubeconfig event: kubeconfig_uploaded
+2025-03-18 12:56:23,867 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 12:59:18,778 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-18 12:59:38,182 - user_service - ERROR - JWT error: Signature has expired.

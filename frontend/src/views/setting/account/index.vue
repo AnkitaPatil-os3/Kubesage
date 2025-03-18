@@ -177,7 +177,7 @@ const categorizedAgents = {
   ]
 };
 
-const omegaIp = import.meta.env.VITE_OMEGA_IP;
+const kubeSageIp = import.meta.env.VITE_kubeSage_IP;
 const lgtmIp = import.meta.env.VITE_LGTM_IP;
 const agentIp = import.meta.env.VITE_AGENT_IP;
 
@@ -198,13 +198,13 @@ const formData = ref({
 
 // Predefined commands for non-DB agents
 const predefinedCommands = {
-  Linux: `curl -o omega-agent_linux-v3.sh http://${agentIp}/omega-agent_linux-v3.sh && OMEGA_UID=${keycloakId} METRIC_SRV="http://${lgtmIp}:9090/api/v1/write" LOGS_SRV="http://${lgtmIp}:3100/loki/api/v1/push" OMEGA_BACK_SRV="https://${omegaIp}:8000/api/v1/agents/" bash ./omega-agent_linux-v3.sh`,
+  Linux: `curl -o kubeSage-agent_linux-v3.sh http://${agentIp}/kubeSage-agent_linux-v3.sh && kubeSage_UID=${keycloakId} METRIC_SRV="http://${lgtmIp}:9090/api/v1/write" LOGS_SRV="http://${lgtmIp}:3100/loki/api/v1/push" kubeSage_BACK_SRV="https://${kubeSageIp}:8000/api/v1/agents/" bash ./kubeSage-agent_linux-v3.sh`,
 
-  Windows: `curl -o "$env:USERPROFILE/Downloads/omega-agent_windows-v2.ps1" http://${agentIp}/omega-agent_windows-v2.ps1; if (Test-Path "$env:USERPROFILE/Downloads/omega-agent_windows-v2.ps1") { & "$env:USERPROFILE/Downloads/omega-agent_windows-v2.ps1" -KeycloakId "${keycloakId}" -AgentName "Windows" -IPAddress "${omegaIp}" -prometheus "${lgtmIp}" -loki "${lgtmIp}" } else { Write-Host "Failed to download omega-agent_windows-v2.ps1." }`,
+  Windows: `curl -o "$env:USERPROFILE/Downloads/kubeSage-agent_windows-v2.ps1" http://${agentIp}/kubeSage-agent_windows-v2.ps1; if (Test-Path "$env:USERPROFILE/Downloads/kubeSage-agent_windows-v2.ps1") { & "$env:USERPROFILE/Downloads/kubeSage-agent_windows-v2.ps1" -KeycloakId "${keycloakId}" -AgentName "Windows" -IPAddress "${kubeSageIp}" -prometheus "${lgtmIp}" -loki "${lgtmIp}" } else { Write-Host "Failed to download kubeSage-agent_windows-v2.ps1." }`,
 
-  Kubernetes: `helm repo add omega-stable http://${agentIp}/omega-k8s-monitoring/ && helm repo update && helm install omega-k8s-monitoring --namespace omega-monitoring --create-namespace --set agentDeployment.omegaUid="${keycloakId}" --set cluster.name="MyCluster" --set agentDeployment.agentName="Kubernetes" --set agentDeployment.apiEndpoint="https://${omegaIp}/api/v1/agents/" --set externalServices.prometheus.host="http://${lgtmIp}:9090" --set externalServices.loki.host="http://${lgtmIp}:3100" --set externalServices.tempo.host="http://${lgtmIp}:3200" omega-stable/omega-k8s-monitoring`,
+  Kubernetes: `helm repo add kubeSage-stable http://${agentIp}/kubeSage-k8s-monitoring/ && helm repo update && helm install kubeSage-k8s-monitoring --namespace kubeSage-monitoring --create-namespace --set agentDeployment.kubeSageUid="${keycloakId}" --set cluster.name="MyCluster" --set agentDeployment.agentName="Kubernetes" --set agentDeployment.apiEndpoint="https://${kubeSageIp}/api/v1/agents/" --set externalServices.prometheus.host="http://${lgtmIp}:9090" --set externalServices.loki.host="http://${lgtmIp}:3100" --set externalServices.tempo.host="http://${lgtmIp}:3200" kubeSage-stable/kubeSage-k8s-monitoring`,
 
-  Docker: `curl -o omega-agent_docker-v1.sh http://${agentIp}/omega-agent_docker-v1.sh && OMEGA_UID=${keycloakId} OMEGA_BACK_SRV="https://${omegaIp}:8000/api/v1/agents/"   METRIC_SRV="http://${lgtmIp}:9090/api/v1/write" LOGS_SRV="http://${lgtmIp}:3100/loki/api/v1/push" bash ./omega-agent_docker-v1.sh`
+  Docker: `curl -o kubeSage-agent_docker-v1.sh http://${agentIp}/kubeSage-agent_docker-v1.sh && kubeSage_UID=${keycloakId} kubeSage_BACK_SRV="https://${kubeSageIp}:8000/api/v1/agents/"   METRIC_SRV="http://${lgtmIp}:9090/api/v1/write" LOGS_SRV="http://${lgtmIp}:3100/loki/api/v1/push" bash ./kubeSage-agent_docker-v1.sh`
 };
 
 // Select an agent and show the form if it's a DB agent, otherwise generate the command directly for non-DB agents
@@ -248,16 +248,16 @@ const selectAgent = (agentName) => {
 const generateCommandFromForm = () => {
   const { dbName, dbIp, dbPort, dbUsername, dbPassword, appName, appIp, appPort } = formData.value;
 
-  const omegaBackSrv = `https://${omegaIp}:8000/api/v1/agents/`;
+  const kubeSageBackSrv = `https://${kubeSageIp}:8000/api/v1/agents/`;
   const metricSrv = `http://${lgtmIp}:9090/api/v1/write`;
   const logsSrv = `http://${lgtmIp}:3100/loki/api/v1/push`;
   const traceSrv = `http://${lgtmIp}:4317`;
 
   // Handle Database Agents
   if (selectedAgent.value === 'PostgreSQL') {
-    generatedCommand.value = `curl -o omega-agent_postgresql-v1.sh http://${agentIp}/omega-agent_postgresql-v1.sh && \
-OMEGA_UID=${keycloakId} \
-OMEGA_BACK_SRV="${omegaBackSrv}" \
+    generatedCommand.value = `curl -o kubeSage-agent_postgresql-v1.sh http://${agentIp}/kubeSage-agent_postgresql-v1.sh && \
+kubeSage_UID=${keycloakId} \
+kubeSage_BACK_SRV="${kubeSageBackSrv}" \
 METRIC_SRV="${metricSrv}" \
 LOGS_SRV="${logsSrv}" \
 PSQL_USERNAME="${dbUsername}" \
@@ -265,11 +265,11 @@ PSQL_PASSWORD="${dbPassword}" \
 PSQL_DB_NAME="${dbName}" \
 PSQL_IP="${dbIp}" \
 PSQL_PORT="${dbPort}" \
-bash ./omega-agent_postgresql-v1.sh`;
+bash ./kubeSage-agent_postgresql-v1.sh`;
   } else if (selectedAgent.value === 'MySQL') {
-    generatedCommand.value = `curl -o omega-agent_mysql-v1.sh http://${agentIp}/omega-agent_mysql-v1.sh && \
-OMEGA_UID=${keycloakId} \
-OMEGA_BACK_SRV="${omegaBackSrv}" \
+    generatedCommand.value = `curl -o kubeSage-agent_mysql-v1.sh http://${agentIp}/kubeSage-agent_mysql-v1.sh && \
+kubeSage_UID=${keycloakId} \
+kubeSage_BACK_SRV="${kubeSageBackSrv}" \
 METRIC_SRV="${metricSrv}" \
 LOGS_SRV="${logsSrv}" \
 MY_SQL_USERNAME="${dbUsername}" \
@@ -277,11 +277,11 @@ MY_SQL_PASSWORD="${dbPassword}" \
 MY_SQL_DB_NAME="${dbName}" \
 MY_SQL_IP="${dbIp}" \
 MY_SQL_PORT="${dbPort}" \
-bash ./omega-agent_mysql-v1.sh`;
+bash ./kubeSage-agent_mysql-v1.sh`;
   } else if (selectedAgent.value === 'Microsoft SQL Server') {
-    generatedCommand.value = `curl -o omega-agent_ms-sql-v1.sh http://${agentIp}/omega-agent_ms-sql-v1.sh && \
-OMEGA_UID=${keycloakId} \
-OMEGA_BACK_SRV="${omegaBackSrv}" \
+    generatedCommand.value = `curl -o kubeSage-agent_ms-sql-v1.sh http://${agentIp}/kubeSage-agent_ms-sql-v1.sh && \
+kubeSage_UID=${keycloakId} \
+kubeSage_BACK_SRV="${kubeSageBackSrv}" \
 METRIC_SRV="${metricSrv}" \
 LOGS_SRV="${logsSrv}" \
 MS_SQL_USERNAME="${dbUsername}" \
@@ -289,11 +289,11 @@ MS_SQL_PASSWORD="${dbPassword}" \
 MS_SQL_DB_NAME="${dbName}" \
 MS_SQL_IP="${dbIp}" \
 MS_SQL_PORT="${dbPort}" \
-bash ./omega-agent_ms-sql-v1.sh`;
+bash ./kubeSage-agent_ms-sql-v1.sh`;
   } else if (selectedAgent.value === 'Oracle DB') {
-    generatedCommand.value = `curl -o omega-agent_oracle_db-v1.sh http://${agentIp}/omega-agent_oracle_db-v1.sh && \
-OMEGA_UID=${keycloakId} \
-OMEGA_BACK_SRV="${omegaBackSrv}" \
+    generatedCommand.value = `curl -o kubeSage-agent_oracle_db-v1.sh http://${agentIp}/kubeSage-agent_oracle_db-v1.sh && \
+kubeSage_UID=${keycloakId} \
+kubeSage_BACK_SRV="${kubeSageBackSrv}" \
 METRIC_SRV="${metricSrv}" \
 LOGS_SRV="${logsSrv}" \
 ORACLE_DB_USERNAME="${dbUsername}" \
@@ -301,11 +301,11 @@ ORACLE_DB_PASSWORD="${dbPassword}" \
 ORACLE_DB_NAME="${dbName}" \
 ORACLE_DB_IP="${dbIp}" \
 ORACLE_DB_PORT="${dbPort}" \
-bash ./omega-agent_oracle_db-v1.sh`;
+bash ./kubeSage-agent_oracle_db-v1.sh`;
   } else if (selectedAgent.value === 'MongoDB') {
-    generatedCommand.value = `curl -o omega-agent_mongo_db-v1.sh http://${agentIp}/omega-agent_mongo_db-v1.sh && \
-OMEGA_UID=${keycloakId} \
-OMEGA_BACK_SRV="${omegaBackSrv}" \
+    generatedCommand.value = `curl -o kubeSage-agent_mongo_db-v1.sh http://${agentIp}/kubeSage-agent_mongo_db-v1.sh && \
+kubeSage_UID=${keycloakId} \
+kubeSage_BACK_SRV="${kubeSageBackSrv}" \
 METRIC_SRV="${metricSrv}" \
 LOGS_SRV="${logsSrv}" \
 MON_SQL_USERNAME="${dbUsername}" \
@@ -313,21 +313,21 @@ MON_SQL_PASSWORD="${dbPassword}" \
 MON_SQL_DB_NAME="${dbName}" \
 MON_SQL_IP="${dbIp}" \
 MON_SQL_PORT="${dbPort}" \
-bash ./omega-agent_mongo_db-v1.sh`;
+bash ./kubeSage-agent_mongo_db-v1.sh`;
   }
 
   // Handle Java Application Agent
   if (selectedAgent.value === 'Application - Java') {
-    generatedCommand.value = `curl -o omega-agent_app-java-v1.sh http://${agentIp}/omega-agent_app-java-v1.sh && \
-OMEGA_UID=${keycloakId} \
+    generatedCommand.value = `curl -o kubeSage-agent_app-java-v1.sh http://${agentIp}/kubeSage-agent_app-java-v1.sh && \
+kubeSage_UID=${keycloakId} \
 METRIC_SRV="${metricSrv}" \
-OMEGA_BACK_SRV="${omegaBackSrv}" \
+kubeSage_BACK_SRV="${kubeSageBackSrv}" \
 LOGS_SRV="${logsSrv}" \
 TRACE_SRV="${traceSrv}" \
 APP_NAME="${appName}" \
 APP_IP="${appIp}" \
 APP_PORT="${appPort}" \
-bash ./omega-agent_app-java-v1.sh`;
+bash ./kubeSage-agent_app-java-v1.sh`;
   }
 
   showForm.value = false;
@@ -337,23 +337,23 @@ bash ./omega-agent_app-java-v1.sh`;
 const generateJavaCommand = () => {
   const { appName, appIp, appPort } = formData.value;
 
-  const omegaBackSrv = `https://${omegaIp}:8000/api/v1/agents/`;
+  const kubeSageBackSrv = `https://${kubeSageIp}:8000/api/v1/agents/`;
   const metricSrv = `http://${lgtmIp}:9090/api/v1/write`;
   const logsSrv = `http://${lgtmIp}:3100/loki/api/v1/push`;
   const traceSrv = `http://${lgtmIp}:4317`;
 
   // Handle Java Application Agent
   if (selectedAgent.value === 'Application - Java') {
-    generatedCommand.value = `curl -o omega-agent_app-java-v1.sh http://${agentIp}/omega-agent_app-java-v1.sh && \
-OMEGA_UID=${keycloakId} \
+    generatedCommand.value = `curl -o kubeSage-agent_app-java-v1.sh http://${agentIp}/kubeSage-agent_app-java-v1.sh && \
+kubeSage_UID=${keycloakId} \
 METRIC_SRV="${metricSrv}" \
-OMEGA_BACK_SRV="${omegaBackSrv}" \
+kubeSage_BACK_SRV="${kubeSageBackSrv}" \
 LOGS_SRV="${logsSrv}" \
 TRACE_SRV="${traceSrv}" \
 APP_NAME="${appName}" \
 APP_IP="${appIp}" \
 APP_PORT="${appPort}" \
-bash ./omega-agent_app-java-v1.sh`;
+bash ./kubeSage-agent_app-java-v1.sh`;
   }
 
   isJava.value = false; // Close the modal after generating the command

@@ -2,10 +2,10 @@
   <n-card class="bordered" :shadow="'always'" size="large">
     <n-space vertical>
       <n-text type="success" class="text-2xl font-bold uppercase">
-        Welcome OMEGA User {{ username }}
+        Welcome kubeSage User {{ username }}
       </n-text>
       <n-text class="text-lg font-medium">
-        Streamline your observability journey with OMEGA: Advanced monitoring and analytics in one platform.
+        Streamline your observability journey with kubeSage: Advanced monitoring and analytics in one platform.
       </n-text>
     </n-space>
   </n-card>

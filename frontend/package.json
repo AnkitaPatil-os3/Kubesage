@@ -50,6 +50,8 @@
     "sizecheck": "npx vite-bundle-visualizer"
   },
   "dependencies": {
+    "@vicons/ionicons5": "^0.13.0",
+    "@vicons/tabler": "^0.13.0",
     "@vueuse/core": "^11.0.3",
     "alova": "^3.0.16",
     "axios": "^1.7.7",

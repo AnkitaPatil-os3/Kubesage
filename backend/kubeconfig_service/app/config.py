@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     RABBITMQ_URL: str = ""  # Will be constructed from above settings
     
     # User service URL for authentication
-    USER_SERVICE_URL: str = "http://127.0.0.1:8000"
+    USER_SERVICE_URL: str = "https://10.0.34.129:8000"
     
     # SSL
     SSL_KEYFILE: Optional[str] = "key.pem"

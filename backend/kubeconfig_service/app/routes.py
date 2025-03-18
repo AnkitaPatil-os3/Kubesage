@@ -432,4 +432,7 @@ async def get_namespaces(
                 })
             
                 raise HTTPException(status_code=500, detail=f"Error fetching namespaces: {str(e)}")     
-       
+
+
+
+

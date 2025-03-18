@@ -52,46 +52,66 @@ async def analyze_cluster(
     Run K8sGPT analysis on the active Kubernetes cluster
     """
     user_id = current_user["id"]
+    analysis_id = str(uuid.uuid4())
     
     # Convert analysis_request to dict for parameter passing
     parameters = analysis_request.dict()
     
-    # Run analysis
-    analysis_result = await run_k8sgpt_analysis(
-        user_id=user_id,
-        parameters=parameters,
-        session=session
-    )
-    
-    # Parse the result for the response
-    result_json = json.loads(analysis_result.result_json)
-    parameters_json = json.loads(analysis_result.parameters)
-    
-    # Extract the items from the result
-    items = []
-    if isinstance(result_json, list):
-        for item in result_json:
-            items.append({
-                "name": item.get("name", ""),
-                "kind": item.get("kind", ""),
-                "namespace": item.get("namespace", ""),
-                "status": item.get("status", ""),
-                "severity": item.get("severity", ""),
-                "message": item.get("message", ""),
-                "hint": item.get("hint", None),
-                "explanation": item.get("explanation", None),
-                "docs": item.get("docs", None)
-            })
-    
-    return {
-        "result_id": analysis_result.result_id,
-        "cluster_name": analysis_result.cluster_name,
-        "namespace": analysis_result.namespace,
-        "items": items,
-        "created_at": analysis_result.created_at,
-        "parameters": parameters_json
+    # Publish analysis started event
+    analysis_data = {
+        "analysis_id": analysis_id,
+        "user_id": user_id,
+        "namespace": parameters.get("namespace"),
+        "timestamp": datetime.utcnow().isoformat()
     }
-
+    publish_analysis_started(analysis_data)
+    
+    try:
+        # Run analysis
+        analysis_result = await run_k8sgpt_analysis(
+            user_id=user_id,
+            parameters=parameters,
+            session=session
+        )
+        
+        # Parse the result for the response
+        result_json = json.loads(analysis_result.result_json)
+        parameters_json = json.loads(analysis_result.parameters)
+        
+        # Extract the items from the result
+        items = []
+        if isinstance(result_json, list):
+            for item in result_json:
+                items.append({
+                    "name": item.get("name", ""),
+                    "kind": item.get("kind", ""),
+                    "namespace": item.get("namespace", ""),
+                    "status": item.get("status", ""),
+                    "severity": item.get("severity", ""),
+                    "message": item.get("message", ""),
+                    "hint": item.get("hint", None),
+                    "explanation": item.get("explanation", None),
+                    "docs": item.get("docs", None)
+                })
+        
+        # Publish analysis completed event
+        analysis_data["result_id"] = analysis_result.result_id
+        analysis_data["summary"] = items
+        publish_analysis_completed(analysis_data)
+        
+        return {
+            "result_id": analysis_result.result_id,
+            "cluster_name": analysis_result.cluster_name,
+            "namespace": analysis_result.namespace,
+            "items": items,
+            "created_at": analysis_result.created_at,
+            "parameters": parameters_json
+        }
+    except Exception as e:
+        # Publish analysis failed event
+        analysis_data["error"] = str(e)
+        publish_analysis_failed(analysis_data)
+        raise HTTPException(status_code=500, detail=str(e))
 @k8sgpt_router.get("/analysis/{result_id}", response_model=AnalysisResultResponse)
 async def get_analysis(
     result_id: str,

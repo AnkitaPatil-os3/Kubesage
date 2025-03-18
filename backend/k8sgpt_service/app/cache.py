@@ -23,6 +23,11 @@ def get_cache_key(user_id: int, key: str) -> str:
     """Generate a cache key specific to a user"""
     return f"user:{user_id}:{key}"
 
+from app.redis_setup import redis_client
+from app.logger import logger
+import json
+from typing import Any, Dict, Optional
+
 def cache_get(key: str) -> Optional[Dict[str, Any]]:
     """Get a value from cache"""
     if not redis_client:
@@ -83,6 +88,7 @@ def cache_flush_user(user_id: int) -> bool:
     except Exception as e:
         logger.error(f"Error flushing user cache: {str(e)}")
         return False
+
 def user_cached(expiry: int = None):
     """Decorator to cache function results per user"""
     def decorator(func):

@@ -25,16 +25,6 @@ app.add_middleware(
     allow_headers=["*"],  # Allow all headers
 )
 
-
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origin_regex="https?://.*",  # Allow all origins starting with http/https
-#     allow_credentials=True,
-#     allow_methods=["*"],
-#     allow_headers=["*"],
-# )
-
-
 @app.on_event("startup")
 async def startup_event():
     create_db_and_tables()
