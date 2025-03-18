@@ -31,6 +31,11 @@
                 <n-button type="primary" block :loading="loading" @click="registerUser">
                     Register
                 </n-button>
+
+                <div class="login-redirect">
+                    <span>You want to login? </span>
+                    <a @click="goToLogin" style="color: #409eff; cursor: pointer;">Click here</a>
+                </div>
             </n-form>
         </n-card>
     </div>
@@ -38,15 +43,14 @@
 
 <script setup>
 import { ref } from "vue";
-import { useRouter } from "vue-router";  // Import useRouter hook
+import { useRouter } from "vue-router";
 import { useMessage } from "naive-ui";
 import axios from "axios";
 
 const formRef = ref(null);
 const message = useMessage();
-const router = useRouter();  // Initialize router
+const router = useRouter();
 
-// Form data
 const form = ref({
     username: "",
     email: "",
@@ -80,7 +84,7 @@ const registerUser = async () => {
     formRef.value?.validate(async (errors) => {
         if (!errors) {
             loading.value = true;
-            console.log(form.value);  // Log form data to verify it's being sent correctly
+            console.log(form.value);
 
             try {
                 const response = await axios.post("https://10.0.34.129:8000/auth/register", form.value, {
@@ -89,16 +93,11 @@ const registerUser = async () => {
                     },
                 });
 
-                console.log(response.data);  // Log the successful response
+                console.log(response.data);
                 message.success(`User ${response.data.username} registered successfully!`);
-
-                // Redirect to login page
-                router.push({ name: "login" });  // Assuming the route name for the login page is 'login'
+                router.push({ name: "login" });
             } catch (error) {
-                // Log the error to understand its structure
                 console.error(error);
-
-                // Handle error properly if error.response is undefined
                 const errorMessage = error.response?.data?.detail || error.message || "Registration failed";
                 message.error(errorMessage);
             } finally {
@@ -108,6 +107,9 @@ const registerUser = async () => {
     });
 };
 
+const goToLogin = () => {
+    router.push({ name: "login" });
+};
 </script>
 
 <style scoped>
@@ -122,5 +124,10 @@ const registerUser = async () => {
 .register-card {
     width: 400px;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.login-redirect {
+    text-align: center;
+    margin-top: 20px;
 }
 </style>

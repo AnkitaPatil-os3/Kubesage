@@ -28,6 +28,10 @@
             </n-button>
           </n-form-item>
         </n-form>
+        <div style="text-align: center; margin-top: 20px;">
+          <span>Don't have an account? </span>
+          <a @click="goToRegister" style="color: #409EFF; cursor: pointer;">Register here</a>
+        </div>
       </n-card>
     </n-space>
   </template>
@@ -118,11 +122,16 @@
         }
       };
   
+      const goToRegister = () => {
+        router.push('/register');
+      };
+  
       return {
         formData,
         formRules,
         formRef,
         handleSubmit,
+        goToRegister
       };
     },
   };
