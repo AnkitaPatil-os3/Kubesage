@@ -1,4 +1,4 @@
-from fastapi import HTTPException, Header
+from fastapi import Depends, HTTPException, Header
 from typing import Dict, Any, Optional
 import httpx
 from app.config import settings
@@ -25,4 +25,4 @@ async def get_current_user(authorization: Optional[str] = Header(None)) -> Dict[
             return response.json()
     except httpx.RequestError as e:
         logger.error(f"Error connecting to User Service: {str(e)}")
-        raise HTTPException(status_code=503, detail="User Service unavailable")
+        raise HTTPException(status_code=503, detail="User Service unavailable")        

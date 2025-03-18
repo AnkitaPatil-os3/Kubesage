@@ -1,0 +1,2 @@
+2025-03-17 17:23:24,536 - k8sgpt_service - WARNING - Redis cache connection failed: Error -3 connecting to redis:6379. Temporary failure in name resolution.
+2025-03-17 17:23:24,603 - k8sgpt_service - ERROR - Failed to connect to RabbitMQ: ConnectionClosedByBroker: (530) 'NOT_ALLOWED - vhost  not found'

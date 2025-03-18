@@ -84,3 +84,15 @@ spec:
       - name: ssl-certs
         secret:
           secretName: k8sgpt-service-ssl
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: k8sgpt-service
+spec:
+  selector:
+    app: k8sgpt-service
+  ports:
+  - port: 8002
+    targetPort: 8002
+  type: ClusterIP

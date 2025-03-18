@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     # PostgreSQL connection
     POSTGRES_USER: str = "postgres"
     POSTGRES_PASSWORD: str = "postgres"
-    POSTGRES_HOST: str = "postgres"
+    POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: str = "5432"
     POSTGRES_DB: str = "k8sgpt_db"
     DATABASE_URL: str = ""  # Will be constructed from above settings
@@ -18,19 +18,19 @@ class Settings(BaseSettings):
     # RabbitMQ settings
     RABBITMQ_USER: str = "guest"
     RABBITMQ_PASSWORD: str = "guest"
-    RABBITMQ_HOST: str = "rabbitmq"
+    RABBITMQ_HOST: str = "localhost"
     RABBITMQ_PORT: str = "5672"
-    RABBITMQ_VHOST: str = "/"
+    RABBITMQ_VHOST: str = "/k8sGPT"
     RABBITMQ_URL: str = ""  # Will be constructed from above settings
     
     # Redis settings
-    REDIS_HOST: str = "redis"
+    REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
-    REDIS_PASSWORD: str = ""
+    REDIS_PASSWORD: str = "2GUuagotBcTfuJ13sDBSlNSyxYhImbfs9Xqs7J8ncGIcljTNavUOornfUK1N4KcnbqOEBHLZp/9F7MhMos3"
     
     # Service URLs
-    USER_SERVICE_URL: str = "https://user-service:8000"
-    KUBECONFIG_SERVICE_URL: str = "https://kubeconfig-service:8001"
+    USER_SERVICE_URL: str = "http://127.0.0.1:8000"
+    KUBECONFIG_SERVICE_URL: str = "http://127.0.0.1:8001"
     
     # SSL
     SSL_KEYFILE: Optional[str] = "key.pem"

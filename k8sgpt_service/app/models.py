@@ -24,8 +24,9 @@ class AnalysisResult(SQLModel, table=True):
     __tablename__ = "analysis_results"
     
     id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: int = Field(index=True)
+    user_id: int = Field(index=True)  # Keep this as a foreign key reference
     file_path: str
     namespace: Optional[str] = Field(default=None, index=True)
     summary: str
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    # Remove the relationship to User since it's in another database

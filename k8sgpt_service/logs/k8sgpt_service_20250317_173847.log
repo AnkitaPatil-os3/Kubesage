@@ -1,0 +1,2 @@
+2025-03-17 17:38:47,721 - k8sgpt_service - WARNING - Redis cache connection failed: invalid username-password pair or user is disabled.
+2025-03-17 17:38:47,809 - k8sgpt_service - ERROR - Failed to connect to RabbitMQ: ConnectionClosedByBroker: (530) 'NOT_ALLOWED - vhost  not found'
