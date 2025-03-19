@@ -1,0 +1,13 @@
+2025-03-19 09:28:18,313 - k8sgpt_service - WARNING - Redis cache connection failed: invalid username-password pair or user is disabled.
+2025-03-19 09:28:18,458 - k8sgpt_service - INFO - Connected to RabbitMQ server
+2025-03-19 09:28:18,494 - k8sgpt_service - INFO - Starting K8sGPT Operations Service
+2025-03-19 09:28:18,494 - k8sgpt_service - INFO - Creating database and tables if they don't exist
+2025-03-19 09:28:18,519 - k8sgpt_service - ERROR - Failed to connect to Redis: invalid username-password pair or user is disabled.
+2025-03-19 09:28:18,520 - k8sgpt_service - INFO - Starting to consume messages from RabbitMQ
+2025-03-19 09:29:29,366 - k8sgpt_service - INFO - Published message with routing key analysis.started: {'analysis_id': '8b63ee31-7039-4a37-bc24-11761669411c', 'user_id': 1, 'namespace': 'default', 'timestamp': '2025-03-19T09:29:29.365492'}
+2025-03-19 09:29:29,368 - k8sgpt_service - ERROR - Error during message consumption: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-19 09:29:29,369 - k8sgpt_service - ERROR - RabbitMQ consumer error: ctag1.d7791e5ffcbc4efa9bb72944a60b0bec
+2025-03-19 09:29:29,416 - k8sgpt_service - INFO - Connected to RabbitMQ server
+2025-03-19 09:29:29,426 - k8sgpt_service - INFO - Published message with routing key analysis.failed: {'analysis_id': '8b63ee31-7039-4a37-bc24-11761669411c', 'user_id': 1, 'namespace': 'default', 'timestamp': '2025-03-19T09:29:29.365492', 'error': "run_k8sgpt_analysis() got an unexpected keyword argument 'parameters'"}
+2025-03-19 09:31:01,282 - k8sgpt_service - INFO - Shutting down K8sGPT Operations Service
+2025-03-19 09:31:01,285 - k8sgpt_service - INFO - Closed connection to RabbitMQ

@@ -1,0 +1,15 @@
+2025-03-19 10:18:36,727 - k8sgpt_service - WARNING - Redis cache connection failed: invalid username-password pair or user is disabled.
+2025-03-19 10:18:36,865 - k8sgpt_service - INFO - Connected to RabbitMQ server
+2025-03-19 10:18:36,898 - k8sgpt_service - INFO - Starting K8sGPT Operations Service
+2025-03-19 10:18:36,898 - k8sgpt_service - INFO - Creating database and tables if they don't exist
+2025-03-19 10:18:36,923 - k8sgpt_service - ERROR - Failed to connect to Redis: invalid username-password pair or user is disabled.
+2025-03-19 10:18:36,924 - k8sgpt_service - INFO - Starting to consume messages from RabbitMQ
+2025-03-19 10:18:38,093 - k8sgpt_service - ERROR - Error during message consumption: ('_AsyncTransportBase._initate_abort() expected non-_STATE_COMPLETED', 4)
+2025-03-19 10:18:38,094 - k8sgpt_service - ERROR - Failed to publish message: Stream connection lost: AssertionError(('_AsyncTransportBase._produce() tx buffer size underflow', -114, 1))
+2025-03-19 10:18:38,094 - k8sgpt_service - ERROR - RabbitMQ consumer error: ctag1.0e7ee6a83b44490898e8aa9e32225f2a
+2025-03-19 10:18:45,394 - k8sgpt_service - INFO - Connected to RabbitMQ server
+2025-03-19 10:18:45,402 - k8sgpt_service - INFO - Published message with routing key analysis.started: {'analysis_id': '1c2ea6f6-30e3-4ee5-a841-feb72c6c6d06', 'user_id': 1, 'namespace': 'string', 'timestamp': '2025-03-19T10:18:45.334391'}
+2025-03-19 10:18:45,402 - k8sgpt_service - INFO - Published message with routing key analysis.failed: {'analysis_id': '1c2ea6f6-30e3-4ee5-a841-feb72c6c6d06', 'user_id': 1, 'namespace': 'string', 'timestamp': '2025-03-19T10:18:45.334391', 'error': "run_k8sgpt_analysis() got an unexpected keyword argument 'parameters'"}
+2025-03-19 10:27:54,410 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Could not validate credentials"}
+2025-03-19 10:27:54,411 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-03-19 10:34:04,528 - k8sgpt_service - INFO - Shutting down K8sGPT Operations Service

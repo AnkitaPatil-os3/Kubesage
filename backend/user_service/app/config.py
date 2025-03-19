@@ -8,11 +8,11 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     
     # PostgreSQL connection
-    POSTGRES_USER: str = "test"
+    POSTGRES_USER: str = "nisha"
     POSTGRES_PASSWORD: str = "linux"
-    POSTGRES_HOST: str = "10.0.32.123"
+    POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: str = "5432"
-    POSTGRES_DB: str = "test"
+    POSTGRES_DB: str = "n_user_db"
     DATABASE_URL: str = ""  # Will be constructed from above settings
     
     # RabbitMQ settings

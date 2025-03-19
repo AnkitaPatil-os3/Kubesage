@@ -1,0 +1,18 @@
+2025-03-19 09:31:04,291 - k8sgpt_service - WARNING - Redis cache connection failed: invalid username-password pair or user is disabled.
+2025-03-19 09:31:04,425 - k8sgpt_service - INFO - Connected to RabbitMQ server
+2025-03-19 09:31:04,460 - k8sgpt_service - INFO - Starting K8sGPT Operations Service
+2025-03-19 09:31:04,460 - k8sgpt_service - INFO - Creating database and tables if they don't exist
+2025-03-19 09:31:04,484 - k8sgpt_service - ERROR - Failed to connect to Redis: invalid username-password pair or user is disabled.
+2025-03-19 09:31:04,486 - k8sgpt_service - INFO - Starting to consume messages from RabbitMQ
+2025-03-19 09:37:35,363 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Could not validate credentials"}
+2025-03-19 09:37:35,364 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-03-19 09:37:36,934 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Could not validate credentials"}
+2025-03-19 09:37:36,935 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-03-19 09:48:18,810 - k8sgpt_service - INFO - Executing command: k8sgpt filters list --kubeconfig 1
+2025-03-19 09:48:18,811 - k8sgpt_service - ERROR - An error occurred: [Errno 2] No such file or directory: 'k8sgpt'
+2025-03-19 09:48:18,811 - k8sgpt_service - INFO - Found 0 available analyzers
+2025-03-19 09:48:20,819 - k8sgpt_service - INFO - Executing command: k8sgpt filters list --kubeconfig 1
+2025-03-19 09:48:20,820 - k8sgpt_service - ERROR - An error occurred: [Errno 2] No such file or directory: 'k8sgpt'
+2025-03-19 09:48:20,820 - k8sgpt_service - INFO - Found 0 available analyzers
+2025-03-19 09:52:27,408 - k8sgpt_service - INFO - Shutting down K8sGPT Operations Service
+2025-03-19 09:52:27,414 - k8sgpt_service - ERROR - Error during message consumption: Stream connection lost: IndexError('pop from an empty deque')

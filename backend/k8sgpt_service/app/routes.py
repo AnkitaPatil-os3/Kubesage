@@ -112,6 +112,8 @@ async def analyze_cluster(
         analysis_data["error"] = str(e)
         publish_analysis_failed(analysis_data)
         raise HTTPException(status_code=500, detail=str(e))
+
+
 @k8sgpt_router.get("/analysis/{result_id}", response_model=AnalysisResultResponse)
 async def get_analysis(
     result_id: str,
@@ -225,8 +227,16 @@ async def create_backend(
     
     backend = await add_ai_backend(
         user_id=user_id,
-        backend_config=backend_config.dict(),
-        session=session
+        backend_type=backend_config.backend_type,
+        name=backend_config.name,
+        api_key=backend_config.api_key,
+        model=backend_config.model,
+        organization_id=backend_config.organizationId,
+        base_url=backend_config.baseurl,
+        engine=backend_config.engine,
+        temperature=backend_config.temperature,
+        max_tokens=backend_config.maxtokens,
+        set_as_default=backend_config.is_default
     )
     
     return {

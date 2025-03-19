@@ -316,14 +316,15 @@ def add_ai_backend(
     backend_type: str,
     name: str,
     api_key: str,
+    engine: str,
     model: str = "gpt-3.5-turbo",
     organization_id: Optional[str] = None,
     base_url: Optional[str] = None,
-    engine: Optional[str] = None,
     temperature: float = 0.7,
     max_tokens: int = 2048,
     set_as_default: bool = False
 ) -> AIBackend:
+
     """
     Add a new AI backend for a user
     
@@ -390,8 +391,8 @@ def add_ai_backend(
         }
         publish_backend_added(backend_data)
         
-        return new_backend
 
+        return new_backend
 def list_ai_backends(
     user_id: int,
     backend_type: Optional[str] = None,

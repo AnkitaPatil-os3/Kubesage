@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: chat-service-config
+data:
+  DEBUG: "false"
+  LOG_LEVEL: "INFO"
+  USER_SERVICE_URL: "http://user-service:8000"
+  KUBECONFIG_SERVICE_URL: "http://kubeconfig-service:8001"
+  K8SGPT_SERVICE_URL: "http://k8sgpt-service:8002"
+  OPENAI_MODEL: "gpt-3.5-turbo"
+  OPENAI_BASE_URL: "https://api.openai.com/v1"
