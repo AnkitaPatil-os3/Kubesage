@@ -1,0 +1,2 @@
+2025-03-18 06:10:40,888 - k8sgpt_service - INFO - Redis cache connection established
+2025-03-18 06:10:40,954 - k8sgpt_service - ERROR - Failed to connect to RabbitMQ: ConnectionClosedByBroker: (403) 'ACCESS_REFUSED - Login was refused using authentication mechanism PLAIN. For details see the broker logfile.'

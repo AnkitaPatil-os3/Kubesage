@@ -12,7 +12,7 @@ async def get_current_user(authorization: Optional[str] = Header(None)) -> Dict[
     try:
         async with httpx.AsyncClient(verify=False) as client:
             response = await client.get(
-                f"{settings.USER_SERVICE_URL}/auth/verify",
+                f"{settings.USER_SERVICE_URL}/users/me",
                 headers={"Authorization": authorization}
             )
             

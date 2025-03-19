@@ -112,6 +112,7 @@ async def analyze_cluster(
         analysis_data["error"] = str(e)
         publish_analysis_failed(analysis_data)
         raise HTTPException(status_code=500, detail=str(e))
+
 @k8sgpt_router.get("/analysis/{result_id}", response_model=AnalysisResultResponse)
 async def get_analysis(
     result_id: str,

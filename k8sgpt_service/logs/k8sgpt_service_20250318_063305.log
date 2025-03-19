@@ -1,0 +1,2 @@
+2025-03-18 06:33:05,389 - k8sgpt_service - INFO - Redis cache connection established
+2025-03-18 06:33:05,455 - k8sgpt_service - ERROR - Failed to connect to RabbitMQ: ConnectionClosedByBroker: (530) 'NOT_ALLOWED - vhost  not found'

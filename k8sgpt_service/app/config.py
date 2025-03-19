@@ -8,8 +8,8 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     
     # PostgreSQL connection
-    POSTGRES_USER: str = "postgres"
-    POSTGRES_PASSWORD: str = "postgres"
+    POSTGRES_USER: str = "test"
+    POSTGRES_PASSWORD: str = "linux"
     POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: str = "5432"
     POSTGRES_DB: str = "k8sgpt_db"
@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     RABBITMQ_PASSWORD: str = "guest"
     RABBITMQ_HOST: str = "localhost"
     RABBITMQ_PORT: str = "5672"
-    RABBITMQ_VHOST: str = "/k8sGPT"
+    RABBITMQ_VHOST: str = "/"
     RABBITMQ_URL: str = ""  # Will be constructed from above settings
     
     # Redis settings
@@ -43,8 +43,9 @@ class Settings(BaseSettings):
         super().__init__(**kwargs)
         # Construct DATABASE_URL and RABBITMQ_URL
         self.DATABASE_URL = f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
-        self.RABBITMQ_URL = f"amqp://{self.RABBITMQ_USER}:{self.RABBITMQ_PASSWORD}@{self.RABBITMQ_HOST}:{self.RABBITMQ_PORT}/{self.RABBITMQ_VHOST}"
-    
+        # self.RABBITMQ_URL = f"amqp://{self.RABBITMQ_USER}:{self.RABBITMQ_PASSWORD}@{self.RABBITMQ_HOST}:{self.RABBITMQ_PORT}/{self.RABBITMQ_VHOST}"
+        self.RABBITMQ_URL =  f"amqp://{self.RABBITMQ_USER}:{self.RABBITMQ_PASSWORD}@{self.RABBITMQ_HOST}:{self.RABBITMQ_PORT}/%2F"
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

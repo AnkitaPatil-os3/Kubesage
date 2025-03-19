@@ -33438,3 +33438,23 @@
 2025-03-17 15:59:55,193 - user_service - INFO - Event consumers started in background
 2025-03-17 15:59:55,193 - user_service - INFO - User service started
 2025-03-17 15:59:55,202 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-18 09:45:38,189 - user_service - INFO - User tt logged in successfully
+2025-03-18 09:45:38,196 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-18 09:45:38,197 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-18 09:45:38,224 - user_service - INFO - RabbitMQ connection established
+2025-03-18 09:45:38,230 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-18 09:58:04,673 - user_service - INFO - User tt logged in successfully
+2025-03-18 09:58:04,684 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-18 09:58:04,687 - user_service - ERROR - Error while consuming messages: 'NoneType' object has no attribute 'poll'
+2025-03-18 09:58:04,710 - user_service - INFO - RabbitMQ connection established
+2025-03-18 09:58:04,716 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-19 05:27:42,107 - user_service - INFO - User tt logged in successfully
+2025-03-19 05:27:42,113 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-19 05:27:47,114 - user_service - ERROR - Error while consuming messages: 'NoneType' object has no attribute 'clear'
+2025-03-19 05:27:47,133 - user_service - INFO - RabbitMQ connection established
+2025-03-19 05:27:47,138 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-19 05:35:50,156 - user_service - INFO - User tt logged in successfully
+2025-03-19 05:35:50,165 - user_service - ERROR - Error while consuming messages: Stream connection lost: AssertionError(('_AsyncTransportBase._produce() tx buffer size underflow', -31, 1))
+2025-03-19 05:35:50,168 - user_service - ERROR - Failed to publish message: ('_AsyncTransportBase._initate_abort() expected _STATE_ABORTED_BY_USER', 2)
+2025-03-19 05:35:50,187 - user_service - INFO - RabbitMQ connection established
+2025-03-19 05:35:50,191 - user_service - INFO - Consumer set up for queue kubeconfig_events
