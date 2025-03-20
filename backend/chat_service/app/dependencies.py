@@ -11,7 +11,6 @@ def get_db_session():
     return Depends(get_session)
 
 def get_current_user_dependency():
-    print("check .....")
     """Return a current user dependency"""
     return Depends(get_current_user)
 

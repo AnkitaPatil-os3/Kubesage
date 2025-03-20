@@ -4,13 +4,16 @@ from app.cache import cache_get, cache_set, get_session_key, get_messages_key
 from app.logger import logger
 from app.config import settings
 from app.queue import publish_session_created, publish_message_created
-
+from app.models import ChatMessage  # Ensure this is the correct import for your models
 from sqlmodel import Session, select
 from datetime import datetime
+from sqlalchemy import delete  # Import delete function
 import httpx
 import openai
 import asyncio
 from typing import List, Dict, Any, Optional, Tuple
+from fastapi import HTTPException, Path, Query, Depends, status
+
 
 # Initialize OpenAI client
 client = openai.OpenAI(
@@ -76,6 +79,8 @@ async def update_session_title(
     db.add(session)
     db.commit()
     db.refresh(session)
+    print(f"Session title updated to: {session.title}")
+
 
 async def delete_chat_session(
     db: Session,
@@ -162,20 +167,21 @@ async def get_chat_history(
         return cached_messages
     
     # Get from database if not in cache
-    query = select(ChatMessage) \
-        .where(ChatMessage.session_id == session_id) \
-        .order_by(ChatMessage.created_at)
+    query = db.query(ChatMessage).filter(ChatMessage.session_id == session_id).order_by(ChatMessage.created_at)
+
     
     # If user_id is provided, verify session ownership
     if user_id is not None:
-        session_query = select(ChatSession) \
-            .where(ChatSession.session_id == session_id, ChatSession.user_id == user_id)
-        session = db.exec(session_query).first()
-        
+        session = db.query(ChatSession).filter(ChatSession.session_id == session_id, ChatSession.user_id == user_id).first()
+
         if not session:
-            return []
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You are not authorized to access this session"
+            )
     
-    messages = db.exec(query).all()
+    # Retrieve messages from the database
+    messages = query.all()
     
     # Update cache
     if messages:
@@ -289,17 +295,3 @@ async def get_k8s_analysis(user_id: int) -> str:
         logger.error(f"Error connecting to K8sGPT service: {str(e)}")
         return "Error connecting to Kubernetes analysis service."
 
-async def update_session_title(
-    db: Session,
-    session: ChatSession,
-    first_message: str
-) -> None:
-    """Generate and update the title for a chat session"""
-    # Generate a title based on the first message (simplified)
-    title_length = min(len(first_message), 50)
-    title = first_message[:title_length] + ("..." if len(first_message) > 50 else "")
-    
-    # Update the session
-    session.title = title
-    db.add(session)
-    db.commit()

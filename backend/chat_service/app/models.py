@@ -17,6 +17,7 @@ class ChatSession(SQLModel, table=True):
     
     # Virtual field for relationship
     messages: List["ChatMessage"] = Relationship(back_populates="session")
+    
 class ChatMessage(SQLModel, table=True):
     """Individual chat message model"""
     __tablename__ = "chat_messages"
