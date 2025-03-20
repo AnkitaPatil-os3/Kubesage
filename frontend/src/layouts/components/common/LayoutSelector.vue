@@ -1,27 +1,13 @@
 <script setup lang="ts">
 import type { LayoutMode } from '@/store/app'
-
+ 
 const value = defineModel<LayoutMode>('value', { required: true })
 </script>
-
+ 
 <template>
   <div class="flex-center gap-4">
-    <n-tooltip placement="bottom" trigger="hover">
-      <template #trigger>
-        <n-el
-          :class="{
-            'outline outline-2': value === 'leftMenu',
-          }"
-          class="grid grid-cols-[20%_1fr] outline-[var(--primary-color)] hover:(outline outline-2) cursor-pointer"
-          @click="value = 'leftMenu'"
-        >
-          <div class="bg-[var(--primary-color)]" />
-          <div class="bg-[var(--divider-color)]" />
-        </n-el>
-      </template>
-      <span> {{ $t('app.leftMenu') }} </span>
-    </n-tooltip>
-
+    
+ 
     <n-tooltip placement="bottom" trigger="hover">
       <template #trigger>
         <n-el
@@ -37,7 +23,22 @@ const value = defineModel<LayoutMode>('value', { required: true })
       </template>
       <span> {{ $t('app.topMenu') }} </span>
     </n-tooltip>
-
+    <n-tooltip placement="bottom" trigger="hover">
+      <template #trigger>
+        <n-el
+          :class="{
+            'outline outline-2': value === 'leftMenu',
+          }"
+          class="grid grid-cols-[20%_1fr] outline-[var(--primary-color)] hover:(outline outline-2) cursor-pointer"
+          @click="value = 'leftMenu'"
+        >
+          <div class="bg-[var(--primary-color)]" />
+          <div class="bg-[var(--divider-color)]" />
+        </n-el>
+      </template>
+      <span> {{ $t('app.leftMenu') }} </span>
+    </n-tooltip>
+ 
     <n-tooltip placement="bottom" trigger="hover">
       <template #trigger>
         <n-el
@@ -56,7 +57,7 @@ const value = defineModel<LayoutMode>('value', { required: true })
     </n-tooltip>
   </div>
 </template>
-
+ 
 <style lang="scss" scoped>
 .grid{
   height: 60px;
@@ -70,3 +71,5 @@ const value = defineModel<LayoutMode>('value', { required: true })
   border-radius: var(--border-radius);
 }
 </style>
+ 
+ 

@@ -34028,3 +34028,32 @@
 2025-03-20 09:18:23,669 - user_service - ERROR - Error while consuming messages: 'NoneType' object has no attribute 'poll'
 2025-03-20 09:18:23,717 - user_service - INFO - RabbitMQ connection established
 2025-03-20 09:18:23,719 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-20 09:54:26,736 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-20 10:07:10,692 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-20 10:07:22,073 - user_service - INFO - User nisha logged in successfully
+2025-03-20 10:07:22,078 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-20 10:07:22,078 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-20 10:07:22,124 - user_service - INFO - RabbitMQ connection established
+2025-03-20 10:07:22,125 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-20 10:47:59,500 - user_service - INFO - RabbitMQ connection established
+2025-03-20 10:47:59,530 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-20 10:47:59,559 - user_service - INFO - Event consumers started in background
+2025-03-20 10:47:59,559 - user_service - INFO - User service started
+2025-03-20 10:47:59,561 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-20 10:49:56,600 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-20 10:50:20,694 - user_service - INFO - User nisha logged in successfully
+2025-03-20 10:50:20,700 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-20 10:50:20,735 - user_service - INFO - RabbitMQ connection established
+2025-03-20 10:50:20,737 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-20 10:50:35,664 - user_service - INFO - User nisha logged in successfully
+2025-03-20 10:50:35,666 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-20 10:50:35,666 - user_service - ERROR - Error while consuming messages: 'NoneType' object has no attribute 'clear'
+2025-03-20 10:50:35,700 - user_service - INFO - RabbitMQ connection established
+2025-03-20 10:50:35,702 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-20 10:51:00,368 - user_service - INFO - Received kubeconfig event: kubeconfig_uploaded
+2025-03-20 10:51:08,028 - user_service - INFO - Received kubeconfig event: kubeconfig_activated
+2025-03-20 10:51:15,405 - user_service - INFO - Received kubeconfig event: kubeconfig_activated
+2025-03-20 10:51:18,492 - user_service - INFO - Received kubeconfig event: kubeconfig_deleted
+2025-03-20 10:51:18,493 - user_service - INFO - Kubeconfig deleted for user 1, cluster: ashish-k8s
+2025-03-20 10:51:22,226 - user_service - INFO - Received kubeconfig event: kubeconfig_activated
+2025-03-20 10:51:31,324 - user_service - INFO - Received kubeconfig event: operator_installation_failed

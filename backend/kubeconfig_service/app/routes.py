@@ -3,22 +3,22 @@ from fastapi.responses import JSONResponse
 from sqlmodel import Session, select, update
 from typing import List, Dict, Optional
 import os, uuid, json, subprocess, shlex, datetime  # Added datetime
-
+ 
 from app.database import get_session
 from app.models import Kubeconf
 from app.schemas import (
-    KubeconfigResponse, 
-    KubeconfigList, 
-    MessageResponse, 
+    KubeconfigResponse,
+    KubeconfigList,
+    MessageResponse,
     ClusterNamesResponse
 )
 from app.auth import get_current_user
 from app.config import settings
 from app.logger import logger
 from app.queue import publish_message  # Updated to use our new queue implementation
-
+ 
 kubeconfig_router = APIRouter()
-
+ 
 def execute_command(command: str):
     """Execute a shell command and return the result"""
     logger.debug(f"Executing command: {command}")
@@ -37,12 +37,12 @@ def execute_command(command: str):
     except Exception as e:
         logger.error(f"Error executing command: {str(e)}")
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
-
+ 
 def get_active_kubeconfig(session: Session, user_id: int) -> Kubeconf:
     """Get the active kubeconfig for a user"""
     active_kubeconf = session.exec(
         select(Kubeconf).where(
-            Kubeconf.user_id == user_id, 
+            Kubeconf.user_id == user_id,
             Kubeconf.active == True
         )
     ).first()
@@ -51,10 +51,10 @@ def get_active_kubeconfig(session: Session, user_id: int) -> Kubeconf:
         raise HTTPException(status_code=404, detail="No active kubeconfig found")
     
     return active_kubeconf
-
+ 
 @kubeconfig_router.post("/upload", response_model=KubeconfigResponse, status_code=201)
 async def upload_kubeconfig(
-    file: UploadFile = File(...), 
+    file: UploadFile = File(...),
     session: Session = Depends(get_session),
     current_user: Dict = Depends(get_current_user)
 ):
@@ -112,10 +112,10 @@ async def upload_kubeconfig(
     except Exception as e:
             logger.error(f"Error uploading kubeconfig: {str(e)}")
             raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
-
+ 
 @kubeconfig_router.put("/activate/{filename}")
 async def set_active_kubeconfig(
-        filename: str, 
+        filename: str,
         session: Session = Depends(get_session),
         current_user: Dict = Depends(get_current_user)
 ):
@@ -129,14 +129,14 @@ async def set_active_kubeconfig(
     
         if not kubeconf_to_activate:
             raise HTTPException(status_code=404, detail=f"Kubeconfig '{filename}' not found")
-
+ 
         # Deactivate all kubeconfigs for this user
         session.exec(
             update(Kubeconf)
             .where(Kubeconf.user_id == current_user["id"])
             .values(active=False)
         )
-
+ 
         # Activate the selected kubeconfig
         kubeconf_to_activate.active = True
         session.add(kubeconf_to_activate)
@@ -157,7 +157,7 @@ async def set_active_kubeconfig(
         })
         
         return JSONResponse(content={"message": f"Kubeconfig '{filename}' set as active"}, status_code=200)
-
+ 
 @kubeconfig_router.get("/list", response_model=KubeconfigList)
 async def list_kubeconfigs(
         session: Session = Depends(get_session),
@@ -170,7 +170,7 @@ async def list_kubeconfigs(
         ).all()
     
         return {"kubeconfigs": kubeconfigs}
-
+ 
 @kubeconfig_router.get("/clusters", response_model=ClusterNamesResponse)
 async def get_cluster_names(
         session: Session = Depends(get_session),
@@ -178,12 +178,12 @@ async def get_cluster_names(
 ):
         cluster_names = []
         errors = []
-
+ 
         # Query all Kubeconfs entries for the current user
         kubeconfs = session.exec(
             select(Kubeconf).where(Kubeconf.user_id == current_user["id"])
         ).all()
-
+ 
         for kubeconf in kubeconfs:
             if kubeconf.cluster_name:
                 cluster_names.append({
@@ -197,7 +197,7 @@ async def get_cluster_names(
                 try:
                     if not os.path.exists(kubeconf.path):
                         errors.append({
-                            "filename": kubeconf.filename, 
+                            "filename": kubeconf.filename,
                             "error": "Kubeconfig file not found on disk"
                         })
                         continue
@@ -218,24 +218,24 @@ async def get_cluster_names(
                         session.add(kubeconf)
                     else:
                         errors.append({
-                            "filename": kubeconf.filename, 
+                            "filename": kubeconf.filename,
                             "error": "Unable to retrieve cluster name"
                         })
                 except HTTPException as e:
                     errors.append({
-                        "filename": kubeconf.filename, 
+                        "filename": kubeconf.filename,
                         "error": str(e.detail)
                     })
-
+ 
         # Commit any changes made to the database
         session.commit()
-
+ 
         response: Dict[str, List] = {"cluster_names": cluster_names}
         if errors:
             response["errors"] = errors
-
+ 
         return response
-
+ 
 @kubeconfig_router.delete("/remove")
 async def remove_kubeconfig(
         filename: str = Query(..., description="Filename of the kubeconfig to remove"),
@@ -252,7 +252,7 @@ async def remove_kubeconfig(
     
         if not kubeconf:
             raise HTTPException(status_code=404, detail=f"Kubeconfig '{filename}' not found or does not belong to you")
-
+ 
         file_path = kubeconf.path
         
         # Save kubeconf info before deletion for event publishing
@@ -317,66 +317,82 @@ async def remove_kubeconfig(
             session.rollback()
             logger.error(f"Error removing kubeconfig: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Error removing kubeconfig: {str(e)}")
-
+ 
 @kubeconfig_router.post("/install-operator")
 async def install_operator(
-        session: Session = Depends(get_session),
-        current_user: Dict = Depends(get_current_user)
+    session: Session = Depends(get_session),
+    current_user: Dict = Depends(get_current_user)
 ):
-        active_kubeconf = get_active_kubeconfig(session, current_user["id"])
-        kubeconfig_path = active_kubeconf.path
-
-        if not os.path.exists(kubeconfig_path):
-            raise HTTPException(status_code=404, detail="Active kubeconfig file not found on disk")
-
-        commands = [
-            f"helm repo add k8sgpt https://charts.k8sgpt.ai/ --kubeconfig {kubeconfig_path}",
-            f"helm repo update --kubeconfig {kubeconfig_path}",
-            f"helm install release k8sgpt/k8sgpt-operator -n k8sgpt-operator-system --create-namespace --kubeconfig {kubeconfig_path}"
-        ]
-
-        results = []
-        success = True
-        for command in commands:
-            try:
-                result = execute_command(command)
-                results.append({"command": command, "result": result})
-            except HTTPException as e:
-                results.append({"command": command, "error": str(e.detail)})
-                success = False
-                break  # Stop execution if a command fails
-            if success:
-                session.add(active_kubeconf)
-                session.commit()
-                logger.info(f"User {current_user['id']} installed operator on cluster {active_kubeconf.cluster_name}")
-            
-                # Publish operator installed event
-                publish_message("kubeconfig_events", {
-                    "event_type": "operator_installed",
-                    "kubeconfig_id": active_kubeconf.id,
-                    "user_id": current_user["id"],
-                    "username": current_user.get("username", "unknown"),
-                    "cluster_name": active_kubeconf.cluster_name,
-                    "success": True,
-                    "timestamp": datetime.datetime.now().isoformat()
-                })
-            else:
-                # Publish operator installation failed event
-                publish_message("kubeconfig_events", {
-                    "event_type": "operator_installation_failed",
-                    "kubeconfig_id": active_kubeconf.id,
-                    "user_id": current_user["id"],
-                    "username": current_user.get("username", "unknown"),
-                    "cluster_name": active_kubeconf.cluster_name,
-                    "error": results[-1].get("error", "Unknown error"),
-                    "timestamp": datetime.datetime.now().isoformat()
-                })
-
-            return JSONResponse(
-                content={"results": results, "operator_installed": success}, 
-                status_code=200
-            )
-
+    active_kubeconf = get_active_kubeconfig(session, current_user["id"])
+    kubeconfig_path = active_kubeconf.path
+ 
+    if not os.path.exists(kubeconfig_path):
+        raise HTTPException(status_code=404, detail="Active kubeconfig file not found on disk")
+ 
+    commands = [
+        f"helm repo add k8sgpt https://charts.k8sgpt.ai/ --kubeconfig {kubeconfig_path}",
+        f"helm repo update --kubeconfig {kubeconfig_path}",
+        f"helm install release k8sgpt/k8sgpt-operator -n k8sgpt-operator-system --create-namespace --kubeconfig {kubeconfig_path}"
+    ]
+ 
+    results = []
+    success = True
+    error_message = ""
+    
+    for command in commands:
+        try:
+            result = execute_command(command)
+            results.append({"command": command, "result": result})
+        except HTTPException as e:
+            error_message = str(e.detail)
+            results.append({"command": command, "error": error_message})
+            success = False
+            break  # Stop execution if a command fails
+    
+    if success:
+        # Update operator installation status in DB
+        active_kubeconf.is_operator_installed = True
+        session.add(active_kubeconf)
+        session.commit()
+        
+        logger.info(f"User {current_user['id']} installed operator on cluster {active_kubeconf.cluster_name}")
+        
+        # Publish operator installed event
+        publish_message("kubeconfig_events", {
+            "event_type": "operator_installed",
+            "kubeconfig_id": active_kubeconf.id,
+            "user_id": current_user["id"],
+            "username": current_user.get("username", "unknown"),
+            "cluster_name": active_kubeconf.cluster_name,
+            "success": True,
+            "timestamp": datetime.datetime.now().isoformat()
+        })
+        
+        return JSONResponse(
+            content={"results": results, "operator_installed": True, "message": "Operator installed successfully"},
+            status_code=200
+        )
+    else:
+        # Publish operator installation failed event
+        publish_message("kubeconfig_events", {
+            "event_type": "operator_installation_failed",
+            "kubeconfig_id": active_kubeconf.id,
+            "user_id": current_user["id"],
+            "username": current_user.get("username", "unknown"),
+            "cluster_name": active_kubeconf.cluster_name,
+            "error": error_message,
+            "timestamp": datetime.datetime.now().isoformat()
+        })
+        
+        return JSONResponse(
+            content={
+                "results": results,
+                "operator_installed": False,
+                "message": f"Failed to install operator: {error_message}"
+            },
+            status_code=400  # Bad Request for command execution failure
+        )
+ 
 @kubeconfig_router.get("/namespaces")
 async def get_namespaces(
             session: Session = Depends(get_session),
@@ -384,12 +400,12 @@ async def get_namespaces(
 ):
             active_kubeconf = get_active_kubeconfig(session, current_user["id"])
             kubeconfig_path = active_kubeconf.path
-
+ 
             if not os.path.exists(kubeconfig_path):
                 raise HTTPException(status_code=404, detail="Active kubeconfig file not found on disk")
-
+ 
             command = f"kubectl get namespaces -o jsonpath='{{.items[*].metadata.name}}' --kubeconfig {kubeconfig_path}"
-
+ 
             try:
                 result = execute_command(command)
         
@@ -399,7 +415,7 @@ async def get_namespaces(
                 else:
                     # If result is not in the expected format, raise an exception
                     raise ValueError("Unexpected result format from execute_command")
-
+ 
                 logger.info(f"User {current_user['id']} retrieved namespaces from cluster {active_kubeconf.cluster_name}")
             
                 # Publish namespaces retrieved event
@@ -432,7 +448,5 @@ async def get_namespaces(
                 })
             
                 raise HTTPException(status_code=500, detail=f"Error fetching namespaces: {str(e)}")     
-
-
-
-
+ 
+ 

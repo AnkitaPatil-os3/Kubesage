@@ -17,15 +17,23 @@ import { ref, onMounted } from 'vue';
 const username = ref(''); // Initialize as an empty ref
  
 onMounted(() => {
-  // Retrieve user information from localStorage
-  const userInfo = JSON.parse(localStorage.getItem('userInfo'));
- 
-  // Set the username dynamically if userInfo exists
-  if (userInfo) {
-    username.value = userInfo.nickname || userInfo.userName || 'User'; // Use 'nickname' or fallback to 'userName'
-  } else {
-    console.warn("User information not found in localStorage.");
-    username.value = 'User'; // Default fallback if no user info is found
+  try {
+    // Retrieve user information from localStorage
+    const userInfoData = JSON.parse(localStorage.getItem('userInfo'));
+    
+    // Check if userInfo exists and has the nested value property
+    if (userInfoData && userInfoData.value) {
+      // Access the nested properties correctly
+      username.value = userInfoData.value.nickname ||
+                       userInfoData.value.userName ||
+                       'User';
+    } else {
+      console.warn("User information not found or has invalid structure in localStorage.");
+      username.value = 'User'; // Default fallback
+    }
+  } catch (error) {
+    console.error("Error parsing user information:", error);
+    username.value = 'User'; // Fallback in case of parsing error
   }
 });
 </script>
