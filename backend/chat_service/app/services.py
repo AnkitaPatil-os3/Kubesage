@@ -49,6 +49,7 @@ async def create_chat_session(
     publish_session_created(session_dict)
     
     return new_session
+
 async def get_chat_session(
     db: Session, 
     session_id: str, 
@@ -167,13 +168,11 @@ async def get_chat_history(
         return cached_messages
     
     # Get from database if not in cache
-    query = db.query(ChatMessage).filter(ChatMessage.session_id == session_id).order_by(ChatMessage.created_at)
+    query = select(ChatMessage).where(ChatMessage.session_id == session_id).order_by(ChatMessage.created_at)
 
-    
     # If user_id is provided, verify session ownership
     if user_id is not None:
-        session = db.query(ChatSession).filter(ChatSession.session_id == session_id, ChatSession.user_id == user_id).first()
-
+        session = await get_chat_session(db, session_id, user_id)
         if not session:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -181,7 +180,7 @@ async def get_chat_history(
             )
     
     # Retrieve messages from the database
-    messages = query.all()
+    messages = db.exec(query).all()
     
     # Update cache
     if messages:
@@ -198,90 +197,102 @@ async def get_chat_history(
     
     return messages
 
+
+
 async def process_chat_message(
     db: Session,
     user_id: int,
     message_data: MessageCreate
 ) -> MessageResponse:
     """Process a chat message and get AI response"""
-    session_id = message_data.session_id
-    session = None
-    
-    if session_id:
-        # Get existing session
-        session = await get_chat_session(db, session_id, user_id)
-        if not session:
-            # Create new session if provided ID doesn't exist
+    try:
+        session_id = message_data.session_id
+        session = None
+        
+        if session_id:
+            # Get existing session
+            session = await get_chat_session(db, session_id, user_id)
+            if not session:
+                # Create new session if provided ID doesn't exist
+                session_create = ChatSessionCreate(title="New Chat")
+                session = await create_chat_session(db, user_id, session_create)
+                session_id = session.session_id
+        else:
+            # Create new session
             session_create = ChatSessionCreate(title="New Chat")
             session = await create_chat_session(db, user_id, session_create)
             session_id = session.session_id
-    else:
-        # Create new session
-        session_create = ChatSessionCreate(title="New Chat")
-        session = await create_chat_session(db, user_id, session_create)
-        session_id = session.session_id
-    
-    # For new sessions, get K8s analysis first
-    is_new_session = not await get_chat_history(db, session_id)
-    analysis_output = ""
-    
-    if is_new_session:
-        analysis_output = await get_k8s_analysis(user_id)
-    
-    # Build the user content
-    if is_new_session and analysis_output:
-        user_content = f"Analysis results:\n{analysis_output}\n\nUser question: {message_data.content}"
-    else:
-        user_content = message_data.content
-    
-    # Add user message to history
-    await add_chat_message(db, session, "user", user_content)
-    
-    # Get chat history
-    messages = await get_chat_history(db, session_id)
-    
-    # Build messages array for OpenAI
-    openai_messages = [
-        {
-            "role": "system", 
-            "content": "You are a helpful Kubernetes assistant. Use the analysis results and previous context to answer questions."
-        }
-    ]
-    
-    # Add history to messages
-    for msg in messages:
-        openai_messages.append({"role": msg.role, "content": msg.content})
-    
-    # Get AI response
-    try:
-        response = client.chat.completions.create(
-            model=settings.OPENAI_MODEL,
-            messages=openai_messages
+        
+        # For new sessions, get K8s analysis first
+        is_new_session = not await get_chat_history(db, session_id)
+        analysis_output = ""
+        
+        if is_new_session:
+            analysis_output = await get_k8s_analysis(user_id)
+        
+        # Build the user content
+        if is_new_session and analysis_output:
+            user_content = f"Analysis results:\n{analysis_output}\n\nUser question: {message_data.content}"
+        else:
+            user_content = message_data.content
+        
+        # Add user message to history
+        await add_chat_message(db, session, "user", user_content)
+        
+        # Get chat history
+        messages = await get_chat_history(db, session_id)
+        
+        # Build messages array for OpenAI
+        openai_messages = [
+            {
+                "role": "system", 
+                "content": "You are a helpful Kubernetes assistant. Use the analysis results and previous context to answer questions."
+            }
+        ]
+        
+        # Add history to messages
+        for msg in messages:
+            openai_messages.append({"role": msg["role"], "content": msg["content"]})
+        
+        # Get AI response
+        try:
+            response = client.chat.completions.create(
+                model=settings.OPENAI_MODEL,
+                messages=openai_messages
+            )
+            assistant_message = response.choices[0].message.content
+        except Exception as e:
+            logger.error(f"Error getting AI response: {str(e)}")
+            assistant_message = "I'm sorry, I encountered an error processing your request."
+        
+        # Add assistant message to history
+        assistant_chat_msg = await add_chat_message(db, session, "assistant", assistant_message)
+        
+        # Update session title if it's a new session
+        if is_new_session:
+            await update_session_title(db, session, message_data.content)
+        
+        return MessageResponse(
+            role="assistant",
+            content=assistant_message,
+            session_id=session_id,
+            created_at=assistant_chat_msg.created_at
         )
-        assistant_message = response.choices[0].message.content
     except Exception as e:
-        logger.error(f"Error getting AI response: {str(e)}")
-        assistant_message = "I'm sorry, I encountered an error processing your request."
-    
-    # Add assistant message to history
-    assistant_chat_msg = await add_chat_message(db, session, "assistant", assistant_message)
-    
-    # Update session title if it's a new session
-    if is_new_session:
-        await update_session_title(db, session, message_data.content)
-    
-    return MessageResponse(
-        role="assistant",
-        content=assistant_message,
-        session_id=session_id,
-        created_at=assistant_chat_msg.created_at
-    )
+        logger.error(f"Error in process_chat_message: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while processing your message."
+        )
+
+
+
 
 async def get_k8s_analysis(user_id: int) -> str:
     """Get K8s analysis from K8sGPT service"""
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
+        async with httpx.AsyncClient(verify=False) as client:
+            response = await client.post(
                 f"{settings.K8SGPT_SERVICE_URL}/analyze",
                 params={"output": "text"}
             )

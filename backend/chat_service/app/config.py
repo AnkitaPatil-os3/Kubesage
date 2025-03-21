@@ -23,9 +23,9 @@ class Settings(BaseSettings):
     RABBITMQ_VHOST: str = "/"
     
     # OpenAI Integration
-    OPENAI_API_KEY: str = "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"
-    OPENAI_BASE_URL: str = "https://api.openai.com/v1"
-    OPENAI_MODEL: str = "gpt-3.5-turbo"
+    OPENAI_API_KEY: str = "ZMZwek2Mudo8m8OkStBzB3tMGDsce8jE"
+    OPENAI_BASE_URL: str = "https://codestral.mistral.ai/v1/"
+    OPENAI_MODEL: str = "codestral-latest"
     
     # Service Integration
     USER_SERVICE_URL: str = "https://10.0.34.129:8000"
