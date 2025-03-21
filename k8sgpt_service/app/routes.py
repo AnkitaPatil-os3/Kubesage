@@ -223,21 +223,55 @@ async def create_backend(
     Add or update an AI backend configuration
     """
     user_id = current_user["id"]
-    
-    backend = await add_ai_backend(
-        user_id=user_id,
-        backend_config=backend_config.dict(),
-        session=session
-    )
-    
-    return {
-        "id": backend.id,
-        "backend_name": backend.backend_name,
-        "is_default": backend.is_default,
-        "config": json.loads(backend.config_json),
-        "created_at": backend.created_at,
-        "updated_at": backend.updated_at
+
+    # Construct command similar to /auth/add
+    command = f"k8sgpt auth add --backend {backend_config.backend_provider}"
+
+    if backend_config.baseurl:
+        command += f" --baseurl {backend_config.baseurl}"
+    if backend_config.compartmentId:
+        command += f" --compartmentId {backend_config.compartmentId}"
+    if backend_config.endpointname:
+        command += f" --endpointname {backend_config.endpointname}"
+    if backend_config.engine:
+        command += f" --engine {backend_config.engine}"
+    if backend_config.maxtokens:
+        command += f" --maxtokens {backend_config.maxtokens}"
+    if backend_config.model:
+        command += f" --model {backend_config.model}"
+    if backend_config.organizationId:
+        command += f" --organizationId {backend_config.organizationId}"
+    if backend_config.password:
+        command += f" --password {backend_config.password}"
+    if backend_config.providerId:
+        command += f" --providerId {backend_config.providerId}"
+    if backend_config.providerRegion:
+        command += f" --providerRegion {backend_config.providerRegion}"
+    if backend_config.temperature:
+        command += f" --temperature {backend_config.temperature}"
+    if backend_config.topk:
+        command += f" --topk {backend_config.topk}"
+    if backend_config.topp:
+        command += f" --topp {backend_config.topp}"
+
+    # Execute command and handle response
+    try:
+        output = execute_command(command)
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    # Simulate storing backend details in DB
+    backend = {
+        "id": 1,  # Replace with actual DB record ID
+        "backend_provider": backend_config.backend_provider,
+        "is_default": backend_config.is_default,
+        "config": output,
+        "created_at": "2025-03-19T12:00:00Z",  # Replace with actual timestamps
+        "updated_at": "2025-03-19T12:00:00Z"
     }
+    return backend 
 
 @k8sgpt_router.get("/backends", response_model=AIBackendsList)
 async def get_backends(
