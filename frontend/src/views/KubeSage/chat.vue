@@ -1,7 +1,7 @@
 <template>
-    <div class="app-container">
+    <div class="app-container" :class="{ 'dark-mode': isDarkMode }">
         <!-- Sidebar -->
-        <div class="sidebar">
+        <div class="sidebar" :class="{ 'sidebar-hidden': !isSidebarVisible }">
             <div class="sidebar-header">
                 <button class="new-chat-btn" @click="startNewChat">
                     <span>+ New Chat</span>
@@ -19,18 +19,32 @@
         </div>
 
         <!-- Main Chat Section -->
-        <div class="main-chat">
+        <div class="main-chat" :class="{ 'full-width': !isSidebarVisible }">
             <!-- Chat Header -->
             <div class="chat-header">
-                <h2>ChatGPT</h2>
+                <button class="toggle-sidebar-btn" @click="toggleSidebar">
+                    <svg v-if="isSidebarVisible" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+                        <path fill="currentColor" d="M3 4h18v2H3V4zm0 7h18v2H3v-2zm0 7h18v2H3v-2z" />
+                    </svg>
+                    <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+                        <path fill="currentColor" d="M3 4h18v2H3V4zm0 7h18v2H3v-2zm0 7h18v2H3v-2z" />
+                    </svg>
+                </button>
+                <h2>ChatOps</h2>
+                <button class="toggle-theme-btn" @click="toggleTheme">
+                    <svg v-if="isDarkMode" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+                        <path fill="currentColor" d="M12 18c-3.309 0-6-2.691-6-6s2.691-6 6-6 6 2.691 6 6-2.691 6-6 6zm0-10c-2.206 0-4 1.794-4 4s1.794 4 4 4 4-1.794 4-4-1.794-4-4-4zM12 4c-0.553 0-1-0.447-1-1V1c0-0.553 0.447-1 1-1s1 0.447 1 1v2C13 3.553 12.553 4 12 4zM12 24c-0.553 0-1-0.447-1-1v-2c0-0.553 0.447-1 1-1s1 0.447 1 1v2C13 23.553 12.553 24 12 24zM4.929 6.343c-0.391-0.391-0.391-1.023 0-1.414l1.414-1.414c0.391-0.391 1.023-0.391 1.414 0s0.391 1.023 0 1.414L6.343 6.343C5.952 6.734 5.32 6.734 4.929 6.343zM17.657 19.071c-0.391-0.391-0.391-1.023 0-1.414l1.414-1.414c0.391-0.391 1.023-0.391 1.414 0s0.391 1.023 0 1.414l-1.414 1.414C18.68 19.462 18.048 19.462 17.657 19.071zM1 12c0-0.553 0.447-1 1-1h2c0.553 0 1 0.447 1 1s-0.447 1-1 1H2C1.447 13 1 12.553 1 12zM20 12c0-0.553 0.447-1 1-1h2c0.553 0 1 0.447 1 1s-0.447 1-1 1h-2C20.447 13 20 12.553 20 12zM6.343 17.657c-0.391-0.391-0.391-1.023 0-1.414l1.414-1.414c0.391-0.391 1.023-0.391 1.414 0s0.391 1.023 0 1.414l-1.414 1.414C7.366 18.048 6.734 18.048 6.343 17.657zM19.071 4.929c-0.391-0.391-0.391-1.023 0-1.414l1.414-1.414c0.391-0.391 1.023-0.391 1.414 0s0.391 1.023 0 1.414l-1.414 1.414C20.094 5.32 19.462 5.32 19.071 4.929z" />
+                    </svg>
+                    <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+                        <path fill="currentColor" d="M12 18c-3.309 0-6-2.691-6-6s2.691-6 6-6 6 2.691 6 6-2.691 6-6 6zm0-10c-2.206 0-4 1.794-4 4s1.794 4 4 4 4-1.794 4-4-1.794-4-4-4zM12 4c-0.553 0-1-0.447-1-1V1c0-0.553 0.447-1 1-1s1 0.447 1 1v2C13 3.553 12.553 4 12 4zM12 24c-0.553 0-1-0.447-1-1v-2c0-0.553 0.447-1 1-1s1 0.447 1 1v2C13 23.553 12.553 24 12 24zM4.929 6.343c-0.391-0.391-0.391-1.023 0-1.414l1.414-1.414c0.391-0.391 1.023-0.391 1.414 0s0.391 1.023 0 1.414L6.343 6.343C5.952 6.734 5.32 6.734 4.929 6.343zM17.657 19.071c-0.391-0.391-0.391-1.023 0-1.414l1.414-1.414c0.391-0.391 1.023-0.391 1.414 0s0.391 1.023 0 1.414l-1.414 1.414C18.68 19.462 18.048 19.462 17.657 19.071zM1 12c0-0.553 0.447-1 1-1h2c0.553 0 1 0.447 1 1s-0.447 1-1 1H2C1.447 13 1 12.553 1 12zM20 12c0-0.553 0.447-1 1-1h2c0.553 0 1 0.447 1 1s-0.447 1-1 1h-2C20.447 13 20 12.553 20 12zM6.343 17.657c-0.391-0.391-0.391-1.023 0-1.414l1.414-1.414c0.391-0.391 1.023-0.391 1.414 0s0.391 1.023 0 1.414l-1.414 1.414C7.366 18.048 6.734 18.048 6.343 17.657zM19.071 4.929c-0.391-0.391-0.391-1.023 0-1.414l1.414-1.414c0.391-0.391 1.023-0.391 1.414 0s0.391 1.023 0 1.414l-1.414 1.414C20.094 5.32 19.462 5.32 19.071 4.929z" />
+                    </svg>
+                </button>
             </div>
 
             <!-- Chat Messages -->
             <div class="chat-messages" ref="chatMessagesContainer">
                 <div v-for="(message, index) in activeChat.messages" :key="index" :class="['message', message.role]">
-                    <div class="message-content">
-                        {{ message.content }}
-                    </div>
+                    <div class="message-content" v-html="renderMarkdown(message.content)"></div>
                 </div>
             </div>
 
@@ -51,6 +65,7 @@
 <script>
 import { ref, watch, nextTick, onMounted } from 'vue';
 import axios from 'axios';
+import MarkdownIt from 'markdown-it';
 
 export default {
     name: 'ChatApp',
@@ -62,6 +77,30 @@ export default {
         const newMessage = ref('');
         const textarea = ref(null);
         const chatMessagesContainer = ref(null);
+
+        // Sidebar visibility state
+        const isSidebarVisible = ref(true);
+
+        // Dark mode state
+        const isDarkMode = ref(false);
+
+        // Initialize Markdown parser
+        const md = new MarkdownIt();
+
+        // Function to render Markdown
+        const renderMarkdown = (text) => {
+            return md.render(text);
+        };
+
+        // Toggle sidebar visibility
+        const toggleSidebar = () => {
+            isSidebarVisible.value = !isSidebarVisible.value;
+        };
+
+        // Toggle light/dark mode
+        const toggleTheme = () => {
+            isDarkMode.value = !isDarkMode.value;
+        };
 
         // Fetch chat sessions on component mount
         onMounted(async () => {
@@ -160,7 +199,7 @@ export default {
                 const token = JSON.parse(localStorage.getItem('accessToken')).value;
                 return { Authorization: `Bearer ${token}` };
             } catch (error) {
-                messageApi.error('Authentication error. Please login again.');
+                console.error('Authentication error. Please login again.');
                 return {};
             }
         };
@@ -195,6 +234,11 @@ export default {
             newMessage,
             textarea,
             chatMessagesContainer,
+            isSidebarVisible,
+            isDarkMode,
+            renderMarkdown,
+            toggleSidebar,
+            toggleTheme,
             startNewChat,
             loadChat,
             sendMessage,
@@ -202,7 +246,6 @@ export default {
     },
 };
 </script>
-
 
 <style scoped>
 /* Full App Layout */
@@ -212,6 +255,12 @@ export default {
     background-color: #f5f5f5;
 }
 
+/* Dark Mode */
+.app-container.dark-mode {
+    background-color: #1e1e1e;
+    color: #ffffff;
+}
+
 /* Sidebar */
 .sidebar {
     width: 250px;
@@ -219,6 +268,16 @@ export default {
     border-right: 1px solid #e0e0e0;
     padding: 16px;
     box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease;
+}
+
+.app-container.dark-mode .sidebar {
+    background-color: #2d2d2d;
+    color: #ffffff;
+}
+
+.sidebar.sidebar-hidden {
+    transform: translateX(-100%);
 }
 
 .sidebar-header {
@@ -251,6 +310,10 @@ export default {
     color: #333;
 }
 
+.app-container.dark-mode .chat-history h3 {
+    color: #ffffff;
+}
+
 .chat-history ul {
     list-style: none;
     padding: 0;
@@ -269,6 +332,10 @@ export default {
     background-color: #f0f0f0;
 }
 
+.app-container.dark-mode .chat-history li:hover {
+    background-color: #444;
+}
+
 .chat-history li.active {
     background-color: #007bff;
     color: white;
@@ -280,6 +347,16 @@ export default {
     display: flex;
     flex-direction: column;
     background-color: #ffffff;
+    transition: margin-left 0.3s ease;
+}
+
+.main-chat.full-width {
+    margin-left: 0;
+}
+
+.app-container.dark-mode .main-chat {
+    background-color: #1e1e1e;
+    color: #ffffff;
 }
 
 .chat-header {
@@ -287,6 +364,14 @@ export default {
     background-color: #f9f9f9;
     border-bottom: 1px solid #e0e0e0;
     text-align: center;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.app-container.dark-mode .chat-header {
+    background-color: #2d2d2d;
+    color: #ffffff;
 }
 
 .chat-header h2 {
@@ -295,11 +380,38 @@ export default {
     color: #333;
 }
 
+.app-container.dark-mode .chat-header h2 {
+    color: #ffffff;
+}
+
+.toggle-sidebar-btn,
+.toggle-theme-btn {
+    padding: 8px 12px;
+    background-color: transparent;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.toggle-sidebar-btn svg,
+.toggle-theme-btn svg {
+    fill: currentColor;
+    width: 24px;
+    height: 24px;
+}
+
 .chat-messages {
     flex: 1;
     padding: 16px;
     overflow-y: auto;
     background-color: #fafafa;
+}
+
+.app-container.dark-mode .chat-messages {
+    background-color: #1e1e1e;
+    color: #ffffff;
 }
 
 .message {
@@ -335,12 +447,22 @@ export default {
     border-radius: 12px 12px 12px 0;
 }
 
+.app-container.dark-mode .message.bot .message-content {
+    background-color: #444;
+    color: #ffffff;
+}
+
 .chat-input {
     display: flex;
     align-items: center;
     padding: 12px;
     background-color: #f9f9f9;
     border-top: 1px solid #e0e0e0;
+}
+
+.app-container.dark-mode .chat-input {
+    background-color: #2d2d2d;
+    color: #ffffff;
 }
 
 .chat-input textarea {
@@ -353,6 +475,12 @@ export default {
     overflow-y: hidden;
     outline: none;
     transition: border-color 0.3s ease;
+}
+
+.app-container.dark-mode .chat-input textarea {
+    background-color: #1e1e1e;
+    color: #ffffff;
+    border-color: #444;
 }
 
 .chat-input textarea:focus {

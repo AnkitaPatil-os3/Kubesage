@@ -34146,3 +34146,33 @@
 2025-03-21 10:08:52,055 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
 2025-03-21 10:08:52,064 - user_service - INFO - RabbitMQ connection established
 2025-03-21 10:08:52,065 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-21 10:46:00,040 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-21 10:46:20,312 - user_service - INFO - User nisha logged in successfully
+2025-03-21 10:46:20,317 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-21 10:46:20,317 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-21 10:46:20,329 - user_service - INFO - RabbitMQ connection established
+2025-03-21 10:46:20,330 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-21 10:47:52,433 - user_service - INFO - User nisha logged in successfully
+2025-03-21 10:47:52,436 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-21 10:47:52,436 - user_service - ERROR - Failed to publish message: _CallbackResult was not set
+2025-03-21 10:47:52,445 - user_service - INFO - RabbitMQ connection established
+2025-03-21 10:47:52,446 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-21 10:55:04,489 - user_service - INFO - RabbitMQ connection established
+2025-03-21 10:55:04,520 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-21 10:55:04,551 - user_service - INFO - Event consumers started in background
+2025-03-21 10:55:04,551 - user_service - INFO - User service started
+2025-03-21 10:55:04,554 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-21 10:55:27,004 - user_service - INFO - User nisha logged in successfully
+2025-03-21 10:55:27,010 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-21 10:55:27,017 - user_service - INFO - RabbitMQ connection established
+2025-03-21 10:55:27,018 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-21 11:03:09,103 - user_service - INFO - RabbitMQ connection established
+2025-03-21 11:03:09,133 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-21 11:03:09,157 - user_service - INFO - Event consumers started in background
+2025-03-21 11:03:09,157 - user_service - INFO - User service started
+2025-03-21 11:03:09,159 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-21 11:38:28,347 - user_service - INFO - User nisha logged in successfully
+2025-03-21 11:38:28,352 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-21 11:38:28,352 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-21 11:38:28,365 - user_service - INFO - RabbitMQ connection established
+2025-03-21 11:38:28,367 - user_service - INFO - Consumer set up for queue kubeconfig_events
