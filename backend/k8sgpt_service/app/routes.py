@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select
 from typing import List, Dict, Any, Optional
+from datetime import datetime
 import uuid
 import json
-from datetime import datetime
+import subprocess
+import shlex
 
 from app.database import get_session
 from app.models import AIBackend, AnalysisResult
@@ -226,7 +228,7 @@ async def create_backend(
     user_id = current_user["id"]
 
     # Construct command similar to /auth/add
-    command = f"k8sgpt auth add --backend {backend_config.backend_provider}"
+    command = f"k8sgpt auth add --backend {backend_config.backend_type}"
 
     if backend_config.baseurl:
         command += f" --baseurl {backend_config.baseurl}"
@@ -250,8 +252,8 @@ async def create_backend(
         command += f" --providerRegion {backend_config.providerRegion}"
     if backend_config.temperature:
         command += f" --temperature {backend_config.temperature}"
-    if backend_config.topk:
-        command += f" --topk {backend_config.topk}"
+    # if backend_config.topk:
+    #     command += f" --topk {backend_config.topk}"
     if backend_config.topp:
         command += f" --topp {backend_config.topp}"
 
@@ -360,3 +362,22 @@ async def list_analyzers(
     analyzers = await get_available_analyzers(user_id)
     
     return analyzers
+
+
+def execute_command(command: str):
+    print(command)
+    try:
+        args = shlex.split(command)
+        result = subprocess.run(args, check=True, capture_output=True, text=True)
+        # Try to parse the output as JSON
+        try:
+            output = json.loads(result.stdout)
+            return output
+        except json.JSONDecodeError:
+            # If parsing fails, return the raw output
+            return {"stdout": result.stdout}
+ 
+    except subprocess.CalledProcessError as e:
+        raise HTTPException(status_code=500, detail=f"Command execution failed: {e.stderr}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")

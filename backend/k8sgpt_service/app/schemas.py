@@ -57,7 +57,7 @@ class AIBackendConfigRequest(BaseModel):
     baseurl: Optional[str] = Field(None, description="URL AI provider")
     compartmentId: Optional[str] = Field(None, description="Compartment ID for generative AI model (only for oci backend)")
     endpointname: Optional[str] = Field(None, description="Endpoint Name (only for amazonbedrock, amazonsagemaker backends)")
-    # engine: Optional[str] = None  # for Azure
+    engine: Optional[str] = None  # for Azure
     maxtokens: int = Field(2048, description="Specify a maximum output length")
     model: str = Field("gpt-3.5-turbo", description="Backend AI model")
     organizationId: Optional[str] = Field(None, description="OpenAI or AzureOpenAI Organization ID")
