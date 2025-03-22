@@ -73,6 +73,9 @@ class AIBackendConfigResponse(BaseModel):
     id: int
     backend_name: str
     is_default: bool
+    # config: Dict[str, Any]
+
+
     
 
 class AIBackendsList(BaseModel):

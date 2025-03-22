@@ -232,30 +232,30 @@ async def create_backend(
 
     if backend_config.baseurl:
         command += f" --baseurl {backend_config.baseurl}"
-    if backend_config.compartmentId:
-        command += f" --compartmentId {backend_config.compartmentId}"
-    if backend_config.endpointname:
-        command += f" --endpointname {backend_config.endpointname}"
-    if backend_config.engine:
-        command += f" --engine {backend_config.engine}"
+    # if backend_config.compartmentId:
+    #     command += f" --compartmentId {backend_config.compartmentId}"
+    # if backend_config.endpointname:
+    #     command += f" --endpointname {backend_config.endpointname}"
+    # if backend_config.engine:
+    #     command += f" --engine {backend_config.engine}"
     if backend_config.maxtokens:
         command += f" --maxtokens {backend_config.maxtokens}"
     if backend_config.model:
         command += f" --model {backend_config.model}"
-    if backend_config.organizationId:
-        command += f" --organizationId {backend_config.organizationId}"
-    if backend_config.password:
-        command += f" --password {backend_config.password}"
-    if backend_config.providerId:
-        command += f" --providerId {backend_config.providerId}"
-    if backend_config.providerRegion:
-        command += f" --providerRegion {backend_config.providerRegion}"
+    # if backend_config.organizationId:
+    #     command += f" --organizationId {backend_config.organizationId}"
+    # if backend_config.password:
+    #     command += f" --password {backend_config.password}"
+    # if backend_config.providerId:
+    #     command += f" --providerId {backend_config.providerId}"
+    # if backend_config.providerRegion:
+    #     command += f" --providerRegion {backend_config.providerRegion}"
     if backend_config.temperature:
         command += f" --temperature {backend_config.temperature}"
     # if backend_config.topk:
     #     command += f" --topk {backend_config.topk}"
-    if backend_config.topp:
-        command += f" --topp {backend_config.topp}"
+    # if backend_config.topp:
+    #     command += f" --topp {backend_config.topp}"
 
     # Execute command and handle response
     try:
@@ -268,11 +268,11 @@ async def create_backend(
     # Simulate storing backend details in DB
     backend = {
         "id": 1,  # Replace with actual DB record ID
-        "backend_provider": backend_config.backend_provider,
+        "backend_name": backend_config.backend_type,
         "is_default": backend_config.is_default,
-        "config": output,
-        "created_at": "2025-03-19T12:00:00Z",  # Replace with actual timestamps
-        "updated_at": "2025-03-19T12:00:00Z"
+        # "config": output,
+        # "created_at": "2025-03-19T12:00:00Z",  # Replace with actual timestamps
+        # "updated_at": "2025-03-19T12:00:00Z"
     }
     return backend 
 

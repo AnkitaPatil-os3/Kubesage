@@ -96,7 +96,7 @@
   };
   
   // API base URL
-  const baseUrl = 'https://10.0.34.129:8001/kubeconfig';
+  const baseUrl = 'https://10.0.32.123:8002/kubeconfig';
   
   // Table columns configuration
   const columns = [

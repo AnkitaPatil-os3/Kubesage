@@ -58,6 +58,7 @@ async def upload_kubeconfig(
     session: Session = Depends(get_session),
     current_user: Dict = Depends(get_current_user)
 ):
+    logger.info(f"Upload request received for user {current_user['id']} with file {file.filename}")
     try:
         # Generate a unique filename
         file_extension = os.path.splitext(file.filename)[1]
@@ -448,5 +449,134 @@ async def get_namespaces(
                 })
             
                 raise HTTPException(status_code=500, detail=f"Error fetching namespaces: {str(e)}")     
+ 
+ 
+@kubeconfig_router.post("/analyze")
+async def analyze(
+    session: Session = Depends(get_session),
+    current_user: Dict = Depends(get_current_user),
+    anonymize: bool = Query(False, description="Anonymize data before sending it to the AI backend"),
+
+    backend: str = Query(None, description="Backend AI provider"),
+
+    custom_analysis: bool = Query(False, description="Enable custom analyzers"),
+
+    custom_headers: List[str] = Query(None, description="Custom Headers, <key>:<value>"),
+
+    explain: bool = Query(False, description="Explain the problem"),
+
+    filter: List[str] = Query(None, description="Filter for these analyzers"),
+
+    interactive: bool = Query(False, description="Enable interactive mode"),
+
+    language: str = Query("english", description="Language to use for AI"),
+
+    max_concurrency: int = Query(10, description="Maximum number of concurrent requests"),
+
+    namespace: str = Query(None, description="Namespace to analyze"),
+
+    no_cache: bool = Query(False, description="Do not use cached data"),
+
+    output: str = Query("text", description="Output format (text, json)"),
+
+    selector: str = Query(None, description="Label selector"),
+
+    with_doc: bool = Query(False, description="Give me the official documentation of the involved field"),
+
+    config: str = Query(None, description="Default config file"),
+
+    kubecontext: str = Query(None, description="Kubernetes context to use")
+
+):
+
+    # Get the active kubeconfig
+
+    active_kubeconf = get_active_kubeconfig(session, current_user["id"])
+
+    kubeconfig_path = active_kubeconf.path
+ 
+    command = "k8sgpt analyze"
+
+    if anonymize:
+
+        command += " --anonymize"
+
+    if backend:
+
+        command += f" --backend {backend}"
+
+    if custom_analysis:
+
+        command += " --custom-analysis"
+
+    if custom_headers:
+
+        for header in custom_headers:
+
+            command += f" --custom-headers {header}"
+
+    if explain:
+
+        command += " --explain"
+
+    if filter:
+
+        for f in filter:
+
+            command += f" --filter {f}"
+
+    if interactive:
+
+        command += " --interactive"
+
+    if language != "english":
+
+        command += f" --language {language}"
+
+    if max_concurrency != 10:
+
+        command += f" --max-concurrency {max_concurrency}"
+
+    if namespace:
+
+        command += f" --namespace {namespace}"
+
+    if no_cache:
+
+        command += " --no-cache"
+
+    if output != "text":
+
+        command += f" --output {output}"
+
+    if selector:
+
+        command += f" --selector {selector}"
+
+    if with_doc:
+
+        command += " --with-doc"
+
+    if config:
+
+        command += f" --config {config}"
+
+    if kubecontext:
+
+        command += f" --kubecontext {kubecontext}"
+
+    # Add the active kubeconfig path
+
+    command += f" --kubeconfig {kubeconfig_path}"
+ 
+    try:
+
+        result = execute_command(command + " --output=json")
+
+        return JSONResponse(content=result, status_code=200)
+
+    except HTTPException as e:
+
+        return JSONResponse(content={"error": str(e.detail)}, status_code=e.status_code)
  
  

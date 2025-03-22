@@ -4,16 +4,16 @@ from typing import Optional
 
 class Settings(BaseSettings):
     # Database
-    POSTGRES_USER: str = "nisha"
+    POSTGRES_USER: str = "test"
     POSTGRES_PASSWORD: str = "linux"
     POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: int = "5432"
-    POSTGRES_DB: str = "n_chat_db"
+    POSTGRES_DB: str = "chat_db"
     
     # Redis
-    REDIS_HOST: str = "127.0.0.1"
-    REDIS_PORT: int = "6379"
-    REDIS_PASSWORD: str = "GkjPb3lHsapqnapytiaylZsEh2xgK3jlMtbG+c9I4EcVU1+NxlRZNNGlP0mZOn5UnU1T8ZZxBhGvp1Ru"
+    REDIS_HOST: str = "localhost"
+    REDIS_PORT: int = 6379
+    REDIS_PASSWORD: str = "2GUuagotBcTfuJ13sDBSlNSyxYhImbfs9Xqs7J8ncGIcljTNavUOornfUK1N4KcnbqOEBHLZp/9F7MhMos3"
     
     # RabbitMQ
     RABBITMQ_USER: str = "guest"
@@ -32,9 +32,9 @@ class Settings(BaseSettings):
     OPENAI_MODEL: str = "llama3.1"
 
     # Service Integration
-    USER_SERVICE_URL: str = "https://10.0.34.129:8000"
-    KUBECONFIG_SERVICE_URL: str = "https://10.0.34.129:8001"
-    K8SGPT_SERVICE_URL: str = "https://10.0.34.129:8002"
+    USER_SERVICE_URL: str = "https://10.0.32.123:8001"
+    KUBECONFIG_SERVICE_URL: str = "https://10.0.32.123:8002"
+    K8SGPT_SERVICE_URL: str = "https://10.0.32.123:8003"
     
     # Security
     JWT_SECRET_KEY: str =  "hkfiurhrugtieruyueryu"

@@ -70,7 +70,7 @@ import MarkdownIt from 'markdown-it';
 export default {
     name: 'ChatApp',
     setup() {
-        const host = 'https://10.0.34.129:8003/chat/';
+        const host = 'https://10.0.32.123:8004/chat/';
         const chatSessions = ref([]); // List of chat sessions
         const activeChatSessionId = ref(null); // Currently active chat session ID
         const activeChat = ref({ messages: [] }); // Messages for the active chat session
