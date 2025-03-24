@@ -33,7 +33,7 @@ end
 # Unset irrelevant variables.
 deactivate nondestructive
 
-set -gx VIRTUAL_ENV /home/ubuntu/kubesage-development/backend/k8sgpt_service/k8s-env
+set -gx VIRTUAL_ENV /home/os3/kubesage-development/backend/k8sgpt_service/k8s-env
 
 set -gx _OLD_VIRTUAL_PATH $PATH
 set -gx PATH "$VIRTUAL_ENV/"bin $PATH

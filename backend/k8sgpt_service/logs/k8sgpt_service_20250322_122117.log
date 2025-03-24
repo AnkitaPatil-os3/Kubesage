@@ -1,0 +1,7 @@
+2025-03-22 12:21:17,902 - k8sgpt_service - WARNING - Redis cache connection failed: Error 111 connecting to localhost:6379. Connection refused.
+2025-03-22 12:21:17,987 - k8sgpt_service - INFO - Connected to RabbitMQ server
+2025-03-22 12:21:18,046 - k8sgpt_service - INFO - Starting K8sGPT Operations Service
+2025-03-22 12:21:18,046 - k8sgpt_service - INFO - Creating database and tables if they don't exist
+2025-03-22 12:21:18,077 - k8sgpt_service - ERROR - Failed to connect to Redis: Error 111 connecting to localhost:6379. Connection refused.
+2025-03-22 12:21:18,078 - k8sgpt_service - INFO - Starting to consume messages from RabbitMQ
+2025-03-22 12:21:58,511 - k8sgpt_service - INFO - Shutting down K8sGPT Operations Service

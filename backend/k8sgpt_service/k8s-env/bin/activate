@@ -39,10 +39,10 @@ deactivate nondestructive
 if [ "${OSTYPE:-}" = "cygwin" ] || [ "${OSTYPE:-}" = "msys" ] ; then
     # transform D:\path\to\venv to /d/path/to/venv on MSYS
     # and to /cygdrive/d/path/to/venv on Cygwin
-    export VIRTUAL_ENV=$(cygpath /home/ubuntu/kubesage-development/backend/k8sgpt_service/k8s-env)
+    export VIRTUAL_ENV=$(cygpath /home/os3/kubesage-development/backend/k8sgpt_service/k8s-env)
 else
     # use the path as-is
-    export VIRTUAL_ENV=/home/ubuntu/kubesage-development/backend/k8sgpt_service/k8s-env
+    export VIRTUAL_ENV=/home/os3/kubesage-development/backend/k8sgpt_service/k8s-env
 fi
 
 _OLD_VIRTUAL_PATH="$PATH"

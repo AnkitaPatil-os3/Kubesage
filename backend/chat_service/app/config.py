@@ -4,11 +4,11 @@ from typing import Optional
 
 class Settings(BaseSettings):
     # Database
-    POSTGRES_USER: str = "nisha"
+    POSTGRES_USER: str = "preeti"
     POSTGRES_PASSWORD: str = "linux"
     POSTGRES_HOST: str = "localhost"
-    POSTGRES_PORT: int = "5432"
-    POSTGRES_DB: str = "n_chat_db"
+    POSTGRES_PORT: str = "5432"
+    POSTGRES_DB: str = "p_chat_db"
     
     # Redis
     REDIS_HOST: str = "127.0.0.1"
@@ -32,9 +32,9 @@ class Settings(BaseSettings):
     OPENAI_MODEL: str = "llama3.1"
 
     # Service Integration
-    USER_SERVICE_URL: str = "https://10.0.34.129:8000"
-    KUBECONFIG_SERVICE_URL: str = "https://10.0.34.129:8001"
-    K8SGPT_SERVICE_URL: str = "https://10.0.34.129:8002"
+    USER_SERVICE_URL: str = "https://10.0.32.122:8003"
+    KUBECONFIG_SERVICE_URL: str = "https://10.0.32.122:8005"
+    K8SGPT_SERVICE_URL: str = "https://10.0.32.122:8004"
     
     # Security
     JWT_SECRET_KEY: str =  "hkfiurhrugtieruyueryu"

@@ -1,0 +1,8 @@
+2025-03-22 12:28:35,788 - k8sgpt_service - WARNING - Redis cache connection failed: Error 111 connecting to localhost:6379. Connection refused.
+2025-03-22 12:28:35,890 - k8sgpt_service - INFO - Connected to RabbitMQ server
+2025-03-22 12:28:35,943 - k8sgpt_service - INFO - Starting K8sGPT Operations Service
+2025-03-22 12:28:35,943 - k8sgpt_service - INFO - Creating database and tables if they don't exist
+2025-03-22 12:28:35,988 - k8sgpt_service - ERROR - Failed to connect to Redis: Error 111 connecting to localhost:6379. Connection refused.
+2025-03-22 12:28:35,989 - k8sgpt_service - INFO - Starting to consume messages from RabbitMQ
+2025-03-22 12:48:19,628 - k8sgpt_service - INFO - Shutting down K8sGPT Operations Service
+2025-03-22 12:48:24,651 - k8sgpt_service - ERROR - Error during message consumption: Stream connection lost: IndexError('pop from an empty deque')

@@ -8,11 +8,11 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     
     # PostgreSQL connection
-    POSTGRES_USER: str = "nisha"
+    POSTGRES_USER: str = "preeti"
     POSTGRES_PASSWORD: str = "linux"
     POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: str = "5432"
-    POSTGRES_DB: str = "n_k8sgpt_db"
+    POSTGRES_DB: str = "p_k8sgpt_db"
     DATABASE_URL: str = ""  # Will be constructed from above settings
     
     # RabbitMQ settings
@@ -29,8 +29,8 @@ class Settings(BaseSettings):
     REDIS_PASSWORD: str = "GkjPb3lHsapqnapytiaylZsEh2xgK3jlMtbG+c9I4EcVU1+NxlRZNNGlP0mZOn5UnU1T8ZZxBhGvp1Ru"
     
     # Service URLs
-    USER_SERVICE_URL: str = "https://10.0.34.129:8000"
-    KUBECONFIG_SERVICE_URL: str = "https://10.0.34.129:8001"
+    USER_SERVICE_URL: str = "https://10.0.32.122:8003"
+    KUBECONFIG_SERVICE_URL: str = "https://10.0.32.122:8005"
     
     # SSL
     SSL_KEYFILE: Optional[str] = "key.pem"
