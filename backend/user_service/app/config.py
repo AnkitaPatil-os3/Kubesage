@@ -13,7 +13,9 @@ class Settings(BaseSettings):
     POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: str = "5432"
     POSTGRES_DB: str = "n_user_db"
-    DATABASE_URL: str = ""  # Will be constructed from above settings
+    DATABASE_URL: str = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
+
+    # DATABASE_URL: str = ""  # Will be constructed from above settings
     
     # RabbitMQ settings
     RABBITMQ_USER: str = "guest"
@@ -26,7 +28,7 @@ class Settings(BaseSettings):
     # Token settings
     SECRET_KEY: str = "ggt767yfhgfhkkhigffjkjhkj333hkjhkjj"
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1500
     
     # SSL
     SSL_KEYFILE: Optional[str] = "key.pem"

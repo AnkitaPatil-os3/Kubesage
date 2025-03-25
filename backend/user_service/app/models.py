@@ -22,3 +22,4 @@ class UserToken(SQLModel, table=True):
     expires_at: datetime.datetime
     is_revoked: bool = Field(default=False)
     created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
+    

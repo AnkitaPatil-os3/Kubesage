@@ -1,6 +1,78 @@
 <template>
     <div class="app-container" :class="{ 'dark-mode': isDarkMode }">
-        
+        <!-- Sidebar -->
+        <div class="sidebar" :class="{ 'sidebar-hidden': !isSidebarVisible, 'sidebar-minimized': isMinimized && isSidebarVisible }">
+            <!-- Sidebar content when not minimized -->
+            <div class="sidebar-content" v-show="!isMinimized">
+                <div class="sidebar-header">
+                    <div class="logo-container">
+                        <!-- <img src="/logo.svg" alt="KubeSage Logo" class="logo" /> -->
+                        <!-- <h2>KubeSage</h2> -->
+                    </div>
+                    <button class="new-chat-btn" @click="startNewChat">
+                        <span><i class="fas fa-plus"></i> New Chat</span>
+                    </button>
+                </div>
+                <div class="chat-history">
+                    <h3>Recent Conversations</h3>
+                    <div class="history-list">
+                        <div v-for="(chat, index) in chatSessions" :key="chat.session_id"
+                            @click="loadChat(chat.session_id)"
+                            :class="['history-item', { active: activeChatSessionId === chat.session_id }]">
+                            <div class="history-icon"><i class="fas fa-comment-dots"></i></div>
+                            <div class="history-title">{{ chat.title || `Chat ${index + 1}` }}</div>
+                            <div class="history-actions">
+                                <button class="action-btn" @click.stop="deleteChat(chat.session_id)">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="sidebar-footer">
+                    <button class="theme-toggle" @click="toggleTheme">
+                        <i :class="isDarkMode ? 'fas fa-sun' : 'fas fa-moon'"></i>
+                        {{ isDarkMode ? 'Light Mode' : 'Dark Mode' }}
+                    </button>
+                    <div class="user-info">
+                        <div class="avatar">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <div class="username">User</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Minimized sidebar content -->
+            <div class="sidebar-minimized-content" v-show="isMinimized">
+                <div class="minimized-icons">
+                    <!-- <div class="minimized-logo">
+                        <img src="/logo.svg" alt="KubeSage Logo" class="logo" />
+                    </div> -->
+                    <button class="icon-btn" @click="startNewChat" title="New Chat">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                    <div class="history-icons">
+                        <button v-for="(chat, index) in chatSessions" :key="chat.session_id"
+                            @click="loadChat(chat.session_id)"
+                            :class="['icon-btn', { active: activeChatSessionId === chat.session_id }]"
+                            :title="chat.title || `Chat ${index + 1}`">
+                            <i class="fas fa-comment-dots"></i>
+                        </button>
+                    </div>
+                    <div class="minimized-footer">
+                        <button class="icon-btn" @click="toggleTheme" :title="isDarkMode ? 'Light Mode' : 'Dark Mode'">
+                            <i :class="isDarkMode ? 'fas fa-sun' : 'fas fa-moon'"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Minimize/Expand toggle button -->
+            <button class="minimize-btn" @click="toggleMinimize" :title="isMinimized ? 'Expand' : 'Minimize'">
+                <i :class="isMinimized ? 'fas fa-chevron-right' : 'fas fa-chevron-left'"></i>
+            </button>
+        </div>        
  
         <!-- Main Chat Section -->
         <div class="main-chat"
@@ -10,9 +82,7 @@
                
                 <h2>{{ activeChat.title || 'ChatOps' }}</h2>
                 <div class="header-actions">
-                    <button class="action-btn" @click="clearChat" title="Clear conversation">
-                        <i class="fas fa-broom"></i>
-                    </button>
+                    
                     <button class="toggle-theme-btn" @click="toggleTheme">
                         <i :class="isDarkMode ? 'fas fa-sun' : 'fas fa-moon'"></i>
                     </button>
@@ -61,7 +131,7 @@
                             <span class="message-sender">{{ message.role === 'user' ? 'You' : 'KubeSage' }}</span>
                             <span class="message-time">{{ formatTime(message.created_at) }}</span>
                         </div>
-                        <div class="message-content" v-html="renderMarkdown(message.content)"></div>
+                        <div class="message-content" v-html="renderMarkdown(message.content)"> </div>
                     </div>
                 </div>
                 <div v-if="isTyping" class="message-container bot">
@@ -102,7 +172,7 @@ import hljs from 'highlight.js';
 export default {
     name: 'ChatApp',
     setup() {
-        const host = 'https://10.0.35.243:8000/chat/';
+        const host = 'https://10.0.34.129:8009/chat/';
         const chatSessions = ref([]);
         const activeChatSessionId = ref(null);
         const activeChat = ref({ messages: [], title: '' });
@@ -445,7 +515,7 @@ const toggleMinimize = () => {
  
 /* Sidebar */
 .sidebar {
-    /* width: 280px; */
+    width: 280px;
     background-color: #ffffff;
     border-right: 1px solid #e0e0e0;
     display: flex;
@@ -467,7 +537,7 @@ const toggleMinimize = () => {
 }
  
 .sidebar.sidebar-minimized {
-    
+    width: 70px;
 }
  
 .sidebar-content {
@@ -499,8 +569,8 @@ const toggleMinimize = () => {
 }
  
 .minimized-logo .logo {
-    width: 32px;
-    height: 32px;
+    width: 40px;
+    height: 40px;
 }
  
 .icon-btn {
@@ -914,7 +984,7 @@ const toggleMinimize = () => {
 }
  
 .main-chat.with-minimized-sidebar {
-    margin-left: 70px;
+    /* margin-left: 70px; */
     width: calc(100% - 70px); /* Adjusted width with minimized sidebar */
 }
  
@@ -1369,5 +1439,7 @@ const toggleMinimize = () => {
     }
 }
 </style>
+ 
+ 
  
  

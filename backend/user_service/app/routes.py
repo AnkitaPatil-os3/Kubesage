@@ -4,7 +4,7 @@ from typing import List
 import datetime  # Added for timestamp
 
 from app.database import get_session
-from app.models import User
+from app.models import User , UserToken
 from app.schemas import UserCreate, UserResponse, UserUpdate, LoginRequest, Token, ChangePasswordRequest
 from app.auth import (
     authenticate_user, 
@@ -35,8 +35,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), session: Sessi
     access_token, expires_at = create_access_token(
         data={"sub": str(user.id)}, expires_delta=access_token_expires
     )
-    logger.info(f"User {user.username} logged in successfully")
-    
+        
     # Publish login event
     publish_message("user_events", {
         "event_type": "user_login",
@@ -83,26 +82,33 @@ async def register_user(user_data: UserCreate, session: Session = Depends(get_se
         # is_admin="true"
     )
     
-    session.add(db_user)
-    session.commit()
-    session.refresh(db_user)
-    
-    logger.info(f"User {db_user.username} registered successfully")
-    
-    # Publish user registration event
-    publish_message("user_events", {
-        "event_type": "user_created",
-        "user_id": db_user.id,
-        "username": db_user.username,
-        "email": db_user.email,
-        "first_name": db_user.first_name,
-        "last_name": db_user.last_name,
-        "is_active": db_user.is_active,
-        "is_admin": db_user.is_admin,
-        "timestamp": datetime.datetime.now().isoformat()
-    })
-    
-    return db_user
+    try:
+        # Add user to the session and commit the transaction
+        session.add(db_user)
+        session.commit()
+        session.refresh(db_user)
+        logger.info(f"User {db_user.username} registered successfully")
+        
+        # Publish user registration event
+        publish_message("user_events", {
+            "event_type": "user_created",
+            "user_id": db_user.id,
+            "username": db_user.username,
+            "email": db_user.email,
+            "first_name": db_user.first_name,
+            "last_name": db_user.last_name,
+            "is_active": db_user.is_active,
+            "is_admin": db_user.is_admin,
+            "timestamp": datetime.datetime.now().isoformat()
+        })
+        
+        return db_user
+
+    except Exception as e:
+        # Handle any errors that occur during the commit
+        logger.error(f"Error during user registration: {e}")
+        session.rollback()  # Rollback the transaction in case of an error
+        raise HTTPException(status_code=500, detail="User registration failed")
 
 @auth_router.post("/change-password", status_code=status.HTTP_200_OK)
 async def change_password(

@@ -14,6 +14,8 @@ import asyncio
 from typing import List, Dict, Any, Optional, Tuple
 from fastapi import HTTPException, Path, Query, Depends, status
 
+import requests
+
 
 # Initialize OpenAI client
 client = openai.OpenAI(
@@ -197,18 +199,16 @@ async def get_chat_history(
     
     return messages
 
-
-
 async def process_chat_message(
     db: Session,
     user_id: int,
-    message_data: MessageCreate
+    message_data: MessageCreate,
+    token: str
 ) -> MessageResponse:
     """Process a chat message and get AI response"""
     try:
         session_id = message_data.session_id
         session = None
-        
         if session_id:
             # Get existing session
             session = await get_chat_session(db, session_id, user_id)
@@ -222,26 +222,20 @@ async def process_chat_message(
             session_create = ChatSessionCreate(title="New Chat")
             session = await create_chat_session(db, user_id, session_create)
             session_id = session.session_id
-        
         # For new sessions, get K8s analysis first
         is_new_session = not await get_chat_history(db, session_id)
         analysis_output = ""
-        
         if is_new_session:
-            analysis_output = await get_k8s_analysis(user_id)
-        
+            analysis_output = await get_k8s_analysis(user_id, token)
         # Build the user content
         if is_new_session and analysis_output:
             user_content = f"Analysis results:\n{analysis_output}\n\nUser question: {message_data.content}"
         else:
             user_content = message_data.content
-        
         # Add user message to history
         await add_chat_message(db, session, "user", user_content)
-        
         # Get chat history
         messages = await get_chat_history(db, session_id)
-        
         # Build messages array for OpenAI
         openai_messages = [
             {
@@ -249,11 +243,9 @@ async def process_chat_message(
                 "content": "You are a helpful Kubernetes assistant. Use the analysis results and previous context to answer questions."
             }
         ]
-        
         # Add history to messages
         for msg in messages:
-            openai_messages.append({"role": msg["role"], "content": msg["content"]})
-        
+            openai_messages.append({"role": msg.role, "content": msg.content})
         # Get AI response
         try:
             response = client.chat.completions.create(
@@ -264,14 +256,11 @@ async def process_chat_message(
         except Exception as e:
             logger.error(f"Error getting AI response: {str(e)}")
             assistant_message = "I'm sorry, I encountered an error processing your request."
-        
         # Add assistant message to history
         assistant_chat_msg = await add_chat_message(db, session, "assistant", assistant_message)
-        
         # Update session title if it's a new session
         if is_new_session:
             await update_session_title(db, session, message_data.content)
-        
         return MessageResponse(
             role="assistant",
             content=assistant_message,
@@ -284,25 +273,44 @@ async def process_chat_message(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred while processing your message."
         )
-
-
-
-
-async def get_k8s_analysis(user_id: int) -> str:
+ 
+async def get_k8s_analysis(user_id: int, token: str) -> dict:
     """Get K8s analysis from K8sGPT service"""
+    url = f"{settings.KUBECONFIG_SERVICE_URL}/kubeconfig/analyze"
+    headers = {"Authorization": f"Bearer {token}"}
+    # Define the payload with necessary data
+    payload = {
+        "user_id": user_id,
+        "anonymize": False,
+        "backend": "default",
+        "custom_analysis": False,
+        "explain": True,
+        "language": "english",
+        "namespace": "default",
+        "no_cache": True,
+        "output": "json"
+        # Add other fields as required by the /analyze endpoint
+    }
     try:
-        async with httpx.AsyncClient(verify=False) as client:
-            response = await client.post(
-                f"{settings.K8SGPT_SERVICE_URL}/analyze",
-                params={"output": "text"}
-            )
-            
-            if response.status_code == 200:
-                return response.text
-            else:
-                logger.error(f"Failed to get K8s analysis: {response.text}")
-                return "Error retrieving Kubernetes analysis."
+        # Use requests.post to make the API call
+        response = requests.post(url, headers=headers, verify=False)
+        print(f"K8s analysis response: {response}")
+        if response.status_code == 200:
+            try:
+                result = response.json()
+                return result
+            except ValueError:
+                logger.error("Invalid JSON response received.")
+                return {"error": "Invalid JSON response from Kubernetes analysis service."}
+        else:
+            logger.error(f"Failed to get K8s analysis: {response.status_code} - {response.text}")
+            return {"error": f"Error retrieving Kubernetes analysis: {response.status_code}"}
+    except requests.exceptions.HTTPError as e:
+        logger.error(f"HTTP error while connecting to Kubeconfig service: {str(e)}")
+        return {"error": "HTTP error connecting to Kubernetes analysis service."}
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Request error while connecting to Kubeconfig service: {str(e)}")
+        return {"error": "Request error connecting to Kubernetes analysis service."}
     except Exception as e:
-        logger.error(f"Error connecting to K8sGPT service: {str(e)}")
-        return "Error connecting to Kubernetes analysis service."
-
+        logger.error(f"Unexpected error: {str(e)}")
+        return {"error": "An unexpected error occurred while fetching Kubernetes analysis."}

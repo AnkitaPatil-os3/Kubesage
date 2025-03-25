@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status , Header
 from typing import Annotated
 from app.dependencies import get_db_session, get_current_user_dependency
 from sqlmodel import Session
@@ -41,9 +41,13 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 
 @router.post("/", response_model=MessageResponse)
 async def chat(message: MessageCreate, db: Session= get_db_session(),
-                    current_user: UserInfo = Depends(get_current_user)):
-    response = await process_chat_message(db, current_user.id, message)
+                    current_user: UserInfo = Depends(get_current_user),
+                    authorization: str = Header(None)):
+    token = authorization.split(" ")[1] if authorization else None
+    response = await process_chat_message(db, current_user.id, message, token)
+    print("response ................:", response)
     return response
+ 
 
 #  ---------------------------- working ---------------------------
 
