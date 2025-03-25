@@ -1,0 +1,14 @@
+2025-03-25 04:59:25,787 - k8sgpt_service - WARNING - Redis cache connection failed: invalid username-password pair or user is disabled.
+2025-03-25 04:59:25,885 - k8sgpt_service - INFO - Connected to RabbitMQ server
+2025-03-25 04:59:25,918 - k8sgpt_service - INFO - Starting K8sGPT Operations Service
+2025-03-25 04:59:25,918 - k8sgpt_service - INFO - Creating database and tables if they don't exist
+2025-03-25 04:59:25,941 - k8sgpt_service - ERROR - Failed to connect to Redis: invalid username-password pair or user is disabled.
+2025-03-25 04:59:25,942 - k8sgpt_service - INFO - Starting to consume messages from RabbitMQ
+2025-03-25 05:15:45,139 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Could not validate credentials"}
+2025-03-25 05:15:45,140 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-03-25 05:15:48,307 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Could not validate credentials"}
+2025-03-25 05:15:48,307 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-03-25 05:18:06,788 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Could not validate credentials"}
+2025-03-25 05:18:06,789 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-03-25 05:24:57,618 - k8sgpt_service - INFO - Shutting down K8sGPT Operations Service
+2025-03-25 05:24:57,625 - k8sgpt_service - ERROR - Error during message consumption: Stream connection lost: IndexError('pop from an empty deque')

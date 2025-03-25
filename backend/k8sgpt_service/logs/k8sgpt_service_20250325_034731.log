@@ -1,0 +1,19 @@
+2025-03-25 03:47:31,306 - k8sgpt_service - WARNING - Redis cache connection failed: invalid username-password pair or user is disabled.
+2025-03-25 03:47:31,433 - k8sgpt_service - INFO - Connected to RabbitMQ server
+2025-03-25 03:47:31,469 - k8sgpt_service - INFO - Starting K8sGPT Operations Service
+2025-03-25 03:47:31,469 - k8sgpt_service - INFO - Creating database and tables if they don't exist
+2025-03-25 03:47:31,495 - k8sgpt_service - ERROR - Failed to connect to Redis: invalid username-password pair or user is disabled.
+2025-03-25 03:47:31,496 - k8sgpt_service - INFO - Starting to consume messages from RabbitMQ
+2025-03-25 03:48:08,292 - k8sgpt_service - ERROR - Failed to publish message: Stream connection lost: AssertionError(('_AsyncTransportBase._produce() tx buffer size underflow', -114, 1))
+2025-03-25 03:48:08,294 - k8sgpt_service - ERROR - Error during message consumption: ('_AsyncTransportBase._initate_abort() expected non-_STATE_COMPLETED', 4)
+2025-03-25 03:48:08,294 - k8sgpt_service - ERROR - RabbitMQ consumer error: ctag1.5ed4afb725d044b1a31ac32ac1672d28
+2025-03-25 03:48:12,265 - k8sgpt_service - INFO - Connected to RabbitMQ server
+2025-03-25 03:48:12,274 - k8sgpt_service - INFO - Published message with routing key analysis.started: {'analysis_id': '3d452bcf-cc5d-4ea7-8780-c7def3737526', 'user_id': '1', 'namespace': 'string', 'timestamp': '2025-03-25T03:48:12.227563'}
+2025-03-25 03:48:12,274 - k8sgpt_service - INFO - Published message with routing key analysis.failed: {'analysis_id': '3d452bcf-cc5d-4ea7-8780-c7def3737526', 'user_id': '1', 'namespace': 'string', 'timestamp': '2025-03-25T03:48:12.227563', 'error': "'kubeconfig_path'"}
+2025-03-25 03:52:54,550 - k8sgpt_service - ERROR - Failed to publish message: Stream connection lost: ConnectionResetError(104, 'Connection reset by peer')
+2025-03-25 03:52:56,615 - k8sgpt_service - INFO - Connected to RabbitMQ server
+2025-03-25 03:52:56,624 - k8sgpt_service - INFO - Published message with routing key analysis.started: {'analysis_id': '476a7cac-aa47-47a4-a711-80aeeb007233', 'user_id': '1', 'namespace': 'string', 'timestamp': '2025-03-25T03:52:56.573416'}
+2025-03-25 03:52:56,624 - k8sgpt_service - INFO - Published message with routing key analysis.failed: {'analysis_id': '476a7cac-aa47-47a4-a711-80aeeb007233', 'user_id': '1', 'namespace': 'string', 'timestamp': '2025-03-25T03:52:56.573416', 'error': "'kubeconfig_path'"}
+2025-03-25 04:24:04,476 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Could not validate credentials"}
+2025-03-25 04:24:04,477 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-03-25 04:59:14,512 - k8sgpt_service - INFO - Shutting down K8sGPT Operations Service

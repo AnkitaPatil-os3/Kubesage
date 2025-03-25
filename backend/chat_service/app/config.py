@@ -3,12 +3,13 @@ from pydantic_settings import BaseSettings
 from typing import Optional
 
 class Settings(BaseSettings):
-    # Database
-    POSTGRES_USER: str = "test"
+    # PostgreSQL connection
+    POSTGRES_USER: str = "nisha"
     POSTGRES_PASSWORD: str = "linux"
     POSTGRES_HOST: str = "localhost"
-    POSTGRES_PORT: int = "5432"
-    POSTGRES_DB: str = "chat_db"
+    POSTGRES_PORT: str = "5432"
+    POSTGRES_DB: str = "n_chat_db"
+    DATABASE_URL: str = ""  # Will be constructed from above settings
     
     # Redis
     REDIS_HOST: str = "localhost"
@@ -32,9 +33,9 @@ class Settings(BaseSettings):
     OPENAI_MODEL: str = "llama3.1"
 
     # Service Integration
-    USER_SERVICE_URL: str = "https://10.0.32.123:8001"
-    KUBECONFIG_SERVICE_URL: str = "https://10.0.32.123:8002"
-    K8SGPT_SERVICE_URL: str = "https://10.0.32.123:8003"
+    USER_SERVICE_URL: str = "https://10.0.34.129:8006"
+    KUBECONFIG_SERVICE_URL: str = "https://10.0.34.129:8007"
+    K8SGPT_SERVICE_URL: str = "https://10.0.34.129:8008"
     
     # Security
     JWT_SECRET_KEY: str =  "hkfiurhrugtieruyueryu"

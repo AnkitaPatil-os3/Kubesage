@@ -48,12 +48,13 @@ k8sgpt_router = APIRouter()
 async def analyze_cluster(
     analysis_request: AnalysisRequest,
     session: Session = Depends(get_session),
-    current_user: Dict = Depends(get_current_user)
+    # current_user: Dict = Depends(get_current_user)
 ):
     """
     Run K8sGPT analysis on the active Kubernetes cluster
     """
-    user_id = current_user["id"]
+    # user_id = current_user["id"]
+    user_id = "1"
     analysis_id = str(uuid.uuid4())
     
     # Convert analysis_request to dict for parameter passing
@@ -226,6 +227,8 @@ async def create_backend(
     Add or update an AI backend configuration
     """
     user_id = current_user["id"]
+    print("Received backend config:", backend_config)
+
 
     # Construct command similar to /auth/add
     command = f"k8sgpt auth add --backend {backend_config.backend_type}"
@@ -276,7 +279,7 @@ async def create_backend(
     }
     return backend 
 
-@k8sgpt_router.get("/backends", response_model=AIBackendsList)
+@k8sgpt_router.get("/backends/", response_model=AIBackendsList)
 async def get_backends(
     session: Session = Depends(get_session),
     current_user: Dict = Depends(get_current_user)
@@ -285,13 +288,11 @@ async def get_backends(
     List AI backend configurations for the user
     """
     user_id = current_user["id"]
-    
-    backends = await list_ai_backends(
-        user_id=user_id,
-        session=session
-    )
-    
+    backends = await list_ai_backends(user_id=user_id)
+    print("hii",backends)
+ 
     return {"backends": backends}
+
 
 @k8sgpt_router.get("/backends/{backend_name}", response_model=AIBackendConfigResponse)
 async def get_backend(

@@ -59,7 +59,7 @@ async def get_chat_session_history(session_id: str, db: Session= get_db_session(
     return ChatHistoryResponse(
         session_id=session.session_id,
         title=session.title,
-        messages=[ChatHistoryEntry(role=msg["role"], content=msg["content"], created_at=msg["created_at"]) for msg in messages],
+        messages=[ChatHistoryEntry(role=msg.role, content=msg.content, created_at=msg.created_at) for msg in messages],
         created_at=session.created_at,
         updated_at=session.updated_at
     )

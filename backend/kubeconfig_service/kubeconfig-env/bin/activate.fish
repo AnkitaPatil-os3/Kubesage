@@ -33,7 +33,7 @@ end
 # Unset irrelevant variables.
 deactivate nondestructive
 
-set -gx VIRTUAL_ENV /home/os3/nisha-kubesage/backend/kubeconfig_service/kubeconfig-env
+set -gx VIRTUAL_ENV /home/ubuntu/ashish-repo/backend/kubeconfig_service/kubeconfig-env
 
 set -gx _OLD_VIRTUAL_PATH $PATH
 set -gx PATH "$VIRTUAL_ENV/"bin $PATH
