@@ -100,7 +100,7 @@ const getAuthHeaders = () => {
 };
  
 // API base URL
-const baseUrl = 'https://10.0.34.129:8007/kubeconfig';
+const baseUrl = 'https://10.0.34.77:8002/kubeconfig';
  
 // Table columns configuration
 const columns = [

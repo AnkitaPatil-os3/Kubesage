@@ -1,6 +1,7 @@
 <template>
   <n-layout>
-    <n-layout-header style="padding: 10px; background-color: #f4f4f4; display: flex; justify-content: flex-end; align-items: center;">
+    <n-layout-header style="padding: 10px; background-color: #f4f4f4; display: flex; justify-content: space-between; align-items: center;">
+      <h2 class="header-title">Analyze Resources</h2>
       <n-select
         v-model:value="selectedNamespace"
         :options="namespaceOptions"
@@ -10,54 +11,13 @@
       />
     </n-layout-header>
     <n-layout-content style="padding: 20px;">
-      <!-- <h3>k8sGPT Dashboard</h3> -->
       <n-grid x-gap="20" y-gap="20" :cols="2">
-        <n-grid-item>
-          <n-card title="Pod" size="medium">
+        <n-grid-item v-for="resource in resources" :key="resource.type">
+          <n-card :title="resource.title" size="medium" class="card-transition">
             <template #footer>
-              <n-button type="primary" @click="goToPods">Analyze Pods</n-button>
-            </template>
-          </n-card>
-        </n-grid-item>
-        <n-grid-item>
-          <n-card title="Deployment" size="medium">
-            <template #footer>
-              <n-button type="primary" @click="goToDeployments">Analyze Deployments</n-button>
-            </template>
-          </n-card>
-        </n-grid-item>
-        <n-grid-item>
-          <n-card title="Services" size="medium">
-            <template #footer>
-              <n-button type="primary" @click="goToServices">Analyze Services</n-button>
-            </template>
-          </n-card>
-        </n-grid-item>
-        <n-grid-item>
-          <n-card title="StorageClass" size="medium">
-            <template #footer>
-              <n-button type="primary" @click="goToStorageClass">Analyze StorageClass</n-button>
-            </template>
-          </n-card>
-        </n-grid-item>
-        <n-grid-item>
-          <n-card title="Secrets" size="medium">
-            <template #footer>
-              <n-button type="primary" @click="goToSecrets">Analyze Secrets</n-button>
-            </template>
-          </n-card>
-        </n-grid-item>
-        <n-grid-item>
-          <n-card title="Ingress" size="medium">
-            <template #footer>
-              <n-button type="primary" @click="goToIngress">Analyze Ingress</n-button>
-            </template>
-          </n-card>
-        </n-grid-item>
-        <n-grid-item>
-          <n-card title="PVC" size="medium">
-            <template #footer>
-              <n-button type="primary" @click="goToPVC">Analyze PVC</n-button>
+              <n-button type="primary" :loading="loadingResource === resource.type" @click="resource.action">
+                Analyze {{ resource.title }}
+              </n-button>
             </template>
           </n-card>
         </n-grid-item>
@@ -101,12 +61,12 @@ import {
   NModal,
 } from 'naive-ui';
  
-const selectedNamespace = ref(''); // Default namespace
+const selectedNamespace = ref('');
 const namespaces = ref([]);
 const showAnalysisResult = ref(false);
 const analysisResult = ref('');
+const loadingResource = ref(null);
  
-// Get auth token from localStorage
 const getAuthHeaders = () => {
   try {
     const token = JSON.parse(localStorage.getItem('accessToken')).value;
@@ -117,18 +77,14 @@ const getAuthHeaders = () => {
   }
 };
  
-// API base URL
-const baseUrl = 'https://10.0.34.129:8007/kubeconfig';
+const baseUrl = 'https://10.0.34.77:8002/kubeconfig';
  
- 
-// Fetch namespaces from the backend
 const fetchNamespaces = async () => {
   try {
     const headers = getAuthHeaders();
     const response = await axios.get(`${baseUrl}/namespaces`, { headers });
     namespaces.value = response.data.namespaces;
  
-    // If selectedNamespace is empty or not in the list, set it to default (only once)
     if (!selectedNamespace.value || !namespaces.value.includes(selectedNamespace.value)) {
       selectedNamespace.value = namespaces.value.includes('default') ? 'default' : namespaces.value[0] || '';
     }
@@ -137,97 +93,25 @@ const fetchNamespaces = async () => {
   }
 };
  
- 
-// Analyze a Kubernetes resource
-// const analyzeK8sResource = async (resourceType) => {
-//   // if (!selectedNamespace.value) {
-//   //   alert('Please select a namespace first.');
-//   //   return;
-//   // }
- 
-//   try {
-//     const headers = getAuthHeaders();
-//     const requestBody = {
-//       anonymize: false,
-//       custom_analysis: false,
-//       explain: true,
-//       filter_analyzers: [resourceType], // Pass the resource type as filter
-//       interactive: false,
-//       language: 'english',
-//       max_concurrency: 10,
-//       namespace: selectedNamespace.value, // Pass the selected namespace
-//       no_cache: false,
-//       output_format: 'json',
-//       with_doc: false,
-//     };
-//     console.log('Request body:', requestBody);
- 
-//     const response = await axios.post(`${baseUrl}/analyze`, requestBody, { headers });
- 
-//     if (response.status === 200) {
-//       const { status, results } = response.data;
- 
-//       if (status === "OK" && results === null) {
-//         analysisResult.value = `<p style="color: green;">No issues found for ${resourceType} in namespace ${selectedNamespace.value}.</p>`;
-//       } else if (status === "ProblemDetected" && results) {
-//         let errorMessages = results.map((result, index) => {
-//           let errorText = result.error?.map(err => `<span style="color: red;">${err.Text}</span>`).join('<br>') || 'No error details available';
-//           let solutionText = result.details?.split('Solution:')[1]?.trim()?.split('\n')?.map((solution, idx) => `<li style="list-style-type: none; color: green;">${solution}</li>`).join('') || 'No solution details available';
- 
-//           return `
-//             <div>
-//               <h4><strong>Problem ${index + 1}: ${result.name}</strong></h4>
-//               <p><strong>Error:</strong><br> ${errorText}</p>
-//               <p><strong>Solution:</strong>
-//                 <ol>${solutionText}</ol>
-//               </p>
-//               <hr>
-//             </div>
-//           `;
-//         }).join('');
- 
-//         analysisResult.value = `
-//           <h3 style="color: red;">Problems Detected (${response.data.problems}):</h3>
-//           ${errorMessages}
-//         `;
-//       } else {
-//         analysisResult.value = `<p style="color: orange;">Unknown response status.</p>`;
-//       }
- 
-//       showAnalysisResult.value = true;
-//     } else {
-//       analysisResult.value = `<p style="color: red;">Something went wrong. Please try again.</p>`;
-//       showAnalysisResult.value = true;
-//     }
-//   } catch (error) {
-//     console.error(`Error analyzing ${resourceType}:`, error);
-//     analysisResult.value = `<p style="color: red;">Error: ${error.message}</p>`;
-//     showAnalysisResult.value = true;
-//   }
-// };
 const analyzeK8sResource = async (resourceType) => {
   if (!selectedNamespace.value) {
     alert("Please select a namespace first.");
     return;
   }
  
-  try {
-    const headers = getAuthHeaders(); // Get authentication headers
+  loadingResource.value = resourceType;
  
-    // Define query parameters
+  try {
+    const headers = getAuthHeaders();
     const params = {
       backend: "ollama",
       explain: true,
-      filter: resourceType, // Send resource type as filter
+      filter: resourceType,
       "max-concurrency": 5,
-      namespace: selectedNamespace.value, // Namespace from selection
+      namespace: selectedNamespace.value,
       output: "json"
-      // kubeconfig: "uploaded_kubeconfigs/0ea9a8d6-86de-4979-ba6d-f137f096c208.yaml",
     };
  
-    console.log("Query Parameters:", params);
- 
-    // Axios POST request with query parameters
     const response = await axios.post(`${baseUrl}/analyze`, null, { headers, params });
  
     if (response.status === 200) {
@@ -277,31 +161,29 @@ const analyzeK8sResource = async (resourceType) => {
     console.error(`Error analyzing ${resourceType}:`, error);
     analysisResult.value = `<p style="color: red;">Error: ${error.message}</p>`;
     showAnalysisResult.value = true;
+  } finally {
+    loadingResource.value = null;
   }
 };
  
+const resources = [
+  { type: 'Pod', title: 'Pods', action: () => analyzeK8sResource('Pod') },
+  { type: 'Deployment', title: 'Deployments', action: () => analyzeK8sResource('Deployment') },
+  { type: 'Service', title: 'Services', action: () => analyzeK8sResource('Service') },
+  { type: 'StorageClass', title: 'StorageClass', action: () => analyzeK8sResource('StorageClass') },
+  { type: 'Secret', title: 'Secrets', action: () => analyzeK8sResource('Secret') },
+  { type: 'Ingress', title: 'Ingress', action: () => analyzeK8sResource('Ingress') },
+  { type: 'PersistentVolumeClaim', title: 'PVC', action: () => analyzeK8sResource('PersistentVolumeClaim') },
+];
  
- 
-// Button click handlers
-const goToPods = () => analyzeK8sResource('Pod');
-const goToDeployments = () => analyzeK8sResource('Deployment');
-const goToServices = () => analyzeK8sResource('Service');
-const goToStorageClass = () => analyzeK8sResource('StorageClass');
-const goToSecrets = () => analyzeK8sResource('Secret');
-const goToIngress = () => analyzeK8sResource('Ingress');
-const goToPVC = () => analyzeK8sResource('PersistentVolumeClaim');
- 
-// Close the analysis result modal
 const closeAnalysisResult = () => {
   showAnalysisResult.value = false;
 };
  
-// Fetch namespaces on component mount
 onMounted(() => {
   fetchNamespaces();
 });
  
-// Namespace options for the dropdown
 const namespaceOptions = computed(() => {
   return namespaces.value.map(namespace => ({
     label: namespace,
@@ -311,9 +193,20 @@ const namespaceOptions = computed(() => {
 </script>
  
 <style scoped>
-/* Add custom styles here */
+.header-title {
+  font-size: 24px;
+  font-weight: bold;
+}
+ 
 .n-card {
   margin-bottom: 20px;
+  transition: transform 0.3s ease, background-color 0.3s ease;
+  background-color: #ffffff;
+}
+ 
+.n-card-n:hover {
+  transform: scale(1.05);
+  background-color: #f6fafdf5; /* Light blue background on hover */
 }
 </style>
  

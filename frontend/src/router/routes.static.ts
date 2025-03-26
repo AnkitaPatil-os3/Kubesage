@@ -39,7 +39,7 @@ export const staticRoutes: AppRoute.RowRoute[] = [
     path: '/chat-with-kubesage',
     title: 'KubeSage Chat',
     requiresAuth: true,
-    icon: 'icon-park-outline:list',
+    icon: 'icon-park-outline:message',
     componentPath: '/KubeSage/chat.vue',
     id: 32,
     pid: null,
