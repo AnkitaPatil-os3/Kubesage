@@ -240,8 +240,8 @@ const fetchProviders = async () => {
         // Fallback to custom data if API fails
         activeList.value = [
         {
-                name: 'MyOllama',
-                backend_type: 'ollama',
+                name: 'OpenVINO',
+                backend_type: 'openvino',
                 baseurl: 'https://api.anthropic.com/v1',
                 model: 'deepseek-r1:1.5b',
                 is_default: true
