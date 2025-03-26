@@ -34701,3 +34701,38 @@
 2025-03-25 11:38:51,265 - user_service - INFO - Received kubeconfig event: namespaces_retrieved
 2025-03-25 11:38:55,401 - user_service - INFO - Received kubeconfig event: namespaces_retrieved
 2025-03-25 11:39:11,557 - user_service - INFO - Received kubeconfig event: namespaces_retrieved
+2025-03-25 12:02:33,624 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-25 12:02:33,625 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-25 12:02:33,670 - user_service - INFO - RabbitMQ connection established
+2025-03-25 12:02:33,672 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-25 12:04:05,499 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-25 12:04:05,499 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-25 12:04:05,542 - user_service - INFO - RabbitMQ connection established
+2025-03-25 12:04:05,543 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-25 12:36:51,740 - user_service - ERROR - Error with database session: 401: Incorrect username or password
+2025-03-25 12:37:01,563 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-25 12:37:01,563 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-25 12:37:01,617 - user_service - INFO - RabbitMQ connection established
+2025-03-25 12:37:01,619 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-25 13:07:58,080 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-25 13:07:58,128 - user_service - INFO - RabbitMQ connection established
+2025-03-25 13:07:58,129 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-26 04:35:47,271 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-26 04:35:47,271 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-26 04:35:47,282 - user_service - INFO - RabbitMQ connection established
+2025-03-26 04:35:47,283 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-26 04:36:02,011 - user_service - INFO - Received kubeconfig event: namespaces_retrieved
+2025-03-26 04:49:12,719 - user_service - INFO - Received kubeconfig event: namespaces_retrieved
+2025-03-26 05:13:27,853 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-26 05:13:27,854 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-26 05:13:27,865 - user_service - INFO - RabbitMQ connection established
+2025-03-26 05:13:27,866 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-26 05:23:02,578 - user_service - INFO - RabbitMQ connection established
+2025-03-26 05:23:02,608 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-26 05:23:02,636 - user_service - INFO - Event consumers started in background
+2025-03-26 05:23:02,636 - user_service - INFO - User service started
+2025-03-26 05:23:02,639 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-26 05:34:09,297 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-26 05:34:09,298 - user_service - ERROR - Failed to publish message: Channel is closed.
+2025-03-26 05:34:09,314 - user_service - INFO - RabbitMQ connection established
+2025-03-26 05:34:09,316 - user_service - INFO - Consumer set up for queue kubeconfig_events

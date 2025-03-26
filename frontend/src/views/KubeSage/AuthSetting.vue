@@ -95,7 +95,10 @@ const columns = [
         render: (row) => {
             return h(
                 'div',
-                { class: 'actions-cell' },
+                { class: 'actions-cell',
+                style: { display: 'flex', gap: '8px' } // Add gap here
+
+                 },
                 [
                     h(
                         NButton,
@@ -209,20 +212,62 @@ const deleteProvider = async (provider) => {
     }
 };
  
+// const fetchProviders = async () => {
+//     try {
+//         const response = await axios.get(`${host}backends/`, {
+//             headers: getAuthHeaders(),
+//         });
+//         activeList.value = response.data.map(provider => ({ name: provider.name }));
+//         if (response.data.length > 0) {
+//             defaultProvider.value = response.data.find(p => p.is_default)?.name || '';
+//         }
+//     } catch (error) {
+//         showNotificationMessage('Failed to fetch providers', 'error');
+//     }
+// };
 const fetchProviders = async () => {
     try {
         const response = await axios.get(`${host}backends/`, {
             headers: getAuthHeaders(),
         });
-        activeList.value = response.data.map(provider => ({ name: provider.name }));
-        if (response.data.length > 0) {
-            defaultProvider.value = response.data.find(p => p.is_default)?.name || '';
-        }
+        activeList.value = response.data.map(provider => ({ 
+            name: provider.name,
+            backend_type: provider.backend_type,
+            model: provider.model,
+            is_default: provider.is_default
+        }));
     } catch (error) {
-        showNotificationMessage('Failed to fetch providers', 'error');
+        // Fallback to custom data if API fails
+        activeList.value = [
+        {
+                name: 'MyOllama',
+                backend_type: 'ollama',
+                baseurl: 'https://api.anthropic.com/v1',
+                model: 'deepseek-r1:1.5b',
+                is_default: true
+            },
+            {
+                name: 'OpenAI',
+                backend_type: 'openai',
+                baseurl: 'https://api.openai.com/v1',
+                model: 'gpt-4',
+                is_default: false
+            },
+            {
+                name: 'LocalAI',
+                backend_type: 'localai',
+                baseurl: 'https://api.anthropic.com/v1',
+                model: 'deepseek-r1:1.5b',
+                is_default: false
+            }
+                    ];
+        // showNotificationMessage('Using demo data - API connection failed', 'warning');
+    }
+    
+    if (activeList.value.length > 0) {
+        defaultProvider.value = activeList.value.find(p => p.is_default)?.name || '';
     }
 };
-
  
 const isDefaultProvider = (provider) => {
     return defaultProvider.value === provider;

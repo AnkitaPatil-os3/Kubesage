@@ -13,34 +13,34 @@ const router = useRouter()
 
 const options = computed(() => {
   return [
-    {
-      label: t('app.userCenter'),
-      key: 'userCenter',
-      icon: () => h(IconUser),
-    },
-    {
-      type: 'divider',
-      key: 'd1',
-    },
-    {
-      label: 'Github',
-      key: 'guthub',
-      icon: () => h(IconGithub),
-    },
-    {
-      label: 'Gitee',
-      key: 'gitee',
-      icon: renderIcon('simple-icons:gitee'),
-    },
-    {
-      label: 'Docs',
-      key: 'docs',
-      icon: () => h(IconBookOpen),
-    },
-    {
-      type: 'divider',
-      key: 'd1',
-    },
+    // {
+    //   label: t('app.userCenter'),
+    //   key: 'userCenter',
+    //   icon: () => h(IconUser),
+    // },
+    // {
+    //   type: 'divider',
+    //   key: 'd1',
+    // },
+    // {
+    //   label: 'Github',
+    //   key: 'guthub',
+    //   icon: () => h(IconGithub),
+    // },
+    // {
+    //   label: 'Gitee',
+    //   key: 'gitee',
+    //   icon: renderIcon('simple-icons:gitee'),
+    // },
+    // {
+    //   label: 'Docs',
+    //   key: 'docs',
+    //   icon: () => h(IconBookOpen),
+    // },
+    // {
+    //   type: 'divider',
+    //   key: 'd1',
+    // },
     {
       label: t('app.loginOut'),
       key: 'loginOut',
