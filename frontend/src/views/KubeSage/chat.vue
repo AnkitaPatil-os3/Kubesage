@@ -173,7 +173,7 @@ import hljs from 'highlight.js';
 export default {
     name: 'ChatApp',
     setup() {
-        const host = 'https://10.0.34.77:8004/chat/';
+        const host = 'https://10.0.34.129:8004/chat/';
         const chatSessions = ref([]);
         const activeChatSessionId = ref(null);
         const activeChat = ref({ messages: [], title: '' });

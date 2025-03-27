@@ -388,6 +388,7 @@ def add_ai_backend(
             "user_id": new_backend.user_id,
             "backend_type": new_backend.backend_type,
             "name": new_backend.name,
+            "model": new_backend.model,
             "is_default": new_backend.is_default
         }
         publish_backend_added(backend_data)
@@ -396,97 +397,51 @@ def add_ai_backend(
         return new_backend
 
 async def list_ai_backends(
-
     user_id: int,
-
     backend_type: Optional[str] = None,
-
     skip: int = 0,
-
     limit: int = 100
-
 ) -> List[Dict[str, Any]]:
-
     """
-
     List AI backends for a specific user with optional filtering
-
     Args:
-
         user_id: ID of the user whose backends to retrieve
-
         backend_type: Optional backend type to filter by
-
         skip: Number of records to skip (for pagination)
-
         limit: Maximum number of records to return
-
     Returns:
-
         List of dictionaries containing AI backend data
-
     """
-
     from app.database import engine
-
     from sqlmodel import Session, select
-
     with Session(engine) as session:
-
         query = select(AIBackend).where(AIBackend.user_id == user_id)
-
         # Apply backend type filter if provided
-
         if backend_type:
-
             query = query.where(AIBackend.backend_type == backend_type)
-
         # Apply pagination
-
         query = query.offset(skip).limit(limit)
-
         # Execute query
-
         backends = session.exec(query).all()
-
         # Format results (hiding sensitive information like API keys)
-
         formatted_backends = []
-
         for backend in backends:
-
             formatted_backends.append({
-
                 "id": backend.id,
-
                 "backend_name": backend.name,
-
                 "backend_type": backend.backend_type,
-
                 "model": backend.model,
-
                 "is_default": backend.is_default,
-
                 # "organization_id": backend.organization_id,
-
                 "base_url": backend.base_url,
-
                 # "engine": backend.engine,
-
                 "temperature": backend.temperature,
-
                 "max_tokens": backend.max_tokens,
-
                 "created_at": backend.created_at.isoformat(),
-
                 "updated_at": backend.updated_at.isoformat()
-
             })
-
         print("Hii", formatted_backends)
-
         return formatted_backends
-
  
 def get_ai_backend(backend_id: int, user_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
     """

@@ -72,11 +72,10 @@ class AIBackendConfigRequest(BaseModel):
 class AIBackendConfigResponse(BaseModel):
     id: int
     backend_name: str
+    model:str
     is_default: bool
     # config: Dict[str, Any]
 
-
-    
 
 class AIBackendsList(BaseModel):
     backends: List[AIBackendConfigResponse]

@@ -77,7 +77,7 @@ const getAuthHeaders = () => {
   }
 };
  
-const baseUrl = 'https://10.0.34.77:8002/kubeconfig';
+const baseUrl = 'https://10.0.34.129:8002/kubeconfig';
  
 const fetchNamespaces = async () => {
   try {

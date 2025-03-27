@@ -14,7 +14,7 @@ app = FastAPI(
 # Allow frontend requests
 origins = [
     "http://localhost:9980",  # Frontend running locally
-    "https://10.0.34.77:9980",  # Backend API
+    "https://10.0.34.129:9980",  # Backend API
 ]
 
 # ✅ Configure CORS

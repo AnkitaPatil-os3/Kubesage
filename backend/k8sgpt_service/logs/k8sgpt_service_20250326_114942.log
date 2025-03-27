@@ -1,0 +1,25 @@
+2025-03-26 11:49:42,399 - k8sgpt_service - WARNING - Redis cache connection failed: invalid username-password pair or user is disabled.
+2025-03-26 11:49:42,545 - k8sgpt_service - INFO - Connected to RabbitMQ server
+2025-03-26 11:49:42,578 - k8sgpt_service - INFO - Starting K8sGPT Operations Service
+2025-03-26 11:49:42,578 - k8sgpt_service - INFO - Creating database and tables if they don't exist
+2025-03-26 11:49:42,599 - k8sgpt_service - ERROR - Failed to connect to Redis: invalid username-password pair or user is disabled.
+2025-03-26 11:49:42,599 - k8sgpt_service - INFO - Starting to consume messages from RabbitMQ
+2025-03-27 05:14:40,566 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Database connection failed"}
+2025-03-27 05:14:40,567 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-03-27 05:14:48,773 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Database connection failed"}
+2025-03-27 05:14:48,773 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-03-27 05:39:41,642 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Database connection failed"}
+2025-03-27 05:39:41,644 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-03-27 05:39:45,019 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Database connection failed"}
+2025-03-27 05:39:45,020 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-03-27 05:40:36,872 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Database connection failed"}
+2025-03-27 05:40:36,872 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-03-27 05:41:20,632 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Database connection failed"}
+2025-03-27 05:41:20,633 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-03-27 05:41:34,082 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Database connection failed"}
+2025-03-27 05:41:34,083 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-03-27 07:50:16,382 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Database connection failed"}
+2025-03-27 07:50:16,384 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-03-27 08:43:41,564 - k8sgpt_service - ERROR - Error during message consumption: No activity or too many missed heartbeats in the last 60 seconds
+2025-03-27 08:43:41,564 - k8sgpt_service - ERROR - RabbitMQ consumer error: ctag1.b18797c2520d444abc69d367685f0c06
+2025-03-27 10:00:57,325 - k8sgpt_service - INFO - Shutting down K8sGPT Operations Service

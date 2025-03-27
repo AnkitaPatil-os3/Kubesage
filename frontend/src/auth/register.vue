@@ -87,7 +87,7 @@ const registerUser = async () => {
             console.log(form.value);
 
             try {
-                const response = await axios.post("https://10.0.34.77:8001/auth/register", form.value, {
+                const response = await axios.post("https://10.0.34.129:8001/auth/register", form.value, {
                     headers: {
                         'Content-Type': 'application/json',
                     },

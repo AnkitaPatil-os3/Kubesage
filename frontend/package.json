@@ -50,6 +50,7 @@
     "sizecheck": "npx vite-bundle-visualizer"
   },
   "dependencies": {
+    "@highlightjs/vue-plugin": "^2.1.0",
     "@vicons/ionicons5": "^0.13.0",
     "@vicons/tabler": "^0.13.0",
     "@vueuse/core": "^11.0.3",
@@ -58,6 +59,7 @@
     "chart.js": "^4.4.6",
     "colord": "^2.9.3",
     "echarts": "^5.5.1",
+    "highlight.js": "^11.11.1",
     "jwt-decode": "^3.1.2",
     "keycloak-js": "^26.0.5",
     "markdown-it": "^14.1.0",

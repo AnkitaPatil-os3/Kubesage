@@ -12,26 +12,32 @@
                     </n-button>
                 </div>
             </n-layout-header>
- 
+
             <n-layout-content class="provider-dashboard">
                 <n-alert v-if="showNotification" :type="notificationType" :title="notificationMessage" closable
                     @close="showNotification = false" />
- 
+
                 <n-card class="provider-table-container">
                     <n-data-table :columns="columns" :data="activeList" :pagination="pagination" :bordered="false" />
                 </n-card>
- 
-                <!-- Updated Modal for Adding New Provider -->
-                <n-modal v-model:show="showModal" title="Add Provider" preset="dialog">
+
+                <!-- Modal for Adding New Provider -->
+                <n-modal v-model:show="showModal" title="Add Provider" preset="dialog" class="custom-modal">
                     <n-form :model="formData">
                         <n-form-item label="Provider Name">
-                            <n-input v-model:value="formData.backend_type" placeholder="Enter provider name" />
+                            <n-input v-model:value="formData.name" placeholder="Enter provider name" />
+                        </n-form-item>
+                        <n-form-item label="Provider Type">
+                            <n-input v-model:value="formData.backend_type" placeholder="e.g., ollama, localai" />
                         </n-form-item>
                         <n-form-item label="Base URL">
-                            <n-input v-model:value="formData.baseurl" placeholder="Enter base URL" />
+                            <n-input v-model:value="formData.base_url" placeholder="Enter base url" />
                         </n-form-item>
                         <n-form-item label="Model">
                             <n-input v-model:value="formData.model" placeholder="Enter model" />
+                        </n-form-item>
+                        <n-form-item label="API Key">
+                            <n-input v-model:value="formData.api_key" placeholder="Enter api key" />
                         </n-form-item>
                     </n-form>
                     <template #action>
@@ -45,38 +51,40 @@
         </n-layout>
     </n-config-provider>
 </template>
- 
+
 <script setup>
 import { ref, onMounted, h, nextTick } from 'vue';
 import axios from 'axios';
+import hljs from 'highlight.js';
+import 'highlight.js/styles/github.css';
 import { NConfigProvider, NLayout, NLayoutHeader, NLayoutContent, NButton, NIcon, NAlert, NCard, NDataTable, NModal, NForm, NFormItem, NInput, NSpace } from 'naive-ui';
 import { Add as PlusIcon } from '@vicons/ionicons5';
- 
-const host = 'https://10.0.34.77:8003/';
+
+const host = 'https://10.0.34.129:8003/';
 const showModal = ref(false);
 const showNotification = ref(false);
 const notificationMessage = ref('');
 const notificationType = ref('success');
-const activeList = ref([]); // Removed hardcoded data
+const activeList = ref([]);
 const defaultProvider = ref('');
- 
+
 const formData = ref({
     backend_type: '',
     name: '',
-    engine: 'n_user_db',
-    api_key : 'nfkshdkfkdnkjdsnfksfjshfsdhk',
-    baseurl: '',
+    api_key: '',
+    base_url: '',
     model: '',
-    maxtokens: 2048,
-    temperature: 0.7,
-    topp: 0.5,
-    is_default : true
+    is_default: true
 });
- 
+
 const columns = [
     {
         title: 'Provider Name',
-        key: 'name',
+        key: 'backend_name',
+    },
+    {
+        title: 'Model',
+        key: 'model',
     },
     {
         title: 'Status',
@@ -84,8 +92,26 @@ const columns = [
         render: (row) => {
             return h(
                 'span',
-                { class: isDefaultProvider(row.name) ? 'status-badge active' : 'status-badge' },
-                isDefaultProvider(row.name) ? 'Default' : 'Active'
+                {
+                    class: row.is_default ? 'status-badge active' : 'status-badge',
+                    style: {
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                    }
+                },
+                [
+                    h('span', {
+                        class: 'status-dot', 
+                        style: {
+                            width: '8px',
+                            height: '8px',
+                            borderRadius: '50%',
+                            backgroundColor: row.is_default ? '#10b981' : '#3b82f6'
+                        }
+                    }),
+                    row.is_default ? 'Default' : 'Active'
+                ]
             );
         },
     },
@@ -95,45 +121,55 @@ const columns = [
         render: (row) => {
             return h(
                 'div',
-                { class: 'actions-cell',
-                style: { display: 'flex', gap: '8px' } // Add gap here
-
-                 },
+                {
+                    class: 'actions-cell',
+                    style: {
+                        display: 'flex',
+                        gap: '8px',
+                        alignItems: 'center'
+                    }
+                },
                 [
                     h(
                         NButton,
                         {
-                            type: 'primary',
-                            disabled: isDefaultProvider(row.name),
-                            onClick: () => setDefaultProvider(row.name),
+                            type: row.is_default ? 'success' : 'primary',
+                            disabled: row.is_default,
+                            onClick: () => setDefaultProvider(row.id),
                             class: 'action-button',
+                            size: 'small',
+                            secondary: !row.is_default,
+                            ghost: row.is_default
                         },
-                        'Set Default'
+                        {
+                            default: () => row.is_default ? 'Default' : 'Set Default',
+                            icon: row.is_default ? h(NIcon, null, h('i', { class: 'fas fa-check-circle' })) : null
+                        }
                     ),
                     h(
                         NButton,
                         {
                             type: 'error',
-                            onClick: () => deleteProvider(row.name),
+                            onClick: () => deleteProvider(row.id),
                             class: 'action-button',
+                            size: 'small',
+                            secondary: true
                         },
-                        'Remove'
+                        {
+                            default: () => 'Remove',
+                            icon: h(NIcon, null, h('i', { class: 'fas fa-trash-alt' }))
+                        }
                     ),
                 ]
             );
         },
     },
 ];
- 
+
 const pagination = ref({
     pageSize: 10,
 });
- 
-const openModal = () => {
-    showModal.value = true;
-};
- 
-// Get auth token from localStorage
+
 const getAuthHeaders = () => {
     try {
         const token = JSON.parse(localStorage.getItem('accessToken')).value;
@@ -143,7 +179,7 @@ const getAuthHeaders = () => {
         return {};
     }
 };
- 
+
 const showNotificationMessage = (message, type = 'success') => {
     notificationMessage.value = message;
     notificationType.value = type;
@@ -153,155 +189,97 @@ const showNotificationMessage = (message, type = 'success') => {
     }, 3000);
 };
 
-// Watch for changes in `backend_type` and update `name` automatically
-watch(() => formData.value.backend_type, (newValue) => {
-    formData.value.name = newValue;
-});
- 
 const handleConnect = async () => {
-    console.log("formData.value," , formData.value,);
-    
     try {
-        const response = await axios.post(`${host}backends`, formData.value, {
+        const response = await axios.post(`${host}backends/`, formData.value, {
             headers: {
                 ...getAuthHeaders(),
                 'Content-Type': 'application/json'
             }
         });
         if (response.status === 200) {
-            showNotificationMessage('Provider connected successfully!');
+            showNotificationMessage('Provider added successfully!');
             closeModal();
-            await nextTick();
-            fetchProviders();
+            await fetchProviders();
         }
     } catch (error) {
-        showNotificationMessage(error.response?.data?.detail || 'Connection failed', 'error');
+        showNotificationMessage(error.response?.data?.detail || 'Failed to add provider', 'error');
     }
 };
- 
-const setDefaultProvider = async (provider) => {
+
+const setDefaultProvider = async (providerId) => {
     try {
-        const response = await axios.post(`${host}/backends/${provider}/default`, null, {
+        const response = await axios.post(`${host}backends/${providerId}/default`, {}, {
             headers: getAuthHeaders(),
         });
         if (response.status === 200) {
-            defaultProvider.value = provider;
-            showNotificationMessage(`${provider} set as default provider`);
-            await nextTick();
-            fetchProviders();
+            showNotificationMessage('Default provider updated');
+            await fetchProviders();
         }
     } catch (error) {
-        console.error('Error setting default provider:', error);
         showNotificationMessage('Failed to set default provider', 'error');
     }
 };
- 
-const deleteProvider = async (provider) => {
+
+const deleteProvider = async (providerId) => {
     try {
-        const response = await axios.delete(`${host}/backends/${provider}`, {
+        const response = await axios.delete(`${host}backends/${providerId}`, {
             headers: getAuthHeaders(),
         });
         if (response.status === 200) {
             showNotificationMessage('Provider removed successfully!');
-            await nextTick();
-            fetchProviders();
+            await fetchProviders();
         }
     } catch (error) {
-        console.error('Error removing provider:', error);
         showNotificationMessage('Failed to remove provider', 'error');
     }
 };
- 
-// const fetchProviders = async () => {
-//     try {
-//         const response = await axios.get(`${host}backends/`, {
-//             headers: getAuthHeaders(),
-//         });
-//         activeList.value = response.data.map(provider => ({ name: provider.name }));
-//         if (response.data.length > 0) {
-//             defaultProvider.value = response.data.find(p => p.is_default)?.name || '';
-//         }
-//     } catch (error) {
-//         showNotificationMessage('Failed to fetch providers', 'error');
-//     }
-// };
+
 const fetchProviders = async () => {
     try {
         const response = await axios.get(`${host}backends/`, {
             headers: getAuthHeaders(),
         });
-        activeList.value = response.data.map(provider => ({ 
-            name: provider.name,
-            backend_type: provider.backend_type,
-            model: provider.model,
-            is_default: provider.is_default
-        }));
+        activeList.value = response.data.backends;
+        console.log("Fetched ..", response.data.backends);
+        
+        
+        // Set first provider as default if none is set
+        if (activeList.value.length > 0 && !activeList.value.some(p => p.is_default)) {
+            await setDefaultProvider(activeList.value[0].id);
+        }
     } catch (error) {
-        // Fallback to custom data if API fails
-        activeList.value = [
-        {
-                name: 'OpenVINO',
-                backend_type: 'openvino',
-                baseurl: 'https://api.anthropic.com/v1',
-                model: 'deepseek-r1:1.5b',
-                is_default: true
-            },
-            {
-                name: 'OpenAI',
-                backend_type: 'openai',
-                baseurl: 'https://api.openai.com/v1',
-                model: 'gpt-4',
-                is_default: false
-            },
-            {
-                name: 'LocalAI',
-                backend_type: 'localai',
-                baseurl: 'https://api.anthropic.com/v1',
-                model: 'deepseek-r1:1.5b',
-                is_default: false
-            }
-                    ];
-        // showNotificationMessage('Using demo data - API connection failed', 'warning');
-    }
-    
-    if (activeList.value.length > 0) {
-        defaultProvider.value = activeList.value.find(p => p.is_default)?.name || '';
+        showNotificationMessage('Failed to fetch providers', 'error');
     }
 };
- 
-const isDefaultProvider = (provider) => {
-    return defaultProvider.value === provider;
+
+const openModal = () => {
+    showModal.value = true;
 };
- 
-const closeModal = async() => {
+
+const closeModal = () => {
     showModal.value = false;
-    await nextTick();
     formData.value = {
         backend_type: '',
         name: '',
-        engine: 'n_user_db',
-        api_key : 'nfkshdkfkdnkjdsnfksfjshfsdhk',
-        baseurl: '',
+        api_key: '',
+        base_url: '',
         model: '',
-        maxtokens: 2048,
-        temperature: 0.7,
-        topp: 0.5,
-        is_default : true
+        is_default: false
     };
 };
- 
+
 onMounted(() => {
     fetchProviders();
 });
 </script>
- 
 <style scoped>
 .provider-dashboard {
     padding: 24px;
     background-color: #f8fafc;
     min-height: 100vh;
 }
- 
+
 .dashboard-header {
     background: white;
     padding: 20px;
@@ -309,78 +287,101 @@ onMounted(() => {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     margin-bottom: 24px;
 }
- 
+
 .header-content {
     display: flex;
     justify-content: space-between;
     align-items: center;
 }
- 
+
 .dashboard-title {
     font-size: 24px;
     font-weight: 600;
     color: #2d3748;
     margin: 0;
 }
- 
+
 .status-badge {
     padding: 4px 8px;
     border-radius: 12px;
     font-size: 0.875rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
 }
- 
+
 .status-badge.active {
     background: #dcfce7;
     color: #16a34a;
 }
- 
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
 .actions-cell {
     display: flex;
-    gap: 16px; /* Increased gap between buttons */
+    gap: 8px;
     justify-content: flex-start;
     align-items: center;
     min-width: 200px;
 }
- 
+
 .action-button {
-    margin: 0; /* Ensure buttons have no extra margin */
+    margin: 0;
 }
- 
+
 .no-data {
     text-align: center;
     color: #64748b;
     padding: 24px;
 }
- 
+
 .custom-modal {
-    width: 400px;
-    height: 400px;
-    margin: 0 auto;
+    width: 600px;
+}
+
+.code-container {
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 12px;
+    background-color: #f8fafc;
+    margin-top: 8px;
+    overflow: auto;
+}
+
+.code-container pre {
+    margin: 0;
+    font-family: 'Fira Code', 'Courier New', monospace;
+    font-size: 0.875rem;
+}
+
+.provider-table-container {
     border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    padding: 16px;
-    background-color: white;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
- 
-.modal-form {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+
+.n-data-table {
+    border-radius: 8px;
 }
- 
-.n-form-item {
-    margin-bottom: 0;
+
+.n-data-table :deep(th) {
+    background-color: #f1f5f9 !important;
+    font-weight: 600;
 }
- 
-.n-input {
-    width: 100%;
-}
- 
-.n-space {
-    margin-top: 12px;
+
+.n-data-table :deep(tr:hover td) {
+    background-color: #f8fafc !important;
 }
 </style>
- 
+
+<style>
+/* Global highlight.js styles */
+.hljs {
+    background: transparent !important;
+    padding: 0 !important;
+}
+</style>

@@ -35,6 +35,18 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), session: Sessi
     access_token, expires_at = create_access_token(
         data={"sub": str(user.id)}, expires_delta=access_token_expires
     )
+
+    # Save UserToken in the database
+    user_token = UserToken(
+        token=access_token,
+        user_id=user.id,
+        expires_at=expires_at
+    )
+    session.add(user_token)
+    session.commit()
+    session.refresh(user_token)
+
+    print(f"User token is {user_token}, save in the database")
         
     # Publish login event
     publish_message("user_events", {

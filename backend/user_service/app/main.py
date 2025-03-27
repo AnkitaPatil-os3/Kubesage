@@ -12,8 +12,8 @@ app = FastAPI(title="KubeSage User Service")
 # Allow frontend requests
 origins = [
     "http://localhost:9980",  # Frontend running locally
-    "https://10.0.34.77:8001", # If using HTTPS locally
-    "https://10.0.34.77:9980",  # Backend API
+    "https://10.0.34.129:8001", # If using HTTPS locally
+    "https://10.0.34.129:9980",  # Backend API
 ]
 
 # ✅ Configure CORS

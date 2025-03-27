@@ -122,3 +122,188 @@
 2025-03-26 10:14:38,114 - user_service - INFO - Received kubeconfig event: namespaces_retrieved
 2025-03-26 10:14:49,280 - user_service - INFO - Received kubeconfig event: namespaces_retrieved
 2025-03-26 10:15:07,231 - user_service - INFO - Received kubeconfig event: namespaces_retrieved
+2025-03-26 11:41:47,781 - user_service - INFO - RabbitMQ connection established
+2025-03-26 11:41:47,813 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-26 11:47:27,793 - user_service - INFO - RabbitMQ connection established
+2025-03-26 11:47:27,823 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-26 11:47:35,458 - user_service - INFO - RabbitMQ connection established
+2025-03-26 11:47:35,487 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-26 11:47:35,514 - user_service - INFO - Event consumers started in background
+2025-03-26 11:47:35,514 - user_service - INFO - User service started
+2025-03-26 11:47:35,516 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-26 11:49:55,034 - user_service - INFO - RabbitMQ connection established
+2025-03-26 11:49:55,064 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-26 11:49:55,087 - user_service - INFO - Event consumers started in background
+2025-03-26 11:49:55,087 - user_service - INFO - User service started
+2025-03-26 11:49:55,089 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-26 12:17:20,140 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-26 12:17:20,140 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-26 12:17:20,186 - user_service - INFO - RabbitMQ connection established
+2025-03-26 12:17:20,188 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-27 05:05:26,505 - user_service - INFO - RabbitMQ connection established
+2025-03-27 05:05:26,535 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-27 05:05:26,563 - user_service - INFO - Event consumers started in background
+2025-03-27 05:05:26,563 - user_service - INFO - User service started
+2025-03-27 05:05:26,566 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-27 05:05:34,161 - user_service - INFO - RabbitMQ connection established
+2025-03-27 05:05:34,191 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-27 05:05:34,219 - user_service - INFO - Event consumers started in background
+2025-03-27 05:05:34,220 - user_service - INFO - User service started
+2025-03-27 05:05:34,222 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-27 05:07:35,166 - user_service - INFO - RabbitMQ connection established
+2025-03-27 05:07:35,196 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-27 05:07:35,222 - user_service - INFO - Event consumers started in background
+2025-03-27 05:07:35,223 - user_service - INFO - User service started
+2025-03-27 05:07:35,223 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-27 05:09:04,452 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-27 05:09:04,452 - user_service - ERROR - Failed to publish message: _CallbackResult was not set
+2025-03-27 05:09:04,492 - user_service - INFO - RabbitMQ connection established
+2025-03-27 05:09:04,494 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-27 05:09:24,255 - user_service - INFO - RabbitMQ connection established
+2025-03-27 05:09:24,287 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-27 05:09:24,314 - user_service - INFO - Event consumers started in background
+2025-03-27 05:09:24,314 - user_service - INFO - User service started
+2025-03-27 05:09:24,315 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-27 05:09:26,122 - user_service - INFO - RabbitMQ connection established
+2025-03-27 05:09:26,153 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-27 05:09:26,181 - user_service - INFO - Event consumers started in background
+2025-03-27 05:09:26,181 - user_service - INFO - User service started
+2025-03-27 05:09:26,183 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-27 05:09:28,408 - user_service - INFO - RabbitMQ connection established
+2025-03-27 05:09:28,437 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-27 05:09:28,461 - user_service - INFO - Event consumers started in background
+2025-03-27 05:09:28,462 - user_service - INFO - User service started
+2025-03-27 05:09:29,567 - user_service - INFO - RabbitMQ connection established
+2025-03-27 05:09:29,597 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-27 05:09:29,617 - user_service - INFO - Event consumers started in background
+2025-03-27 05:09:29,617 - user_service - INFO - User service started
+2025-03-27 05:09:29,619 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-27 05:09:37,842 - user_service - INFO - RabbitMQ connection established
+2025-03-27 05:09:37,876 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-27 05:09:37,899 - user_service - INFO - Event consumers started in background
+2025-03-27 05:09:37,899 - user_service - INFO - User service started
+2025-03-27 05:09:37,901 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-27 05:09:41,212 - user_service - INFO - RabbitMQ connection established
+2025-03-27 05:09:41,242 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-27 05:09:41,267 - user_service - INFO - Event consumers started in background
+2025-03-27 05:09:41,267 - user_service - INFO - User service started
+2025-03-27 05:09:41,269 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-27 05:09:47,694 - user_service - INFO - RabbitMQ connection established
+2025-03-27 05:09:47,725 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-27 05:09:47,747 - user_service - INFO - Event consumers started in background
+2025-03-27 05:09:47,748 - user_service - INFO - User service started
+2025-03-27 05:09:47,750 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-27 05:09:54,927 - user_service - INFO - RabbitMQ connection established
+2025-03-27 05:09:54,993 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-27 05:09:55,017 - user_service - INFO - Event consumers started in background
+2025-03-27 05:09:55,017 - user_service - INFO - User service started
+2025-03-27 05:09:55,020 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-27 05:10:00,821 - user_service - INFO - RabbitMQ connection established
+2025-03-27 05:10:00,851 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-27 05:10:00,875 - user_service - INFO - Event consumers started in background
+2025-03-27 05:10:00,875 - user_service - INFO - User service started
+2025-03-27 05:10:00,876 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-27 05:10:07,989 - user_service - INFO - RabbitMQ connection established
+2025-03-27 05:10:08,019 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-27 05:10:08,042 - user_service - INFO - Event consumers started in background
+2025-03-27 05:10:08,043 - user_service - INFO - User service started
+2025-03-27 05:10:08,045 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-27 05:10:13,268 - user_service - INFO - RabbitMQ connection established
+2025-03-27 05:10:13,298 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-27 05:10:13,317 - user_service - INFO - Event consumers started in background
+2025-03-27 05:10:13,317 - user_service - INFO - User service started
+2025-03-27 05:10:13,319 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-27 05:10:15,218 - user_service - INFO - RabbitMQ connection established
+2025-03-27 05:10:15,248 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-27 05:10:15,272 - user_service - INFO - Event consumers started in background
+2025-03-27 05:10:15,272 - user_service - INFO - User service started
+2025-03-27 05:10:15,275 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-27 05:10:17,886 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-27 05:10:17,886 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-27 05:10:17,924 - user_service - INFO - RabbitMQ connection established
+2025-03-27 05:10:17,925 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-27 05:12:38,158 - user_service - INFO - RabbitMQ connection established
+2025-03-27 05:12:38,189 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-27 05:12:38,216 - user_service - INFO - Event consumers started in background
+2025-03-27 05:12:38,216 - user_service - INFO - User service started
+2025-03-27 05:12:38,218 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-27 05:14:40,522 - user_service - ERROR - JWT error: Invalid crypto padding
+2025-03-27 05:14:40,522 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-27 05:14:48,729 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-27 05:14:48,730 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-27 05:27:43,691 - user_service - ERROR - Error with database session: (psycopg2.errors.ForeignKeyViolation) update or delete on table "user" violates foreign key constraint "usertoken_user_id_fkey" on table "usertoken"
+DETAIL:  Key (id)=(2) is still referenced from table "usertoken".
+
+[SQL: DELETE FROM "user" WHERE "user".id = %(id)s]
+[parameters: {'id': 2}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj)
+2025-03-27 05:32:17,580 - user_service - ERROR - Error with database session: (psycopg2.errors.ForeignKeyViolation) update or delete on table "user" violates foreign key constraint "usertoken_user_id_fkey" on table "usertoken"
+DETAIL:  Key (id)=(2) is still referenced from table "usertoken".
+
+[SQL: DELETE FROM "user" WHERE "user".id = %(id)s]
+[parameters: {'id': 2}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj)
+2025-03-27 05:35:23,948 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-27 05:35:31,592 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-27 05:35:34,209 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-27 05:35:40,161 - user_service - INFO - RabbitMQ connection established
+2025-03-27 05:35:40,192 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-27 05:35:40,218 - user_service - INFO - Event consumers started in background
+2025-03-27 05:35:40,219 - user_service - INFO - User service started
+2025-03-27 05:35:40,222 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-27 05:35:43,639 - user_service - ERROR - Error with database session: 401: Incorrect username or password
+2025-03-27 05:36:20,993 - user_service - INFO - RabbitMQ connection established
+2025-03-27 05:36:21,023 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-27 05:36:21,047 - user_service - INFO - Event consumers started in background
+2025-03-27 05:36:21,048 - user_service - INFO - User service started
+2025-03-27 05:36:21,049 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-27 05:36:37,661 - user_service - ERROR - Failed to publish message: ('_AsyncTransportBase._initate_abort() expected _STATE_ABORTED_BY_USER', 2)
+2025-03-27 05:36:37,662 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-27 05:36:37,710 - user_service - INFO - RabbitMQ connection established
+2025-03-27 05:36:37,711 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-27 05:37:48,055 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-27 05:39:17,104 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-27 05:39:17,104 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-27 05:39:17,142 - user_service - INFO - RabbitMQ connection established
+2025-03-27 05:39:17,143 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-27 05:39:41,599 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-27 05:39:44,977 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-27 05:40:36,828 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-27 05:41:20,590 - user_service - ERROR - JWT error: Invalid crypto padding
+2025-03-27 05:41:20,590 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-27 05:41:34,044 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-27 07:50:16,337 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-27 09:33:43,751 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-27 09:33:43,751 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-27 09:33:43,873 - user_service - INFO - RabbitMQ connection established
+2025-03-27 09:33:43,881 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-27 09:39:03,438 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-27 09:39:03,439 - user_service - ERROR - Error while consuming messages: 'NoneType' object has no attribute 'poll'
+2025-03-27 09:39:03,487 - user_service - INFO - RabbitMQ connection established
+2025-03-27 09:39:03,489 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-27 10:49:32,417 - user_service - INFO - Received kubeconfig event: operator_installation_failed
+2025-03-27 10:49:48,106 - user_service - INFO - Received kubeconfig event: kubeconfig_uploaded
+2025-03-27 10:49:53,526 - user_service - INFO - Received kubeconfig event: kubeconfig_deleted
+2025-03-27 10:49:53,526 - user_service - INFO - Kubeconfig deleted for user 1, cluster: ashish-k8s
+2025-03-27 10:50:18,949 - user_service - INFO - Received kubeconfig event: namespaces_retrieved
+2025-03-27 11:00:03,146 - user_service - INFO - Received kubeconfig event: namespaces_retrieved
+2025-03-27 11:00:30,031 - user_service - INFO - Received kubeconfig event: namespaces_retrieved
+2025-03-27 11:01:59,089 - user_service - INFO - Received kubeconfig event: namespaces_retrieved
+2025-03-27 11:02:49,257 - user_service - INFO - Received kubeconfig event: namespaces_retrieved
+2025-03-27 11:03:53,082 - user_service - INFO - Received kubeconfig event: namespaces_retrieved
+2025-03-27 11:04:08,548 - user_service - INFO - Received kubeconfig event: namespaces_retrieved
+2025-03-27 12:52:44,119 - user_service - INFO - User ttt registered successfully
+2025-03-27 12:52:44,122 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-27 12:52:44,122 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-27 12:52:44,174 - user_service - INFO - RabbitMQ connection established
+2025-03-27 12:52:44,176 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-27 12:55:18,691 - user_service - ERROR - Error with database session: 401: Incorrect username or password
+2025-03-27 12:55:26,263 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-27 12:55:26,263 - user_service - ERROR - Failed to publish message: _CallbackResult was not set
+2025-03-27 12:55:26,295 - user_service - INFO - RabbitMQ connection established
+2025-03-27 12:55:26,296 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-27 12:56:02,753 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-27 13:02:15,179 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-27 13:02:15,179 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-27 13:02:15,231 - user_service - INFO - RabbitMQ connection established
+2025-03-27 13:02:15,234 - user_service - INFO - Consumer set up for queue kubeconfig_events
