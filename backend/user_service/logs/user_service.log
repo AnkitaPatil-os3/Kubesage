@@ -307,3 +307,13 @@ DETAIL:  Key (id)=(2) is still referenced from table "usertoken".
 2025-03-27 13:02:15,179 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
 2025-03-27 13:02:15,231 - user_service - INFO - RabbitMQ connection established
 2025-03-27 13:02:15,234 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-28 05:20:42,245 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-28 05:20:42,246 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-28 05:21:41,260 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-28 05:21:53,068 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-28 05:21:54,592 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-28 05:22:12,764 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-28 05:22:49,341 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-28 05:22:49,341 - user_service - ERROR - Failed to publish message: _CallbackResult was not set
+2025-03-28 05:22:49,384 - user_service - INFO - RabbitMQ connection established
+2025-03-28 05:22:49,385 - user_service - INFO - Consumer set up for queue kubeconfig_events

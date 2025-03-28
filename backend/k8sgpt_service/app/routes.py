@@ -273,6 +273,7 @@ async def create_backend(
     return AIBackendConfigResponse(
         id=db_backend.id,
         backend_name=db_backend.backend_type,
+        model=db_backend.model,  # Ensure this field exists in the database model
         is_default=db_backend.is_default
     )
 
@@ -311,6 +312,7 @@ async def get_backend(
     
     return backend
 
+
 @k8sgpt_router.delete("/backends/{backend_name}", response_model=MessageResponse)
 async def remove_backend(
     backend_name: str,
@@ -318,17 +320,25 @@ async def remove_backend(
     current_user: Dict = Depends(get_current_user)
 ):
     """
-    Delete an AI backend configuration
+    Delete an AI backend configuration from both the database and the terminal
     """
     user_id = current_user["id"]
-    
-    await delete_ai_backend(
-        user_id=user_id,
-        backend_name=backend_name,
-        session=session
-    )
-    
-    return {"message": f"Backend {backend_name} deleted successfully"}
+    # Query the database for the backend configuration
+    backend = session.query(AIBackend).filter_by(user_id=user_id, backend_type=backend_name).first()
+    if not backend:
+        raise HTTPException(status_code=404, detail=f"Backend {backend_name} not found for user {user_id}")
+    # Construct the terminal command
+    command = f"k8sgpt auth remove -b {backend_name}"
+    # Execute the command to remove from terminal
+    try:
+        output = execute_command(command)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to remove backend from terminal: {str(e)}")
+    # Delete the backend from the database
+    session.delete(backend)
+    session.commit()
+    return {"message": f"Backend {backend_name} deleted successfully from database and terminal"}
+
 
 @k8sgpt_router.put("/backends/{backend_name}/default", response_model=MessageResponse)
 async def set_default_backend(
@@ -337,17 +347,34 @@ async def set_default_backend(
     current_user: Dict = Depends(get_current_user)
 ):
     """
-    Set a backend as the default
+    Set a backend as the default in both the database and terminal
     """
     user_id = current_user["id"]
+
+    # Query the database for the backend configuration
+    backend = session.query(AIBackend).filter_by(user_id=user_id, backend_type=backend_name).first()
     
-    await set_default_ai_backend(
-        user_id=user_id,
-        backend_name=backend_name,
-        session=session
-    )
+    if not backend:
+        raise HTTPException(status_code=404, detail=f"Backend {backend_name} not found for user {user_id}")
+
+    # Update all backends for the user to is_default=False
+    session.query(AIBackend).filter_by(user_id=user_id).update({"is_default": False})
     
-    return {"message": f"Backend {backend_name} set as default"}
+    # Set the selected backend as default
+    backend.is_default = True
+    session.commit()
+
+    # Construct the terminal command
+    command = f"k8sgpt auth default {backend_name}"
+
+    # Execute the command to set default in terminal
+    try:
+        output = execute_command(command)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to set default backend in terminal: {str(e)}")
+
+    return {"message": f"Backend {backend_name} set as default successfully in database and terminal"}
+
 
 @k8sgpt_router.get("/analyzers", response_model=List[str])
 async def list_analyzers(
