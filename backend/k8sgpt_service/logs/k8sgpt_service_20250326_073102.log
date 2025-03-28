@@ -1,0 +1,1 @@
+2025-03-26 07:31:03,025 - k8sgpt_service - WARNING - Redis cache connection failed: Error 111 connecting to localhost:6379. Connection refused.

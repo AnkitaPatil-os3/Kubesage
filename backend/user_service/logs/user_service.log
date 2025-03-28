@@ -34736,3 +34736,109 @@
 2025-03-26 05:34:09,298 - user_service - ERROR - Failed to publish message: Channel is closed.
 2025-03-26 05:34:09,314 - user_service - INFO - RabbitMQ connection established
 2025-03-26 05:34:09,316 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-26 07:19:43,376 - user_service - INFO - RabbitMQ connection established
+2025-03-26 07:19:43,405 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-26 07:20:11,534 - user_service - INFO - RabbitMQ connection established
+2025-03-26 07:20:11,572 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-26 07:20:24,006 - user_service - INFO - RabbitMQ connection established
+2025-03-26 07:20:24,044 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-26 07:20:24,112 - user_service - INFO - Event consumers started in background
+2025-03-26 07:20:24,113 - user_service - INFO - User service started
+2025-03-26 07:20:24,121 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-26 07:20:30,454 - user_service - INFO - RabbitMQ connection established
+2025-03-26 07:20:30,491 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-26 07:22:26,002 - user_service - INFO - RabbitMQ connection established
+2025-03-26 07:22:26,030 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-26 07:29:42,906 - user_service - INFO - RabbitMQ connection established
+2025-03-26 07:29:42,935 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-26 07:30:03,572 - user_service - INFO - RabbitMQ connection established
+2025-03-26 07:30:03,602 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-26 07:30:03,658 - user_service - INFO - Event consumers started in background
+2025-03-26 07:30:03,660 - user_service - INFO - User service started
+2025-03-26 07:30:03,662 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-26 07:30:07,607 - user_service - INFO - RabbitMQ connection established
+2025-03-26 07:30:07,637 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-26 07:30:07,683 - user_service - INFO - Event consumers started in background
+2025-03-26 07:30:07,684 - user_service - INFO - User service started
+2025-03-26 07:30:07,687 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-26 07:39:15,313 - user_service - ERROR - Error with database session: 401: Incorrect username or password
+2025-03-26 07:39:42,654 - user_service - ERROR - Error with database session: 400: Username already registered
+2025-03-26 07:40:34,857 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-26 07:40:34,863 - user_service - INFO - RabbitMQ connection established
+2025-03-26 07:40:34,865 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-26 09:57:53,386 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-26 09:57:53,387 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-26 09:57:53,415 - user_service - INFO - RabbitMQ connection established
+2025-03-26 09:57:53,419 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-26 09:57:53,809 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-26 09:57:53,810 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-26 09:57:53,827 - user_service - INFO - RabbitMQ connection established
+2025-03-26 09:57:53,829 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-27 11:01:33,328 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-27 11:01:33,329 - user_service - ERROR - Error while consuming messages: 'NoneType' object has no attribute 'clear'
+2025-03-27 11:01:33,357 - user_service - INFO - RabbitMQ connection established
+2025-03-27 11:01:33,362 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-28 12:02:37,015 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-28 12:02:37,018 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-28 12:02:37,122 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-28 12:02:37,123 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-28 12:02:54,780 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-28 12:02:54,782 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-28 12:02:58,948 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-28 12:02:58,949 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-28 12:02:59,093 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-28 12:02:59,094 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-28 12:03:03,696 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-28 12:03:03,697 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-28 12:08:04,480 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-28 12:08:04,488 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-28 12:08:11,527 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-28 12:08:11,528 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-28 12:08:18,703 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-28 12:08:18,703 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-28 12:08:28,019 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-28 12:08:28,019 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-28 12:08:36,695 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-28 12:08:36,701 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-28 12:09:23,784 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-28 12:09:23,787 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-28 12:09:33,999 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-28 12:09:34,004 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-28 12:09:58,506 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-28 12:09:58,507 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-28 12:10:07,010 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-28 12:10:07,026 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-28 12:10:14,515 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-28 12:10:14,519 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-28 12:10:50,209 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-28 12:10:50,209 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-28 12:11:41,344 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-28 12:11:41,348 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-28 12:11:43,095 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-28 12:11:43,098 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-28 12:11:45,343 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-28 12:11:45,344 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-28 12:11:46,715 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-28 12:11:46,716 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-28 12:12:12,187 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-28 12:12:12,188 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-28 12:12:15,154 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-28 12:12:15,154 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-28 12:12:17,117 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-28 12:12:17,118 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-28 12:12:41,894 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-28 12:12:41,894 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-28 12:12:42,049 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-28 12:12:42,050 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-28 12:12:54,660 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-28 12:12:54,660 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-28 12:17:10,282 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-28 12:17:10,285 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-28 12:17:10,398 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-28 12:17:10,399 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-28 12:17:12,651 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-28 12:17:12,651 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-28 12:18:40,192 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-28 12:18:40,194 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-03-28 12:18:40,268 - user_service - ERROR - JWT error: Signature has expired.
+2025-03-28 12:18:40,269 - user_service - ERROR - Error with database session: 401: Could not validate credentials

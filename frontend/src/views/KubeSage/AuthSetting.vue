@@ -52,7 +52,7 @@ import axios from 'axios';
 import { NConfigProvider, NLayout, NLayoutHeader, NLayoutContent, NButton, NIcon, NAlert, NCard, NDataTable, NModal, NForm, NFormItem, NInput, NSpace } from 'naive-ui';
 import { Add as PlusIcon } from '@vicons/ionicons5';
  
-const host = 'https://10.0.34.129:8008/';
+const host = 'https://10.0.32.122:8004/';
 const showModal = ref(false);
 const showNotification = ref(false);
 const notificationMessage = ref('');

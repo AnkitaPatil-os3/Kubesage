@@ -1,6 +1,6 @@
 {
   "common": {
-    "primaryColor": "#18a058",
+    "primaryColor": "#10BC3B",
     "primaryColorHover": "#36ad6a",
     "primaryColorPressed": "#0c7a43",
     "primaryColorSuppl": "#36ad6a",
@@ -8,7 +8,7 @@
     "infoColorHover": "#4098fc",
     "infoColorPressed": "#1060c9",
     "infoColorSuppl": "#4098fc",
-    "successColor": "#18a058",
+    "successColor": "#10BC3B",
     "successColorHover": "#36ad6a",
     "successColorPressed": "#0c7a43",
     "successColorSuppl": "#36ad6a",

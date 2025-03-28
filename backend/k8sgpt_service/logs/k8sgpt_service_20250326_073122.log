@@ -1,0 +1,50 @@
+2025-03-26 07:31:22,739 - k8sgpt_service - WARNING - Redis cache connection failed: Error 111 connecting to localhost:6379. Connection refused.
+2025-03-26 07:31:22,827 - k8sgpt_service - INFO - Connected to RabbitMQ server
+2025-03-26 07:31:22,889 - k8sgpt_service - INFO - Starting K8sGPT Operations Service
+2025-03-26 07:31:22,889 - k8sgpt_service - INFO - Creating database and tables if they don't exist
+2025-03-26 07:31:22,937 - k8sgpt_service - ERROR - Failed to connect to Redis: Error 111 connecting to localhost:6379. Connection refused.
+2025-03-26 07:31:22,937 - k8sgpt_service - INFO - Starting to consume messages from RabbitMQ
+2025-03-28 12:02:54,830 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Database connection failed"}
+2025-03-28 12:02:54,832 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-03-28 12:03:03,744 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Database connection failed"}
+2025-03-28 12:03:03,746 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-03-28 12:08:04,518 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Database connection failed"}
+2025-03-28 12:08:04,519 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-03-28 12:08:11,567 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Database connection failed"}
+2025-03-28 12:08:11,568 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-03-28 12:08:18,750 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Database connection failed"}
+2025-03-28 12:08:18,751 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-03-28 12:08:28,060 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Database connection failed"}
+2025-03-28 12:08:28,065 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-03-28 12:08:36,746 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Database connection failed"}
+2025-03-28 12:08:36,746 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-03-28 12:09:23,831 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Database connection failed"}
+2025-03-28 12:09:23,832 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-03-28 12:09:34,035 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Database connection failed"}
+2025-03-28 12:09:34,038 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-03-28 12:09:58,547 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Database connection failed"}
+2025-03-28 12:09:58,550 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-03-28 12:10:07,050 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Database connection failed"}
+2025-03-28 12:10:07,052 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-03-28 12:10:14,555 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Database connection failed"}
+2025-03-28 12:10:14,555 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-03-28 12:10:50,256 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Database connection failed"}
+2025-03-28 12:10:50,256 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-03-28 12:11:41,373 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Database connection failed"}
+2025-03-28 12:11:41,374 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-03-28 12:11:43,138 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Database connection failed"}
+2025-03-28 12:11:43,138 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-03-28 12:11:45,387 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Database connection failed"}
+2025-03-28 12:11:45,389 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-03-28 12:11:46,756 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Database connection failed"}
+2025-03-28 12:11:46,757 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-03-28 12:12:12,231 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Database connection failed"}
+2025-03-28 12:12:12,232 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-03-28 12:12:15,199 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Database connection failed"}
+2025-03-28 12:12:15,201 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-03-28 12:12:17,160 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Database connection failed"}
+2025-03-28 12:12:17,161 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-03-28 12:12:54,710 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Database connection failed"}
+2025-03-28 12:12:54,710 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-03-28 12:17:12,695 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Database connection failed"}
+2025-03-28 12:17:12,696 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials

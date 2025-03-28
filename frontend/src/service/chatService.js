@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'https://10.0.34.129:8007/chat';
+const API_BASE_URL = 'https://10.0.32.122:8005/chat';
 
 const getAuthHeaders = () => {
   try {

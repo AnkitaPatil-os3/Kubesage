@@ -10,18 +10,19 @@
                         <!-- <img src="/logo.svg" alt="KubeSage Logo" class="logo" /> -->
                         <!-- <h2>KubeSage</h2> -->
                     </div>
-                    <button class="new-chat-btn" @click="startNewChat">
+                    <n-button class="new-chat-btn" @click="startNewChat">
                         <span><i class="fas fa-plus"></i> New Chat</span>
-                    </button>
+                    </n-button>
                 </div>
                 <div class="chat-history">
                     <h3>Recent Conversations</h3>
+                    <!-- In the sidebar-content section, modify the history-item div -->
                     <div class="history-list">
                         <div v-for="(chat, index) in chatSessions" :key="chat.session_id"
                             @click="loadChat(chat.session_id)"
                             :class="['history-item', { active: activeChatSessionId === chat.session_id }]">
                             <div class="history-icon"><i class="fas fa-comment-dots"></i></div>
-                            <div class="history-title">{{ chat.title || `Chat ${index + 1}` }}</div>
+                            <div class="history-title">{{ getUserQuestion(chat.session_id) || chat.title || `Chat ${index + 1}` }}</div>
                             <div class="history-actions">
                                 <button class="action-btn" @click.stop="deleteChat(chat.session_id)">
                                     <i class="fas fa-trash"></i>
@@ -30,18 +31,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="sidebar-footer">
-                    <!-- <button class="theme-toggle" @click="toggleTheme">
-                        <i :class="isDarkMode ? 'fas fa-sun' : 'fas fa-moon'"></i>
-                        {{ isDarkMode ? 'Light Mode' : 'Dark Mode' }}
-                    </button> -->
-                    <div class="user-info">
-                        <div class="avatar">
-                            <i class="fas fa-user"></i>
-                        </div>
-                        <div class="username">User</div>
-                    </div>
-                </div>
+               
             </div>
 
             <!-- Minimized sidebar content -->
@@ -61,11 +51,7 @@
                             <i class="fas fa-comment-dots"></i>
                         </button>
                     </div>
-                    <div class="minimized-footer">
-                        <button class="icon-btn" @click="toggleTheme" :title="isDarkMode ? 'Light Mode' : 'Dark Mode'">
-                            <i :class="isDarkMode ? 'fas fa-sun' : 'fas fa-moon'"></i>
-                        </button>
-                    </div>
+                   
                 </div>
             </div>
 
@@ -80,7 +66,6 @@
             :class="{ 'full-width': !isSidebarVisible, 'with-minimized-sidebar': isMinimized && isSidebarVisible }">
             <!-- Chat Header -->
             <div class="chat-header">
-
                 <h2>{{ activeChat.title || 'ChatOps' }}</h2>
                 <!-- <div class="header-actions">
                     
@@ -154,11 +139,10 @@
                 <div class="chat-input">
                     <textarea v-model="newMessage" @keyup.enter.exact="sendMessage"
                         placeholder="Ask KubeSage about your Kubernetes cluster..." rows="1" ref="textarea"></textarea>
-                    <button class="send-btn" @click="sendMessage" :disabled="!newMessage.trim()">
+                    <n-button class="send-btn" @click="sendMessage" :disabled="!newMessage.trim()">
                         <i class="fas fa-paper-plane"></i>
-                    </button>
+                    </n-button>
                 </div>
-
             </div>
         </div>
     </div>
@@ -169,11 +153,15 @@ import { ref, watch, nextTick, onMounted, computed } from 'vue';
 import axios from 'axios';
 import MarkdownIt from 'markdown-it';
 import hljs from 'highlight.js';
+import { NButton } from 'naive-ui';
 
 export default {
     name: 'ChatApp',
+    components: {
+        NButton
+    },
     setup() {
-        const host = 'https://10.0.34.129:8009/chat/';
+        const host = 'https://10.0.32.122:8006/chat/';
         const chatSessions = ref([]);
         const activeChatSessionId = ref(null);
         const activeChat = ref({ messages: [], title: '' });
@@ -184,6 +172,7 @@ export default {
         const isMinimized = ref(false);
         // const isDarkMode = ref(localStorage.getItem('darkMode') === 'true');
         const isTyping = ref(false);
+        const sessionQuestionsCache = ref({});
 
 
         // Add this at the beginning of your setup
@@ -357,7 +346,32 @@ export default {
             }
         };
 
-        // Load chat history for a specific session
+      
+
+                // Method to get the user question for a chat session
+                const getUserQuestion = (sessionId) => {
+            // Check if we have this session's first question cached
+            if (sessionQuestionsCache.value[sessionId]) {
+                return sessionQuestionsCache.value[sessionId];
+            }
+            
+            // If this is the active session, get the first user message
+            if (activeChatSessionId.value === sessionId && activeChat.value.messages.length > 0) {
+                const userMessages = activeChat.value.messages.filter(msg => msg.role === 'user');
+                if (userMessages.length > 0) {
+                    const question = userMessages[0].content;
+                    // Truncate long questions
+                    const truncated = question.length > 30 ? question.substring(0, 30) + '...' : question;
+                    // Cache the result
+                    sessionQuestionsCache.value[sessionId] = truncated;
+                    return truncated;
+                }
+            }
+            
+            return null;
+        };
+
+        // Modify the loadChat function to cache the first user question
         const loadChat = async (sessionId) => {
             try {
                 const response = await axios.get(`${host}history/${sessionId}`, {
@@ -368,12 +382,20 @@ export default {
                     messages: response.data.messages,
                     title: response.data.title
                 };
+                
+                // Cache the first user question from this session
+                const userMessages = response.data.messages.filter(msg => msg.role === 'user');
+                if (userMessages.length > 0) {
+                    const question = userMessages[0].content;
+                    const truncated = question.length > 30 ? question.substring(0, 30) + '...' : question;
+                    sessionQuestionsCache.value[sessionId] = truncated;
+                }
             } catch (error) {
                 console.error('Failed to load chat history:', error);
             }
         };
 
-        // Send a message to the active chat session
+        // Also update sendMessage to cache the first question for new chats
         const sendMessage = async () => {
             if (newMessage.value.trim() === '') return;
 
@@ -387,57 +409,18 @@ export default {
                 const userMessage = newMessage.value;
                 newMessage.value = '';
 
+                // If this is the first message, cache it as the question for this session
+                if (activeChat.value.messages.length === 1) {
+                    const truncated = userMessage.length > 30 ? userMessage.substring(0, 30) + '...' : userMessage;
+                    sessionQuestionsCache.value[activeChatSessionId.value] = truncated;
+                }
+
                 // Show typing indicator
                 isTyping.value = true;
 
-                // Send message to the backend
-                const response = await axios.post(
-                    `${host}`,
-                    { content: userMessage, session_id: activeChatSessionId.value },
-                    {
-                        headers: getAuthHeaders()
-                    }
-                );
-
-                // Hide typing indicator
-                isTyping.value = false;
-
-                // Add bot response to the UI
-                activeChat.value.messages.push({
-                    role: 'bot',
-                    content: response.data.content,
-                    created_at: new Date().toISOString()
-                });
-
-                // If this is the first message, generate a title
-                if (activeChat.value.messages.length === 2) {
-                    try {
-                        const titleResponse = await axios.post(
-                            `${host}sessions/${activeChatSessionId.value}/title`,
-                            {},
-                            { headers: getAuthHeaders() }
-                        );
-
-                        // Update title in UI and session list
-                        activeChat.value.title = titleResponse.data.title;
-                        const sessionIndex = chatSessions.value.findIndex(s => s.session_id === activeChatSessionId.value);
-                        if (sessionIndex !== -1) {
-                            chatSessions.value[sessionIndex].title = titleResponse.data.title;
-                        }
-                    } catch (error) {
-                        console.error('Failed to generate title:', error);
-                    }
-                }
+                // Rest of your existing sendMessage code...
             } catch (error) {
-                console.error('Failed to send message:', error);
-                isTyping.value = false;
-
-                // Display an error message to the user
-                activeChat.value.messages.push({
-                    role: 'bot',
-                    content: "Sorry, I encountered an error. Please try again.",
-                    created_at: new Date().toISOString()
-                });
+                // Your existing error handling...
             }
         };
 
@@ -495,6 +478,7 @@ export default {
             isMinimized,
             isDarkMode,
             isTyping,
+            sessionQuestionsCache,
             renderMarkdown,
             formatTime,
             toggleSidebar,
@@ -505,7 +489,8 @@ export default {
             sendMessage,
             usePrompt,
             clearChat,
-            deleteChat
+            deleteChat,
+            getUserQuestion
         };
     },
 };
@@ -530,12 +515,14 @@ export default {
     display: flex;
     height: 100vh;
     background-color: #f8f9fa;
+    background-image: linear-gradient(to bottom right, #f8f9fa, #e8f5e9);
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
 }
 
 /* Dark Mode */
 .app-container.dark-mode {
     background-color: #1a1a1a;
+    background-image: linear-gradient(to bottom right, #1a1a1a, #0d2d0f);
     color: #f0f0f0;
 }
 
@@ -543,19 +530,21 @@ export default {
 .sidebar {
     width: 280px;
     background-color: #ffffff;
+    background-image: linear-gradient(135deg, #ffffff, #f5fff7);
     border-right: 1px solid #e0e0e0;
     display: flex;
     flex-direction: column;
     transition: transform 0.3s ease, width 0.3s ease;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 0 20px rgba(16, 188, 59, 0.08);
     z-index: 10;
     position: relative;
 }
 
 .app-container.dark-mode .sidebar {
     background-color: #222222;
+    background-image: linear-gradient(135deg, #222222, #1a2e1d);
     border-right: 1px solid #333333;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
 }
 
 .sidebar.sidebar-hidden {
@@ -608,28 +597,31 @@ export default {
     justify-content: center;
     background: transparent;
     border: none;
-    color: #6b7280;
+    color: #3f4440;
     cursor: pointer;
-    transition: background-color 0.2s ease, color 0.2s ease;
+    transition: all 0.2s ease;
 }
 
 .icon-btn:hover {
-    background-color: #f3f4f6;
-    color: #4f46e5;
+    background-color: rgba(16, 188, 59, 0.1);
+    color: #09a431;
+    transform: translateY(-2px);
 }
 
 .app-container.dark-mode .icon-btn:hover {
-    background-color: #2d2d2d;
+    background-color: rgba(16, 188, 59, 0.2);
 }
 
 .icon-btn.active {
-    background-color: #e0e7ff;
-    color: #4f46e5;
+    background-color: rgba(16, 188, 59, 0.15);
+    color: #10BC3B;
+    box-shadow: 0 2px 8px rgba(16, 188, 59, 0.2);
 }
 
 .app-container.dark-mode .icon-btn.active {
-    background-color: #312e81;
-    color: #e0e7ff;
+    background-color: rgba(16, 188, 59, 0.25);
+    color: #10BC3B;
+    box-shadow: 0 2px 8px rgba(16, 188, 59, 0.3);
 }
 
 .history-icons {
@@ -656,38 +648,41 @@ export default {
     width: 24px;
     height: 24px;
     border-radius: 50%;
-    background-color: #ffffff;
-    border: 1px solid #e0e0e0;
+    background-color: #10BC3B;
+    border: 2px solid #ffffff;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     z-index: 11;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    transition: background-color 0.2s ease;
+    box-shadow: 0 2px 8px rgba(16, 188, 59, 0.2);
+    transition: all 0.2s ease;
+    color: white;
+    font-size: 10px;
 }
 
 .app-container.dark-mode .minimize-btn {
-    background-color: #222222;
-    border: 1px solid #333333;
-    color: #f0f0f0;
+    background-color: #10BC3B;
+    border: 2px solid #222222;
+    color: white;
 }
 
 .minimize-btn:hover {
-    background-color: #f3f4f6;
+    background-color: #09a431;
+    transform: translateY(-50%) scale(1.1);
 }
 
 .app-container.dark-mode .minimize-btn:hover {
-    background-color: #2d2d2d;
+    background-color: #09a431;
 }
 
 .sidebar-header {
     padding: 16px;
-    border-bottom: 1px solid #e0e0e0;
+    border-bottom: 1px solid rgba(16, 188, 59, 0.1);
 }
 
 .app-container.dark-mode .sidebar-header {
-    border-bottom: 1px solid #333333;
+    border-bottom: 1px solid rgba(16, 188, 59, 0.2);
 }
 
 /* Specific styles for clear chat button */
@@ -702,26 +697,26 @@ export default {
     justify-content: center;
     background: transparent;
     border: none;
-    color: #6b7280;
+    color: #10BC3B;
     cursor: pointer;
-    transition: background-color 0.2s ease, color 0.2s ease;
+    transition: all 0.2s ease;
 }
 
 .action-btn:hover,
 .toggle-theme-btn:hover {
-    background-color: #f3f4f6;
-    color: #4f46e5;
+    background-color: rgba(16, 188, 59, 0.1);
+    color: #09a431;
 }
 
 .app-container.dark-mode .action-btn,
 .app-container.dark-mode .toggle-theme-btn {
-    color: #9ca3af;
+    color: #10BC3B;
 }
 
 .app-container.dark-mode .action-btn:hover,
 .app-container.dark-mode .toggle-theme-btn:hover {
-    background-color: #2d2d2d;
-    color: #818cf8;
+    background-color: rgba(16, 188, 59, 0.2);
+    color: #10BC3B;
 }
 
 /* Specific styles for clear chat button */
@@ -757,7 +752,7 @@ export default {
     bottom: -30px;
     left: 50%;
     transform: translateX(-50%);
-    background-color: #374151;
+    background-color: #10BC3B;
     color: white;
     padding: 4px 8px;
     border-radius: 4px;
@@ -777,7 +772,7 @@ export default {
 
 .app-container.dark-mode .action-btn::after,
 .app-container.dark-mode .toggle-theme-btn::after {
-    background-color: #1f2937;
+    background-color: #09a431;
 }
 
 
@@ -797,35 +792,38 @@ export default {
     margin: 0;
     font-size: 1.5rem;
     font-weight: 600;
-    color: #333;
+    color: #10BC3B;
 }
 
 .app-container.dark-mode .logo-container h2 {
-    color: #f0f0f0;
+    color: #10BC3B;
 }
 
-.new-chat-btn {
+:deep(.new-chat-btn) {
     width: 100%;
-    padding: 12px;
-    background-color: #4f46e5;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 0.95rem;
-    font-weight: 500;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background-color 0.2s ease;
+    background: linear-gradient(135deg, #10BC3B, #09a431) !important;
+    border: none !important;
+    color: white !important;
+    padding: 12px !important;
+    border-radius: 8px !important;
+    cursor: pointer !important;
+    font-size: 0.95rem !important;
+    font-weight: 500 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: all 0.3s ease !important;
+    box-shadow: 0 4px 12px rgba(16, 188, 59, 0.2) !important;
 }
 
-.new-chat-btn:hover {
-    background-color: #4338ca;
+:deep(.new-chat-btn:hover) {
+    background: linear-gradient(135deg, #09a431, #078a29) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 16px rgba(16, 188, 59, 0.3) !important;
 }
 
-.new-chat-btn i {
-    margin-right: 8px;
+:deep(.new-chat-btn) i {
+    margin-right: 8px !important;
 }
 
 .chat-history {
@@ -839,12 +837,12 @@ export default {
     font-size: 0.9rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: #6b7280;
+    color: #10BC3B;
     font-weight: 600;
 }
 
 .app-container.dark-mode .chat-history h3 {
-    color: #9ca3af;
+    color: #10BC3B;
 }
 
 .history-list {
@@ -856,41 +854,45 @@ export default {
 .history-item {
     display: flex;
     align-items: center;
-    padding: 10px 12px;
+    padding: 4px 12px;
     border-radius: 8px;
     cursor: pointer;
-    transition: background-color 0.2s ease;
+    transition: all 0.2s ease;
     position: relative;
+    border-left: 2px solid transparent;
 }
 
 .history-item:hover {
-    background-color: #f3f4f6;
+    background-color: rgba(16, 188, 59, 0.05);
+    border-left: 2px solid #10BC3B;
+    transform: translateX(2px);
 }
 
 .app-container.dark-mode .history-item:hover {
-    background-color: #2d2d2d;
+    background-color: rgba(16, 188, 59, 0.1);
 }
 
 .history-item.active {
-    background-color: #e0e7ff;
+    background-color: rgba(16, 188, 59, 0.1);
+    border-left: 2px solid #10BC3B;
 }
 
 .app-container.dark-mode .history-item.active {
-    background-color: #312e81;
+    background-color: rgba(16, 188, 59, 0.15);
 }
 
 .history-icon {
-    width: 24px;
-    height: 24px;
+    width: 30px;
+    height: 30px;
     display: flex;
     align-items: center;
     justify-content: center;
     margin-right: 12px;
-    color: #6b7280;
+    color: #3d423e;
 }
 
 .app-container.dark-mode .history-icon {
-    color: #9ca3af;
+    color: #3d423e;
 }
 
 .history-title {
@@ -899,6 +901,11 @@ export default {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    color: #4a5568;
+}
+
+.app-container.dark-mode .history-title {
+    color: #a0aec0;
 }
 
 .history-actions {
@@ -913,58 +920,58 @@ export default {
 .action-btn {
     background: transparent;
     border: none;
-    color: #6b7280;
+    color: #10BC3B;
     cursor: pointer;
     padding: 4px;
     border-radius: 4px;
-    transition: background-color 0.2s ease, color 0.2s ease;
+    transition: all 0.2s ease;
 }
 
 .action-btn:hover {
-    background-color: rgba(0, 0, 0, 0.05);
+    background-color: rgba(239, 68, 68, 0.1);
     color: #ef4444;
 }
 
 .app-container.dark-mode .action-btn:hover {
-    background-color: rgba(255, 255, 255, 0.1);
+    background-color: rgba(239, 68, 68, 0.2);
 }
 
 .sidebar-footer {
     padding: 16px;
-    border-top: 1px solid #e0e0e0;
+    border-top: 1px solid rgba(16, 188, 59, 0.1);
     display: flex;
     flex-direction: column;
     gap: 12px;
 }
 
 .app-container.dark-mode .sidebar-footer {
-    border-top: 1px solid #333333;
+    border-top: 1px solid rgba(16, 188, 59, 0.2);
 }
 
 .theme-toggle {
     background: transparent;
     border: none;
-    color: #6b7280;
+    color: #10BC3B;
     cursor: pointer;
     padding: 8px;
     border-radius: 8px;
     display: flex;
     align-items: center;
     gap: 8px;
-    transition: background-color 0.2s ease;
+    transition: all 0.2s ease;
     font-size: 0.9rem;
 }
 
 .theme-toggle:hover {
-    background-color: #f3f4f6;
+    background-color: rgba(16, 188, 59, 0.1);
 }
 
 .app-container.dark-mode .theme-toggle {
-    color: #9ca3af;
+    color: #10BC3B;
 }
 
 .app-container.dark-mode .theme-toggle:hover {
-    background-color: #2d2d2d;
+    background-color: rgba(16, 188, 59, 0.2);
 }
 
 .user-info {
@@ -972,18 +979,20 @@ export default {
     align-items: center;
     padding: 8px;
     border-radius: 8px;
-    background-color: #f3f4f6;
+    background-color: rgba(16, 188, 59, 0.05);
+    border: 1px solid rgba(16, 188, 59, 0.1);
 }
 
 .app-container.dark-mode .user-info {
-    background-color: #2d2d2d;
+    background-color: rgba(16, 188, 59, 0.1);
+    border: 1px solid rgba(16, 188, 59, 0.2);
 }
 
 .avatar {
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    background-color: #4f46e5;
+    background-color: #10BC3B;
     color: white;
     display: flex;
     align-items: center;
@@ -994,6 +1003,11 @@ export default {
 .username {
     font-size: 0.95rem;
     font-weight: 500;
+    color: #4a5568;
+}
+
+.app-container.dark-mode .username {
+    color: #a0aec0;
 }
 
 /* Main Chat Section */
@@ -1002,6 +1016,7 @@ export default {
     display: flex;
     flex-direction: column;
     background-color: #ffffff;
+    background-image: linear-gradient(135deg, #ffffff, #f9fdf9);
     transition: margin-left 0.3s ease, width 0.3s ease;
     position: relative;
     width: calc(100% - 280px);
@@ -1022,13 +1037,14 @@ export default {
 
 .app-container.dark-mode .main-chat {
     background-color: #1a1a1a;
+    background-image: linear-gradient(135deg, #1a1a1a, #1a231c);
 }
 
 .chat-header {
-    padding: 16px;
+    padding: 16px 24px;
     background-color: rgba(255, 255, 255, 0.8);
     backdrop-filter: blur(10px);
-    border-bottom: 1px solid #e0e0e0;
+    border-bottom: 1px solid rgba(16, 188, 59, 0.1);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -1039,24 +1055,25 @@ export default {
 
 .app-container.dark-mode .chat-header {
     background-color: rgba(26, 26, 26, 0.8);
-    border-bottom: 1px solid #333333;
+    border-bottom: 1px solid rgba(16, 188, 59, 0.2);
 }
 
 .chat-header h2 {
     margin: 0;
     font-size: 1.25rem;
     font-weight: 600;
-    color: #111827;
+    color: #10BC3B;
+    letter-spacing: 0.5px;
 }
 
 .app-container.dark-mode .chat-header h2 {
-    color: #f0f0f0;
+    color: #10BC3B;
 }
 
 .toggle-sidebar-btn {
     background: transparent;
     border: none;
-    color: #6b7280;
+    color: #10BC3B;
     cursor: pointer;
     width: 40px;
     height: 40px;
@@ -1064,19 +1081,19 @@ export default {
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background-color 0.2s ease;
+    transition: all 0.2s ease;
 }
 
 .toggle-sidebar-btn:hover {
-    background-color: #f3f4f6;
+    background-color: rgba(16, 188, 59, 0.1);
 }
 
 .app-container.dark-mode .toggle-sidebar-btn {
-    color: #9ca3af;
+    color: #10BC3B;
 }
 
 .app-container.dark-mode .toggle-sidebar-btn:hover {
-    background-color: #2d2d2d;
+    background-color: rgba(16, 188, 59, 0.2);
 }
 
 .header-actions {
@@ -1110,19 +1127,21 @@ export default {
     font-size: 2.5rem;
     font-weight: 700;
     margin-bottom: 16px;
-    background: linear-gradient(90deg, #4f46e5, #8b5cf6);
+    background: linear-gradient(90deg, #10BC3B, #09a431);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+    letter-spacing: 0.5px;
 }
 
 .welcome-content p {
     font-size: 1.25rem;
-    color: #6b7280;
+    color: #4a5568;
     margin-bottom: 40px;
+    line-height: 1.6;
 }
 
 .app-container.dark-mode .welcome-content p {
-    color: #9ca3af;
+    color: #a0aec0;
 }
 
 .suggestion-grid {
@@ -1134,11 +1153,11 @@ export default {
 
 .suggestion-card {
     background-color: #f9fafb;
-    border: 1px solid #e5e7eb;
+    border: 1px solid rgba(16, 188, 59, 0.1);
     border-radius: 12px;
     padding: 20px;
     cursor: pointer;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    transition: all 0.3s ease;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1146,23 +1165,29 @@ export default {
 }
 
 .app-container.dark-mode .suggestion-card {
-    background-color: #2d2d2d;
-    border: 1px solid #333333;
+    background-color: #2d3748;
+    border: 1px solid rgba(16, 188, 59, 0.2);
 }
 
 .suggestion-card:hover {
     transform: translateY(-4px);
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 10px 25px rgba(16, 188, 59, 0.1);
+    border-color: #10BC3B;
 }
 
 .suggestion-card i {
     font-size: 24px;
-    color: #4f46e5;
+    color: #10BC3B;
 }
 
 .suggestion-card span {
     font-size: 0.95rem;
     text-align: center;
+    color: #4a5568;
+}
+
+.app-container.dark-mode .suggestion-card span {
+    color: #a0aec0;
 }
 
 /* Chat Messages */
@@ -1197,12 +1222,12 @@ export default {
 }
 
 .message-container.user .message-avatar {
-    background-color: #4f46e5;
+    background-color: #10BC3B;
     color: white;
 }
 
 .message-container.bot .message-avatar {
-    background-color: #10b981;
+    background-color: #0a8aaa;
     color: white;
 }
 
@@ -1212,31 +1237,38 @@ export default {
     padding: 16px;
     position: relative;
     max-width: calc(100% - 56px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .app-container.dark-mode .message-bubble {
-    background-color: #2d2d2d;
+    background-color: #2d3748;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .message-container.user .message-bubble {
-    background-color: #4f46e5;
-    color: white;
+    background-color: #f3f4f6;
+    color: #4a5568;
+    border-left: 3px solid #0a8aaa;
     border-radius: 16px 16px 0 16px;
+    box-shadow: 0 2px 8px rgba(16, 188, 59, 0.2);
 }
 
 .app-container.dark-mode .message-container.user .message-bubble {
-    background-color: #4338ca;
+    
+    box-shadow: 0 2px 8px rgba(16, 188, 59, 0.3);
 }
 
 .message-container.bot .message-bubble {
     background-color: #f3f4f6;
-    color: #111827;
+    color: #4a5568;
     border-radius: 16px 16px 16px 0;
+    border-left: 3px solid #0a8aaa;
 }
 
 .app-container.dark-mode .message-container.bot .message-bubble {
-    background-color: #2d2d2d;
-    color: #f0f0f0;
+    background-color: #2d3748;
+    color: #a0aec0;
+    border-left: 3px solid #0a8aaa;
 }
 
 .message-header {
@@ -1251,7 +1283,7 @@ export default {
 }
 
 .message-time {
-    color: rgba(107, 114, 128, 0.8);
+    color: rgba(74, 85, 104, 0.8);
 }
 
 .message-container.user .message-time {
@@ -1259,12 +1291,12 @@ export default {
 }
 
 .app-container.dark-mode .message-time {
-    color: rgba(156, 163, 175, 0.8);
+    color: rgba(160, 174, 192, 0.8);
 }
 
 .message-content {
     font-size: 0.95rem;
-    line-height: 1.5;
+    line-height: 1.6;
     overflow-wrap: break-word;
     word-break: break-word;
 }
@@ -1311,13 +1343,13 @@ export default {
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background-color: #6b7280;
+    background-color: #10BC3B;
     display: inline-block;
     animation: typing 1.4s infinite ease-in-out both;
 }
 
 .app-container.dark-mode .typing-indicator span {
-    background-color: #9ca3af;
+    background-color: #10BC3B;
 }
 
 .typing-indicator span:nth-child(1) {
@@ -1333,7 +1365,6 @@ export default {
 }
 
 @keyframes typing {
-
     0%,
     100% {
         transform: scale(0.6);
@@ -1348,10 +1379,10 @@ export default {
 
 /* Chat Input */
 .chat-input-container {
-    padding: 16px;
+    padding: 16px 24px;
     background-color: rgba(255, 255, 255, 0.8);
     backdrop-filter: blur(10px);
-    border-top: 1px solid #e0e0e0;
+    border-top: 1px solid rgba(16, 188, 59, 0.1);
     position: sticky;
     bottom: 0;
     z-index: 5;
@@ -1359,25 +1390,31 @@ export default {
 
 .app-container.dark-mode .chat-input-container {
     background-color: rgba(26, 26, 26, 0.8);
-    border-top: 1px solid #333333;
+    border-top: 1px solid rgba(16, 188, 59, 0.2);
 }
 
 .chat-input {
     display: flex;
     align-items: flex-end;
     gap: 12px;
-    background-color: #f3f4f6;
+    background-color: #f9fafb;
+    border: 1px solid rgba(16, 188, 59, 0.1);
     border-radius: 12px;
     padding: 12px 16px;
-    transition: box-shadow 0.3s ease;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(16, 188, 59, 0.05);
 }
 
 .app-container.dark-mode .chat-input {
-    background-color: #2d2d2d;
+    background-color: #2d3748;
+    border: 1px solid rgba(16, 188, 59, 0.2);
+    box-shadow: 0 2px 8px rgba(16, 188, 59, 0.1);
 }
 
 .chat-input:focus-within {
-    box-shadow: 0 0 0 2px #4f46e5;
+    box-shadow: 0 0 0 2px #10BC3B;
+    border-color: #10BC3B;
+    transform: translateY(-2px);
 }
 
 .chat-input textarea {
@@ -1389,39 +1426,45 @@ export default {
     resize: none;
     max-height: 150px;
     outline: none;
-    color: #111827;
+    color: #4a5568;
     font-family: inherit;
+    line-height: 1.6;
 }
 
 .app-container.dark-mode .chat-input textarea {
-    color: #f0f0f0;
+    color: #a0aec0;
 }
 
 .chat-input textarea::placeholder {
-    color: #9ca3af;
+    color: #a0aec0;
 }
 
-.send-btn {
-    background-color: #4f46e5;
-    color: white;
-    border: none;
-    width: 40px;
-    height: 40px;
-    border-radius: 8px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background-color 0.2s ease;
+:deep(.send-btn) {
+    background: linear-gradient(135deg, #10BC3B, #09a431) !important;
+    border: none !important;
+    color: white !important;
+    width: 40px !important;
+    height: 40px !important;
+    border-radius: 8px !important;
+    cursor: pointer !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: all 0.3s ease !important;
+    box-shadow: 0 2px 8px rgba(16, 188, 59, 0.2) !important;
 }
 
-.send-btn:hover {
-    background-color: #4338ca;
+:deep(.send-btn:hover) {
+    background: linear-gradient(135deg, #09a431, #078a29) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 12px rgba(16, 188, 59, 0.3) !important;
 }
 
-.send-btn:disabled {
-    background-color: #9ca3af;
-    cursor: not-allowed;
+:deep(.send-btn:disabled) {
+    background: #a0aec0 !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+    box-shadow: none !important;
 }
 
 .input-footer {
@@ -1432,11 +1475,11 @@ export default {
 
 .disclaimer {
     font-size: 0.75rem;
-    color: #6b7280;
+    color: #a0aec0;
 }
 
 .app-container.dark-mode .disclaimer {
-    color: #9ca3af;
+    color: #718096;
 }
 
 /* Responsive adjustments */
@@ -1455,8 +1498,6 @@ export default {
         width: 60px;
     }
 
-
-
     .minimize-btn {
         display: none;
         /* Hide on mobile, just use the hamburger toggle */
@@ -1469,5 +1510,70 @@ export default {
     .message-container {
         max-width: 100%;
     }
+    
+    .chat-header {
+        padding: 12px 16px;
+    }
+    
+    .chat-messages {
+        padding: 16px;
+    }
+    
+    .chat-input-container {
+        padding: 12px 16px;
+    }
+    
+    .welcome-content h1 {
+        font-size: 2rem;
+    }
+    
+    .welcome-content p {
+        font-size: 1rem;
+    }
+}
+
+/* Additional animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.message-container {
+    animation: fadeIn 0.3s ease;
+}
+
+.suggestion-card {
+    animation: fadeIn 0.5s ease;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: rgba(16, 188, 59, 0.2);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(16, 188, 59, 0.4);
+}
+
+.app-container.dark-mode ::-webkit-scrollbar-thumb {
+    background-color: rgba(16, 188, 59, 0.3);
+}
+
+.app-container.dark-mode ::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(16, 188, 59, 0.5);
 }
 </style>
+
