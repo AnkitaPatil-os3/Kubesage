@@ -12,13 +12,16 @@ from app.auth import (
     get_password_hash, 
     get_current_active_user,
     get_current_admin_user,
-    verify_password
+    verify_password,
+    get_current_user
 )
 from app.config import settings
 from app.logger import logger
 from datetime import timedelta
 from app.queue import publish_message  # Import the queue functionality
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordBearer
+
 # Auth router
 auth_router = APIRouter()
 
@@ -61,6 +64,56 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), session: Sessi
         "token_type": "bearer",
         "expires_at": expires_at
     }
+
+
+
+
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
+
+@auth_router.post("/logout")
+async def logout(
+    token: str = Depends(oauth2_scheme),
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+    ):
+    """
+    Logout user by removing their token from the database.
+    Optionally can clear all user sessions or just the current one.
+    """
+    try:
+        # Delete the current token
+        user_token = session.query(UserToken).filter(
+            UserToken.token == token,
+            UserToken.user_id == current_user.id
+        ).first()
+        
+        if user_token:
+            session.delete(user_token)
+            session.commit()
+        
+        # Option 1: Delete all tokens for this user (complete logout from all devices)
+        # session.query(UserToken).filter(UserToken.user_id == current_user.id).delete()
+        # session.commit()
+        
+        # Publish logout event
+        publish_message("user_events", {
+            "event_type": "user_logout",
+            "user_id": current_user.id,
+            "username": current_user.username,
+            "timestamp": datetime.datetime.now().isoformat()
+        })
+        
+        return {"message": "Successfully logged out"}
+    
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error during logout"
+        )
+
+
 
 @auth_router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register_user(user_data: UserCreate, session: Session = Depends(get_session)):

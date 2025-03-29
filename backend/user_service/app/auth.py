@@ -9,7 +9,7 @@ from sqlmodel import Session, select
 
 from app.config import settings
 from app.database import get_session
-from app.models import User
+from app.models import User, UserToken
 from app.schemas import TokenData
 from app.logger import logger
 
@@ -42,6 +42,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt, expire
 
+
 async def get_current_user(
     token: str = Depends(oauth2_scheme), 
     session: Session = Depends(get_session)
@@ -51,21 +52,70 @@ async def get_current_user(
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    
     try:
+        # 1. First verify token exists in database and is not revoked
+        db_token = session.exec(
+            select(UserToken).where(
+                UserToken.token == token,
+                UserToken.is_revoked == False,
+                UserToken.expires_at > datetime.utcnow()
+            )
+        ).first()
+        
+        if not db_token:
+            logger.warning(f"Token not found in database or revoked: {token}")
+            raise credentials_exception
+
+        # 2. Then verify JWT signature and expiration
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         user_id: int = payload.get("sub")
         if user_id is None:
+            logger.warning("No user_id in token payload")
             raise credentials_exception
-        token_data = TokenData(user_id=user_id)
+            
+        # 3. Verify user exists
+        user = session.exec(select(User).where(User.id == user_id)).first()
+        if user is None:
+            logger.warning(f"User not found for ID: {user_id}")
+            raise credentials_exception
+            
+        return user
+        
     except JWTError as e:
-        logger.error(f"JWT error: {str(e)}")
+        logger.error(f"JWT validation failed: {str(e)}")
         raise credentials_exception
+    except Exception as e:
+        logger.error(f"Unexpected error during authentication: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal authentication error"
+        )
+
+# async def get_current_user(
+#     token: str = Depends(oauth2_scheme), 
+#     session: Session = Depends(get_session)
+# ) -> User:
+#     credentials_exception = HTTPException(
+#         status_code=status.HTTP_401_UNAUTHORIZED,
+#         detail="Could not validate credentials",
+#         headers={"WWW-Authenticate": "Bearer"},
+#     )
+#     try:
+#         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+#         user_id: int = payload.get("sub")
+#         if user_id is None:
+#             raise credentials_exception
+#         token_data = TokenData(user_id=user_id)
+#     except JWTError as e:
+#         logger.error(f"JWT error: {str(e)}")
+#         raise credentials_exception
     
-    user = session.exec(select(User).where(User.id == token_data.user_id)).first()
-    if user is None:
-        raise credentials_exception
+#     user = session.exec(select(User).where(User.id == token_data.user_id)).first()
+#     if user is None:
+#         raise credentials_exception
     
-    return user
+#     return user
 
 async def get_current_active_user(current_user: User = Depends(get_current_user)) -> User:
     if not current_user.is_active:

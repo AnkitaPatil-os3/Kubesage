@@ -1,0 +1,8 @@
+2025-03-29 08:00:01,014 - k8sgpt_service - WARNING - Redis cache connection failed: invalid username-password pair or user is disabled.
+2025-03-29 08:00:01,158 - k8sgpt_service - INFO - Connected to RabbitMQ server
+2025-03-29 08:00:01,191 - k8sgpt_service - INFO - Starting K8sGPT Operations Service
+2025-03-29 08:00:01,191 - k8sgpt_service - INFO - Creating database and tables if they don't exist
+2025-03-29 08:00:01,215 - k8sgpt_service - ERROR - Failed to connect to Redis: invalid username-password pair or user is disabled.
+2025-03-29 08:00:01,215 - k8sgpt_service - INFO - Starting to consume messages from RabbitMQ
+2025-03-29 08:11:53,622 - k8sgpt_service - INFO - Shutting down K8sGPT Operations Service
+2025-03-29 08:11:53,626 - k8sgpt_service - ERROR - Error during message consumption: 'NoneType' object has no attribute 'clear'

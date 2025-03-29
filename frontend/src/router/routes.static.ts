@@ -6,7 +6,7 @@ export const staticRoutes: AppRoute.RowRoute[] = [
     title: 'Home',
     requiresAuth: true,
     icon: 'line-md:home',
-    componentPath: '/demo/userCenter/index.vue',
+    componentPath: '/KubeSage/home.vue',
     id: 89,
     pid: null,
   },
@@ -57,6 +57,17 @@ export const staticRoutes: AppRoute.RowRoute[] = [
     pid: null,
   },
   
+  {
+    name: 'User Management',
+    path: '/user-management',
+    title: 'user Management',
+    requiresAuth: true,
+    icon: 'icon-park-outline:user',
+    // menuType: 'dir',
+    componentPath: "/KubeSage/UserManagement.vue",
+    id: 34,
+    pid: null,
+  },
 
 
  
