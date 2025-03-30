@@ -67,8 +67,6 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), session: Sessi
 
 
 
-
-
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
 
 @auth_router.post("/logout")

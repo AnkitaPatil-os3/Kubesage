@@ -40,153 +40,159 @@
         </div>
 
         <!-- Create User Modal -->
-        <n-modal v-model:show="showCreateUserModal" preset="card" :bordered="false"
+        <n-modal v-model:show="showCreateUserModal" :bordered="false"
             class="custom-modal create-user-modal" :style="{
                 '--modal-color': '#10BC3B',
                 '--modal-light': 'rgba(16, 188, 59, 0.1)'
             }" transform-origin="center">
-            <template #header>
+            <div class="modal-content-wrapper">
                 <div class="modal-header">
                     <div class="modal-icon">
                         <i class="fas fa-user-plus"></i>
                     </div>
                     <h3>Create New User</h3>
                 </div>
-            </template>
 
-            <n-form ref="createUserForm" :model="newUser" :rules="userRules">
-                <n-form-item label="Username" path="username">
-                    <n-input v-model:value="newUser.username" placeholder="Enter username" class="modal-input">
-                        <template #prefix>
-                            <i class="fas fa-user"></i>
-                        </template>
-                    </n-input>
-                </n-form-item>
-                <n-form-item label="Email" path="email">
-                    <n-input v-model:value="newUser.email" placeholder="Enter email" class="modal-input">
-                        <template #prefix>
-                            <i class="fas fa-envelope"></i>
-                        </template>
-                    </n-input>
-                </n-form-item>
-                <n-form-item label="Password" path="password">
-                    <n-input v-model:value="newUser.password" type="password" placeholder="Enter password"
-                        class="modal-input">
-                        <template #prefix>
-                            <i class="fas fa-lock"></i>
-                        </template>
-                    </n-input>
-                </n-form-item>
-                <n-form-item label="Role" path="role">
-                    <n-select v-model:value="newUser.role" :options="roleOptions" placeholder="Select role"
-                        class="modal-select" />
-                </n-form-item>
-            </n-form>
+                <div class="modal-body">
+                    <n-form ref="createUserForm" :model="newUser" :rules="userRules">
+                        <n-form-item label="Username" path="username">
+                            <n-input v-model:value="newUser.username" placeholder="Enter username" class="modal-input">
+                                <template #prefix>
+                                    <i class="fas fa-user"></i>
+                                </template>
+                            </n-input>
+                        </n-form-item>
+                        <n-form-item label="Email" path="email">
+                            <n-input v-model:value="newUser.email" placeholder="Enter email" class="modal-input">
+                                <template #prefix>
+                                    <i class="fas fa-envelope"></i>
+                                </template>
+                            </n-input>
+                        </n-form-item>
+                        <n-form-item label="Password" path="password">
+                            <n-input v-model:value="newUser.password" type="password" placeholder="Enter password"
+                                class="modal-input">
+                                <template #prefix>
+                                    <i class="fas fa-lock"></i>
+                                </template>
+                            </n-input>
+                        </n-form-item>
+                        <n-form-item label="Role" path="role">
+                            <n-select v-model:value="newUser.role" :options="roleOptions" placeholder="Select role"
+                                class="modal-select" />
+                        </n-form-item>
+                    </n-form>
+                </div>
 
-            <template #footer>
-                <n-space justify="end" class="modal-footer">
-                    <n-button @click="showCreateUserModal = false" class="cancel-btn" ghost>
-                        Cancel
-                    </n-button>
-                    <n-button type="primary" @click="createUser" class="submit-btn">
-                        <i class="fas fa-plus-circle"></i> Create User
-                    </n-button>
-                </n-space>
-            </template>
+                <div class="modal-footer">
+                    <n-space justify="end">
+                        <n-button @click="showCreateUserModal = false" class="cancel-btn" ghost>
+                            Cancel
+                        </n-button>
+                        <n-button type="primary" @click="createUser" class="submit-btn">
+                            <i class="fas fa-plus-circle"></i> Create User
+                        </n-button>
+                    </n-space>
+                </div>
+            </div>
         </n-modal>
 
         <!-- Edit User Modal -->
-        <n-modal v-model:show="showEditUserModal" preset="card" :bordered="false" class="custom-modal edit-user-modal"
-            :style="{
+        <n-modal v-model:show="showEditUserModal" :bordered="false"
+            class="custom-modal edit-user-modal" :style="{
                 '--modal-color': '#2080F0',
                 '--modal-light': 'rgba(32, 128, 240, 0.1)'
             }" transform-origin="center">
-            <template #header>
+            <div class="modal-content-wrapper">
                 <div class="modal-header">
                     <div class="modal-icon">
                         <i class="fas fa-user-edit"></i>
                     </div>
                     <h3>Edit User: {{ editUser.username }}</h3>
                 </div>
-            </template>
 
-            <n-form ref="editUserForm" :model="editUser" :rules="userRules">
-                <n-form-item label="Username" path="username">
-                    <n-input v-model:value="editUser.username" placeholder="Enter username" class="modal-input">
-                        <template #prefix>
-                            <i class="fas fa-user"></i>
-                        </template>
-                    </n-input>
-                </n-form-item>
-                <n-form-item label="Email" path="email">
-                    <n-input v-model:value="editUser.email" placeholder="Enter email" class="modal-input">
-                        <template #prefix>
-                            <i class="fas fa-envelope"></i>
-                        </template>
-                    </n-input>
-                </n-form-item>
-                <n-form-item label="Role" path="role">
-                    <n-select v-model:value="editUser.role" :options="roleOptions" placeholder="Select role"
-                        class="modal-select" />
-                </n-form-item>
-            </n-form>
+                <div class="modal-body">
+                    <n-form ref="editUserForm" :model="editUser" :rules="userRules">
+                        <n-form-item label="Username" path="username">
+                            <n-input v-model:value="editUser.username" placeholder="Enter username" class="modal-input">
+                                <template #prefix>
+                                    <i class="fas fa-user"></i>
+                                </template>
+                            </n-input>
+                        </n-form-item>
+                        <n-form-item label="Email" path="email">
+                            <n-input v-model:value="editUser.email" placeholder="Enter email" class="modal-input">
+                                <template #prefix>
+                                    <i class="fas fa-envelope"></i>
+                                </template>
+                            </n-input>
+                        </n-form-item>
+                        <n-form-item label="Role" path="role">
+                            <n-select v-model:value="editUser.role" :options="roleOptions" placeholder="Select role"
+                                class="modal-select" />
+                        </n-form-item>
+                    </n-form>
+                </div>
 
-            <template #footer>
-                <n-space justify="end" class="modal-footer">
-                    <n-button @click="showEditUserModal = false" class="cancel-btn" ghost>
-                        Cancel
-                    </n-button>
-                    <n-button type="primary" @click="updateUser" class="submit-btn">
-                        <i class="fas fa-save"></i> Save Changes
-                    </n-button>
-                </n-space>
-            </template>
+                <div class="modal-footer">
+                    <n-space justify="end">
+                        <n-button @click="showEditUserModal = false" class="cancel-btn" ghost>
+                            Cancel
+                        </n-button>
+                        <n-button type="primary" @click="updateUser" class="submit-btn">
+                            <i class="fas fa-save"></i> Save Changes
+                        </n-button>
+                    </n-space>
+                </div>
+            </div>
         </n-modal>
 
         <!-- Change Password Modal -->
-        <n-modal v-model:show="showChangePasswordModal" preset="card" :bordered="false"
+        <n-modal v-model:show="showChangePasswordModal" :bordered="false"
             class="custom-modal change-password-modal" :style="{
                 '--modal-color': '#F0A020',
                 '--modal-light': 'rgba(240, 160, 32, 0.1)'
             }" transform-origin="center">
-            <template #header>
+            <div class="modal-content-wrapper">
                 <div class="modal-header">
                     <div class="modal-icon">
                         <i class="fas fa-key"></i>
                     </div>
                     <h3>Change Password for {{ passwordUser.username }}</h3>
                 </div>
-            </template>
 
-            <n-form ref="passwordForm" :model="passwordData" :rules="passwordRules">
-                <n-form-item label="New Password" path="newPassword">
-                    <n-input v-model:value="passwordData.newPassword" type="password" placeholder="Enter new password"
-                        class="modal-input">
-                        <template #prefix>
-                            <i class="fas fa-lock"></i>
-                        </template>
-                    </n-input>
-                </n-form-item>
-                <n-form-item label="Confirm Password" path="confirmPassword">
-                    <n-input v-model:value="passwordData.confirmPassword" type="password"
-                        placeholder="Confirm new password" class="modal-input">
-                        <template #prefix>
-                            <i class="fas fa-lock"></i>
-                        </template>
-                    </n-input>
-                </n-form-item>
-            </n-form>
+                <div class="modal-body">
+                    <n-form ref="passwordForm" :model="passwordData" :rules="passwordRules">
+                        <n-form-item label="New Password" path="newPassword">
+                            <n-input v-model:value="passwordData.newPassword" type="password" placeholder="Enter new password"
+                                class="modal-input">
+                                <template #prefix>
+                                    <i class="fas fa-lock"></i>
+                                </template>
+                            </n-input>
+                        </n-form-item>
+                        <n-form-item label="Confirm Password" path="confirmPassword">
+                            <n-input v-model:value="passwordData.confirmPassword" type="password"
+                                placeholder="Confirm new password" class="modal-input">
+                                <template #prefix>
+                                    <i class="fas fa-lock"></i>
+                                </template>
+                            </n-input>
+                        </n-form-item>
+                    </n-form>
+                </div>
 
-            <template #footer>
-                <n-space justify="end" class="modal-footer">
-                    <n-button @click="showChangePasswordModal = false" class="cancel-btn" ghost>
-                        Cancel
-                    </n-button>
-                    <n-button type="primary" @click="changePassword" class="submit-btn">
-                        <i class="fas fa-sync-alt"></i> Change Password
-                    </n-button>
-                </n-space>
-            </template>
+                <div class="modal-footer">
+                    <n-space justify="end">
+                        <n-button @click="showChangePasswordModal = false" class="cancel-btn" ghost>
+                            Cancel
+                        </n-button>
+                        <n-button type="primary" @click="changePassword" class="submit-btn">
+                            <i class="fas fa-sync-alt"></i> Change Password
+                        </n-button>
+                    </n-space>
+                </div>
+            </div>
         </n-modal>
     </div>
 </template>
@@ -761,26 +767,26 @@ onMounted(() => {
 .custom-modal {
     --modal-color: #10BC3B;
     --modal-light: rgba(16, 188, 59, 0.1);
-    border-radius: 16px;
-    max-width: 600px;
-    width: 90%;
-    animation: modalFadeIn 0.3s ease-out;
+    border-radius: 12px;
+    background-color: white;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    width: 500px;
+    max-width: 90%;
+    display: flex;
+    flex-direction: column;
 }
 
-.custom-modal.change-password-modal {
-    max-width: 500px;
+.app-container.dark-mode .custom-modal {
+    background-color: #222222;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
 }
 
-@keyframes modalFadeIn {
-    from {
-        opacity: 0;
-        transform: scale(0.95) translateY(20px);
-    }
-
-    to {
-        opacity: 1;
-        transform: scale(1) translateY(0);
-    }
+.modal-content-wrapper {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    height: 100%;
 }
 
 .modal-header {
@@ -789,11 +795,27 @@ onMounted(() => {
     gap: 12px;
     padding-bottom: 16px;
     border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-    margin-bottom: 20px;
+    margin-bottom: 0;
 }
 
 .app-container.dark-mode .modal-header {
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.modal-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 0;
+}
+
+.modal-footer {
+    padding-top: 16px;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    margin-top: auto;
+}
+
+.app-container.dark-mode .modal-footer {
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .modal-icon {
@@ -843,15 +865,6 @@ onMounted(() => {
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--modal-color) 20%, transparent);
 }
 
-.modal-footer {
-    padding-top: 20px;
-    border-top: 1px solid rgba(0, 0, 0, 0.1);
-}
-
-.app-container.dark-mode .modal-footer {
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
-
 .cancel-btn {
     color: var(--modal-color);
     border: 1px solid var(--modal-color);
@@ -892,6 +905,18 @@ onMounted(() => {
 .change-password-modal {
     --modal-color: #F0A020;
     --modal-light: rgba(240, 160, 32, 0.1);
+}
+
+/* Animation */
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95) translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
 }
 
 /* Responsive adjustments */

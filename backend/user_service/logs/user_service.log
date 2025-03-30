@@ -652,3 +652,23 @@ DETAIL:  Key (id)=(2) is still referenced from table "usertoken".
 2025-03-29 08:02:43,530 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
 2025-03-29 08:02:43,575 - user_service - INFO - RabbitMQ connection established
 2025-03-29 08:02:43,576 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-29 08:13:59,603 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-29 08:13:59,603 - user_service - ERROR - Error while consuming messages: 'NoneType' object has no attribute 'poll'
+2025-03-29 08:13:59,646 - user_service - INFO - RabbitMQ connection established
+2025-03-29 08:13:59,648 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-30 06:26:50,667 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-30 06:26:50,667 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-30 06:26:50,676 - user_service - INFO - RabbitMQ connection established
+2025-03-30 06:26:50,677 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-30 06:48:31,971 - user_service - INFO - RabbitMQ connection established
+2025-03-30 06:48:32,004 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-30 06:48:32,027 - user_service - INFO - Event consumers started in background
+2025-03-30 06:48:32,027 - user_service - INFO - User service started
+2025-03-30 06:48:32,030 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-30 06:50:02,825 - user_service - INFO - RabbitMQ connection established
+2025-03-30 06:50:02,859 - user_service - INFO - Creating database and tables if they don't exist
+2025-03-30 06:50:02,881 - user_service - INFO - Event consumers started in background
+2025-03-30 06:50:02,881 - user_service - INFO - User service started
+2025-03-30 06:50:02,884 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-30 07:32:14,049 - user_service - INFO - Received kubeconfig event: namespaces_retrieved
+2025-03-30 07:32:42,400 - user_service - INFO - Received kubeconfig event: namespaces_retrieved
