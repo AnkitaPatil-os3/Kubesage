@@ -672,3 +672,7 @@ DETAIL:  Key (id)=(2) is still referenced from table "usertoken".
 2025-03-30 06:50:02,884 - user_service - INFO - Consumer set up for queue kubeconfig_events
 2025-03-30 07:32:14,049 - user_service - INFO - Received kubeconfig event: namespaces_retrieved
 2025-03-30 07:32:42,400 - user_service - INFO - Received kubeconfig event: namespaces_retrieved
+2025-03-30 14:55:52,174 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-30 14:55:52,174 - user_service - ERROR - Error while consuming messages: 'NoneType' object has no attribute 'poll'
+2025-03-30 14:55:52,186 - user_service - INFO - RabbitMQ connection established
+2025-03-30 14:55:52,187 - user_service - INFO - Consumer set up for queue kubeconfig_events
