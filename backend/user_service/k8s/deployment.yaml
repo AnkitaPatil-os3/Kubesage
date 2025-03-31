@@ -1,0 +1,51 @@
+# Add to existing deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-auth-service
+  labels:
+    app: user-auth-service
+spec:
+  # ... existing spec
+  template:
+    # ... existing metadata
+    spec:
+      containers:
+      - name: user-auth-service
+        # ... existing configuration
+        env:
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: user-auth-db-credentials
+              key: username
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: user-auth-db-credentials
+              key: password
+        - name: POSTGRES_HOST
+          value: postgres-user-auth
+        - name: POSTGRES_PORT
+          value: "5432"
+        - name: POSTGRES_DB
+          value: user_auth_db
+        - name: RABBITMQ_USER
+          valueFrom:
+            secretKeyRef:
+              name: rabbitmq-credentials
+              key: username
+        - name: RABBITMQ_PASSWORD
+                valueFrom:
+                  secretKeyRef:
+                    name: rabbitmq-credentials
+                    key: password
+        - name: RABBITMQ_HOST
+                value: rabbitmq
+        - name: RABBITMQ_PORT
+                value: "5672"
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: user-auth-service-secrets
+                key: secret-key

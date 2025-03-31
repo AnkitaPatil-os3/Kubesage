@@ -1,0 +1,7 @@
+2025-03-21 12:57:23,382 - k8sgpt_service - INFO - Redis cache connection established
+2025-03-21 12:57:23,578 - k8sgpt_service - INFO - Connected to RabbitMQ server
+2025-03-21 12:57:23,640 - k8sgpt_service - INFO - Starting K8sGPT Operations Service
+2025-03-21 12:57:23,640 - k8sgpt_service - INFO - Creating database and tables if they don't exist
+2025-03-21 12:57:23,695 - k8sgpt_service - INFO - Connected to Redis
+2025-03-21 12:57:23,697 - k8sgpt_service - INFO - Starting to consume messages from RabbitMQ
+2025-03-21 13:00:19,740 - k8sgpt_service - INFO - Shutting down K8sGPT Operations Service

@@ -1,0 +1,20 @@
+2025-03-19 10:11:59,253 - k8sgpt_service - WARNING - Redis cache connection failed: invalid username-password pair or user is disabled.
+2025-03-19 10:11:59,397 - k8sgpt_service - INFO - Connected to RabbitMQ server
+2025-03-19 10:11:59,430 - k8sgpt_service - INFO - Starting K8sGPT Operations Service
+2025-03-19 10:11:59,430 - k8sgpt_service - INFO - Creating database and tables if they don't exist
+2025-03-19 10:11:59,455 - k8sgpt_service - ERROR - Failed to connect to Redis: invalid username-password pair or user is disabled.
+2025-03-19 10:11:59,456 - k8sgpt_service - INFO - Starting to consume messages from RabbitMQ
+2025-03-19 10:12:06,028 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Could not validate credentials"}
+2025-03-19 10:12:06,029 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-03-19 10:16:50,069 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Could not validate credentials"}
+2025-03-19 10:16:50,070 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-03-19 10:17:25,763 - k8sgpt_service - ERROR - Error during message consumption: ('_AsyncTransportBase._initate_abort() expected _STATE_ABORTED_BY_USER', 2)
+2025-03-19 10:17:25,763 - k8sgpt_service - ERROR - Failed to publish message: Stream connection lost: AssertionError(('_AsyncTransportBase._produce() tx buffer size underflow', -46, 1))
+2025-03-19 10:17:25,763 - k8sgpt_service - ERROR - RabbitMQ consumer error: ctag1.b623f114c2024a8099273b0ac98608cf
+2025-03-19 10:17:27,899 - k8sgpt_service - INFO - Connected to RabbitMQ server
+2025-03-19 10:17:27,911 - k8sgpt_service - INFO - Published message with routing key analysis.started: {'analysis_id': 'a31e56a7-bb6c-4f48-9190-0bc655b81f36', 'user_id': 1, 'namespace': 'string', 'timestamp': '2025-03-19T10:17:27.838395'}
+2025-03-19 10:17:27,912 - k8sgpt_service - INFO - Published message with routing key analysis.failed: {'analysis_id': 'a31e56a7-bb6c-4f48-9190-0bc655b81f36', 'user_id': 1, 'namespace': 'string', 'timestamp': '2025-03-19T10:17:27.838395', 'error': "run_k8sgpt_analysis() got an unexpected keyword argument 'parameters'"}
+2025-03-19 10:17:31,051 - k8sgpt_service - INFO - Published message with routing key analysis.started: {'analysis_id': '7f7ad523-4b51-4d19-b4bd-94bdcc089cfe', 'user_id': 1, 'namespace': 'string', 'timestamp': '2025-03-19T10:17:31.050945'}
+2025-03-19 10:17:31,051 - k8sgpt_service - INFO - Published message with routing key analysis.failed: {'analysis_id': '7f7ad523-4b51-4d19-b4bd-94bdcc089cfe', 'user_id': 1, 'namespace': 'string', 'timestamp': '2025-03-19T10:17:31.050945', 'error': "run_k8sgpt_analysis() got an unexpected keyword argument 'parameters'"}
+2025-03-19 10:18:31,289 - k8sgpt_service - INFO - Shutting down K8sGPT Operations Service
+2025-03-19 10:18:31,292 - k8sgpt_service - INFO - Closed connection to RabbitMQ

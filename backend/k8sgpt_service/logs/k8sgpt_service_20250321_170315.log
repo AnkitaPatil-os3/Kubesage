@@ -1,0 +1,14 @@
+2025-03-21 17:03:15,664 - k8sgpt_service - INFO - Redis cache connection established
+2025-03-21 17:03:15,805 - k8sgpt_service - INFO - Connected to RabbitMQ server
+2025-03-21 17:03:15,902 - k8sgpt_service - INFO - Starting K8sGPT Operations Service
+2025-03-21 17:03:15,903 - k8sgpt_service - INFO - Creating database and tables if they don't exist
+2025-03-21 17:03:15,959 - k8sgpt_service - INFO - Connected to Redis
+2025-03-21 17:03:15,961 - k8sgpt_service - INFO - Starting to consume messages from RabbitMQ
+2025-03-21 17:06:39,595 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Could not validate credentials"}
+2025-03-21 17:06:39,597 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-03-21 17:07:28,830 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Could not validate credentials"}
+2025-03-21 17:07:28,831 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-03-21 17:07:52,448 - k8sgpt_service - INFO - Published message with routing key analysis.started: {'analysis_id': '618a9121-6cca-40c2-ab90-0d391c2ac042', 'user_id': 4, 'namespace': 'default', 'timestamp': '2025-03-21T17:07:52.445454'}
+2025-03-21 17:07:52,452 - k8sgpt_service - INFO - Published message with routing key analysis.failed: {'analysis_id': '618a9121-6cca-40c2-ab90-0d391c2ac042', 'user_id': 4, 'namespace': 'default', 'timestamp': '2025-03-21T17:07:52.445454', 'error': "run_k8sgpt_analysis() got an unexpected keyword argument 'parameters'"}
+2025-03-21 17:07:52,468 - k8sgpt_service - ERROR - Error during message consumption: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-21 17:07:52,470 - k8sgpt_service - ERROR - RabbitMQ consumer error: ctag1.89257376704c41ffb24612c3c943e6df

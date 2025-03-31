@@ -1,0 +1,14 @@
+2025-03-19 12:17:08,448 - k8sgpt_service - INFO - Redis cache connection established
+2025-03-19 12:17:08,585 - k8sgpt_service - INFO - Connected to RabbitMQ server
+2025-03-19 12:17:08,621 - k8sgpt_service - INFO - Starting K8sGPT Operations Service
+2025-03-19 12:17:08,621 - k8sgpt_service - INFO - Creating database and tables if they don't exist
+2025-03-19 12:17:08,646 - k8sgpt_service - INFO - Connected to Redis
+2025-03-19 12:17:08,646 - k8sgpt_service - INFO - Starting to consume messages from RabbitMQ
+2025-03-19 12:31:55,039 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Could not validate credentials"}
+2025-03-19 12:31:55,040 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-03-20 09:45:57,088 - k8sgpt_service - ERROR - Error during message consumption: ('_AsyncTransportBase._initate_abort() expected _STATE_ABORTED_BY_USER', 2)
+2025-03-20 09:45:57,089 - k8sgpt_service - ERROR - Failed to publish message: Stream connection lost: AssertionError(('_AsyncTransportBase._produce() tx buffer size underflow', -46, 1))
+2025-03-20 09:45:57,089 - k8sgpt_service - ERROR - RabbitMQ consumer error: ctag1.2abe804e63fd4b5ca475ef1275e27439
+2025-03-20 09:54:26,739 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Could not validate credentials"}
+2025-03-20 09:54:26,740 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-03-20 09:55:17,752 - k8sgpt_service - INFO - Shutting down K8sGPT Operations Service

@@ -1,0 +1,8 @@
+2025-03-27 12:06:03,507 - k8sgpt_service - WARNING - Redis cache connection failed: invalid username-password pair or user is disabled.
+2025-03-27 12:06:03,670 - k8sgpt_service - INFO - Connected to RabbitMQ server
+2025-03-27 12:06:03,705 - k8sgpt_service - INFO - Starting K8sGPT Operations Service
+2025-03-27 12:06:03,706 - k8sgpt_service - INFO - Creating database and tables if they don't exist
+2025-03-27 12:06:03,732 - k8sgpt_service - ERROR - Failed to connect to Redis: invalid username-password pair or user is disabled.
+2025-03-27 12:06:03,733 - k8sgpt_service - INFO - Starting to consume messages from RabbitMQ
+2025-03-27 12:06:22,085 - k8sgpt_service - INFO - Shutting down K8sGPT Operations Service
+2025-03-27 12:06:22,089 - k8sgpt_service - ERROR - Error during message consumption: Stream connection lost: IndexError('pop from an empty deque')

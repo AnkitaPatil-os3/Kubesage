@@ -1,0 +1,94 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubeconfig-service
+  labels:
+    app: kubeconfig-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: kubeconfig-service
+  template:
+    metadata:
+      labels:
+        app: kubeconfig-service
+    spec:
+      containers:
+      - name: kubeconfig-service
+        image: ${DOCKER_REGISTRY}/kubeconfig-service:latest
+        ports:
+        - containerPort: 8001
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+          requests:
+            cpu: "100m"
+            memory: "256Mi"
+        env:
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: kubeconfig-db-credentials
+              key: username
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: kubeconfig-db-credentials
+              key: password
+        - name: POSTGRES_HOST
+          value: postgres-kubeconfig
+        - name: POSTGRES_PORT
+          value: "5432"
+        - name: POSTGRES_DB
+          value: kubeconfig_db
+        - name: RABBITMQ_USER
+          valueFrom:
+            secretKeyRef:
+              name: rabbitmq-credentials
+              key: username
+        - name: RABBITMQ_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: rabbitmq-credentials
+              key: password
+        - name: RABBITMQ_HOST
+          value: rabbitmq
+        - name: RABBITMQ_PORT
+          value: "5672"
+        - name: USER_SERVICE_URL
+          value: https://user-auth-service.${NAMESPACE}.svc.cluster.local:8000        volumeMounts:
+        - name: ssl-certs
+          mountPath: /app/cert.pem
+          subPath: cert.pem
+        - name: ssl-certs
+          mountPath: /app/key.pem
+          subPath: key.pem
+        - name: kubeconfig-storage
+          mountPath: /app/uploaded_kubeconfigs
+        - name: logs
+          mountPath: /app/logs
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8001
+            scheme: HTTPS
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8001
+            scheme: HTTPS
+          initialDelaySeconds: 5
+          periodSeconds: 10
+      volumes:
+      - name: ssl-certs
+        secret:
+          secretName: kubeconfig-service-ssl
+      - name: kubeconfig-storage
+        persistentVolumeClaim:
+          claimName: kubeconfig-storage-pvc
+      - name: logs
+        emptyDir: {}

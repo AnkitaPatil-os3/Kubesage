@@ -1,0 +1,1 @@
+2025-03-17 17:04:31,559 - k8sgpt_service - WARNING - Redis cache connection failed: Error -3 connecting to redis:6379. Temporary failure in name resolution.

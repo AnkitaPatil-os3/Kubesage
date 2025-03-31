@@ -1,0 +1,8 @@
+2025-03-21 12:26:15,622 - k8sgpt_service - INFO - Redis cache connection established
+2025-03-21 12:26:15,725 - k8sgpt_service - INFO - Connected to RabbitMQ server
+2025-03-21 12:26:15,759 - k8sgpt_service - INFO - Starting K8sGPT Operations Service
+2025-03-21 12:26:15,760 - k8sgpt_service - INFO - Creating database and tables if they don't exist
+2025-03-21 12:26:15,786 - k8sgpt_service - INFO - Connected to Redis
+2025-03-21 12:26:15,787 - k8sgpt_service - INFO - Starting to consume messages from RabbitMQ
+2025-03-21 12:27:08,243 - k8sgpt_service - INFO - Shutting down K8sGPT Operations Service
+2025-03-21 12:27:08,248 - k8sgpt_service - ERROR - Error during message consumption: Stream connection lost: IndexError('pop from an empty deque')

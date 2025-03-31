@@ -1,0 +1,9 @@
+2025-03-22 13:16:09,024 - k8sgpt_service - WARNING - Redis cache connection failed: invalid username-password pair or user is disabled.
+2025-03-22 13:16:09,121 - k8sgpt_service - INFO - Connected to RabbitMQ server
+2025-03-22 13:16:09,161 - k8sgpt_service - INFO - Starting K8sGPT Operations Service
+2025-03-22 13:16:09,161 - k8sgpt_service - INFO - Creating database and tables if they don't exist
+2025-03-22 13:16:09,188 - k8sgpt_service - ERROR - Failed to connect to Redis: invalid username-password pair or user is disabled.
+2025-03-22 13:16:09,189 - k8sgpt_service - INFO - Starting to consume messages from RabbitMQ
+2025-03-22 13:16:11,472 - k8sgpt_service - ERROR - Failed to publish message: Stream connection lost: AssertionError(('_AsyncTransportBase._produce() tx buffer size underflow', -114, 1))
+2025-03-22 13:16:11,473 - k8sgpt_service - ERROR - Error during message consumption: ('_AsyncTransportBase._initate_abort() expected _STATE_ABORTED_BY_USER', 2)
+2025-03-22 13:16:11,474 - k8sgpt_service - ERROR - RabbitMQ consumer error: ctag1.d72363dc2f7548a68b0e2e1d115d1c77
