@@ -1,0 +1,6 @@
+2025-03-31 05:08:10,744 - k8sgpt_service - WARNING - Redis cache connection failed: invalid username-password pair or user is disabled.
+2025-03-31 05:08:10,872 - k8sgpt_service - INFO - Connected to RabbitMQ server
+2025-03-31 05:08:10,907 - k8sgpt_service - INFO - Starting K8sGPT Operations Service
+2025-03-31 05:08:10,907 - k8sgpt_service - INFO - Creating database and tables if they don't exist
+2025-03-31 05:08:10,938 - k8sgpt_service - ERROR - Failed to connect to Redis: invalid username-password pair or user is disabled.
+2025-03-31 05:08:10,939 - k8sgpt_service - INFO - Starting to consume messages from RabbitMQ

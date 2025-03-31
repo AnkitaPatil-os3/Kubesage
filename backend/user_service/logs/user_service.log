@@ -676,3 +676,34 @@ DETAIL:  Key (id)=(2) is still referenced from table "usertoken".
 2025-03-30 14:55:52,174 - user_service - ERROR - Error while consuming messages: 'NoneType' object has no attribute 'poll'
 2025-03-30 14:55:52,186 - user_service - INFO - RabbitMQ connection established
 2025-03-30 14:55:52,187 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-31 04:37:30,996 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-31 04:37:30,996 - user_service - ERROR - Error while consuming messages: 'NoneType' object has no attribute 'poll'
+2025-03-31 04:37:31,005 - user_service - INFO - RabbitMQ connection established
+2025-03-31 04:37:31,007 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-31 04:56:11,251 - user_service - INFO - Received kubeconfig event: namespaces_retrieved
+2025-03-31 05:04:23,049 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-31 05:04:23,050 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-31 05:04:23,059 - user_service - INFO - RabbitMQ connection established
+2025-03-31 05:04:23,060 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-31 05:13:08,845 - user_service - INFO - Received kubeconfig event: kubeconfig_activated
+2025-03-31 05:14:04,611 - user_service - INFO - Received kubeconfig event: kubeconfig_activated
+2025-03-31 05:14:07,522 - user_service - INFO - Received kubeconfig event: kubeconfig_activated
+2025-03-31 05:15:25,888 - user_service - INFO - Received kubeconfig event: kubeconfig_deleted
+2025-03-31 05:15:25,889 - user_service - INFO - Kubeconfig deleted for user 1, cluster: ashish-k8s
+2025-03-31 05:15:28,009 - user_service - INFO - Received kubeconfig event: kubeconfig_deleted
+2025-03-31 05:15:28,009 - user_service - INFO - Kubeconfig deleted for user 1, cluster: ashish-k8s
+2025-03-31 05:15:39,090 - user_service - INFO - Received kubeconfig event: kubeconfig_uploaded
+2025-03-31 05:15:46,486 - user_service - INFO - Received kubeconfig event: kubeconfig_activated
+2025-03-31 05:17:46,079 - user_service - INFO - Received kubeconfig event: operator_installed
+2025-03-31 05:18:15,269 - user_service - INFO - Received kubeconfig event: namespaces_retrieved
+2025-03-31 05:18:40,263 - user_service - INFO - Received kubeconfig event: namespaces_retrieved
+2025-03-31 05:18:54,730 - user_service - INFO - Received kubeconfig event: namespaces_retrieved
+2025-03-31 05:20:47,240 - user_service - INFO - Received kubeconfig event: namespaces_retrieved
+2025-03-31 05:25:14,390 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-31 05:25:14,390 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-31 05:25:14,398 - user_service - INFO - RabbitMQ connection established
+2025-03-31 05:25:14,400 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-31 05:33:44,434 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-31 05:33:44,434 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-31 05:33:44,444 - user_service - INFO - RabbitMQ connection established
+2025-03-31 05:33:44,445 - user_service - INFO - Consumer set up for queue kubeconfig_events

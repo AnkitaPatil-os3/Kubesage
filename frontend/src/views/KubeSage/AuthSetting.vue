@@ -1,4 +1,4 @@
-<template>
+<<template>
     <n-config-provider>
         <n-layout class="app-container" :class="{ 'dark-mode': isDarkMode }">
             <n-layout-header class="dashboard-header">
@@ -93,10 +93,10 @@
                                             <i class="fas fa-robot"></i>
                                         </template>
                                     </n-input>
-                                    <!-- <div v-if="modelError" class="error-container">
+                                    <div v-if="modelError" class="error-container">
                                         <span class="error-icon">✖</span>
                                         <span class="error-message">{{ modelError }}</span>
-                                    </div> -->
+                                    </div>
                                 </n-form-item>
 
                                 <n-form-item label="API Key" path="api_key" required>
@@ -107,10 +107,10 @@
                                             <i class="fas fa-key"></i>
                                         </template>
                                     </n-input>
-                                    <!-- <div v-if="apiKeyError" class="error-container">
+                                    <div v-if="apiKeyError" class="error-container">
                                         <span class="error-icon">✖</span>
                                         <span class="error-message">{{ apiKeyError }}</span>
-                                    </div> -->
+                                    </div>
                                 </n-form-item>
                             </n-form>
                         </div>
