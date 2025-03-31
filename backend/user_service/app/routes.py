@@ -113,6 +113,18 @@ async def logout(
 
 
 
+
+# Endpoint to check if user is admin
+@auth_router.get("/check-admin")
+async def check_if_admin(current_user: User = Depends(get_current_user)):
+    """
+    Check if the current user is an admin.
+    """
+    return {"is_admin": current_user.is_admin}
+
+
+
+
 @auth_router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register_user(user_data: UserCreate, session: Session = Depends(get_session)):
     print(user_data)
@@ -173,6 +185,11 @@ async def register_user(user_data: UserCreate, session: Session = Depends(get_se
         session.rollback()  # Rollback the transaction in case of an error
         raise HTTPException(status_code=500, detail="User registration failed")
 
+
+
+
+
+
 @auth_router.post("/change-password", status_code=status.HTTP_200_OK)
 async def change_password(
     password_data: ChangePasswordRequest,
@@ -202,6 +219,9 @@ async def change_password(
     })
     
     return {"detail": "Password updated successfully"}
+
+
+
 
 # User router
 user_router = APIRouter()
@@ -309,3 +329,7 @@ async def delete_user(
     })
     
     return None
+
+
+
+

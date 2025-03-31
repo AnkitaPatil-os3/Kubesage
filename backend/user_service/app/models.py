@@ -17,8 +17,7 @@ class User(SQLModel, table=True):
 
 class UserToken(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    token: str = Field(index=True)  # Remove default UUID, store JWT token directly
-    # token: str = Field(default_factory=lambda: str(uuid.uuid4()), index=True)
+    token: str = Field(default_factory=lambda: str(uuid.uuid4()), index=True)
     user_id: int = Field(foreign_key="user.id", index=True)
     expires_at: datetime.datetime
     is_revoked: bool = Field(default=False)

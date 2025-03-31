@@ -3,6 +3,8 @@ import { fetchLogin } from '@/service'
 import { local } from '@/utils'
 import { useRouteStore } from './router'
 import { useTabStore } from './tab'
+import axios from 'axios'
+
 
 interface AuthStatus {
   userInfo: Api.Login.Info | null
@@ -26,6 +28,12 @@ export const useAuthStore = defineStore('auth-store', {
     /* 登录退出，重置用户信息等 */
     async logout() {
       const route = unref(router.currentRoute)
+
+      try {
+        await this.fetchLogout() // Call the API before clearing local storage
+      } catch (error) {
+        console.warn("[Logout Error]:", error)
+      }
       // 清除本地缓存
       this.clearAuthStorage()
       // 清空路由、菜单等数据
@@ -45,6 +53,22 @@ export const useAuthStore = defineStore('auth-store', {
           },
         })
       }
+    },
+    async fetchLogout() {
+      const token = local.get("accessToken")
+      if (!token) return // No token, no need to logout API call
+      console.log("Logout API call... token: " + token);
+      
+
+      return axios.post(
+        "https://10.0.34.129:8001/auth/logout",
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
     },
     clearAuthStorage() {
       local.remove('accessToken')

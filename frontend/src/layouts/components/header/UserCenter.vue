@@ -49,17 +49,18 @@ const options = computed(() => {
   ]
 })
 function handleSelect(key: string | number) {
-  if (key === 'loginOut') {
+  if (key === "loginOut") {
     window.$dialog?.info({
-      title: t('app.loginOutTitle'),
-      content: t('app.loginOutContent'),
-      positiveText: t('common.confirm'),
-      negativeText: t('common.cancel'),
-      onPositiveClick: () => {
-        logout()
+      title: t("app.loginOutTitle"),
+      content: t("app.loginOutContent"),
+      positiveText: t("common.confirm"),
+      negativeText: t("common.cancel"),
+      onPositiveClick: async () => {
+        await logout()
       },
     })
   }
+
   if (key === 'userCenter')
     router.push('/userCenter')
 
@@ -75,16 +76,8 @@ function handleSelect(key: string | number) {
 </script>
 
 <template>
-  <n-dropdown
-    trigger="click"
-    :options="options"
-    @select="handleSelect"
-  >
-    <n-avatar
-      round
-      class="cursor-pointer"
-      :src="userInfo?.avatar"
-    >
+  <n-dropdown trigger="click" :options="options" @select="handleSelect">
+    <n-avatar round class="cursor-pointer" :src="userInfo?.avatar">
       <template #fallback>
         <div class="wh-full flex-center">
           <icon-park-outline-user />
