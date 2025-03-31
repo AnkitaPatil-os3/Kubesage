@@ -707,3 +707,7 @@ DETAIL:  Key (id)=(2) is still referenced from table "usertoken".
 2025-03-31 05:33:44,434 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
 2025-03-31 05:33:44,444 - user_service - INFO - RabbitMQ connection established
 2025-03-31 05:33:44,445 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-31 05:56:00,289 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-31 05:56:00,289 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-03-31 05:56:00,301 - user_service - INFO - RabbitMQ connection established
+2025-03-31 05:56:00,303 - user_service - INFO - Consumer set up for queue kubeconfig_events
