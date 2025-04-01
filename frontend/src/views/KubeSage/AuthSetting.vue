@@ -7,7 +7,7 @@
                         <div class="admin-logo">
                             <i class="fas fa-server"></i>
                         </div>
-                        <h2 class="dashboard-title">Backend Management</h2>
+                        <h2 class="dashboard-title">Provider Management</h2>
                     </div>
                     <n-button type="primary" @click="openModal">
                         <i class="fas fa-plus-circle "></i>  Add New Provider
@@ -276,7 +276,7 @@ watch(() => formData.value.api_key, () => {
 
 const columns = [
     {
-        title: 'Backend Type',
+        title: 'Provider Name',
         key: 'backend_name',
         render: (row) => {
             return h(

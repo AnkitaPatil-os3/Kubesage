@@ -226,66 +226,57 @@ async def create_backend(
     """
     Add or update an AI backend configuration
     """
-    user_id = current_user.get("id")
-    
-    if not user_id:
-        raise HTTPException(status_code=400, detail="User ID is missing from authentication token.")
+    user_id = current_user["id"]
+    print("Received backend config:", backend_config)
 
+    # Construct command similar to /auth/add
+    command = f"k8sgpt auth add --backend {backend_config.backend_type}"
+
+    if backend_config.baseurl:
+        command += f" --baseurl {backend_config.baseurl}"
+    if backend_config.maxtokens:
+        command += f" --maxtokens {backend_config.maxtokens}"
+    if backend_config.model:
+        command += f" --model {backend_config.model}"
+    if backend_config.temperature:
+        command += f" --temperature {backend_config.temperature}"
+
+    # Execute command and handle response
     try:
-        print("Received backend config:", backend_config)
-        
-        # Construct command similar to /auth/add
-        command = f"k8sgpt auth add --backend {backend_config.backend_type}"
-
-        if backend_config.baseurl:
-            command += f" --baseurl {backend_config.baseurl}"
-        if backend_config.maxtokens:
-            command += f" --maxtokens {backend_config.maxtokens}"
-        if backend_config.model:
-            command += f" --model {backend_config.model}"
-        if backend_config.temperature:
-            command += f" --temperature {backend_config.temperature}"
-
-        # Execute command and handle response
         output = execute_command(command)
-        if not output:
-            raise HTTPException(status_code=500, detail="Command execution failed: No output received.")
-
-        # Create a new backend config entry in the database
-        db_backend = AIBackend(
-            user_id=user_id,
-            backend_type=backend_config.backend_type,
-            is_default=backend_config.is_default,
-            name=backend_config.backend_type,
-            api_key=backend_config.api_key,
-            organization_id=backend_config.organizationId,
-            model=backend_config.model,
-            base_url=backend_config.baseurl,
-            engine=backend_config.engine,
-            temperature=backend_config.temperature,
-            max_tokens=backend_config.maxtokens
-        )
-
-        session.add(db_backend)
-        session.commit()
-        session.refresh(db_backend)  # Get the latest DB values (like id, created_at, etc.)
-
-        return AIBackendConfigResponse(
-            id=db_backend.id,
-            backend_name=db_backend.backend_type,
-            model=db_backend.model,
-            is_default=db_backend.is_default
-        )
-
-    except HTTPException as http_exc:
-        raise http_exc  # Propagate existing HTTP exceptions
-
-    except ValueError as ve:
-        raise HTTPException(status_code=400, detail=f"Invalid input: {str(ve)}")
-
+    except HTTPException as e:
+        raise e
     except Exception as e:
-        session.rollback()  # Ensure the DB transaction is rolled back in case of failure
-        raise HTTPException(status_code=500, detail=f"Unexpected server error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+    # Create a new backend config entry in the database
+    db_backend = AIBackend(
+        user_id=user_id,
+        backend_type=backend_config.backend_type,
+        is_default=backend_config.is_default,
+        name=backend_config.backend_type,
+        api_key=backend_config.api_key,
+        organization_id=backend_config.organizationId,
+        model=backend_config.model,
+        base_url=backend_config.baseurl,
+        engine=backend_config.engine,
+        temperature=backend_config.temperature,
+        max_tokens=backend_config.maxtokens
+    )
+
+    # Add and commit the new backend config to the database
+    session.add(db_backend)
+    session.commit()
+    session.refresh(db_backend)  # Get the latest DB values (like id, created_at, etc.)
+
+    # Return the saved backend config response
+    return AIBackendConfigResponse(
+        id=db_backend.id,
+        backend_name=db_backend.backend_type,
+        model=db_backend.model,  # Ensure this field exists in the database model
+        is_default=db_backend.is_default
+    )
+
 
 
 @k8sgpt_router.get("/backends/", response_model=AIBackendsList)

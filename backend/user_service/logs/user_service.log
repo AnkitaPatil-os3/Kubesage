@@ -1560,3 +1560,12 @@ DETAIL:  Key (id)=(2) is still referenced from table "usertoken".
 2025-04-01 10:42:29,622 - user_service - INFO - Event consumers started in background
 2025-04-01 10:42:29,622 - user_service - INFO - User service started
 2025-04-01 10:42:29,624 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-04-01 12:50:21,061 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-04-01 12:50:21,061 - user_service - ERROR - Failed to publish message: _CallbackResult was not set
+2025-04-01 12:50:21,072 - user_service - INFO - RabbitMQ connection established
+2025-04-01 12:50:21,073 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-04-01 12:50:30,507 - user_service - ERROR - Error with database session: 401: Incorrect username or password
+2025-04-01 12:50:37,556 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-04-01 12:50:37,556 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-04-01 12:50:37,566 - user_service - INFO - RabbitMQ connection established
+2025-04-01 12:50:37,568 - user_service - INFO - Consumer set up for queue kubeconfig_events
