@@ -186,7 +186,6 @@ async def register_user(user_data: UserCreate, session: Session = Depends(get_se
         raise HTTPException(status_code=500, detail="User registration failed")
 
 
-
 @auth_router.post("/change-password/{user_id}", status_code=status.HTTP_200_OK)
 async def A_change_password(
     user_id: int,
@@ -220,9 +219,6 @@ async def A_change_password(
     })
 
     return {"detail": "Password updated successfully"}
-
-
-
 
 
 # User router
