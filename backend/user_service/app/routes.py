@@ -187,38 +187,40 @@ async def register_user(user_data: UserCreate, session: Session = Depends(get_se
 
 
 
-
-
-
-@auth_router.post("/change-password", status_code=status.HTTP_200_OK)
-async def change_password(
+@auth_router.post("/change-password/{user_id}", status_code=status.HTTP_200_OK)
+async def A_change_password(
+    user_id: int,
     password_data: ChangePasswordRequest,
-    current_user: User = Depends(get_current_active_user),
+    current_admin: User = Depends(get_current_admin_user),
     session: Session = Depends(get_session)
 ):
-    # Verify current password
-    if not verify_password(password_data.current_password, current_user.hashed_password):
+    # Fetch the target user by ID
+    user = session.query(User).filter(User.id == user_id).first()
+
+    if not user:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Current password is incorrect"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
         )
-    
-    # Update password
-    current_user.hashed_password = get_password_hash(password_data.new_password)
-    session.add(current_user)
+
+    # Update the password
+    user.hashed_password = get_password_hash(password_data.new_password)
+    session.add(user)
     session.commit()
-    
-    logger.info(f"Password changed for user {current_user.username}")
-    
+
+    logger.info(f"Admin {current_admin.username} changed password for user {user.username}")
+
     # Publish password change event
     publish_message("user_events", {
         "event_type": "password_changed",
-        "user_id": current_user.id,
-        "username": current_user.username,
+        "admin_id": current_admin.id,
+        "user_id": user.id,
+        "username": user.username,
         "timestamp": datetime.datetime.now().isoformat()
     })
-    
+
     return {"detail": "Password updated successfully"}
+
 
 
 

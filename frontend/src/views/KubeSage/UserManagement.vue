@@ -40,11 +40,10 @@
         </div>
 
         <!-- Create User Modal -->
-        <n-modal v-model:show="showCreateUserModal" :bordered="false"
-            class="custom-modal create-user-modal" :style="{
-                '--modal-color': '#10BC3B',
-                '--modal-light': 'rgba(16, 188, 59, 0.1)'
-            }" transform-origin="center">
+        <n-modal v-model:show="showCreateUserModal" :bordered="false" class="custom-modal create-user-modal" :style="{
+            '--modal-color': '#10BC3B',
+            '--modal-light': 'rgba(16, 188, 59, 0.1)'
+        }" transform-origin="center">
             <div class="modal-content-wrapper">
                 <div class="modal-header">
                     <div class="modal-icon">
@@ -78,14 +77,16 @@
                             </n-input>
                         </n-form-item>
                         <n-form-item label="First Name" path="first_name">
-                            <n-input v-model:value="newUser.first_name" placeholder="Enter first name" class="modal-input">
+                            <n-input v-model:value="newUser.first_name" placeholder="Enter first name"
+                                class="modal-input">
                                 <template #prefix>
                                     <i class="fas fa-user"></i>
                                 </template>
                             </n-input>
                         </n-form-item>
                         <n-form-item label="Last Name" path="last_name">
-                            <n-input v-model:value="newUser.last_name" placeholder="Enter last name" class="modal-input">
+                            <n-input v-model:value="newUser.last_name" placeholder="Enter last name"
+                                class="modal-input">
                                 <template #prefix>
                                     <i class="fas fa-user"></i>
                                 </template>
@@ -112,11 +113,10 @@
         </n-modal>
 
         <!-- Edit User Modal -->
-        <n-modal v-model:show="showEditUserModal" :bordered="false"
-            class="custom-modal edit-user-modal" :style="{
-                '--modal-color': '#2080F0',
-                '--modal-light': 'rgba(32, 128, 240, 0.1)'
-            }" transform-origin="center">
+        <n-modal v-model:show="showEditUserModal" :bordered="false" class="custom-modal edit-user-modal" :style="{
+            '--modal-color': '#2080F0',
+            '--modal-light': 'rgba(32, 128, 240, 0.1)'
+        }" transform-origin="center">
             <div class="modal-content-wrapper">
                 <div class="modal-header">
                     <div class="modal-icon">
@@ -142,14 +142,16 @@
                             </n-input>
                         </n-form-item>
                         <n-form-item label="First Name" path="first_name">
-                            <n-input v-model:value="editUser.first_name" placeholder="Enter first name" class="modal-input">
+                            <n-input v-model:value="editUser.first_name" placeholder="Enter first name"
+                                class="modal-input">
                                 <template #prefix>
                                     <i class="fas fa-user"></i>
                                 </template>
                             </n-input>
                         </n-form-item>
                         <n-form-item label="Last Name" path="last_name">
-                            <n-input v-model:value="editUser.last_name" placeholder="Enter last name" class="modal-input">
+                            <n-input v-model:value="editUser.last_name" placeholder="Enter last name"
+                                class="modal-input">
                                 <template #prefix>
                                     <i class="fas fa-user"></i>
                                 </template>
@@ -176,8 +178,8 @@
         </n-modal>
 
         <!-- Change Password Modal -->
-        <n-modal v-model:show="showChangePasswordModal" :bordered="false"
-            class="custom-modal change-password-modal" :style="{
+        <n-modal v-model:show="showChangePasswordModal" :bordered="false" class="custom-modal change-password-modal"
+            :style="{
                 '--modal-color': '#F0A020',
                 '--modal-light': 'rgba(240, 160, 32, 0.1)'
             }" transform-origin="center">
@@ -186,14 +188,14 @@
                     <div class="modal-icon">
                         <i class="fas fa-key"></i>
                     </div>
-                    <h3>Change Password for {{ passwordUser.username }}</h3>
+                    <h3>Change Password for {{ passwordUser?.username }}</h3> <!-- User info here -->
                 </div>
 
                 <div class="modal-body">
                     <n-form ref="passwordForm" :model="passwordData" :rules="passwordRules">
                         <n-form-item label="New Password" path="newPassword">
-                            <n-input v-model:value="passwordData.newPassword" type="password" placeholder="Enter new password"
-                                class="modal-input">
+                            <n-input v-model:value="passwordData.newPassword" type="password"
+                                placeholder="Enter new password" class="modal-input">
                                 <template #prefix>
                                     <i class="fas fa-lock"></i>
                                 </template>
@@ -215,13 +217,14 @@
                         <n-button @click="showChangePasswordModal = false" class="cancel-btn" ghost>
                             Cancel
                         </n-button>
-                        <n-button type="primary" @click="changePassword" class="submit-btn">
+                        <n-button type="primary" @click="changePassword(passwordUser.id)" class="submit-btn">
                             <i class="fas fa-sync-alt"></i> Change Password
                         </n-button>
                     </n-space>
                 </div>
             </div>
         </n-modal>
+
     </div>
 </template>
 
@@ -306,7 +309,7 @@ const passwordForm = ref(null);
 const getAuthHeaders = () => {
     try {
         const token = JSON.parse(localStorage.getItem('accessToken')).value;
-        return { 
+        return {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json'
         };
@@ -520,7 +523,7 @@ const createUser = async () => {
     try {
         await createUserForm.value?.validate();
         registerLoading.value = true;
-        
+
         const response = await axios.post(`${baseURL}/auth/register`, {
             username: newUser.value.username,
             email: newUser.value.email,
@@ -568,8 +571,8 @@ const updateUser = async () => {
 
         const index = users.value.findIndex(u => u.id === editUser.value.id);
         if (index !== -1) {
-            users.value[index] = { 
-                ...users.value[index], 
+            users.value[index] = {
+                ...users.value[index],
                 ...editUser.value
             };
             message.success('User updated successfully');
@@ -582,7 +585,14 @@ const updateUser = async () => {
     }
 };
 
-const changePassword = async () => {
+const changePassword = async (userId) => {
+    console.log("Changing password for user ID: ", userId);
+
+    if (!userId || typeof userId !== 'number') {
+        message.error('Valid User ID is required');
+        return;
+    }
+
     try {
         await passwordForm.value?.validate();
 
@@ -591,7 +601,7 @@ const changePassword = async () => {
             return;
         }
 
-        await axios.post(`${baseURL}/auth/change-password/`, {
+        await axios.post(`${baseURL}/auth/change-password/${userId}`, {
             new_password: passwordData.value.newPassword,
             confirm_password: passwordData.value.confirmPassword
         }, {
@@ -607,6 +617,8 @@ const changePassword = async () => {
         message.error(errorMessage);
     }
 };
+
+
 
 
 const confirmDeleteUser = (user) => {
@@ -983,6 +995,7 @@ onMounted(() => {
         opacity: 0;
         transform: scale(0.95) translateY(20px);
     }
+
     to {
         opacity: 1;
         transform: scale(1) translateY(0);

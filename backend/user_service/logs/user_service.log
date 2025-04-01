@@ -1322,3 +1322,132 @@ DETAIL:  Key (id)=(2) is still referenced from table "usertoken".
 2025-03-31 16:00:37,499 - user_service - ERROR - Failed to publish message: _CallbackResult was not set
 2025-03-31 16:00:37,506 - user_service - INFO - RabbitMQ connection established
 2025-03-31 16:00:37,507 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-03-31 16:17:06,301 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: AssertionError(('_AsyncTransportBase._produce() tx buffer size underflow', -40, 1))
+2025-03-31 16:17:06,302 - user_service - ERROR - Error while consuming messages: ('_AsyncTransportBase._initate_abort() expected _STATE_ABORTED_BY_USER', 2)
+2025-03-31 16:17:06,312 - user_service - INFO - RabbitMQ connection established
+2025-03-31 16:17:06,314 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-04-01 04:24:37,465 - user_service - INFO - RabbitMQ connection established
+2025-04-01 04:24:39,091 - user_service - INFO - RabbitMQ connection established
+2025-04-01 04:24:39,127 - user_service - INFO - Creating database and tables if they don't exist
+2025-04-01 04:24:39,157 - user_service - INFO - Event consumers started in background
+2025-04-01 04:24:39,158 - user_service - INFO - User service started
+2025-04-01 04:24:39,160 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-04-01 04:26:47,712 - user_service - INFO - RabbitMQ connection established
+2025-04-01 04:26:47,749 - user_service - INFO - Creating database and tables if they don't exist
+2025-04-01 04:26:47,771 - user_service - INFO - Event consumers started in background
+2025-04-01 04:26:47,772 - user_service - INFO - User service started
+2025-04-01 04:26:47,775 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-04-01 04:26:50,662 - user_service - INFO - RabbitMQ connection established
+2025-04-01 04:26:50,700 - user_service - INFO - Creating database and tables if they don't exist
+2025-04-01 04:26:50,722 - user_service - INFO - Event consumers started in background
+2025-04-01 04:26:50,723 - user_service - INFO - User service started
+2025-04-01 04:26:50,725 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-04-01 04:27:25,477 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-04-01 04:27:25,477 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-04-01 04:27:25,518 - user_service - INFO - RabbitMQ connection established
+2025-04-01 04:27:25,519 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-04-01 04:29:28,959 - user_service - INFO - Admin nisha changed password for user miss
+2025-04-01 04:29:28,962 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-04-01 04:29:28,962 - user_service - ERROR - Error while consuming messages: 'NoneType' object has no attribute 'poll'
+2025-04-01 04:29:29,006 - user_service - INFO - RabbitMQ connection established
+2025-04-01 04:29:29,008 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-04-01 04:29:51,791 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-04-01 04:29:51,792 - user_service - ERROR - Error while consuming messages: 'NoneType' object has no attribute 'poll'
+2025-04-01 04:29:51,843 - user_service - INFO - RabbitMQ connection established
+2025-04-01 04:29:51,845 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-04-01 04:29:58,594 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: AssertionError(('_AsyncTransportBase._produce() tx buffer size underflow', -40, 1))
+2025-04-01 04:29:58,596 - user_service - ERROR - Error while consuming messages: ('_AsyncTransportBase._initate_abort() expected non-_STATE_COMPLETED', 4)
+2025-04-01 04:29:58,645 - user_service - INFO - RabbitMQ connection established
+2025-04-01 04:29:58,646 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-04-01 04:30:10,528 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-04-01 04:30:10,528 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-04-01 04:30:10,568 - user_service - INFO - RabbitMQ connection established
+2025-04-01 04:30:10,569 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-04-01 04:30:23,920 - user_service - ERROR - Failed to publish message: ('_AsyncTransportBase._initate_abort() expected _STATE_ABORTED_BY_USER', 2)
+2025-04-01 04:30:23,921 - user_service - ERROR - Error while consuming messages: Stream connection lost: AssertionError(('_AsyncTransportBase._produce() tx buffer size underflow', -28, 1))
+2025-04-01 04:30:23,959 - user_service - INFO - RabbitMQ connection established
+2025-04-01 04:30:23,960 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-04-01 04:30:48,719 - user_service - INFO - Admin nisha changed password for user miss
+2025-04-01 04:30:48,720 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-04-01 04:30:48,720 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-04-01 04:30:48,769 - user_service - INFO - RabbitMQ connection established
+2025-04-01 04:30:48,770 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-04-01 04:30:54,113 - user_service - ERROR - Error with database session: 401: Incorrect username or password
+2025-04-01 04:31:23,296 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-04-01 04:31:23,297 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-04-01 04:31:23,339 - user_service - INFO - RabbitMQ connection established
+2025-04-01 04:31:23,340 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-04-01 04:31:53,008 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-04-01 04:31:53,008 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-04-01 04:31:53,043 - user_service - INFO - RabbitMQ connection established
+2025-04-01 04:31:53,044 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-04-01 04:32:32,157 - user_service - INFO - RabbitMQ connection established
+2025-04-01 04:32:32,196 - user_service - INFO - Creating database and tables if they don't exist
+2025-04-01 04:32:32,224 - user_service - INFO - Event consumers started in background
+2025-04-01 04:32:32,224 - user_service - INFO - User service started
+2025-04-01 04:32:32,227 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-04-01 04:32:42,860 - user_service - INFO - RabbitMQ connection established
+2025-04-01 04:32:42,898 - user_service - INFO - Creating database and tables if they don't exist
+2025-04-01 04:32:42,923 - user_service - INFO - Event consumers started in background
+2025-04-01 04:32:42,923 - user_service - INFO - User service started
+2025-04-01 04:32:42,925 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-04-01 04:32:46,690 - user_service - INFO - RabbitMQ connection established
+2025-04-01 04:32:46,728 - user_service - INFO - Creating database and tables if they don't exist
+2025-04-01 04:32:46,753 - user_service - INFO - Event consumers started in background
+2025-04-01 04:32:46,753 - user_service - INFO - User service started
+2025-04-01 04:32:46,755 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-04-01 04:32:49,942 - user_service - INFO - RabbitMQ connection established
+2025-04-01 04:32:49,980 - user_service - INFO - Creating database and tables if they don't exist
+2025-04-01 04:32:50,003 - user_service - INFO - Event consumers started in background
+2025-04-01 04:32:50,003 - user_service - INFO - User service started
+2025-04-01 04:32:50,008 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-04-01 04:32:54,455 - user_service - INFO - RabbitMQ connection established
+2025-04-01 04:32:54,494 - user_service - INFO - Creating database and tables if they don't exist
+2025-04-01 04:32:54,518 - user_service - INFO - Event consumers started in background
+2025-04-01 04:32:54,518 - user_service - INFO - User service started
+2025-04-01 04:32:54,520 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-04-01 05:30:20,226 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-04-01 05:30:20,226 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-04-01 05:30:20,240 - user_service - INFO - RabbitMQ connection established
+2025-04-01 05:30:20,241 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-04-01 05:30:50,047 - user_service - ERROR - Error with database session: 401: Incorrect username or password
+2025-04-01 05:31:08,413 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-04-01 05:31:08,413 - user_service - ERROR - Error while consuming messages: 'NoneType' object has no attribute 'poll'
+2025-04-01 05:31:08,424 - user_service - INFO - RabbitMQ connection established
+2025-04-01 05:31:08,425 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-04-01 05:32:53,816 - user_service - INFO - Admin nisha changed password for user aastha
+2025-04-01 05:32:53,818 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-04-01 05:32:53,818 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-04-01 05:32:53,827 - user_service - INFO - RabbitMQ connection established
+2025-04-01 05:32:53,828 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-04-01 05:33:21,383 - user_service - INFO - Admin nisha changed password for user aastha
+2025-04-01 05:33:21,385 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-04-01 05:33:21,385 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-04-01 05:33:21,394 - user_service - INFO - RabbitMQ connection established
+2025-04-01 05:33:21,395 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-04-01 05:33:27,997 - user_service - ERROR - Error with database session: 401: Incorrect username or password
+2025-04-01 05:33:34,852 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: AssertionError(('_AsyncTransportBase._produce() tx buffer size underflow', -40, 1))
+2025-04-01 05:33:34,853 - user_service - ERROR - Error while consuming messages: ('_AsyncTransportBase._initate_abort() expected _STATE_ABORTED_BY_USER', 2)
+2025-04-01 05:33:34,861 - user_service - INFO - RabbitMQ connection established
+2025-04-01 05:33:34,862 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-04-01 05:35:14,195 - user_service - INFO - User aastha updated successfully
+2025-04-01 05:35:14,198 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-04-01 05:35:14,198 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-04-01 05:35:14,207 - user_service - INFO - RabbitMQ connection established
+2025-04-01 05:35:14,208 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-04-01 05:35:22,278 - user_service - INFO - User aastha updated successfully
+2025-04-01 05:35:22,280 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-04-01 05:35:22,280 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-04-01 05:35:22,289 - user_service - INFO - RabbitMQ connection established
+2025-04-01 05:35:22,290 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-04-01 05:35:41,626 - user_service - INFO - User miss updated successfully
+2025-04-01 05:35:41,628 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-04-01 05:35:41,628 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-04-01 05:35:41,636 - user_service - INFO - RabbitMQ connection established
+2025-04-01 05:35:41,637 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-04-01 05:35:52,924 - user_service - INFO - User miss updated successfully
+2025-04-01 05:35:52,926 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-04-01 05:35:52,926 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-04-01 05:35:52,933 - user_service - INFO - RabbitMQ connection established
+2025-04-01 05:35:52,935 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-04-01 05:38:02,865 - user_service - INFO - Received kubeconfig event: namespaces_retrieved
