@@ -43,7 +43,7 @@
     "build": "vite build --mode prod ",
     "build:dev": "vite build --mode dev",
     "build:test": "vite build --mode test",
-    "preview": "vite preview --port 9981",
+    "preview": "vite preview --port 9980",
     "lint": "eslint . && vue-tsc --noEmit",
     "lint:fix": "eslint . --fix",
     "lint:check": "npx @eslint/config-inspector",

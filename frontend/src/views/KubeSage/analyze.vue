@@ -41,9 +41,9 @@
         
         <div class="resource-card" @click="goToStorageClass">
           <div class="card-icon accent-3"><i class="fas fa-database"></i></div>
-          <div class="card-title">StorageClass</div>
+          <div class="card-title">StorageClasses</div>
           <div class="card-description">Review storage class configurations</div>
-          <n-button class="analyze-btn">Analyze StorageClass</n-button>
+          <n-button class="analyze-btn">Analyze StorageClasses</n-button>
         </div>
         
         <div class="resource-card" @click="goToSecrets">
@@ -72,7 +72,7 @@
       <div class="modal-overlay" v-if="showAnalysisResult" @click.self="closeAnalysisResult">
         <div class="modal-container">
           <div class="modal-header">
-            <h3>Analysis Result</h3>
+            <h3>Analysis Results</h3>
             <button class="close-btn" @click="closeAnalysisResult">
               <i class="fas fa-times"></i>
             </button>
@@ -130,7 +130,7 @@ const getAuthHeaders = () => {
 };
  
 // API base URL
-const baseUrl = 'https://10.0.32.122:8005/kubeconfig';
+const baseUrl = 'https://10.0.34.129:8002/kubeconfig';
  
 // Fetch namespaces from the backend
 const fetchNamespaces = async () => {

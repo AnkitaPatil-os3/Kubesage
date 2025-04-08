@@ -143,7 +143,7 @@ import {
 } from 'naive-ui';
 import { Add as PlusIcon } from '@vicons/ionicons5';
 
-const host = 'https://10.0.32.122:8004/';
+const host = 'https://10.0.34.129:8003/';
 const showModal = ref(false);
 const showNotification = ref(false);
 const notificationMessage = ref('');
@@ -378,6 +378,8 @@ const pagination = ref({
 const getAuthHeaders = () => {
     try {
         const token = JSON.parse(localStorage.getItem('accessToken')).value;
+        console.log("token :" , token);
+        
         return { Authorization: `Bearer ${token}` };
     } catch (error) {
         console.error('Authentication error. Please login again.');

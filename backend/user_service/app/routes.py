@@ -120,7 +120,11 @@ async def check_if_admin(current_user: User = Depends(get_current_user)):
     """
     Check if the current user is an admin.
     """
-    return {"is_admin": current_user.is_admin}
+    return {
+        "is_admin": getattr(current_user, "is_admin", False),  # Using getattr instead of get
+        "username": current_user.username  # Direct attribute access
+    }
+
 
 
 

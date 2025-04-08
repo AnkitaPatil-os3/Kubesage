@@ -1,0 +1,30 @@
+2025-04-08 07:35:06,170 - k8sgpt_service - WARNING - Redis cache connection failed: invalid username-password pair or user is disabled.
+2025-04-08 07:35:06,293 - k8sgpt_service - INFO - Connected to RabbitMQ server
+2025-04-08 07:35:06,320 - k8sgpt_service - INFO - Starting K8sGPT Operations Service
+2025-04-08 07:35:06,321 - k8sgpt_service - INFO - Creating database and tables if they don't exist
+2025-04-08 07:35:06,346 - k8sgpt_service - ERROR - Failed to connect to Redis: invalid username-password pair or user is disabled.
+2025-04-08 07:35:06,347 - k8sgpt_service - INFO - Starting to consume messages from RabbitMQ
+2025-04-08 08:07:10,112 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Not Found"}
+2025-04-08 08:07:10,113 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-04-08 08:07:34,106 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Not Found"}
+2025-04-08 08:07:34,106 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-04-08 08:08:06,016 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Not Found"}
+2025-04-08 08:08:06,017 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-04-08 08:10:51,980 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Not Found"}
+2025-04-08 08:10:51,982 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-04-08 08:10:53,756 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Not Found"}
+2025-04-08 08:10:53,756 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-04-08 08:11:01,095 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Not Found"}
+2025-04-08 08:11:01,096 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-04-08 08:11:02,539 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Not Found"}
+2025-04-08 08:11:02,540 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-04-08 08:11:04,716 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Not Found"}
+2025-04-08 08:11:04,717 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-04-08 08:11:15,170 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Not Found"}
+2025-04-08 08:11:15,170 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-04-08 08:12:23,498 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Not Found"}
+2025-04-08 08:12:23,499 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-04-08 08:12:25,750 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Not Found"}
+2025-04-08 08:12:25,751 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-04-08 08:18:22,867 - k8sgpt_service - INFO - Shutting down K8sGPT Operations Service
+2025-04-08 08:18:22,879 - k8sgpt_service - ERROR - Error during message consumption: Stream connection lost: IndexError('pop from an empty deque')

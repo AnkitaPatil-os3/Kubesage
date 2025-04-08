@@ -163,7 +163,7 @@ export default {
         NButton
     },
     setup() {
-        const host = 'https://10.0.32.122:8006/chat/';
+        const host = 'https://10.0.34.129:8004/chat/';
         const chatSessions = ref([]);
         const activeChatSessionId = ref(null);
         const activeChat = ref({ messages: [], title: '' });

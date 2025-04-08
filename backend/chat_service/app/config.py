@@ -4,11 +4,11 @@ from typing import Optional
 
 class Settings(BaseSettings):
     # PostgreSQL connection
-    POSTGRES_USER: str = "preeti"
+    POSTGRES_USER: str = "nisha"
     POSTGRES_PASSWORD: str = "linux"
     POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: str = "5432"
-    POSTGRES_DB: str = "p_chat_db"
+    POSTGRES_DB: str = "n_chat_db"
     DATABASE_URL: str = ""  # Will be constructed from above settings
     
     # Redis
@@ -33,9 +33,9 @@ class Settings(BaseSettings):
     OPENAI_MODEL: str = "Mistral-7B-Instruct-v0.2-fp16-ov"
 
     # Service Integration
-    USER_SERVICE_URL: str = "https://10.0.32.122:8003"
-    KUBECONFIG_SERVICE_URL: str = "https://10.0.32.122:8005"
-    K8SGPT_SERVICE_URL: str = "https://10.0.32.122:8004"
+    USER_SERVICE_URL: str = "https://10.0.34.129:8001"
+    KUBECONFIG_SERVICE_URL: str = "https://10.0.34.129:8002"
+    K8SGPT_SERVICE_URL: str = "https://10.0.34.129:8003"
     
     # Security
     JWT_SECRET_KEY: str =  "hkfiurhrugtieruyueryu"

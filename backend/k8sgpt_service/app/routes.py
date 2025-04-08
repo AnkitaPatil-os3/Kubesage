@@ -229,36 +229,17 @@ async def create_backend(
     user_id = current_user["id"]
     print("Received backend config:", backend_config)
 
-
     # Construct command similar to /auth/add
     command = f"k8sgpt auth add --backend {backend_config.backend_type}"
 
     if backend_config.baseurl:
         command += f" --baseurl {backend_config.baseurl}"
-    # if backend_config.compartmentId:
-    #     command += f" --compartmentId {backend_config.compartmentId}"
-    # if backend_config.endpointname:
-    #     command += f" --endpointname {backend_config.endpointname}"
-    # if backend_config.engine:
-    #     command += f" --engine {backend_config.engine}"
     if backend_config.maxtokens:
         command += f" --maxtokens {backend_config.maxtokens}"
     if backend_config.model:
         command += f" --model {backend_config.model}"
-    # if backend_config.organizationId:
-    #     command += f" --organizationId {backend_config.organizationId}"
-    # if backend_config.password:
-    #     command += f" --password {backend_config.password}"
-    # if backend_config.providerId:
-    #     command += f" --providerId {backend_config.providerId}"
-    # if backend_config.providerRegion:
-    #     command += f" --providerRegion {backend_config.providerRegion}"
     if backend_config.temperature:
         command += f" --temperature {backend_config.temperature}"
-    # if backend_config.topk:
-    #     command += f" --topk {backend_config.topk}"
-    # if backend_config.topp:
-    #     command += f" --topp {backend_config.topp}"
 
     # Execute command and handle response
     try:
@@ -268,16 +249,35 @@ async def create_backend(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-    # Simulate storing backend details in DB
-    backend = {
-        "id": 1,  # Replace with actual DB record ID
-        "backend_name": backend_config.backend_type,
-        "is_default": backend_config.is_default,
-        # "config": output,
-        # "created_at": "2025-03-19T12:00:00Z",  # Replace with actual timestamps
-        # "updated_at": "2025-03-19T12:00:00Z"
-    }
-    return backend 
+    # Create a new backend config entry in the database
+    db_backend = AIBackend(
+        user_id=user_id,
+        backend_type=backend_config.backend_type,
+        is_default=backend_config.is_default,
+        name=backend_config.backend_type,
+        api_key=backend_config.api_key,
+        organization_id=backend_config.organizationId,
+        model=backend_config.model,
+        base_url=backend_config.baseurl,
+        engine=backend_config.engine,
+        temperature=backend_config.temperature,
+        max_tokens=backend_config.maxtokens
+    )
+
+    # Add and commit the new backend config to the database
+    session.add(db_backend)
+    session.commit()
+    session.refresh(db_backend)  # Get the latest DB values (like id, created_at, etc.)
+
+    # Return the saved backend config response
+    return AIBackendConfigResponse(
+        id=db_backend.id,
+        backend_name=db_backend.backend_type,
+        model=db_backend.model,  # Ensure this field exists in the database model
+        is_default=db_backend.is_default
+    )
+
+
 
 @k8sgpt_router.get("/backends/", response_model=AIBackendsList)
 async def get_backends(
@@ -289,7 +289,6 @@ async def get_backends(
     """
     user_id = current_user["id"]
     backends = await list_ai_backends(user_id=user_id)
-    print("hii",backends)
  
     return {"backends": backends}
 
@@ -313,6 +312,7 @@ async def get_backend(
     
     return backend
 
+
 @k8sgpt_router.delete("/backends/{backend_name}", response_model=MessageResponse)
 async def remove_backend(
     backend_name: str,
@@ -320,17 +320,25 @@ async def remove_backend(
     current_user: Dict = Depends(get_current_user)
 ):
     """
-    Delete an AI backend configuration
+    Delete an AI backend configuration from both the database and the terminal
     """
     user_id = current_user["id"]
-    
-    await delete_ai_backend(
-        user_id=user_id,
-        backend_name=backend_name,
-        session=session
-    )
-    
-    return {"message": f"Backend {backend_name} deleted successfully"}
+    # Query the database for the backend configuration
+    backend = session.query(AIBackend).filter_by(user_id=user_id, backend_type=backend_name).first()
+    if not backend:
+        raise HTTPException(status_code=404, detail=f"Backend {backend_name} not found for user {user_id}")
+    # Construct the terminal command
+    command = f"k8sgpt auth remove -b {backend_name}"
+    # Execute the command to remove from terminal
+    try:
+        output = execute_command(command)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to remove backend from terminal: {str(e)}")
+    # Delete the backend from the database
+    session.delete(backend)
+    session.commit()
+    return {"message": f"Backend {backend_name} deleted successfully from database and terminal"}
+
 
 @k8sgpt_router.put("/backends/{backend_name}/default", response_model=MessageResponse)
 async def set_default_backend(
@@ -339,17 +347,34 @@ async def set_default_backend(
     current_user: Dict = Depends(get_current_user)
 ):
     """
-    Set a backend as the default
+    Set a backend as the default in both the database and terminal
     """
     user_id = current_user["id"]
+
+    # Query the database for the backend configuration
+    backend = session.query(AIBackend).filter_by(user_id=user_id, backend_type=backend_name).first()
     
-    await set_default_ai_backend(
-        user_id=user_id,
-        backend_name=backend_name,
-        session=session
-    )
+    if not backend:
+        raise HTTPException(status_code=404, detail=f"Backend {backend_name} not found for user {user_id}")
+
+    # Update all backends for the user to is_default=False
+    session.query(AIBackend).filter_by(user_id=user_id).update({"is_default": False})
     
-    return {"message": f"Backend {backend_name} set as default"}
+    # Set the selected backend as default
+    backend.is_default = True
+    session.commit()
+
+    # Construct the terminal command
+    command = f"k8sgpt auth default {backend_name}"
+
+    # Execute the command to set default in terminal
+    try:
+        output = execute_command(command)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to set default backend in terminal: {str(e)}")
+
+    return {"message": f"Backend {backend_name} set as default successfully in database and terminal"}
+
 
 @k8sgpt_router.get("/analyzers", response_model=List[str])
 async def list_analyzers(
