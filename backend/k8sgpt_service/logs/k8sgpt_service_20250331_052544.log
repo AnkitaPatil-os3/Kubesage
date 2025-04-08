@@ -1,0 +1,8 @@
+2025-03-31 05:25:44,294 - k8sgpt_service - WARNING - Redis cache connection failed: Error 111 connecting to localhost:6379. Connection refused.
+2025-03-31 05:25:44,395 - k8sgpt_service - INFO - Connected to RabbitMQ server
+2025-03-31 05:25:44,457 - k8sgpt_service - INFO - Starting K8sGPT Operations Service
+2025-03-31 05:25:44,457 - k8sgpt_service - INFO - Creating database and tables if they don't exist
+2025-03-31 05:25:44,500 - k8sgpt_service - ERROR - Failed to connect to Redis: Error 111 connecting to localhost:6379. Connection refused.
+2025-03-31 05:25:44,501 - k8sgpt_service - INFO - Starting to consume messages from RabbitMQ
+2025-04-01 06:40:01,185 - k8sgpt_service - ERROR - Error during message consumption: (320, "CONNECTION_FORCED - broker forced connection closure with reason 'shutdown'")
+2025-04-01 06:40:01,185 - k8sgpt_service - ERROR - RabbitMQ consumer error: ctag1.558a39d4790745198b095829ef36b1aa

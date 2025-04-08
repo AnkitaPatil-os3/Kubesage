@@ -10,7 +10,7 @@
     "selectPlaceholder": "please choose"
   },
   "app": {
-    "loginOut": "Login out",
+    "loginOut": "Log out",
     "loginOutContent": "Confirm to log out of current account?",
     "loginOutTitle": "Sign out",
     "light": "Light",

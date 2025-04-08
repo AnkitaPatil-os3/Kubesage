@@ -4,3 +4,5 @@
 2025-03-26 07:33:36,986 - k8sgpt_service - INFO - Creating database and tables if they don't exist
 2025-03-26 07:33:37,028 - k8sgpt_service - ERROR - Failed to connect to Redis: Error 111 connecting to localhost:6379. Connection refused.
 2025-03-26 07:33:37,029 - k8sgpt_service - INFO - Starting to consume messages from RabbitMQ
+2025-03-31 05:23:38,786 - k8sgpt_service - INFO - Shutting down K8sGPT Operations Service
+2025-03-31 05:23:38,801 - k8sgpt_service - ERROR - Error during message consumption: Stream connection lost: IndexError('pop from an empty deque')

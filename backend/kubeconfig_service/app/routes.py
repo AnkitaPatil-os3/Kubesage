@@ -389,7 +389,7 @@ async def install_operator(
             content={
                 "results": results,
                 "operator_installed": False,
-                "message": f"Failed to install operator: {error_message}"
+                "message": f"Operator is already installed: {error_message}"
             },
             status_code=400  # Bad Request for command execution failure
         )

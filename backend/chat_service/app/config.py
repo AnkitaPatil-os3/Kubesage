@@ -29,8 +29,8 @@ class Settings(BaseSettings):
     # OPENAI_MODEL: str = "codestral-latest"
 
     OPENAI_API_KEY: str = "openvino"
-    OPENAI_BASE_URL: str = "http://10.0.32.148:8000/v1/"
-    OPENAI_MODEL: str = "llama-3.1-instruct-ov"
+    OPENAI_BASE_URL: str = "http://10.0.32.182:8000/v1/"
+    OPENAI_MODEL: str = "Mistral-7B-Instruct-v0.2-fp16-ov"
 
     # Service Integration
     USER_SERVICE_URL: str = "https://10.0.32.122:8003"

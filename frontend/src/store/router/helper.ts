@@ -18,14 +18,21 @@ function standardizedRoutes(route: AppRoute.RowRoute[]) {
   }) as AppRoute.Route[]
 }
 
-export function createRoutes(routes: AppRoute.RowRoute[]) {
+export function createRoutes(routes: AppRoute.RowRoute[], userRole: string) {
   const { hasPermission } = usePermission()
 
   // Structure the meta field
   let resultRouter = standardizedRoutes(routes)
 
   // Route permission filtering
-  resultRouter = resultRouter.filter(i => hasPermission(i.meta.roles))
+  resultRouter = resultRouter.filter(i => {
+    // Check if route has role restrictions
+    if (i.meta.roles && i.meta.roles.length > 0) {
+      return i.meta.roles.includes(userRole)
+    }
+    // Also check general permission if defined
+    return hasPermission(i.meta.roles)
+  })
 
   // Generate routes, no need to import files for those with redirect
   const modules = import.meta.glob('@/views/**/*.vue')
@@ -90,23 +97,40 @@ function setRedirect(routes: AppRoute.Route[]) {
   })
 }
 
-/* 生成侧边菜单的数据 */
-export function createMenus(userRoutes: AppRoute.RowRoute[]) {
+/* Generate sidebar menu data */
+export function createMenus(userRoutes: AppRoute.RowRoute[], userRole: string) {
   const resultMenus = standardizedRoutes(userRoutes)
 
   // filter menus that do not need to be displayed
-  const visibleMenus = resultMenus.filter(route => !route.meta.hide)
+  const visibleMenus = resultMenus.filter(route => {
+    // Check if route should be hidden
+    if (route.meta.hide) return false
+    
+    // Check if route has role restrictions
+    if (route.meta.roles && route.meta.roles.length > 0) {
+      return route.meta.roles.includes(userRole)
+    }
+    
+    return true
+  })
 
   // generate side menu
-  return arrayToTree(transformAuthRoutesToMenus(visibleMenus))
+  return arrayToTree(transformAuthRoutesToMenus(visibleMenus, userRole))
 }
 
 // render the returned routing table as a sidebar
-function transformAuthRoutesToMenus(userRoutes: AppRoute.Route[]) {
+function transformAuthRoutesToMenus(userRoutes: AppRoute.Route[], userRole: string) {
   const { hasPermission } = usePermission()
   return userRoutes
-    // Filter out side menus without permission
-    .filter(i => hasPermission(i.meta.roles))
+    // Filter out side menus without permission or not matching user role
+    .filter(i => {
+      // Check role-based access
+      if (i.meta.roles && i.meta.roles.length > 0) {
+        return i.meta.roles.includes(userRole)
+      }
+      // Also check general permission if defined
+      return hasPermission(i.meta.roles)
+    })
     //  Sort the menu according to the order size
     .sort((a, b) => {
       if (a.meta && a.meta.order && b.meta && b.meta.order)

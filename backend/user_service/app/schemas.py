@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, root_validator
 from typing import Optional
 from datetime import datetime
 
@@ -47,5 +47,11 @@ class LoginRequest(BaseModel):
     password: str
 
 class ChangePasswordRequest(BaseModel):
-    current_password: str
-    new_password: str
+    new_password: str = Field(..., min_length=6)
+    confirm_password: str = Field(..., min_length=6)
+ 
+    @root_validator(pre=True)
+    def check_password_match(cls, values):
+        if values.get('new_password') != values.get('confirm_password'):
+            raise ValueError('Passwords do not match')
+        return values

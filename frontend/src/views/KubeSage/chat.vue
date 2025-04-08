@@ -22,7 +22,8 @@
                             @click="loadChat(chat.session_id)"
                             :class="['history-item', { active: activeChatSessionId === chat.session_id }]">
                             <div class="history-icon"><i class="fas fa-comment-dots"></i></div>
-                            <div class="history-title">{{ getUserQuestion(chat.session_id) || chat.title || `Chat ${index + 1}` }}</div>
+                            <div class="history-title">{{ getUserQuestion(chat.session_id) || chat.title || `Chat
+                                ${index + 1}` }}</div>
                             <div class="history-actions">
                                 <button class="action-btn" @click.stop="deleteChat(chat.session_id)">
                                     <i class="fas fa-trash"></i>
@@ -31,7 +32,7 @@
                         </div>
                     </div>
                 </div>
-               
+
             </div>
 
             <!-- Minimized sidebar content -->
@@ -51,7 +52,7 @@
                             <i class="fas fa-comment-dots"></i>
                         </button>
                     </div>
-                   
+
                 </div>
             </div>
 
@@ -112,9 +113,10 @@
                     <div class="message-avatar">
                         <i :class="message.role === 'user' ? 'fas fa-user' : 'fas fa-robot'"></i>
                     </div>
-                    <div class="message-bubble">
+                    <div class="message-bubble user">
                         <div class="message-header">
                             <span class="message-sender">{{ message.role === 'user' ? 'You' : 'KubeSage' }}</span>
+
                             <span class="message-time">{{ formatTime(message.created_at) }}</span>
                         </div>
                         <div class="message-content" v-html="renderMarkdown(message.content)"> </div>
@@ -346,15 +348,15 @@ export default {
             }
         };
 
-      
 
-                // Method to get the user question for a chat session
-                const getUserQuestion = (sessionId) => {
+
+        // Method to get the user question for a chat session
+        const getUserQuestion = (sessionId) => {
             // Check if we have this session's first question cached
             if (sessionQuestionsCache.value[sessionId]) {
                 return sessionQuestionsCache.value[sessionId];
             }
-            
+
             // If this is the active session, get the first user message
             if (activeChatSessionId.value === sessionId && activeChat.value.messages.length > 0) {
                 const userMessages = activeChat.value.messages.filter(msg => msg.role === 'user');
@@ -363,13 +365,26 @@ export default {
                     // Truncate long questions
                     const truncated = question.length > 30 ? question.substring(0, 30) + '...' : question;
                     // Cache the result
-                    sessionQuestionsCache.value[sessionId] = truncated;
+                    // sessionQuestionsCache.value[sessionId] = truncated;
                     return truncated;
                 }
             }
-            
+
             return null;
         };
+
+        const extractUserQuestion = (content) => {
+            // Check if the content contains "User question:"
+            if (content.includes("User question:")) {
+                // Extract everything after "User question:"
+                return content.split("User question:")[1].trim();
+            }
+
+            // If "User question:" is not found, return the original content
+            // or you could return a default message
+            return content;
+        };
+
 
         // Modify the loadChat function to cache the first user question
         const loadChat = async (sessionId) => {
@@ -378,17 +393,30 @@ export default {
                     headers: getAuthHeaders()
                 });
                 activeChatSessionId.value = sessionId;
-                activeChat.value = {
-                    messages: response.data.messages,
-                    title: response.data.title
-                };
-                
+                // Process messages to extract only user questions
+                const processedMessages = response.data.messages.map(msg => {
+                    if (msg.role === 'user') {
+                        return {
+                            ...msg,
+                            content: extractUserQuestion(msg.content)
+                        };
+                    }
+                    return msg;
+                });
+
+
+
                 // Cache the first user question from this session
-                const userMessages = response.data.messages.filter(msg => msg.role === 'user');
+                const userMessages = processedMessages.filter(msg => msg.role === 'user');
                 if (userMessages.length > 0) {
                     const question = userMessages[0].content;
                     const truncated = question.length > 30 ? question.substring(0, 30) + '...' : question;
                     sessionQuestionsCache.value[sessionId] = truncated;
+                    activeChat.value = {
+                        messages: processedMessages,
+                        title: truncated
+                    };
+
                 }
             } catch (error) {
                 console.error('Failed to load chat history:', error);
@@ -418,11 +446,127 @@ export default {
                 // Show typing indicator
                 isTyping.value = true;
 
-                // Rest of your existing sendMessage code...
+                // Send message to the backend
+                const response = await axios.post(
+                    `${host}`,
+                    { content: userMessage, session_id: activeChatSessionId.value },
+                    {
+                        headers: getAuthHeaders()
+                    }
+                );
+
+                console.log('chat-api', response);
+                
+
+                // Hide typing indicator
+                isTyping.value = false;
+
+                // Add bot response to the UI
+                activeChat.value.messages.push({
+                    role: 'bot',
+                    content: response.data.content,
+                    created_at: new Date().toISOString()
+                });
+
+                // If this is the first message, generate a title
+                if (activeChat.value.messages.length === 2) {
+                    try {
+                        const titleResponse = await axios.post(
+                            `${host}sessions/${activeChatSessionId.value}/title`,
+                            {},
+                            { headers: getAuthHeaders() }
+                        );
+
+                        // Update title in UI and session list
+                        activeChat.value.title = titleResponse.data.title;
+                        const sessionIndex = chatSessions.value.findIndex(s => s.session_id === activeChatSessionId.value);
+                        if (sessionIndex !== -1) {
+                            chatSessions.value[sessionIndex].title = titleResponse.data.title;
+                        }
+                    } catch (error) {
+                        console.error('Failed to generate title:', error);
+                    }
+                }
             } catch (error) {
-                // Your existing error handling...
+                console.error('Failed to send message:', error);
+                isTyping.value = false;
+
+                // Display an error message to the user
+                activeChat.value.messages.push({
+                    role: 'bot',
+                    content: "Sorry, I encountered an error. Please try again.",
+                    created_at: new Date().toISOString()
+                });
             }
         };
+
+        // Send a message to the active chat session
+        // const sendMessage = async () => {
+        //     if (newMessage.value.trim() === '') return;
+
+        //     try {
+        //         // Add user message to the UI
+        //         activeChat.value.messages.push({
+        //             role: 'user',
+        //             content: newMessage.value,
+        //             created_at: new Date().toISOString()
+        //         });
+        //         const userMessage = newMessage.value;
+        //         newMessage.value = '';
+
+        //         // Show typing indicator
+        //         isTyping.value = true;
+
+        //         // Send message to the backend
+        //         const response = await axios.post(
+        //             `${host}`,
+        //             { content: userMessage, session_id: activeChatSessionId.value },
+        //             {
+        //                 headers: getAuthHeaders()
+        //             }
+        //         );
+
+        //         // Hide typing indicator
+        //         isTyping.value = false;
+
+        //         // Add bot response to the UI
+        //         activeChat.value.messages.push({
+        //             role: 'bot',
+        //             content: response.data.content,
+        //             created_at: new Date().toISOString()
+        //         });
+
+        //         // If this is the first message, generate a title
+        //         if (activeChat.value.messages.length === 2) {
+        //             try {
+        //                 const titleResponse = await axios.post(
+        //                     `${host}sessions/${activeChatSessionId.value}/title`,
+        //                     {},
+        //                     { headers: getAuthHeaders() }
+        //                 );
+
+        //                 // Update title in UI and session list
+        //                 activeChat.value.title = titleResponse.data.title;
+        //                 const sessionIndex = chatSessions.value.findIndex(s => s.session_id === activeChatSessionId.value);
+        //                 if (sessionIndex !== -1) {
+        //                     chatSessions.value[sessionIndex].title = titleResponse.data.title;
+        //                 }
+        //             } catch (error) {
+        //                 console.error('Failed to generate title:', error);
+        //             }
+        //         }
+        //     } catch (error) {
+        //         console.error('Failed to send message:', error);
+        //         isTyping.value = false;
+
+        //         // Display an error message to the user
+        //         activeChat.value.messages.push({
+        //             role: 'bot',
+        //             content: "Sorry, I encountered an error. Please try again.",
+        //             created_at: new Date().toISOString()
+        //         });
+        //     }
+        // };
 
         // Get auth token from localStorage
         const getAuthHeaders = () => {
@@ -1254,15 +1398,16 @@ export default {
 }
 
 .app-container.dark-mode .message-container.user .message-bubble {
-    
+
     box-shadow: 0 2px 8px rgba(16, 188, 59, 0.3);
 }
 
 .message-container.bot .message-bubble {
     background-color: #f3f4f6;
     color: #4a5568;
-    border-radius: 16px 16px 16px 0;
     border-left: 3px solid #0a8aaa;
+    border-radius: 16px 16px 16px 0;
+    box-shadow: 0 2px 8px rgba(16, 188, 59, 0.2);
 }
 
 .app-container.dark-mode .message-container.bot .message-bubble {
@@ -1299,6 +1444,7 @@ export default {
     line-height: 1.6;
     overflow-wrap: break-word;
     word-break: break-word;
+    
 }
 
 /* Style for code blocks in messages */
@@ -1365,6 +1511,7 @@ export default {
 }
 
 @keyframes typing {
+
     0%,
     100% {
         transform: scale(0.6);
@@ -1510,23 +1657,23 @@ export default {
     .message-container {
         max-width: 100%;
     }
-    
+
     .chat-header {
         padding: 12px 16px;
     }
-    
+
     .chat-messages {
         padding: 16px;
     }
-    
+
     .chat-input-container {
         padding: 12px 16px;
     }
-    
+
     .welcome-content h1 {
         font-size: 2rem;
     }
-    
+
     .welcome-content p {
         font-size: 1rem;
     }
@@ -1537,6 +1684,7 @@ export default {
     from {
         opacity: 0;
     }
+
     to {
         opacity: 1;
     }
@@ -1576,4 +1724,3 @@ export default {
     background-color: rgba(16, 188, 59, 0.5);
 }
 </style>
-

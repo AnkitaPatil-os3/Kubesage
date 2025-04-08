@@ -508,6 +508,7 @@ const namespaceOptions = computed(() => {
 /* Modal */
 .modal-overlay {
   position: fixed;
+  z-index: 1000;
   top: 0;
   left: 0;
   right: 0;
@@ -516,7 +517,7 @@ const namespaceOptions = computed(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 100;
+  /* z-index: 100; */
   backdrop-filter: blur(4px);
 }
 

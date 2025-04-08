@@ -251,7 +251,8 @@ async def process_chat_message(
         try:
             response = client.chat.completions.create(
                 model=settings.OPENAI_MODEL,
-                messages=openai_messages
+                messages=openai_messages,
+                max_tokens = 2000
             )
             assistant_message = response.choices[0].message.content
         except Exception as e:

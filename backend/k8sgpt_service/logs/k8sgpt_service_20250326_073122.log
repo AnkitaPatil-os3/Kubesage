@@ -48,3 +48,5 @@
 2025-03-28 12:12:54,710 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
 2025-03-28 12:17:12,695 - k8sgpt_service - ERROR - Token validation failed: {"detail":"Database connection failed"}
 2025-03-28 12:17:12,696 - k8sgpt_service - ERROR - Error in authentication: 401: Could not validate credentials
+2025-03-31 05:25:18,351 - k8sgpt_service - INFO - Shutting down K8sGPT Operations Service
+2025-03-31 05:25:23,375 - k8sgpt_service - ERROR - Error during message consumption: Stream connection lost: IndexError('pop from an empty deque')

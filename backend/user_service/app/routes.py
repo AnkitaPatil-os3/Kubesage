@@ -12,13 +12,16 @@ from app.auth import (
     get_password_hash, 
     get_current_active_user,
     get_current_admin_user,
-    verify_password
+    verify_password,
+    get_current_user
 )
 from app.config import settings
 from app.logger import logger
 from datetime import timedelta
 from app.queue import publish_message  # Import the queue functionality
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordBearer
+
 # Auth router
 auth_router = APIRouter()
 
@@ -35,6 +38,18 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), session: Sessi
     access_token, expires_at = create_access_token(
         data={"sub": str(user.id)}, expires_delta=access_token_expires
     )
+
+    # Save UserToken in the database
+    user_token = UserToken(
+        token=access_token,
+        user_id=user.id,
+        expires_at=expires_at
+    )
+    session.add(user_token)
+    session.commit()
+    session.refresh(user_token)
+
+    print(f"User token is {user_token}, save in the database")
         
     # Publish login event
     publish_message("user_events", {
@@ -49,6 +64,66 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), session: Sessi
         "token_type": "bearer",
         "expires_at": expires_at
     }
+
+
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
+
+@auth_router.post("/logout")
+async def logout(
+    token: str = Depends(oauth2_scheme),
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+    ):
+    """
+    Logout user by removing their token from the database.
+    Optionally can clear all user sessions or just the current one.
+    """
+    try:
+        # Delete the current token
+        user_token = session.query(UserToken).filter(
+            UserToken.token == token,
+            UserToken.user_id == current_user.id
+        ).first()
+        
+        if user_token:
+            session.delete(user_token)
+            session.commit()
+        
+        # Option 1: Delete all tokens for this user (complete logout from all devices)
+        # session.query(UserToken).filter(UserToken.user_id == current_user.id).delete()
+        # session.commit()
+        
+        # Publish logout event
+        publish_message("user_events", {
+            "event_type": "user_logout",
+            "user_id": current_user.id,
+            "username": current_user.username,
+            "timestamp": datetime.datetime.now().isoformat()
+        })
+        
+        return {"message": "Successfully logged out"}
+    
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error during logout"
+        )
+
+
+
+
+# Endpoint to check if user is admin
+@auth_router.get("/check-admin")
+async def check_if_admin(current_user: User = Depends(get_current_user)):
+    """
+    Check if the current user is an admin.
+    """
+    return {"is_admin": current_user.is_admin}
+
+
+
 
 @auth_router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register_user(user_data: UserCreate, session: Session = Depends(get_session)):
@@ -110,35 +185,41 @@ async def register_user(user_data: UserCreate, session: Session = Depends(get_se
         session.rollback()  # Rollback the transaction in case of an error
         raise HTTPException(status_code=500, detail="User registration failed")
 
-@auth_router.post("/change-password", status_code=status.HTTP_200_OK)
-async def change_password(
+
+@auth_router.post("/change-password/{user_id}", status_code=status.HTTP_200_OK)
+async def A_change_password(
+    user_id: int,
     password_data: ChangePasswordRequest,
-    current_user: User = Depends(get_current_active_user),
+    current_admin: User = Depends(get_current_admin_user),
     session: Session = Depends(get_session)
 ):
-    # Verify current password
-    if not verify_password(password_data.current_password, current_user.hashed_password):
+    # Fetch the target user by ID
+    user = session.query(User).filter(User.id == user_id).first()
+
+    if not user:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Current password is incorrect"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
         )
-    
-    # Update password
-    current_user.hashed_password = get_password_hash(password_data.new_password)
-    session.add(current_user)
+
+    # Update the password
+    user.hashed_password = get_password_hash(password_data.new_password)
+    session.add(user)
     session.commit()
-    
-    logger.info(f"Password changed for user {current_user.username}")
-    
+
+    logger.info(f"Admin {current_admin.username} changed password for user {user.username}")
+
     # Publish password change event
     publish_message("user_events", {
         "event_type": "password_changed",
-        "user_id": current_user.id,
-        "username": current_user.username,
+        "admin_id": current_admin.id,
+        "user_id": user.id,
+        "username": user.username,
         "timestamp": datetime.datetime.now().isoformat()
     })
-    
+
     return {"detail": "Password updated successfully"}
+
 
 # User router
 user_router = APIRouter()
@@ -246,3 +327,7 @@ async def delete_user(
     })
     
     return None
+
+
+
+
