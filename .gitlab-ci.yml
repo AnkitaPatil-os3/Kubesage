@@ -1,0 +1,108 @@
+stages:
+  - build
+  - push
+
+variables:
+  DOCKER_REGISTRY: "docker.io"
+  DOCKER_USERNAME: "pranavshejul15"
+  DOCKER_PASSWORD: "dckr_pat_q-pWLpGwf0lj-SaiNEbRYuRNjnk"
+  DOCKER_NAMESPACE: "kubesage"  # Set your kubesage folder/namespace here
+
+# Define a global before_script to log in to Docker Hub
+before_script:
+  - docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD $DOCKER_REGISTRY
+
+# Build and push the Docker image for the chat_service
+chat_service_build:
+  stage: build
+  script:
+    - cd backend/chat_service
+    - docker build -t $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/chat_service:latest .
+    - docker tag $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/chat_service:latest $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/chat_service:$CI_COMMIT_REF_NAME
+  only:
+    - devops-automation
+  when: manual
+
+chat_service_push:
+  stage: push
+  script:
+    - docker push $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/chat_service:latest
+    - docker push $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/chat_service:$CI_COMMIT_REF_NAME
+  only:
+    - devops-automation
+
+# Build and push the Docker image for the k8sgpt_service
+k8sgpt_service_build:
+  stage: build
+  script:
+    - cd backend/k8sgpt_service
+    - docker build -t $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/k8sgpt_service:latest .
+    - docker tag $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/k8sgpt_service:latest $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/k8sgpt_service:$CI_COMMIT_REF_NAME
+  only:
+    - devops-automation
+  when: manual
+
+k8sgpt_service_push:
+  stage: push
+  script:
+    - docker push $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/k8sgpt_service:latest
+    - docker push $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/k8sgpt_service:$CI_COMMIT_REF_NAME
+  only:
+    - devops-automation
+
+# Build and push the Docker image for the kubeconfig_service
+kubeconfig_service_build:
+  stage: build
+  script:
+    - cd backend/kubeconfig_service
+    - docker build -t $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/kubeconfig_service:latest .
+    - docker tag $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/kubeconfig_service:latest $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/kubeconfig_service:$CI_COMMIT_REF_NAME
+  only:
+    - devops-automation
+  when: manual
+
+kubeconfig_service_push:
+  stage: push
+  script:
+    - docker push $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/kubeconfig_service:latest
+    - docker push $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/kubeconfig_service:$CI_COMMIT_REF_NAME
+  only:
+    - devops-automation
+
+# Build and push the Docker image for the user_service
+user_service_build:
+  stage: build
+  script:
+    - cd backend/user_service
+    - docker build -t $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/user_service:latest .
+    - docker tag $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/user_service:latest $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/user_service:$CI_COMMIT_REF_NAME
+  only:
+    - devops-automation
+  when: manual
+
+user_service_push:
+  stage: push
+  script:
+    - docker push $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/user_service:latest
+    - docker push $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/user_service:$CI_COMMIT_REF_NAME
+  only:
+    - devops-automation
+
+# Build and push the Docker image for the frontend
+frontend_build:
+  stage: build
+  script:
+    - cd frontend
+    - docker build -t $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/frontend:latest .
+    - docker tag $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/frontend:latest $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/frontend:$CI_COMMIT_REF_NAME
+  only:
+    - devops-automation
+  when: manual
+
+frontend_push:
+  stage: push
+  script:
+    - docker push $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/frontend:latest
+    - docker push $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/frontend:$CI_COMMIT_REF_NAME
+  only:
+    - devops-automation
