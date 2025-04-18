@@ -21,7 +21,6 @@ chat_service_build:
     - docker tag $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/chat_service:latest $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/chat_service:$CI_COMMIT_REF_NAME
   only:
     - devops-automation
-  when: manual
   tags:
     - shell  # Ensure the shell runner is selected
 
@@ -32,6 +31,7 @@ chat_service_push:
     - docker push $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/chat_service:$CI_COMMIT_REF_NAME
   only:
     - devops-automation
+  when: manual
   tags:
     - shell  # Ensure the shell runner is selected
 
@@ -44,7 +44,6 @@ k8sgpt_service_build:
     - docker tag $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/k8sgpt_service:latest $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/k8sgpt_service:$CI_COMMIT_REF_NAME
   only:
     - devops-automation
-  when: manual
   tags:
     - shell  # Ensure the shell runner is selected
 
@@ -55,6 +54,7 @@ k8sgpt_service_push:
     - docker push $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/k8sgpt_service:$CI_COMMIT_REF_NAME
   only:
     - devops-automation
+  when: manual
   tags:
     - shell  # Ensure the shell runner is selected
 
@@ -67,7 +67,6 @@ kubeconfig_service_build:
     - docker tag $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/kubeconfig_service:latest $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/kubeconfig_service:$CI_COMMIT_REF_NAME
   only:
     - devops-automation
-  when: manual
   tags:
     - shell  # Ensure the shell runner is selected
 
@@ -78,6 +77,7 @@ kubeconfig_service_push:
     - docker push $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/kubeconfig_service:$CI_COMMIT_REF_NAME
   only:
     - devops-automation
+  when: manual
   tags:
     - shell  # Ensure the shell runner is selected
 
@@ -90,7 +90,6 @@ user_service_build:
     - docker tag $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/user_service:latest $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/user_service:$CI_COMMIT_REF_NAME
   only:
     - devops-automation
-  when: manual
   tags:
     - shell  # Ensure the shell runner is selected
 
@@ -101,6 +100,7 @@ user_service_push:
     - docker push $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/user_service:$CI_COMMIT_REF_NAME
   only:
     - devops-automation
+  when: manual
   tags:
     - shell  # Ensure the shell runner is selected
 
@@ -113,7 +113,6 @@ frontend_build:
     - docker tag $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/frontend:latest $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/frontend:$CI_COMMIT_REF_NAME
   only:
     - devops-automation
-  when: manual
   tags:
     - shell  # Ensure the shell runner is selected
 
@@ -124,5 +123,6 @@ frontend_push:
     - docker push $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/frontend:$CI_COMMIT_REF_NAME
   only:
     - devops-automation
+  when: manual
   tags:
     - shell  # Ensure the shell runner is selected
