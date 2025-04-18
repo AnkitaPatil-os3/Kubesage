@@ -6,8 +6,6 @@ variables:
   DOCKER_REGISTRY: "docker.io"
   DOCKER_USERNAME: "pranavshejul15"
   DOCKER_PASSWORD: "dckr_pat_q-pWLpGwf0lj-SaiNEbRYuRNjnk"
-  DOCKER_NAMESPACE: "kubesage"
-  VERSION_PREFIX: "v1"  # This is where we can add versioning like v1, v2, etc.
 
 before_script:
   - docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD $DOCKER_REGISTRY
@@ -18,9 +16,7 @@ chat_service_build:
   stage: build
   script:
     - cd backend/chat_service
-    - VERSION=$VERSION_PREFIX-${CI_COMMIT_REF_NAME}  # Set version based on branch or tag
-    - docker build -t $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/chat_service:$VERSION .
-    - docker tag $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/chat_service:$VERSION $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/chat_service:latest
+    - docker build -t $DOCKER_REGISTRY/$DOCKER_USERNAME/chat_service:latest .
   only:
     - devops-automation
 
@@ -28,9 +24,7 @@ k8sgpt_service_build:
   stage: build
   script:
     - cd backend/k8sgpt_service
-    - VERSION=$VERSION_PREFIX-${CI_COMMIT_REF_NAME}
-    - docker build -t $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/k8sgpt_service:$VERSION .
-    - docker tag $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/k8sgpt_service:$VERSION $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/k8sgpt_service:latest
+    - docker build -t $DOCKER_REGISTRY/$DOCKER_USERNAME/k8sgpt_service:latest .
   only:
     - devops-automation
 
@@ -38,9 +32,7 @@ kubeconfig_service_build:
   stage: build
   script:
     - cd backend/kubeconfig_service
-    - VERSION=$VERSION_PREFIX-${CI_COMMIT_REF_NAME}
-    - docker build -t $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/kubeconfig_service:$VERSION .
-    - docker tag $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/kubeconfig_service:$VERSION $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/kubeconfig_service:latest
+    - docker build -t $DOCKER_REGISTRY/$DOCKER_USERNAME/kubeconfig_service:latest .
   only:
     - devops-automation
 
@@ -48,9 +40,7 @@ user_service_build:
   stage: build
   script:
     - cd backend/user_service
-    - VERSION=$VERSION_PREFIX-${CI_COMMIT_REF_NAME}
-    - docker build -t $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/user_service:$VERSION .
-    - docker tag $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/user_service:$VERSION $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/user_service:latest
+    - docker build -t $DOCKER_REGISTRY/$DOCKER_USERNAME/user_service:latest .
   only:
     - devops-automation
 
@@ -58,9 +48,7 @@ frontend_build:
   stage: build
   script:
     - cd frontend
-    - VERSION=$VERSION_PREFIX-${CI_COMMIT_REF_NAME}
-    - docker build -t $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/frontend:$VERSION .
-    - docker tag $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/frontend:$VERSION $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/frontend:latest
+    - docker build -t $DOCKER_REGISTRY/$DOCKER_USERNAME/frontend:latest .
   only:
     - devops-automation
 
@@ -77,8 +65,7 @@ sleep_before_push:
 chat_service_push:
   stage: push
   script:
-    - docker push $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/chat_service:$VERSION
-    - docker push $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/chat_service:latest
+    - docker push $DOCKER_REGISTRY/$DOCKER_USERNAME/chat_service:latest
   only:
     - devops-automation
   when: manual
@@ -86,8 +73,7 @@ chat_service_push:
 k8sgpt_service_push:
   stage: push
   script:
-    - docker push $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/k8sgpt_service:$VERSION
-    - docker push $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/k8sgpt_service:latest
+    - docker push $DOCKER_REGISTRY/$DOCKER_USERNAME/k8sgpt_service:latest
   only:
     - devops-automation
   when: manual
@@ -95,8 +81,7 @@ k8sgpt_service_push:
 kubeconfig_service_push:
   stage: push
   script:
-    - docker push $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/kubeconfig_service:$VERSION
-    - docker push $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/kubeconfig_service:latest
+    - docker push $DOCKER_REGISTRY/$DOCKER_USERNAME/kubeconfig_service:latest
   only:
     - devops-automation
   when: manual
@@ -104,8 +89,7 @@ kubeconfig_service_push:
 user_service_push:
   stage: push
   script:
-    - docker push $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/user_service:$VERSION
-    - docker push $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/user_service:latest
+    - docker push $DOCKER_REGISTRY/$DOCKER_USERNAME/user_service:latest
   only:
     - devops-automation
   when: manual
@@ -113,8 +97,7 @@ user_service_push:
 frontend_push:
   stage: push
   script:
-    - docker push $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/frontend:$VERSION
-    - docker push $DOCKER_REGISTRY/$DOCKER_USERNAME/$DOCKER_NAMESPACE/frontend:latest
+    - docker push $DOCKER_REGISTRY/$DOCKER_USERNAME/frontend:latest
   only:
     - devops-automation
   when: manual
