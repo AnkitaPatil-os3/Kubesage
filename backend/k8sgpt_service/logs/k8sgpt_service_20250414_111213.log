@@ -1,0 +1,2 @@
+2025-04-14 11:12:13,208 - k8sgpt_service - WARNING - Redis cache connection failed: AUTH <password> called without any password configured for the default user. Are you sure your configuration is correct?
+2025-04-14 11:12:13,338 - k8sgpt_service - INFO - Connected to RabbitMQ server

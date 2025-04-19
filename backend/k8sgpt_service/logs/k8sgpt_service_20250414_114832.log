@@ -1,0 +1,8 @@
+2025-04-14 11:48:32,834 - k8sgpt_service - WARNING - Redis cache connection failed: AUTH <password> called without any password configured for the default user. Are you sure your configuration is correct?
+2025-04-14 11:48:33,047 - k8sgpt_service - INFO - Connected to RabbitMQ server
+2025-04-14 11:48:33,097 - k8sgpt_service - INFO - Starting K8sGPT Operations Service
+2025-04-14 11:48:33,097 - k8sgpt_service - INFO - Creating database and tables if they don't exist
+2025-04-14 11:48:33,136 - k8sgpt_service - ERROR - Failed to connect to Redis: AUTH <password> called without any password configured for the default user. Are you sure your configuration is correct?
+2025-04-14 11:48:33,137 - k8sgpt_service - INFO - Starting to consume messages from RabbitMQ
+2025-04-15 07:14:40,486 - k8sgpt_service - INFO - Shutting down K8sGPT Operations Service
+2025-04-15 07:14:40,530 - k8sgpt_service - ERROR - Error during message consumption: Stream connection lost: IndexError('pop from an empty deque')

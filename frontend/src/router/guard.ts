@@ -41,7 +41,7 @@ export function setupRouterGuard(router: Router) {
 
     try {
       // Fetch the admin status from the API to determine the role
-      const response = await axios.get('https://10.0.34.129:8001/auth/check-admin', {
+      const response = await axios.get('https://10.0.34.171:8001/auth/check-admin', {
         headers: {
           Authorization: `Bearer ${local.get('accessToken')}` // If the API requires authorization
         }

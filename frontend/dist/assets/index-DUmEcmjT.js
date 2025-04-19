@@ -1,1 +1,0 @@
-import{_ as n,o,c as r,w as _,f as s}from"./index-BdUTWwbS.js";import{_ as a}from"./Alert-CUbrXPHM.js";const c={};function f(i,t){const e=a;return o(),r(e,{title:"目前可公开的情报",type:"warning"},{default:_(()=>t[0]||(t[0]=[s(" 这是详情子页，他不会出现在侧边栏,他其实是上个页面的同级，并不是下级，这个要注意 ")])),_:1})}const m=n(c,[["render",f]]);export{m as default};

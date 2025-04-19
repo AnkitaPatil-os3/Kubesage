@@ -10,7 +10,7 @@ from typing import Optional
 
 
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"https://10.0.34.129:8001/auth/token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"https://10.0.34.171:8001/auth/token")
 
 async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserInfo:
     print("Authenticating user using token...")
@@ -24,7 +24,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserInfo:
     try:
         async with httpx.AsyncClient(verify=False) as client:
             response = await client.get(
-                f"https://10.0.34.129:8001/users/me",
+                f"https://10.0.34.171:8001/users/me",
                 headers={"Authorization": f"Bearer {token}"}
             )
             

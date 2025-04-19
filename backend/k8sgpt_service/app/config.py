@@ -29,8 +29,8 @@ class Settings(BaseSettings):
     REDIS_PASSWORD: str = "2GUuagotBcTfuJ13sDBSlNSyxYhImbfs9Xqs7J8ncGIcljTNavUOornfUK1N4KcnbqOEBHLZp/9F7MhMos3"
    
     # Service URLs
-    USER_SERVICE_URL: str = "https://10.0.34.129:8001"
-    KUBECONFIG_SERVICE_URL: str = "https://10.0.34.129:8002"
+    USER_SERVICE_URL: str = "https://10.0.34.171:8001"
+    KUBECONFIG_SERVICE_URL: str = "https://10.0.34.171:8002"
     
     # SSL
     SSL_KEYFILE: Optional[str] = "key.pem"

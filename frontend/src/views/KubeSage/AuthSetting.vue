@@ -1,4 +1,4 @@
-<<template>
+<template>
     <n-config-provider>
         <n-layout class="app-container" :class="{ 'dark-mode': isDarkMode }">
             <n-layout-header class="dashboard-header">
@@ -143,7 +143,7 @@ import {
 } from 'naive-ui';
 import { Add as PlusIcon } from '@vicons/ionicons5';
 
-const host = 'https://10.0.34.129:8003/';
+const host = 'https://10.0.34.171:8003/';
 const showModal = ref(false);
 const showNotification = ref(false);
 const notificationMessage = ref('');

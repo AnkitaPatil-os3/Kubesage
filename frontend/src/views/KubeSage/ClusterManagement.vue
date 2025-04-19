@@ -193,7 +193,7 @@ const getAuthHeaders = () => {
 };
  
 // API base URL
-const baseUrl = 'https://10.0.34.129:8002/kubeconfig';
+const baseUrl = 'https://10.0.34.171:8002/kubeconfig';
  
 // Trigger file input click
 const triggerFileInput = () => {

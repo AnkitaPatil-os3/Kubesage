@@ -33,9 +33,9 @@ class Settings(BaseSettings):
     OPENAI_MODEL: str = "Mistral-7B-Instruct-v0.2-fp16-ov"
 
     # Service Integration
-    USER_SERVICE_URL: str = "https://10.0.34.129:8001"
-    KUBECONFIG_SERVICE_URL: str = "https://10.0.34.129:8002"
-    K8SGPT_SERVICE_URL: str = "https://10.0.34.129:8003"
+    USER_SERVICE_URL: str = "https://10.0.34.171:8001"
+    KUBECONFIG_SERVICE_URL: str = "https://10.0.34.171:8002"
+    K8SGPT_SERVICE_URL: str = "https://10.0.34.171:8003"
     
     # Security
     JWT_SECRET_KEY: str =  "hkfiurhrugtieruyueryu"

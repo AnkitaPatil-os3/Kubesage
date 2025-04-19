@@ -248,7 +248,7 @@ import {
 import axios from 'axios';
 
 // Configuration
-const host = '10.0.34.129:8001'; // Define your host variable here
+const host = '10.0.34.171:8001'; // Define your host variable here
 const baseURL = `https://${host}`;
 
 // Dark mode

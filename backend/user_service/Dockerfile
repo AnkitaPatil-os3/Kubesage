@@ -26,8 +26,12 @@ RUN if [ ! -f cert.pem ] || [ ! -f key.pem ]; then \
     rm -rf /var/lib/apt/lists/*; \
     fi
 
-# Expose port
-EXPOSE 8000
+# Set environment variables for HTTPS
+ENV SSL_KEYFILE=key.pem
+ENV SSL_CERTFILE=cert.pem
 
-# Run the application
-CMD ["python", "-m", "app.main"]
+# Expose port 8001 instead of 8000
+EXPOSE 8001
+
+# Run the application with HTTPS on port 8001
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001", "--ssl-keyfile", "key.pem", "--ssl-certfile", "cert.pem"]

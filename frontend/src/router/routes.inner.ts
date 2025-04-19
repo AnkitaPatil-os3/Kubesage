@@ -27,15 +27,7 @@ export const routes: RouteRecordRaw[] = [
       withoutTab: true,
     },
   },
-  {
-    path: '/register',
-    name: 'register',
-    component: () => import('@/auth/register.vue'), // Note that the file extension .vue should be included here
-    meta: {
-      title: 'Register',
-      withoutTab: true,
-    },
-  },
+
   {
     path: '/403',
     name: '403',

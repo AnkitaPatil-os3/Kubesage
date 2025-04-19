@@ -116,10 +116,9 @@
                     <div class="message-bubble user">
                         <div class="message-header">
                             <span class="message-sender">{{ message.role === 'user' ? 'You' : 'KubeSage' }}</span>
-
                             <span class="message-time">{{ formatTime(message.created_at) }}</span>
                         </div>
-                        <div class="message-content" v-html="renderMarkdown(message.content)"> </div>
+                        <div class="message-content" v-html="renderMarkdownWithButtons(message.content)"></div>
                     </div>
                 </div>
                 <div v-if="isTyping" class="message-container bot">
@@ -134,6 +133,59 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Kubectl Commands Section -->
+                <div v-if="kubectlCommands.length > 0" class="kubectl-commands-section">
+                    <div v-for="(cmd, cmdIndex) in kubectlCommands" :key="cmdIndex" class="kubectl-command-block">
+                        <div class="code-block-container executable-command">
+                            <div class="code-block-header">
+                                <span class="code-language">KUBECTL</span>
+                                <div class="code-actions">
+                                    <button class="code-action-btn copy-btn" @click="copyToClipboard(cmd)">
+                                        <i class="fas fa-copy"></i> Copy
+                                    </button>
+                                    <button class="code-action-btn execute-btn"
+                                        @click="executeKubectlCommand(cmd, cmdIndex)">
+                                        <i class="fas fa-play"></i> Execute
+                                    </button>
+                                </div>
+                            </div>
+                            <pre><code class="language-bash">{{ cmd }}</code></pre>
+                        </div>
+
+                        <!-- Command Execution Result -->
+                        <div v-if="commandResults[cmdIndex]" class="command-result">
+                            <div class="result-header">
+                                <span>Execution Result</span>
+                            </div>
+
+                            <!-- Display table data if available -->
+                            <div v-if="commandResults[cmdIndex].type === 'table' && commandResults[cmdIndex].data"
+                                class="result-table-container">
+                                <table class="result-table">
+                                    <thead>
+                                        <tr>
+                                            <th v-for="(_, key) in commandResults[cmdIndex].data[0]" :key="key">
+                                                {{ key.charAt(0).toUpperCase() + key.slice(1) }}
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="(row, rowIndex) in commandResults[cmdIndex].data" :key="rowIndex">
+                                            <td v-for="(value, key) in row" :key="key">{{ value }}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Display plain text result if not a table -->
+                            <pre
+                                v-else><code>{{ typeof commandResults[cmdIndex] === 'string' ? commandResults[cmdIndex] : JSON.stringify(commandResults[cmdIndex], null, 2) }}</code></pre>
+                        </div>
+
+                    </div>
+                </div>
+
             </div>
 
             <!-- Chat Input -->
@@ -155,7 +207,8 @@ import { ref, watch, nextTick, onMounted, computed } from 'vue';
 import axios from 'axios';
 import MarkdownIt from 'markdown-it';
 import hljs from 'highlight.js';
-import { NButton } from 'naive-ui';
+import { NButton, useMessage } from 'naive-ui';
+import { useStorage } from '@vueuse/core';
 
 export default {
     name: 'ChatApp',
@@ -163,7 +216,8 @@ export default {
         NButton
     },
     setup() {
-        const host = 'https://10.0.34.129:8004/chat/';
+        const host = 'https://10.0.34.171:8004/chat/';
+        const kubectlApiHost = 'https://10.0.34.171:8000';
         const chatSessions = ref([]);
         const activeChatSessionId = ref(null);
         const activeChat = ref({ messages: [], title: '' });
@@ -172,15 +226,16 @@ export default {
         const chatMessagesContainer = ref(null);
         const isSidebarVisible = ref(true);
         const isMinimized = ref(false);
-        // const isDarkMode = ref(localStorage.getItem('darkMode') === 'true');
         const isTyping = ref(false);
         const sessionQuestionsCache = ref({});
+        const message = useMessage();
+        const kubectlCommands = ref([]);
+        const commandResults = ref({});
 
 
         // Add this at the beginning of your setup
         const colorScheme = useStorage('vueuse-color-scheme', 'light');
         const isDarkMode = ref(colorScheme.value === 'dark');
-
 
         // Watch for color scheme changes
         watch(colorScheme, (newVal) => {
@@ -217,6 +272,202 @@ export default {
             }
         });
 
+        // Function to render markdown with copy and execute buttons for code blocks
+        const renderMarkdownWithButtons = (text) => {
+            if (!text) return '';
+
+            // First, render the markdown
+            let rendered = md.render(text);
+
+            // Then add buttons to code blocks
+            rendered = rendered.replace(/<pre><code class="language-(\w+)">([\s\S]*?)<\/code><\/pre>/g,
+                (match, language, code) => {
+                    const isCommand = language === 'bash' || language === 'sh';
+                    const commandClass = isCommand ? 'executable-command' : '';
+                    const executeButton = isCommand
+                        ? `<button class="code-action-btn execute-btn" data-code="${encodeURIComponent(code.trim())}">
+                             <i class="fas fa-play"></i> Execute
+                           </button>`
+                        : '';
+
+                    return `
+                        <div class="code-block-container ${commandClass}">
+                            <div class="code-block-header">
+                                <span class="code-language">${language}</span>
+                                <div class="code-actions">
+                                    <button class="code-action-btn copy-btn" data-code="${encodeURIComponent(code.trim())}">
+                                        <i class="fas fa-copy"></i> Copy
+                                    </button>
+                                    ${executeButton}
+                                </div>
+                            </div>
+                            <pre><code class="language-${language}">${code}</code></pre>
+                        </div>
+                    `;
+                }
+            );
+
+            return rendered;
+        };
+
+        // Function to copy code to clipboard
+        const copyToClipboard = (text) => {
+            navigator.clipboard.writeText(text)
+                .then(() => {
+                    message.success('Code copied to clipboard');
+                })
+                .catch(err => {
+                    console.error('Failed to copy: ', err);
+                    message.error('Failed to copy code');
+                });
+        };
+
+        // Function to execute command
+        const executeCommand = async (command) => {
+            try {
+                message.info('Executing command...');
+
+                // Send the command to the backend for execution
+                const response = await axios.post(
+                    `https://10.0.34.171:8000/execute`,
+                    { command, session_id: activeChatSessionId.value },
+                    { headers: getAuthHeaders() }
+                );
+
+                // Add the execution result to the chat
+                activeChat.value.messages.push({
+                    role: 'bot',
+                    content: `**Command Execution Result:**\n\`\`\`\n${response.data.result}\n\`\`\``,
+                    created_at: new Date().toISOString()
+                });
+
+                message.success('Command executed successfully');
+            } catch (error) {
+                console.error('Command execution failed:', error);
+
+                // Add error message to the chat
+                activeChat.value.messages.push({
+                    role: 'bot',
+                    content: `**Command Execution Failed:**\n\`\`\`\n${error.response?.data?.error || error.message}\n\`\`\``,
+                    created_at: new Date().toISOString()
+                });
+
+                message.error('Command execution failed');
+            }
+        };
+
+        // Function to extract kubectl commands from response
+        const extractKubectlCommands = async (responseText) => {
+            try {
+                console.log('start');
+
+                // Send the response to the kubectl-command API
+                const response = await axios.post(
+                    `${kubectlApiHost}/kubectl-command`,
+                    { query: responseText },
+                    {
+                        headers: {
+                            'accept': 'application/json',
+                            'x-api-key': 'test-key',
+                            'Content-Type': 'application/json'
+                        }
+                    }
+                );
+                console.log('kubectl response:', response.data.kubectl_command);
+
+                // Check if the response contains commands
+                if (response.data && response.data.kubectl_command && Array.isArray(response.data.kubectl_command)) {
+                    kubectlCommands.value = response.data.kubectl_command;
+                } else if (response.data && response.data.kubectl_command && typeof response.data.kubectl_command === 'string') {
+                    // Handle case where kubectl_command is a single string
+                    kubectlCommands.value = [response.data.kubectl_command];
+                } else {
+                    kubectlCommands.value = [];
+                }
+            } catch (error) {
+                console.error('Failed to extract kubectl commands:', error);
+                kubectlCommands.value = [];
+            }
+        };
+
+
+        const executeKubectlCommand = async (command, cmdIndex) => {
+            try {
+                message.info(`Executing kubectl command: ${command}`);
+
+                // Send the command to the execute API
+                const response = await axios.post(
+                    `${kubectlApiHost}/execute`,
+                    { execute: command },
+                    {
+                        headers: {
+                            'accept': 'application/json',
+                            'x-api-key': 'test-key',
+                            'Content-Type': 'application/json'
+                        }
+                    }
+                );
+
+                console.log('Execute API response:', response.data);
+
+                // Check if we have structured execution result data
+                if (response.data.execution_result && response.data.execution_result.type === 'table') {
+                    // Store the structured table data
+                    commandResults.value[cmdIndex] = response.data.execution_result;
+                } else if (response.data.execution_result && typeof response.data.execution_result === 'object') {
+                    // Store other structured data
+                    commandResults.value[cmdIndex] = response.data.execution_result;
+                } else if (response.data.result) {
+                    // Fallback to plain text result if available
+                    commandResults.value[cmdIndex] = response.data.result;
+                } else {
+                    // Default success message
+                    commandResults.value[cmdIndex] = 'Command executed successfully';
+                }
+
+                message.success('Command executed successfully');
+            } catch (error) {
+                console.error('Kubectl command execution failed:', error);
+
+                // Check if we have structured error data
+                if (error.response?.data?.execution_error) {
+                    commandResults.value[cmdIndex] = error.response.data.execution_error;
+                } else {
+                    // Fallback to error message
+                    commandResults.value[cmdIndex] = error.response?.data?.error || error.message;
+                }
+
+                message.error('Command execution failed');
+            }
+        };
+
+
+        // Add event listeners for copy and execute buttons after DOM updates
+        watch(
+            () => activeChat.value.messages,
+            () => {
+                nextTick(() => {
+                    // Add event listeners to copy buttons
+                    document.querySelectorAll('.copy-btn').forEach(btn => {
+                        btn.addEventListener('click', (e) => {
+                            const code = decodeURIComponent(e.currentTarget.getAttribute('data-code'));
+                            copyToClipboard(code);
+                        });
+                    });
+
+                    // Add event listeners to execute buttons
+                    document.querySelectorAll('.execute-btn').forEach(btn => {
+                        btn.addEventListener('click', (e) => {
+                            const command = decodeURIComponent(e.currentTarget.getAttribute('data-code'));
+                            executeCommand(command);
+                        });
+                    });
+                });
+            },
+            { deep: true }
+        );
+
+
         // Format timestamp
         const formatTime = (timestamp) => {
             if (!timestamp) return '';
@@ -249,8 +500,6 @@ export default {
             }
         };
 
-
-
         // Toggle light/dark mode
         const toggleTheme = () => {
             isDarkMode.value = !isDarkMode.value;
@@ -273,6 +522,7 @@ export default {
         const clearChat = () => {
             if (confirm('Are you sure you want to clear this conversation?')) {
                 activeChat.value.messages = [];
+                kubectlCommands.value = [];
             }
         };
 
@@ -305,10 +555,6 @@ export default {
         onMounted(async () => {
             // Apply dark mode from localStorage and update classes
             updateDarkModeClasses();
-            // Apply dark mode from localStorage
-            // if (isDarkMode.value) {
-            //     document.body.classList.add('dark-mode');
-            // }
 
             await fetchChatSessions();
             if (chatSessions.value.length > 0) {
@@ -330,9 +576,11 @@ export default {
             }
         };
 
-        // Start a new chat session 
+        // Start a new chat session
         const startNewChat = async () => {
             try {
+                // Clear previous command results when starting a new chat
+                commandResults.value = {};
                 const response = await axios.post(
                     `${host}sessions`,
                     { title: 'New Chat' },
@@ -343,12 +591,11 @@ export default {
                 chatSessions.value.unshift(response.data);
                 activeChatSessionId.value = response.data.session_id;
                 activeChat.value = { messages: [], title: 'New Chat' };
+                kubectlCommands.value = []; // Clear kubectl commands for new chat
             } catch (error) {
                 console.error('Failed to create new chat session:', error);
             }
         };
-
-
 
         // Method to get the user question for a chat session
         const getUserQuestion = (sessionId) => {
@@ -364,8 +611,6 @@ export default {
                     const question = userMessages[0].content;
                     // Truncate long questions
                     const truncated = question.length > 30 ? question.substring(0, 30) + '...' : question;
-                    // Cache the result
-                    // sessionQuestionsCache.value[sessionId] = truncated;
                     return truncated;
                 }
             }
@@ -381,14 +626,14 @@ export default {
             }
 
             // If "User question:" is not found, return the original content
-            // or you could return a default message
             return content;
         };
-
 
         // Modify the loadChat function to cache the first user question
         const loadChat = async (sessionId) => {
             try {
+                // Clear previous command results when loading a chat
+                commandResults.value = {};
                 const response = await axios.get(`${host}history/${sessionId}`, {
                     headers: getAuthHeaders()
                 });
@@ -404,8 +649,6 @@ export default {
                     return msg;
                 });
 
-
-
                 // Cache the first user question from this session
                 const userMessages = processedMessages.filter(msg => msg.role === 'user');
                 if (userMessages.length > 0) {
@@ -416,18 +659,29 @@ export default {
                         messages: processedMessages,
                         title: truncated
                     };
+                }
 
+                // Clear kubectl commands when loading a chat
+                kubectlCommands.value = [];
+
+                // If there are bot messages, extract kubectl commands from the last one
+                const botMessages = processedMessages.filter(msg => msg.role === 'bot');
+                if (botMessages.length > 0) {
+                    const lastBotMessage = botMessages[botMessages.length - 1];
+                    extractKubectlCommands(lastBotMessage.content);
                 }
             } catch (error) {
                 console.error('Failed to load chat history:', error);
             }
         };
 
-        // Also update sendMessage to cache the first question for new chats
+        // Send a message to the active chat session
         const sendMessage = async () => {
             if (newMessage.value.trim() === '') return;
 
             try {
+                // Clear previous command results when sending a new message
+                commandResults.value = {};
                 // Add user message to the UI
                 activeChat.value.messages.push({
                     role: 'user',
@@ -443,6 +697,9 @@ export default {
                     sessionQuestionsCache.value[activeChatSessionId.value] = truncated;
                 }
 
+                // Clear kubectl commands when sending a new message
+                kubectlCommands.value = [];
+
                 // Show typing indicator
                 isTyping.value = true;
 
@@ -456,7 +713,6 @@ export default {
                 );
 
                 console.log('chat-api', response);
-                
 
                 // Hide typing indicator
                 isTyping.value = false;
@@ -467,6 +723,9 @@ export default {
                     content: response.data.content,
                     created_at: new Date().toISOString()
                 });
+
+                // Extract kubectl commands from the response
+                await extractKubectlCommands(response.data.content);
 
                 // If this is the first message, generate a title
                 if (activeChat.value.messages.length === 2) {
@@ -499,74 +758,6 @@ export default {
                 });
             }
         };
-
-        // Send a message to the active chat session
-        // const sendMessage = async () => {
-        //     if (newMessage.value.trim() === '') return;
-
-        //     try {
-        //         // Add user message to the UI
-        //         activeChat.value.messages.push({
-        //             role: 'user',
-        //             content: newMessage.value,
-        //             created_at: new Date().toISOString()
-        //         });
-        //         const userMessage = newMessage.value;
-        //         newMessage.value = '';
-
-        //         // Show typing indicator
-        //         isTyping.value = true;
-
-        //         // Send message to the backend
-        //         const response = await axios.post(
-        //             `${host}`,
-        //             { content: userMessage, session_id: activeChatSessionId.value },
-        //             {
-        //                 headers: getAuthHeaders()
-        //             }
-        //         );
-
-        //         // Hide typing indicator
-        //         isTyping.value = false;
-
-        //         // Add bot response to the UI
-        //         activeChat.value.messages.push({
-        //             role: 'bot',
-        //             content: response.data.content,
-        //             created_at: new Date().toISOString()
-        //         });
-
-        //         // If this is the first message, generate a title
-        //         if (activeChat.value.messages.length === 2) {
-        //             try {
-        //                 const titleResponse = await axios.post(
-        //                     `${host}sessions/${activeChatSessionId.value}/title`,
-        //                     {},
-        //                     { headers: getAuthHeaders() }
-        //                 );
-
-        //                 // Update title in UI and session list
-        //                 activeChat.value.title = titleResponse.data.title;
-        //                 const sessionIndex = chatSessions.value.findIndex(s => s.session_id === activeChatSessionId.value);
-        //                 if (sessionIndex !== -1) {
-        //                     chatSessions.value[sessionIndex].title = titleResponse.data.title;
-        //                 }
-        //             } catch (error) {
-        //                 console.error('Failed to generate title:', error);
-        //             }
-        //         }
-        //     } catch (error) {
-        //         console.error('Failed to send message:', error);
-        //         isTyping.value = false;
-
-        //         // Display an error message to the user
-        //         activeChat.value.messages.push({
-        //             role: 'bot',
-        //             content: "Sorry, I encountered an error. Please try again.",
-        //             created_at: new Date().toISOString()
-        //         });
-        //     }
-        // };
 
         // Get auth token from localStorage
         const getAuthHeaders = () => {
@@ -611,6 +802,15 @@ export default {
             });
         });
 
+        // Also scroll when kubectl commands change
+        watch(kubectlCommands, () => {
+            nextTick(() => {
+                if (chatMessagesContainer.value) {
+                    chatMessagesContainer.value.scrollTop = chatMessagesContainer.value.scrollHeight;
+                }
+            });
+        });
+
         return {
             chatSessions,
             activeChatSessionId,
@@ -623,6 +823,7 @@ export default {
             isDarkMode,
             isTyping,
             sessionQuestionsCache,
+            kubectlCommands,
             renderMarkdown,
             formatTime,
             toggleSidebar,
@@ -634,11 +835,18 @@ export default {
             usePrompt,
             clearChat,
             deleteChat,
-            getUserQuestion
+            getUserQuestion,
+            renderMarkdownWithButtons,
+            copyToClipboard,
+            executeCommand,
+            executeKubectlCommand,
+            commandResults,
+
         };
     },
 };
 </script>
+
 
 <style>
 /* Import Font Awesome or use a CDN link in your index.html */
@@ -1398,7 +1606,6 @@ export default {
 }
 
 .app-container.dark-mode .message-container.user .message-bubble {
-
     box-shadow: 0 2px 8px rgba(16, 188, 59, 0.3);
 }
 
@@ -1444,7 +1651,6 @@ export default {
     line-height: 1.6;
     overflow-wrap: break-word;
     word-break: break-word;
-    
 }
 
 /* Style for code blocks in messages */
@@ -1508,6 +1714,107 @@ export default {
 
 .typing-indicator span:nth-child(3) {
     animation-delay: 0.4s;
+}
+
+/* Kubectl Commands Container */
+.kubectl-commands-container {
+    margin-top: 16px;
+}
+
+.kubectl-commands {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.kubectl-command-item {
+    background-color: rgba(16, 188, 59, 0.05);
+    border-radius: 8px;
+    border-left: 3px solid #10BC3B;
+}
+
+.app-container.dark-mode .kubectl-command-item {
+    background-color: rgba(16, 188, 59, 0.1);
+}
+
+:deep(.code-block-container) {
+    border-radius: 8px;
+    margin: 12px 0;
+    overflow: hidden;
+    border: 1px solid rgba(16, 188, 59, 0.2);
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.app-container.dark-mode :deep(.code-block-container) {
+    background-color: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(16, 188, 59, 0.3);
+}
+
+:deep(.code-block-header) {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background-color: rgba(16, 188, 59, 0.1);
+    border-bottom: 1px solid rgba(16, 188, 59, 0.2);
+}
+
+.app-container.dark-mode :deep(.code-block-header) {
+    background-color: rgba(16, 188, 59, 0.2);
+}
+
+:deep(.code-language) {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #10BC3B;
+    text-transform: uppercase;
+}
+
+:deep(.code-actions) {
+    display: flex;
+    gap: 8px;
+}
+
+:deep(.code-action-btn) {
+    background-color: rgba(16, 188, 59, 0.2);
+    border: none;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 0.8rem;
+    color: #10BC3B;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.2s ease;
+}
+
+:deep(.code-action-btn:hover) {
+    background-color: rgba(16, 188, 59, 0.3);
+    transform: translateY(-1px);
+}
+
+:deep(.code-action-btn i) {
+    font-size: 0.8rem;
+}
+
+:deep(.execute-btn) {
+    background-color: rgba(16, 188, 59, 0.3);
+    color: #ffffff;
+}
+
+:deep(.execute-btn:hover) {
+    background-color: rgba(16, 188, 59, 0.4);
+}
+
+:deep(.code-block-container pre) {
+    margin: 0;
+    padding: 12px;
+    overflow-x: auto;
+}
+
+:deep(.executable-command) {
+    border-left: 3px solid #10BC3B;
 }
 
 @keyframes typing {
@@ -1722,5 +2029,105 @@ export default {
 
 .app-container.dark-mode ::-webkit-scrollbar-thumb:hover {
     background-color: rgba(16, 188, 59, 0.5);
+}
+
+/* Add these styles to your <style scoped> section */
+.kubectl-commands-section {
+    margin-top: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.kubectl-command-block {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.command-result {
+    background-color: #f5f5f5;
+    border-radius: 8px;
+    border-left: 3px solid #0a8aaa;
+    overflow: hidden;
+}
+
+.app-container.dark-mode .command-result {
+    background-color: #2d3748;
+    border-left: 3px solid #0a8aaa;
+}
+
+.result-header {
+    background-color: rgba(10, 138, 170, 0.1);
+    padding: 8px 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #0a8aaa;
+    border-bottom: 1px solid rgba(10, 138, 170, 0.2);
+}
+
+.app-container.dark-mode .result-header {
+    background-color: rgba(10, 138, 170, 0.2);
+    color: #0a8aaa;
+}
+
+.command-result pre {
+    margin: 0;
+    padding: 12px;
+    overflow-x: auto;
+    font-family: 'Fira Code', monospace;
+    font-size: 0.85rem;
+    color: #4a5568;
+}
+
+.app-container.dark-mode .command-result pre {
+    color: #a0aec0;
+}
+
+/* Add these styles to your <style scoped> section */
+.result-table-container {
+    overflow-x: auto;
+    padding: 12px;
+}
+
+.result-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    text-align: left;
+}
+
+.result-table th {
+    background-color: rgba(10, 138, 170, 0.1);
+    color: #0a8aaa;
+    font-weight: 600;
+    padding: 10px;
+    border-bottom: 2px solid rgba(10, 138, 170, 0.2);
+}
+
+.result-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.result-table tbody tr:hover {
+    background-color: rgba(10, 138, 170, 0.05);
+}
+
+/* Dark mode styles for table */
+.app-container.dark-mode .result-table th {
+    background-color: rgba(10, 138, 170, 0.2);
+    color: #0a8aaa;
+    border-bottom: 2px solid rgba(10, 138, 170, 0.3);
+}
+
+.app-container.dark-mode .result-table td {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.app-container.dark-mode .result-table tbody tr:hover {
+    background-color: rgba(10, 138, 170, 0.1);
 }
 </style>
