@@ -1,15 +1,19 @@
+# Ignore environment file
+frontend/.env
+
+# Environment files
+backend/myenv/
+
+
 # Dependencies
-/node_modules
+frontend/node_modules
 /.pnp
 .pnp.js
 /package-lock.json
 /yarn.lock
 
-# Environment files
-myenv/
-venv/
-env/
-ENV/
+
+
 
 # Build outputs
 /dist

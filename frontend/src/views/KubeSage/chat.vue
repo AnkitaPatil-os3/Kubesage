@@ -32,9 +32,9 @@
                         </div>
                     </div>
                 </div>
-
+ 
             </div>
-
+ 
             <!-- Minimized sidebar content -->
             <div class="sidebar-minimized-content" v-show="isMinimized">
                 <div class="minimized-icons">
@@ -52,16 +52,16 @@
                             <i class="fas fa-comment-dots"></i>
                         </button>
                     </div>
-
+ 
                 </div>
             </div>
-
+ 
             <!-- Minimize/Expand toggle button -->
             <button class="minimize-btn" @click="toggleMinimize" :title="isMinimized ? 'Expand' : 'Minimize'">
                 <i :class="isMinimized ? 'fas fa-chevron-right' : 'fas fa-chevron-left'"></i>
             </button>
         </div>
-
+ 
         <!-- Main Chat Section -->
         <div class="main-chat"
             :class="{ 'full-width': !isSidebarVisible, 'with-minimized-sidebar': isMinimized && isSidebarVisible }">
@@ -75,14 +75,14 @@
                     </button>
                 </div> -->
             </div>
-
+ 
             <!-- Welcome Screen (shown when no messages) -->
             <div v-if="activeChat.messages.length === 0" class="welcome-screen">
                 <div class="welcome-content">
                     <!-- <img src="/logo-large.svg" alt="KubeSage" class="welcome-logo" /> -->
                     <h1>Welcome to KubeSage</h1>
                     <p>Your intelligent GenAI assistant for seamless Kubernetes operations and troubleshooting</p>
-
+ 
                     <div class="suggestion-grid">
                         <div class="suggestion-card" @click="usePrompt('Explain my cluster health status')">
                             <i class="fas fa-heartbeat"></i>
@@ -105,7 +105,7 @@
                     </div>
                 </div>
             </div>
-
+ 
             <!-- Chat Messages -->
             <div v-else class="chat-messages" ref="chatMessagesContainer">
                 <div v-for="(message, index) in activeChat.messages" :key="index"
@@ -133,7 +133,7 @@
                         </div>
                     </div>
                 </div>
-
+ 
                 <!-- Kubectl Commands Section -->
                 <div v-if="kubectlCommands.length > 0" class="kubectl-commands-section">
                     <div v-for="(cmd, cmdIndex) in kubectlCommands" :key="cmdIndex" class="kubectl-command-block">
@@ -152,13 +152,13 @@
                             </div>
                             <pre><code class="language-bash">{{ cmd }}</code></pre>
                         </div>
-
+ 
                         <!-- Command Execution Result -->
                         <div v-if="commandResults[cmdIndex]" class="command-result">
                             <div class="result-header">
                                 <span>Execution Result</span>
                             </div>
-
+ 
                             <!-- Display table data if available -->
                             <div v-if="commandResults[cmdIndex].type === 'table' && commandResults[cmdIndex].data"
                                 class="result-table-container">
@@ -177,17 +177,17 @@
                                     </tbody>
                                 </table>
                             </div>
-
+ 
                             <!-- Display plain text result if not a table -->
                             <pre
                                 v-else><code>{{ typeof commandResults[cmdIndex] === 'string' ? commandResults[cmdIndex] : JSON.stringify(commandResults[cmdIndex], null, 2) }}</code></pre>
                         </div>
-
+ 
                     </div>
                 </div>
-
+ 
             </div>
-
+ 
             <!-- Chat Input -->
             <div class="chat-input-container">
                 <div class="chat-input">
@@ -201,6 +201,7 @@
         </div>
     </div>
 </template>
+ 
 
 <script>
 import { ref, watch, nextTick, onMounted, computed } from 'vue';
@@ -1727,6 +1728,7 @@ export default {
     gap: 12px;
 }
 
+
 .kubectl-command-item {
     background-color: rgba(16, 188, 59, 0.05);
     border-radius: 8px;
@@ -2032,11 +2034,13 @@ export default {
 }
 
 /* Add these styles to your <style scoped> section */
+
 .kubectl-commands-section {
-    margin-top: 16px;
+    margin-left: 4%;
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 10px;
+    max-width: 85%;
 }
 
 .kubectl-command-block {

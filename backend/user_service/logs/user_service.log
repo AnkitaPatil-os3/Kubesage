@@ -35299,3 +35299,45 @@
 2025-04-19 09:58:02,099 - user_service - ERROR - Failed to publish message: _CallbackResult was not set
 2025-04-19 09:58:02,128 - user_service - INFO - RabbitMQ connection established
 2025-04-19 09:58:02,131 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-04-19 13:05:26,060 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-04-19 13:05:26,060 - user_service - ERROR - Error while consuming messages: 'NoneType' object has no attribute 'poll'
+2025-04-19 13:05:26,081 - user_service - INFO - RabbitMQ connection established
+2025-04-19 13:05:26,090 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-04-21 04:29:39,407 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-04-21 04:29:39,410 - user_service - ERROR - Failed to publish message: 'NoneType' object has no attribute 'clear'
+2025-04-21 04:29:39,432 - user_service - INFO - RabbitMQ connection established
+2025-04-21 04:29:39,436 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-04-21 05:28:30,537 - user_service - INFO - RabbitMQ connection established
+2025-04-21 05:28:30,578 - user_service - INFO - Creating database and tables if they don't exist
+2025-04-21 05:28:30,629 - user_service - INFO - Event consumers started in background
+2025-04-21 05:28:30,630 - user_service - INFO - User service started
+2025-04-21 05:28:30,640 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-04-21 10:19:28,324 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-04-21 10:19:28,396 - user_service - INFO - RabbitMQ connection established
+2025-04-21 10:19:28,401 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-04-21 10:20:22,071 - user_service - INFO - User aasthaaa deleted successfully
+2025-04-21 10:20:27,079 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-04-21 10:20:27,275 - user_service - ERROR - Error with database session: 404: User not found
+2025-04-21 10:20:28,395 - user_service - ERROR - Error while consuming messages: 'NoneType' object has no attribute 'clear'
+2025-04-21 10:20:28,440 - user_service - INFO - RabbitMQ connection established
+2025-04-21 10:20:28,446 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-04-21 10:20:33,823 - user_service - ERROR - Error with database session: (psycopg2.errors.ForeignKeyViolation) update or delete on table "user" violates foreign key constraint "usertoken_user_id_fkey" on table "usertoken"
+DETAIL:  Key (id)=(6) is still referenced from table "usertoken".
+
+[SQL: DELETE FROM "user" WHERE "user".id = %(id)s]
+[parameters: {'id': 6}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj)
+2025-04-21 10:20:47,379 - user_service - INFO - User aastha deleted successfully
+2025-04-21 10:20:47,389 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-04-21 10:20:47,392 - user_service - ERROR - Failed to publish message: Channel is closed.
+2025-04-21 10:20:47,437 - user_service - INFO - RabbitMQ connection established
+2025-04-21 10:20:47,441 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-04-21 10:21:20,118 - user_service - INFO - User ankit registered successfully
+2025-04-21 10:21:20,122 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-04-21 10:21:20,122 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-04-21 10:21:20,174 - user_service - INFO - RabbitMQ connection established
+2025-04-21 10:21:20,182 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-04-21 10:22:01,406 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-04-21 10:22:01,406 - user_service - ERROR - Error while consuming messages: 'NoneType' object has no attribute 'poll'
+2025-04-21 10:22:01,455 - user_service - INFO - RabbitMQ connection established
+2025-04-21 10:22:01,458 - user_service - INFO - Consumer set up for queue kubeconfig_events
