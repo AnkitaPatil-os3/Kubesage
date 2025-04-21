@@ -278,7 +278,6 @@ async def create_backend(
     )
 
 
-
 @k8sgpt_router.get("/backends/", response_model=AIBackendsList)
 async def get_backends(
     session: Session = Depends(get_session),

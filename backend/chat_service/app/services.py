@@ -241,7 +241,6 @@ async def process_chat_message(
             {
                 "role": "system", 
                 "content": "You are a helpful Kubernetes assistant. Use the analysis results and previous context to answer questions. Please respond in Markdown format for all outputs."
-
             }
         ]
         # Add history to messages

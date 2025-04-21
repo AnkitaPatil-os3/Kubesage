@@ -23,7 +23,7 @@ RUN curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | b
 COPY requirements.txt .
 
 # Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --prefer-binary -r requirements.txt
 
 # Copy app code
 COPY . .
@@ -38,8 +38,12 @@ RUN if [ ! -f cert.pem ] || [ ! -f key.pem ]; then \
     rm -rf /var/lib/apt/lists/*; \
     fi
 
-# Expose port
-EXPOSE 8001
+# Set environment variables for HTTPS
+ENV SSL_KEYFILE=key.pem
+ENV SSL_CERTFILE=cert.pem
 
-# Run the application
-CMD ["python", "-m", "app.main"]
+# Expose port 8002
+EXPOSE 8002
+
+# Run the application with HTTPS on port 8002
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8002", "--ssl-keyfile", "key.pem", "--ssl-certfile", "cert.pem"]

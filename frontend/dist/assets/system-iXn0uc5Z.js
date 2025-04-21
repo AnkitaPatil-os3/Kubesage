@@ -1,1 +1,0 @@
-import{bi as t}from"./index-BdUTWwbS.js";function n(){return t.Get("/getUserRoutes")}function c(){return t.Get("/userPage")}function i(){return t.Get("/role/list")}function o(e){const r={code:e};return t.Get("/dict/list",{params:r})}export{c as a,i as b,n as c,o as f};

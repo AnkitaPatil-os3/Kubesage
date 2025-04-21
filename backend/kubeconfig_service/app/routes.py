@@ -3,7 +3,11 @@ from fastapi.responses import JSONResponse
 from sqlmodel import Session, select, update
 from typing import List, Dict, Optional
 import os, uuid, json, subprocess, shlex, datetime  # Added datetime
- 
+import yaml
+import subprocess
+import tempfile
+from kubernetes import client, config
+import tempfile
 from app.database import get_session
 from app.models import Kubeconf
 from app.schemas import (
@@ -51,7 +55,10 @@ def get_active_kubeconfig(session: Session, user_id: int) -> Kubeconf:
         raise HTTPException(status_code=404, detail="No active kubeconfig found")
     
     return active_kubeconf
- 
+
+
+
+
 @kubeconfig_router.post("/upload", response_model=KubeconfigResponse, status_code=201)
 async def upload_kubeconfig(
     file: UploadFile = File(...),
@@ -65,19 +72,36 @@ async def upload_kubeconfig(
         unique_filename = f"{uuid.uuid4()}{file_extension}"
         file_path = os.path.join(settings.UPLOAD_DIR, unique_filename)
         
+        # Read file content
+        file_content = await file.read()
+        
         # Save the uploaded file
         with open(file_path, "wb") as buffer:
-            buffer.write(await file.read())
+            buffer.write(file_content)
         
-        # Get cluster name
-        command = f"kubectl config view --kubeconfig {file_path} --minify -o jsonpath='{{.clusters[0].name}}'"
-        result = execute_command(command)
-        cluster_name = result.get("stdout", "").strip()
+        # Parse the kubeconfig file to extract cluster and context information
+        kubeconfig = yaml.safe_load(file_content.decode('utf-8'))
         
-        # Get context name
-        command = f"kubectl config view --kubeconfig {file_path} --minify -o jsonpath='{{.contexts[0].name}}'"
-        result = execute_command(command)
-        context_name = result.get("stdout", "").strip()
+        # Extract cluster name and context name
+        cluster_name = ""
+        context_name = ""
+        
+        # Get current context
+        current_context = kubeconfig.get('current-context', '')
+        
+        # Find the context and its cluster
+        if 'contexts' in kubeconfig and kubeconfig['contexts']:
+            # If there's a current-context, find that one
+            if current_context:
+                for ctx in kubeconfig['contexts']:
+                    if ctx['name'] == current_context:
+                        context_name = ctx['name']
+                        cluster_name = ctx['context']['cluster']
+                        break
+            # Otherwise use the first context
+            if not context_name and kubeconfig['contexts']:
+                context_name = kubeconfig['contexts'][0]['name']
+                cluster_name = kubeconfig['contexts'][0]['context']['cluster']
         
         # Create a new Kubeconf object
         new_kubeconf = Kubeconf(
@@ -110,10 +134,14 @@ async def upload_kubeconfig(
         })
         
         return new_kubeconf
+    except yaml.YAMLError as e:
+        logger.error(f"Error parsing kubeconfig YAML: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Invalid kubeconfig file format: {str(e)}")
     except Exception as e:
-            logger.error(f"Error uploading kubeconfig: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
- 
+        logger.error(f"Error uploading kubeconfig: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+
+
 @kubeconfig_router.put("/activate/{filename}")
 async def set_active_kubeconfig(
         filename: str,
@@ -171,7 +199,10 @@ async def list_kubeconfigs(
         ).all()
     
         return {"kubeconfigs": kubeconfigs}
- 
+
+
+#*************** we are not using this route **************************
+
 @kubeconfig_router.get("/clusters", response_model=ClusterNamesResponse)
 async def get_cluster_names(
         session: Session = Depends(get_session),
@@ -237,6 +268,8 @@ async def get_cluster_names(
  
         return response
  
+
+
 @kubeconfig_router.delete("/remove")
 async def remove_kubeconfig(
         filename: str = Query(..., description="Filename of the kubeconfig to remove"),
@@ -394,189 +427,302 @@ async def install_operator(
             status_code=400  # Bad Request for command execution failure
         )
  
+
+@kubeconfig_router.post("/uninstall-operator")
+async def uninstall_operator(
+    session: Session = Depends(get_session),
+    current_user: Dict = Depends(get_current_user)
+):
+    active_kubeconf = get_active_kubeconfig(session, current_user["id"])
+    kubeconfig_path = active_kubeconf.path
+    
+    if not os.path.exists(kubeconfig_path):
+        raise HTTPException(status_code=404, detail="Active kubeconfig file not found on disk")
+    
+    results = []
+    success = True
+    error_message = ""
+    
+    try:
+        # Load the kubeconfig
+        config.load_kube_config(config_file=kubeconfig_path)
+        
+        # Create API clients
+        core_v1_api = client.CoreV1Api()
+        
+        # Step 1: Uninstall Helm release using subprocess (Kubernetes client doesn't support Helm operations)
+        # We'll use a more controlled subprocess approach
+        try:
+            helm_cmd = ["helm", "uninstall", "release", "-n", "k8sgpt-operator-system", "--kubeconfig", kubeconfig_path]
+            helm_result = subprocess.run(helm_cmd, capture_output=True, text=True, check=True)
+            results.append({
+                "operation": "Helm uninstall",
+                "success": True,
+                "output": helm_result.stdout
+            })
+        except subprocess.CalledProcessError as e:
+            # Check if the error is because the release doesn't exist
+            if "release: not found" in e.stderr:
+                results.append({
+                    "operation": "Helm uninstall",
+                    "success": True,
+                    "output": "Release not found (already uninstalled)"
+                })
+            else:
+                error_message = f"Helm uninstall failed: {e.stderr}"
+                results.append({
+                    "operation": "Helm uninstall",
+                    "success": False,
+                    "error": error_message
+                })
+                success = False
+        
+        # Step 2: Delete the namespace using Kubernetes client
+        if success:
+            try:
+                # Check if namespace exists first
+                try:
+                    core_v1_api.read_namespace(name="k8sgpt-operator-system")
+                    namespace_exists = True
+                except client.rest.ApiException as e:
+                    if e.status == 404:
+                        namespace_exists = False
+                    else:
+                        raise
+                
+                if namespace_exists:
+                    # Delete the namespace
+                    core_v1_api.delete_namespace(name="k8sgpt-operator-system")
+                    results.append({
+                        "operation": "Delete namespace",
+                        "success": True,
+                        "output": "Namespace k8sgpt-operator-system deleted"
+                    })
+                else:
+                    results.append({
+                        "operation": "Delete namespace",
+                        "success": True,
+                        "output": "Namespace k8sgpt-operator-system not found (already deleted)"
+                    })
+            except client.rest.ApiException as e:
+                error_message = f"Failed to delete namespace: {str(e)}"
+                results.append({
+                    "operation": "Delete namespace",
+                    "success": False,
+                    "error": error_message
+                })
+                success = False
+        
+        if success:
+            # Update operator installation status in DB
+            active_kubeconf.is_operator_installed = False
+            session.add(active_kubeconf)
+            session.commit()
+            
+            logger.info(f"User {current_user['id']} uninstalled operator from cluster {active_kubeconf.cluster_name}")
+            
+            # Publish operator uninstalled event
+            publish_message("kubeconfig_events", {
+                "event_type": "operator_uninstalled",
+                "kubeconfig_id": active_kubeconf.id,
+                "user_id": current_user["id"],
+                "username": current_user.get("username", "unknown"),
+                "cluster_name": active_kubeconf.cluster_name,
+                "success": True,
+                "timestamp": datetime.datetime.now().isoformat()
+            })
+            
+            return JSONResponse(
+                content={
+                    "results": results,
+                    "operator_uninstalled": True,
+                    "message": "Operator uninstalled successfully"
+                },
+                status_code=200
+            )
+        else:
+            # Publish operator uninstallation failed event
+            publish_message("kubeconfig_events", {
+                "event_type": "operator_uninstallation_failed",
+                "kubeconfig_id": active_kubeconf.id,
+                "user_id": current_user["id"],
+                "username": current_user.get("username", "unknown"),
+                "cluster_name": active_kubeconf.cluster_name,
+                "error": error_message,
+                "timestamp": datetime.datetime.now().isoformat()
+            })
+            
+            return JSONResponse(
+                content={
+                    "results": results,
+                    "operator_uninstalled": False,
+                    "message": f"Failed to uninstall operator: {error_message}"
+                },
+                status_code=400
+            )
+    
+    except Exception as e:
+        error_message = str(e)
+        logger.error(f"Error uninstalling operator: {error_message}")
+        
+        # Publish operator uninstallation failed event
+        publish_message("kubeconfig_events", {
+            "event_type": "operator_uninstallation_failed",
+            "kubeconfig_id": active_kubeconf.id,
+            "user_id": current_user["id"],
+            "username": current_user.get("username", "unknown"),
+            "cluster_name": active_kubeconf.cluster_name,
+            "error": error_message,
+            "timestamp": datetime.datetime.now().isoformat()
+        })
+        
+        return JSONResponse(
+            content={
+                "results": [{"operation": "Uninstall operator", "success": False, "error": error_message}],
+                "operator_uninstalled": False,
+                "message": f"Error uninstalling operator: {error_message}"
+            },
+            status_code=500
+        )
+
+
 @kubeconfig_router.get("/namespaces")
 async def get_namespaces(
-            session: Session = Depends(get_session),
-            current_user: Dict = Depends(get_current_user)
+    session: Session = Depends(get_session),
+    current_user: Dict = Depends(get_current_user)
 ):
-            active_kubeconf = get_active_kubeconfig(session, current_user["id"])
-            kubeconfig_path = active_kubeconf.path
- 
-            if not os.path.exists(kubeconfig_path):
-                raise HTTPException(status_code=404, detail="Active kubeconfig file not found on disk")
- 
-            command = f"kubectl get namespaces -o jsonpath='{{.items[*].metadata.name}}' --kubeconfig {kubeconfig_path}"
- 
-            try:
-                result = execute_command(command)
+    active_kubeconf = get_active_kubeconfig(session, current_user["id"])
+    kubeconfig_path = active_kubeconf.path
+
+    if not os.path.exists(kubeconfig_path):
+        raise HTTPException(status_code=404, detail="Active kubeconfig file not found on disk")
+
+    try:
+        # Load the kubeconfig file
+        config.load_kube_config(config_file=kubeconfig_path)
         
-                # Check if result is a dictionary with 'stdout' key
-                if isinstance(result, dict) and 'stdout' in result:
-                    namespaces = result['stdout'].strip().split()
-                else:
-                    # If result is not in the expected format, raise an exception
-                    raise ValueError("Unexpected result format from execute_command")
- 
-                logger.info(f"User {current_user['id']} retrieved namespaces from cluster {active_kubeconf.cluster_name}")
-            
-                # Publish namespaces retrieved event
-                publish_message("kubeconfig_events", {
-                    "event_type": "namespaces_retrieved",
-                    "kubeconfig_id": active_kubeconf.id,
-                    "user_id": current_user["id"],
-                    "username": current_user.get("username", "unknown"),
-                    "cluster_name": active_kubeconf.cluster_name,
-                    "namespace_count": len(namespaces),
-                    "timestamp": datetime.datetime.now().isoformat()
-                })
-            
-                return JSONResponse(content={"namespaces": namespaces}, status_code=200)
-            except HTTPException as he:
-                # Re-raise HTTP exceptions
-                raise he
-            except Exception as e:
-                logger.error(f"Error fetching namespaces: {str(e)}")
-            
-                # Publish namespace retrieval failed event
-                publish_message("kubeconfig_events", {
-                    "event_type": "namespaces_retrieval_failed",
-                    "kubeconfig_id": active_kubeconf.id,
-                    "user_id": current_user["id"],
-                    "username": current_user.get("username", "unknown"),
-                    "cluster_name": active_kubeconf.cluster_name,
-                    "error": str(e),
-                    "timestamp": datetime.datetime.now().isoformat()
-                })
-            
-                raise HTTPException(status_code=500, detail=f"Error fetching namespaces: {str(e)}")     
- 
- 
+        # Create a Kubernetes API client
+        v1 = client.CoreV1Api()
+        
+        # List all namespaces
+        namespace_list = v1.list_namespace()
+        
+        # Extract namespace names
+        namespaces = [ns.metadata.name for ns in namespace_list.items]
+        print("namespaces :" , namespaces)
+        
+        logger.info(f"User {current_user['id']} retrieved namespaces from cluster {active_kubeconf.cluster_name}")
+        
+        # Publish namespaces retrieved event
+        publish_message("kubeconfig_events", {
+            "event_type": "namespaces_retrieved",
+            "kubeconfig_id": active_kubeconf.id,
+            "user_id": current_user["id"],
+            "username": current_user.get("username", "unknown"),
+            "cluster_name": active_kubeconf.cluster_name,
+            "namespace_count": len(namespaces),
+            "timestamp": datetime.datetime.now().isoformat()
+        })
+        
+        return JSONResponse(content={"namespaces": namespaces}, status_code=200)
+    
+    except client.rest.ApiException as e:
+        logger.error(f"Kubernetes API error: {str(e)}")
+        
+        # Publish namespace retrieval failed event
+        publish_message("kubeconfig_events", {
+            "event_type": "namespaces_retrieval_failed",
+            "kubeconfig_id": active_kubeconf.id,
+            "user_id": current_user["id"],
+            "username": current_user.get("username", "unknown"),
+            "cluster_name": active_kubeconf.cluster_name,
+            "error": str(e),
+            "timestamp": datetime.datetime.now().isoformat()
+        })
+        
+        raise HTTPException(status_code=500, detail=f"Error fetching namespaces: {str(e)}")
+    
+    except Exception as e:
+        logger.error(f"Error fetching namespaces: {str(e)}")
+        
+        # Publish namespace retrieval failed event
+        publish_message("kubeconfig_events", {
+            "event_type": "namespaces_retrieval_failed",
+            "kubeconfig_id": active_kubeconf.id,
+            "user_id": current_user["id"],
+            "username": current_user.get("username", "unknown"),
+            "cluster_name": active_kubeconf.cluster_name,
+            "error": str(e),
+            "timestamp": datetime.datetime.now().isoformat()
+        })
+        
+        raise HTTPException(status_code=500, detail=f"Error fetching namespaces: {str(e)}")
+
+
 @kubeconfig_router.post("/analyze")
 async def analyze(
     session: Session = Depends(get_session),
     current_user: Dict = Depends(get_current_user),
     anonymize: bool = Query(False, description="Anonymize data before sending it to the AI backend"),
-
     backend: str = Query(None, description="Backend AI provider"),
-
     custom_analysis: bool = Query(False, description="Enable custom analyzers"),
-
     custom_headers: List[str] = Query(None, description="Custom Headers, <key>:<value>"),
-
     explain: bool = Query(False, description="Explain the problem"),
-
     filter: List[str] = Query(None, description="Filter for these analyzers"),
-
     interactive: bool = Query(False, description="Enable interactive mode"),
-
     language: str = Query("english", description="Language to use for AI"),
-
     max_concurrency: int = Query(10, description="Maximum number of concurrent requests"),
-
     namespace: str = Query(None, description="Namespace to analyze"),
-
     no_cache: bool = Query(False, description="Do not use cached data"),
-
     output: str = Query("text", description="Output format (text, json)"),
-
     selector: str = Query(None, description="Label selector"),
-
     with_doc: bool = Query(False, description="Give me the official documentation of the involved field"),
-
     config: str = Query(None, description="Default config file"),
-
     kubecontext: str = Query(None, description="Kubernetes context to use")
-
 ):
-
     # Get the active kubeconfig
-
     active_kubeconf = get_active_kubeconfig(session, current_user["id"])
-
     kubeconfig_path = active_kubeconf.path
- 
     command = "k8sgpt analyze"
-
     if anonymize:
-
         command += " --anonymize"
-
     if backend:
-
         command += f" --backend {backend}"
-
     if custom_analysis:
-
         command += " --custom-analysis"
-
     if custom_headers:
-
         for header in custom_headers:
-
             command += f" --custom-headers {header}"
-
     if explain:
-
         command += " --explain"
-
     if filter:
-
         for f in filter:
-
             command += f" --filter {f}"
-
     if interactive:
-
         command += " --interactive"
-
     if language != "english":
-
         command += f" --language {language}"
-
     if max_concurrency != 10:
-
         command += f" --max-concurrency {max_concurrency}"
-
     if namespace:
-
         command += f" --namespace {namespace}"
-
     if no_cache:
-
         command += " --no-cache"
-
     if output != "text":
-
         command += f" --output {output}"
-
     if selector:
-
         command += f" --selector {selector}"
-
     if with_doc:
-
         command += " --with-doc"
-
     if config:
-
         command += f" --config {config}"
-
     if kubecontext:
-
         command += f" --kubecontext {kubecontext}"
-
     # Add the active kubeconfig path
-
     command += f" --kubeconfig {kubeconfig_path}"
- 
     try:
-
         result = execute_command(command + " --output=json")
-
         return JSONResponse(content=result, status_code=200)
-
     except HTTPException as e:
-
         return JSONResponse(content={"error": str(e.detail)}, status_code=e.status_code)
- 
  

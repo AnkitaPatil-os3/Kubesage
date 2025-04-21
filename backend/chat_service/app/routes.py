@@ -38,16 +38,15 @@ from datetime import datetime
 router = APIRouter(prefix="/chat", tags=["chat"])
 
 #  ---------------------------- working ---------------------------
-
+#  chat_section api
 @router.post("/", response_model=MessageResponse)
 async def chat(message: MessageCreate, db: Session= get_db_session(),
                     current_user: UserInfo = Depends(get_current_user),
                     authorization: str = Header(None)):
     token = authorization.split(" ")[1] if authorization else None
     response = await process_chat_message(db, current_user.id, message, token)
-    print("response ................:", response)
     return response
- 
+    
 
 #  ---------------------------- working ---------------------------
 

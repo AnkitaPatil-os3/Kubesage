@@ -1,26 +1,20 @@
-FROM node:18-alpine as build-stage
- 
+FROM node:22
+
 WORKDIR /app
 
+# Install dependencies
 COPY package*.json ./
-
 RUN npm install
 
+# Copy the rest of the project
 COPY . .
 
-RUN npm run build
- 
-FROM nginx:alpine as production-stage
+# Copy SSL certs (you must have these in your project directory)
+COPY cert.pem .
+COPY key.pem .
 
-COPY --from=build-stage /app/dist /var/www/html
+# Expose the dev server port
+EXPOSE 9980
 
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-
-COPY ssl/self-signed.crt /etc/nginx/ssl/self-signed.crt
-
-COPY ssl/self-signed.key /etc/nginx/ssl/self-signed.key
-
-EXPOSE 80 443
-
-CMD ["nginx", "-g", "daemon off;"]
- 
+# Run the dev server with HTTPS
+CMD ["npm", "run", "dev"]
