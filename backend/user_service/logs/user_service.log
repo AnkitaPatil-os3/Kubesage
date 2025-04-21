@@ -35341,3 +35341,5 @@ DETAIL:  Key (id)=(6) is still referenced from table "usertoken".
 2025-04-21 10:22:01,406 - user_service - ERROR - Error while consuming messages: 'NoneType' object has no attribute 'poll'
 2025-04-21 10:22:01,455 - user_service - INFO - RabbitMQ connection established
 2025-04-21 10:22:01,458 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-04-21 12:57:01,394 - user_service - ERROR - Error with database session: 401: Incorrect username or password
+2025-04-21 12:57:12,019 - user_service - ERROR - Error with database session: 401: Incorrect username or password

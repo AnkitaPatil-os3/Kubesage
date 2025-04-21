@@ -1,0 +1,6 @@
+2025-04-19 05:01:22,823 - k8sgpt_service - WARNING - Redis cache connection failed: AUTH <password> called without any password configured for the default user. Are you sure your configuration is correct?
+2025-04-19 05:01:22,974 - k8sgpt_service - INFO - Connected to RabbitMQ server
+2025-04-19 05:01:23,017 - k8sgpt_service - INFO - Starting K8sGPT Operations Service
+2025-04-19 05:01:23,017 - k8sgpt_service - INFO - Creating database and tables if they don't exist
+2025-04-19 05:01:23,051 - k8sgpt_service - ERROR - Failed to connect to Redis: AUTH <password> called without any password configured for the default user. Are you sure your configuration is correct?
+2025-04-19 05:01:23,052 - k8sgpt_service - INFO - Starting to consume messages from RabbitMQ
