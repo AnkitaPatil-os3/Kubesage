@@ -182,7 +182,7 @@
             loading.value = true;
             
             try {
-              const response = await axios.post("https://10.0.34.129:8003/auth/register", form.value, {
+              const response = await axios.post("https://10.0.32.122:8003/auth/register", form.value, {
                 headers: {
                   'Content-Type': 'application/json',
                 },

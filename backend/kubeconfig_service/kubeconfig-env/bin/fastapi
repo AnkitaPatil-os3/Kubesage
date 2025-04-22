@@ -1,4 +1,4 @@
-#!/home/ubuntu/ashish-repo/backend/kubeconfig_service/kubeconfig-env/bin/python3
+#!/home/os3/ashish-repo/backend/kubeconfig_service/kubeconfig-env/bin/python3
 # -*- coding: utf-8 -*-
 import re
 import sys

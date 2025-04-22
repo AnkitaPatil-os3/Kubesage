@@ -8,11 +8,11 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     
     # PostgreSQL connection
-    POSTGRES_USER: str = "nisha"
+    POSTGRES_USER: str = "preeti"
     POSTGRES_PASSWORD: str = "linux"
     POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: str = "5432"
-    POSTGRES_DB: str = "n_kubeconfig_db"
+    POSTGRES_DB: str = "p_kubeconfig_db"
     DATABASE_URL: str = ""  # Will be constructed from above settings
     
     # RabbitMQ settings
@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     RABBITMQ_URL: str = ""  # Will be constructed from above settings
     
     # User service URL for authentication
-    USER_SERVICE_URL: str = "https://10.0.34.129:8001"
+    USER_SERVICE_URL: str = "https://10.0.32.122:8001"
     
     # SSL
     SSL_KEYFILE: Optional[str] = "key.pem"

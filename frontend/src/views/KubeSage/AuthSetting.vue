@@ -143,7 +143,7 @@ import {
 } from 'naive-ui';
 import { Add as PlusIcon } from '@vicons/ionicons5';
 
-const host = 'https://10.0.34.129:8003/';
+const host = 'https://10.0.32.122:8003/';
 const showModal = ref(false);
 const showNotification = ref(false);
 const notificationMessage = ref('');
