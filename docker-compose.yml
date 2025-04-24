@@ -1,0 +1,58 @@
+version: '3.8'
+ 
+services:
+  user-service:
+    image: docker.io/pranavshejul15/user_service:latest
+    container_name: user-service-container
+    network_mode: host
+    environment:
+      - POSTGRES_HOST=localhost
+      - POSTGRES_PORT=5432
+      - RABBITMQ_HOST=localhost
+      - RABBITMQ_PORT=5672
+ 
+  kubeconfig-service:
+    image: docker.io/pranavshejul15/kubeconfig_service:latest
+    container_name: kubeconfig-service-container
+    network_mode: host
+    environment:
+      - POSTGRES_HOST=localhost
+      - POSTGRES_PORT=5432
+      - RABBITMQ_HOST=localhost
+      - RABBITMQ_PORT=5672
+      - USER_SERVICE_URL=https://localhost:8001
+ 
+  k8sgpt-service:
+    image: docker.io/pranavshejul15/k8sgpt_service:latest
+    container_name: k8sgpt-service-container
+    network_mode: host
+    environment:
+      - POSTGRES_HOST=localhost
+      - POSTGRES_PORT=5432
+      - REDIS_HOST=localhost
+      - REDIS_PORT=6379
+      - RABBITMQ_HOST=localhost
+      - RABBITMQ_PORT=5672
+      - USER_SERVICE_URL=https://localhost:8001
+      - KUBECONFIG_SERVICE_URL=https://localhost:8002
+ 
+  chat-service:
+    image: docker.io/pranavshejul15/chat_service:latest
+    container_name: chat-service-container
+    network_mode: host
+    environment:
+      - POSTGRES_HOST=localhost
+      - POSTGRES_PORT=5432
+      - REDIS_HOST=localhost
+      - REDIS_PORT=6379
+      - RABBITMQ_HOST=localhost
+      - RABBITMQ_PORT=5672
+      - USER_SERVICE_URL=https://localhost:8001
+      - KUBECONFIG_SERVICE_URL=https://localhost:8002
+      - K8SGPT_SERVICE_URL=https://localhost:8003
+ 
+  frontend:
+    image: docker.io/pranavshejul15/frontend:latest
+    container_name: frontend-container
+    ports:
+      - "9980:9980"
