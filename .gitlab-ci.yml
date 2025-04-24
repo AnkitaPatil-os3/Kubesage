@@ -106,6 +106,7 @@ frontend_push:
 docker-compose:
   stage: docker-compose
   script:
+    - docker rm -f $(docker ps -aq) 
     - docker-compose -f docker-compose.yml up -d
   only:
     - devops-automation
