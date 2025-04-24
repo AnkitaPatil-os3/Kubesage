@@ -1,6 +1,7 @@
 stages:
   - build
   - push
+  - docker-compose
 
 variables:
   DOCKER_REGISTRY: "docker.io"
@@ -98,6 +99,14 @@ frontend_push:
   stage: push
   script:
     - docker push $DOCKER_REGISTRY/$DOCKER_USERNAME/frontend:latest
+  only:
+    - devops-automation
+  when: manual
+
+docker-compose:
+  stage: docker-compose
+  script:
+    - docker-compose -f docker-compose.yml up -d
   only:
     - devops-automation
   when: manual
