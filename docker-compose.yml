@@ -13,7 +13,7 @@ services:
  
   kubeconfig-service:
     image: docker.io/pranavshejul15/kubeconfig_service:latest
-    container_name: kubeconfig-service-container20
+    container_name: kubeconfig-service-container2
     network_mode: host
     environment:
       - POSTGRES_HOST=localhost
@@ -24,7 +24,7 @@ services:
  
   k8sgpt-service:
     image: docker.io/pranavshejul15/k8sgpt_service:latest
-    container_name: k8sgpt-service-container20
+    container_name: k8sgpt-service-container2
     network_mode: host
     environment:
       - POSTGRES_HOST=localhost
@@ -38,7 +38,7 @@ services:
  
   chat-service:
     image: docker.io/pranavshejul15/chat_service:latest
-    container_name: chat-service-container20
+    container_name: chat-service-container2
     network_mode: host
     environment:
       - POSTGRES_HOST=localhost
@@ -53,6 +53,6 @@ services:
  
   frontend:
     image: docker.io/pranavshejul15/frontend:latest
-    container_name: frontend-container20
+    container_name: frontend-container2
     ports:
-      - "9980:9980"
+      - "9981:9980"
