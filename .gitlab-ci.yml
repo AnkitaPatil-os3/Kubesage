@@ -103,11 +103,11 @@ frontend_push:
     - devops-automation
   when: manual
 
-docker-compose:
-  stage: docker-compose
-  script:
-    - docker rm -f $(docker ps -aq) 
-    - docker-compose -f docker-compose.yml up -d
-  only:
-    - devops-automation
-  when: manual
+# docker-compose:
+#   stage: docker-compose
+#   script:
+#     - docker rm -f $(docker ps -aq) 
+#     - docker-compose -f docker-compose.yml up -d
+#   only:
+#     - devops-automation
+#   when: manual
