@@ -143,7 +143,7 @@ import {
 } from 'naive-ui';
 import { Add as PlusIcon } from '@vicons/ionicons5';
 
-const host = 'https://10.0.34.171:8003/';
+const host = `${import.meta.env.VITE_K8SGPT_API_HOST}/`;
 const showModal = ref(false);
 const showNotification = ref(false);
 const notificationMessage = ref('');

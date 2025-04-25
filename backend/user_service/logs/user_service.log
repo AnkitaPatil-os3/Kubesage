@@ -35343,3 +35343,63 @@ DETAIL:  Key (id)=(6) is still referenced from table "usertoken".
 2025-04-21 10:22:01,458 - user_service - INFO - Consumer set up for queue kubeconfig_events
 2025-04-21 12:57:01,394 - user_service - ERROR - Error with database session: 401: Incorrect username or password
 2025-04-21 12:57:12,019 - user_service - ERROR - Error with database session: 401: Incorrect username or password
+2025-04-22 05:57:58,152 - user_service - INFO - RabbitMQ connection established
+2025-04-22 05:57:58,174 - user_service - INFO - Creating database and tables if they don't exist
+2025-04-22 05:57:58,231 - user_service - INFO - Event consumers started in background
+2025-04-22 05:57:58,232 - user_service - INFO - User service started
+2025-04-22 05:57:58,236 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-04-22 05:59:16,160 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: AssertionError(('_AsyncTransportBase._produce() tx buffer size underflow', -40, 1))
+2025-04-22 05:59:16,166 - user_service - ERROR - Error while consuming messages: ('_AsyncTransportBase._initate_abort() expected _STATE_ABORTED_BY_USER', 2)
+2025-04-22 05:59:16,181 - user_service - INFO - RabbitMQ connection established
+2025-04-22 05:59:16,185 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-04-23 11:08:04,415 - user_service - ERROR - JWT error: Signature has expired.
+2025-04-23 11:08:04,416 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-04-23 11:08:04,479 - user_service - ERROR - JWT error: Signature has expired.
+2025-04-23 11:08:04,480 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-04-23 11:08:26,597 - user_service - ERROR - JWT error: Signature has expired.
+2025-04-23 11:08:26,598 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-04-23 11:10:36,132 - user_service - INFO - RabbitMQ connection established
+2025-04-23 11:10:36,177 - user_service - INFO - Creating database and tables if they don't exist
+2025-04-23 11:10:36,242 - user_service - INFO - Event consumers started in background
+2025-04-23 11:10:36,243 - user_service - INFO - User service started
+2025-04-23 11:10:36,250 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-04-23 12:05:17,013 - user_service - INFO - RabbitMQ connection established
+2025-04-23 12:05:17,044 - user_service - INFO - Creating database and tables if they don't exist
+2025-04-23 12:05:17,099 - user_service - INFO - Event consumers started in background
+2025-04-23 12:05:17,100 - user_service - INFO - User service started
+2025-04-23 12:05:17,105 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-04-23 12:08:37,164 - user_service - ERROR - JWT error: Signature has expired.
+2025-04-23 12:08:37,165 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-04-23 12:08:37,230 - user_service - ERROR - JWT error: Signature has expired.
+2025-04-23 12:08:37,232 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-04-23 12:08:39,903 - user_service - ERROR - JWT error: Signature has expired.
+2025-04-23 12:08:39,905 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-04-23 12:08:39,919 - user_service - ERROR - JWT error: Signature has expired.
+2025-04-23 12:08:39,921 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-04-23 12:08:40,906 - user_service - ERROR - JWT error: Signature has expired.
+2025-04-23 12:08:40,907 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-04-23 12:08:41,030 - user_service - ERROR - JWT error: Signature has expired.
+2025-04-23 12:08:41,031 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-04-23 12:09:02,372 - user_service - ERROR - JWT error: Signature has expired.
+2025-04-23 12:09:02,374 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-04-23 12:09:02,459 - user_service - ERROR - JWT error: Signature has expired.
+2025-04-23 12:09:02,459 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-04-23 12:11:10,127 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-04-23 12:11:10,148 - user_service - INFO - RabbitMQ connection established
+2025-04-23 12:11:10,154 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-04-23 12:12:44,647 - user_service - INFO - Received kubeconfig event: kubeconfig_deleted
+2025-04-23 12:12:44,651 - user_service - INFO - Kubeconfig deleted for user 1, cluster: kubesage-cltr-ashish
+2025-04-23 12:14:13,986 - user_service - INFO - Received kubeconfig event: kubeconfig_uploaded
+2025-04-23 12:14:25,249 - user_service - INFO - Received kubeconfig event: kubeconfig_activated
+2025-04-24 12:46:38,637 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-04-24 12:46:43,298 - user_service - ERROR - Error while consuming messages: 'NoneType' object has no attribute 'clear'
+2025-04-24 12:46:43,325 - user_service - INFO - RabbitMQ connection established
+2025-04-24 12:46:43,329 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-04-25 07:20:11,390 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-04-25 07:20:11,391 - user_service - ERROR - Failed to publish message: 'NoneType' object has no attribute 'clear'
+2025-04-25 07:20:11,415 - user_service - INFO - RabbitMQ connection established
+2025-04-25 07:20:11,417 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-04-25 07:24:15,147 - user_service - INFO - Received kubeconfig event: namespaces_retrieved
+2025-04-25 07:24:38,244 - user_service - INFO - Received kubeconfig event: namespaces_retrieved
+2025-04-25 07:24:47,019 - user_service - INFO - Received kubeconfig event: namespaces_retrieved
+2025-04-25 07:25:16,557 - user_service - INFO - Received kubeconfig event: namespaces_retrieved

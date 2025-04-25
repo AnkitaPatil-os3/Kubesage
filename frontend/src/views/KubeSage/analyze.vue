@@ -130,7 +130,7 @@ const getAuthHeaders = () => {
 };
  
 // API base URL
-const baseUrl = 'https://10.0.34.171:8002/kubeconfig';
+const baseUrl = `${import.meta.env.VITE_KUBECONFIG_API_HOST}/kubeconfig`;
  
 // Fetch namespaces from the backend
 const fetchNamespaces = async () => {

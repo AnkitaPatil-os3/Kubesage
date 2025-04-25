@@ -184,7 +184,7 @@ export default {
         });
 
         const response = await axios.post(
-          'https://10.0.34.171:8001/auth/token', 
+          `${import.meta.env.VITE_USER_API_HOST}/auth/token`, 
           data, 
           {
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
