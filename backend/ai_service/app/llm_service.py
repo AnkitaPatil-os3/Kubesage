@@ -6,9 +6,10 @@ from langchain.chains import LLMChain
 from langchain_core.output_parsers import StrOutputParser
 import shlex
 import asyncio
-import json # Use json.loads instead of eval for safety
+import json
 from fastapi import HTTPException, status
-from .config import logger, OPENAI_API_KEY, OPENAI_MODEL, OPENAI_BASE_URL, LLM_TIMEOUT
+from app.config import settings
+from app.logger import logger
 
 # Reasoning Agent Prompt
 reasoning_prompt_str = """
@@ -70,7 +71,7 @@ class KubectlOutputParser(StrOutputParser):
 
             # Intent Validation - Allow angle brackets for now, rely on shlex later if needed
             # We might need a more sophisticated check later, but placeholders are the current issue
-            if any(char in command for char in [';', '&&', '||', '`', '$', '(', ')']): # Removed < >
+            if any(char in command for char in [';', '&&', '||', '`', '```', '(', ')']):
                 logger.error(f"Command contains unsafe characters: {command}")
                 raise ValueError(f"Command contains unsafe characters: {command}")
 
@@ -87,7 +88,6 @@ class KubectlOutputParser(StrOutputParser):
 
             validated_commands.append(command)
 
-
         final_output = '\n'.join(validated_commands)
         logger.debug(f"Validated commands output: {final_output}")
         return final_output
@@ -99,18 +99,18 @@ try:
 
     llm_kwargs = {
         "temperature": 0,
-        "api_key": OPENAI_API_KEY,
-        "model": OPENAI_MODEL,
-        "request_timeout": LLM_TIMEOUT,
+        "api_key": settings.OPENAI_API_KEY,
+        "model": settings.OPENAI_MODEL,
+        "request_timeout": settings.LLM_TIMEOUT,
     }
-    if OPENAI_BASE_URL:
-        llm_kwargs["base_url"] = OPENAI_BASE_URL
+    if settings.OPENAI_BASE_URL:
+        llm_kwargs["base_url"] = settings.OPENAI_BASE_URL
 
     llm = ChatOpenAI(**llm_kwargs)
     reasoning_chain = reasoning_template | llm | StrOutputParser()
     command_chain = command_template | llm | KubectlOutputParser()
 except Exception as e:
-    logger.exception("Failed to initialize LangChain components.")
+    logger.exception(f"Failed to initialize LangChain components: {str(e)}")
     reasoning_chain = None
     command_chain = None
 
@@ -127,7 +127,7 @@ async def analyze_query(query: str) -> Dict[str, Any]:
     try:
         analysis_raw = await asyncio.wait_for(
              reasoning_chain.ainvoke({"query": query}),
-             timeout=LLM_TIMEOUT
+             timeout=settings.LLM_TIMEOUT
         )
         logger.debug(f"Raw analysis from LLM: {analysis_raw}")
 
@@ -146,9 +146,16 @@ async def analyze_query(query: str) -> Dict[str, Any]:
             )
 
         # Use json.loads for safer parsing
-        analysis_json = json.loads(analysis_text)
-        logger.debug(f"Parsed analysis JSON: {analysis_json}")
-        return analysis_json
+        try:
+            analysis_json = json.loads(analysis_text)
+            logger.debug(f"Parsed analysis JSON: {analysis_json}")
+            return analysis_json
+        except json.JSONDecodeError as json_err:
+            logger.error(f"Failed to parse reasoning analysis JSON: {json_err}. Raw text: {analysis_text}")
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Failed to parse reasoning analysis from LLM: {json_err}"
+            )
 
     except json.JSONDecodeError as json_err:
          logger.error(f"Failed to parse reasoning analysis JSON: {json_err}. Raw text after stripping: {analysis_text}")
@@ -186,7 +193,7 @@ async def generate_commands(refined_query: str, requirements: List[str]) -> str:
                 "refined_query": refined_query,
                 "requirements": requirements
             }),
-            timeout=LLM_TIMEOUT
+            timeout=settings.LLM_TIMEOUT
         )
         logger.debug(f"Commands generated and validated: {commands}")
         return commands
@@ -249,5 +256,3 @@ def is_safe_kubectl_command(command: str) -> bool:
     except ValueError as e:
         logger.warning(f"Legacy safety check failed for command '{command}': {e}")
         return False
-
-__all__ = ['get_command_from_llm', 'is_safe_kubectl_command']

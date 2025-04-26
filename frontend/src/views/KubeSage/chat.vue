@@ -239,7 +239,7 @@ export default {
     },
     setup() {
         const host = `${import.meta.env.VITE_CHAT_SERVICE}/chat/`;
-        const kubectlApiHost = `${import.meta.env.VITE_AI_AGENT_SERVICE}`;
+        const kubectlApiHost = `${import.meta.env.VITE_AI_AGENT_SERVICE}/ai`;
         const chatSessions = ref([]);
         const activeChatSessionId = ref(null);
         const activeChat = ref({ messages: [], title: '' });
@@ -390,11 +390,7 @@ export default {
                     `${kubectlApiHost}/kubectl-command`,
                     { query: responseText },
                     {
-                        headers: {
-                            'accept': 'application/json',
-                            'x-api-key': 'test-key',
-                            'Content-Type': 'application/json'
-                        }
+                        headers: getAuthHeaders()
                     }
                 );
                 console.log('kubectl response:', response.data.kubectl_command);
@@ -417,6 +413,7 @@ export default {
             }
         };
 
+
         // Function to execute kubectl command
         const executeKubectlCommand = async (command, cmdIndex) => {
             try {
@@ -427,25 +424,70 @@ export default {
                     `${kubectlApiHost}/execute`,
                     { execute: command },
                     {
-                        headers: {
-                            'accept': 'application/json',
-                            'x-api-key': 'test-key',
-                            'Content-Type': 'application/json'
-                        }
+                        headers: getAuthHeaders()
                     }
                 );
 
                 console.log('Execute API response:', response.data);
 
-                // Check if we have structured execution result data
-                if (response.data.execution_result && response.data.execution_result.type === 'table') {
-                    // Store the structured table data
-                    commandResults.value[cmdIndex] = response.data.execution_result;
-                } else if (response.data.execution_result && typeof response.data.execution_result === 'object') {
-                    // Store other structured data
-                    commandResults.value[cmdIndex] = response.data.execution_result;
+                // Process the execution result
+                if (response.data.execution_result) {
+                    // Check if it's already a structured object
+                    if (typeof response.data.execution_result === 'object' && response.data.execution_result.type) {
+                        commandResults.value[cmdIndex] = response.data.execution_result;
+                    } else {
+                        // It's a string, so we need to check if it looks like a table
+                        const resultStr = response.data.execution_result;
+
+                        // Check if the result looks like a table (has header row and data rows)
+                        const lines = resultStr.trim().split('\n');
+                        if (lines.length > 1) {
+                            const headers = lines[0].trim().split(/\s+/);
+
+                            // If we have headers and data rows, try to parse as a table
+                            if (headers.length > 1 && lines.length > 1) {
+                                try {
+                                    const data = [];
+                                    // Start from line 1 (skip header)
+                                    for (let i = 1; i < lines.length; i++) {
+                                        const values = lines[i].trim().split(/\s+/);
+                                        if (values.length >= headers.length) {
+                                            const row = {};
+                                            // Match values to headers
+                                            for (let j = 0; j < headers.length; j++) {
+                                                row[headers[j].toLowerCase()] = values[j];
+                                            }
+                                            // If there are more values than headers, combine the extras
+                                            if (values.length > headers.length) {
+                                                const lastHeader = headers[headers.length - 1].toLowerCase();
+                                                row[lastHeader] = values.slice(headers.length - 1).join(' ');
+                                            }
+                                            data.push(row);
+                                        }
+                                    }
+
+                                    // Store as a structured table
+                                    commandResults.value[cmdIndex] = {
+                                        type: 'table',
+                                        data: data,
+                                        raw: resultStr
+                                    };
+                                } catch (parseError) {
+                                    // If parsing fails, store as string
+                                    console.error('Failed to parse table:', parseError);
+                                    commandResults.value[cmdIndex] = resultStr;
+                                }
+                            } else {
+                                // Not enough columns or rows for a table
+                                commandResults.value[cmdIndex] = resultStr;
+                            }
+                        } else {
+                            // Not enough lines for a table
+                            commandResults.value[cmdIndex] = resultStr;
+                        }
+                    }
                 } else if (response.data.result) {
-                    // Fallback to plain text result if available
+                    // Fallback to result if available
                     commandResults.value[cmdIndex] = response.data.result;
                 } else {
                     // Default success message
@@ -469,6 +511,8 @@ export default {
                 scrollToBottom();
             }
         };
+
+
 
         // Add this as an alternative scrollToBottom method
         const forceScrollToBottom = () => {
