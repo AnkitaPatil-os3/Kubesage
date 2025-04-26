@@ -22,6 +22,11 @@ from app.queue import publish_message  # Import the queue functionality
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.security import OAuth2PasswordBearer
 
+
+
+# User router
+user_router = APIRouter()
+
 # Auth router
 auth_router = APIRouter()
 
@@ -81,9 +86,11 @@ async def logout(
     """
     try:
         # Delete the current token
-        user_token = session.query(UserToken).filter(
-            UserToken.token == token,
-            UserToken.user_id == current_user.id
+        user_token = session.exec(
+            select(UserToken).where(
+                UserToken.token == token,
+                UserToken.user_id == current_user.id
+            )
         ).first()
         
         if user_token:
@@ -225,9 +232,6 @@ async def A_change_password(
     return {"detail": "Password updated successfully"}
 
 
-# User router
-user_router = APIRouter()
-
 @user_router.get("/me", response_model=UserResponse)
 async def read_users_me(current_user: User = Depends(get_current_active_user)):
     return current_user
@@ -265,7 +269,7 @@ async def update_user(
         raise HTTPException(status_code=404, detail="User not found")
     
     # Update user fields if provided
-    user_data = user_update.dict(exclude_unset=True)
+    user_data = user_update.model_dump(exclude_unset=True)
     
     # Handle password update separately
     if "password" in user_data:

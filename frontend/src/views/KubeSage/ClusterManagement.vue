@@ -4,7 +4,7 @@
       <!-- Header -->
       <div class="cluster-header">
         <h2>Kubernetes Cluster Management</h2>
-       
+ 
       </div>
  
       <!-- Upload Section -->
@@ -16,19 +16,15 @@
           <h3>Upload Kubeconfig File</h3>
           <p>Drag & drop your kubeconfig file here or click to browse</p>
           <p class="upload-hint">Allowed Only KubeConfig Files (.yaml, .yml)</p>
-          <input
-            type="file"
-            ref="fileInput"
-            accept=".yaml,.yml"
-            class="file-input"
-            @change="handleFileChange"
-            :disabled="isSubmitting"
-          />
+          <input type="file" ref="fileInput" accept=".yaml,.yml" class="file-input" @change="handleFileChange"
+            :disabled="isSubmitting" />
           <n-button class="browse-btn" @click="triggerFileInput" :disabled="isSubmitting">
             Browse Files
           </n-button>
         </div>
       </div>
+ 
+ 
  
       <!-- Messages -->
       <div v-if="message.show" :class="['message-alert', `message-${message.type}`]">
@@ -82,26 +78,34 @@
                     {{ config.active ? 'Active' : 'Inactive' }}
                   </span>
                 </td>
-                <!-- Modify the table row in the Clusters Table section -->
-<td class="actions-cell">
-  <div class="action-buttons">
-    <label class="switch">
-      <input type="checkbox" :checked="config.active" @change="toggleActive(config.filename, $event.target.checked)">
-      <span class="slider round"></span>
-    </label>
-    <n-button
-      v-if="config.active && !installedOperators.includes(config.filename)"
-      class="action-btn install-btn"
-      @click="startInstallOperator(config.filename)"
-    >
-      <i class="fas fa-download"></i> Install Operator
-    </n-button>
-    <n-button class="action-btn delete-btn" @click="removeConfig(config.filename)">
-      <i class="fas fa-trash-alt"></i> Delete
-    </n-button>
-  </div>
-</td>
- 
+                <td class="actions-cell">
+    <div class="action-buttons">
+      <label class="switch">
+        <input type="checkbox" :checked="config.active" @change="toggleActive(config.filename, $event.target.checked)">
+        <span class="slider round"></span>
+      </label>
+      
+      <!-- Use the helper function for clearer logic -->
+      <n-button
+        v-if="config.active && !isOperatorInstalled(config.filename)"
+        class="action-btn install-btn"
+        @click="startInstallOperator(config.filename)"
+      >
+        <i class="fas fa-download"></i> Install Operator
+      </n-button>
+      <n-button
+        v-else-if="config.active && isOperatorInstalled(config.filename)"
+        class="action-btn uninstall-btn"
+        @click="startUninstallOperator(config.filename)"
+      >
+        <i class="fas fa-trash-alt"></i> Remove Operator
+      </n-button>
+      
+      <n-button class="action-btn delete-btn" @click="removeConfig(config.filename)">
+        <i class="fas fa-trash-alt"></i> Delete
+      </n-button>
+    </div>
+  </td>
               </tr>
             </tbody>
           </table>
@@ -118,7 +122,8 @@
             </button>
           </div>
           <div class="modal-content">
-            <p>Are you sure you want to install the operator on the active cluster? This will create necessary resources in your Kubernetes cluster.</p>
+            <p>Are you sure you want to install the operator on the active cluster? This will create necessary resources
+              in your Kubernetes cluster.</p>
             <div class="modal-actions">
               <n-button class="cancel-btn" @click="cancelInstallOperator">Cancel</n-button>
               <n-button class="confirm-btn" @click="confirmInstallOperator" :disabled="isSubmitting">
@@ -131,12 +136,37 @@
           </div>
         </div>
       </div>
+ 
+      <!-- Uninstall Operator Dialog -->
+      <div class="modal-overlay" v-if="showUninstallModal" @click.self="cancelUninstallOperator">
+        <div class="modal-container">
+          <div class="modal-header">
+            <h3>Remove Operator</h3>
+            <button class="close-btn" @click="cancelUninstallOperator">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <div class="modal-content">
+            <p>Are you sure you want to remove the operator from the active cluster? This will delete all operator
+              resources from your Kubernetes cluster.</p>
+            <div class="modal-actions">
+              <n-button class="cancel-btn" @click="cancelUninstallOperator">Cancel</n-button>
+              <n-button class="confirm-btn" @click="confirmUninstallOperator" :disabled="isSubmitting">
+                <span v-if="isSubmitting">
+                  <i class="fas fa-spinner fa-spin"></i> Removing...
+                </span>
+                <span v-else>Remove</span>
+              </n-button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
  
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { debounce } from 'lodash-es';
 import axios from 'axios';
 import { NButton } from 'naive-ui';
@@ -146,22 +176,40 @@ const fileInput = ref(null);
 const configurations = ref([]);
 const message = ref({ show: false, type: 'info', title: '', content: '' });
 const showInstallModal = ref(false);
+const showUninstallModal = ref(false);
 const activeConfigForInstall = ref(null);
+const activeConfigForUninstall = ref(null);
 const loading = ref(false);
 const isSubmitting = ref(false);
 const cancelTokenSource = ref(null);
 const isDarkMode = ref(localStorage.getItem('darkMode') === 'true');
-
-// API base URL
-const baseUrl = import.meta.env.VITE_KUBECONFIG_SERVICE ;
  
-const installedOperators = ref([]);
+// const installedOperators = ref([]);
 // Toggle light/dark mode
 const toggleTheme = () => {
   isDarkMode.value = !isDarkMode.value;
   localStorage.setItem('darkMode', isDarkMode.value);
   updateDarkModeClasses();
 };
+// Initialize installedOperators from localStorage
+const installedOperators = ref(
+  JSON.parse(localStorage.getItem('installedOperators') || '[]')
+);
+console.log(installedOperators);
+ 
+// Save installedOperators to localStorage whenever it changes
+watch(installedOperators, (newVal) => {
+  localStorage.setItem('installedOperators', JSON.stringify(newVal));
+}, { deep: true });
+ 
+ 
+// Add a computed property to help with debugging
+const isOperatorInstalled = (filename) => {
+  console.log('Checking if operator is installed:', filename);
+  console.log('Installed operators:', installedOperators.value);
+  return installedOperators.value && installedOperators.value.includes(filename);
+};
+ 
  
 // Update dark mode classes
 const updateDarkModeClasses = () => {
@@ -195,6 +243,9 @@ const getAuthHeaders = () => {
   }
 };
  
+// API base URL
+const baseUrl =  import.meta.env.VITE_KUBECONFIG_SERVICE;
+
  
 // Trigger file input click
 const triggerFileInput = () => {
@@ -215,7 +266,7 @@ const handleFileChange = (event) => {
 const handleDrop = (e) => {
   e.preventDefault();
   if (isSubmitting.value) return;
-  
+ 
   const files = e.dataTransfer.files;
   if (files.length && files[0].name.match(/\.(yaml|yml)$/i)) {
     uploadFile(files[0]);
@@ -228,7 +279,7 @@ const handleDrop = (e) => {
 const uploadFile = async (file) => {
   if (isSubmitting.value) return;
   isSubmitting.value = true;
-  
+ 
   try {
     console.log('Starting file upload');
     const formData = new FormData();
@@ -265,12 +316,12 @@ const fetchConfigurations = debounce(async () => {
     if (cancelTokenSource.value) {
       cancelTokenSource.value.cancel('Operation canceled due to new request');
     }
-    
+ 
     cancelTokenSource.value = axios.CancelToken.source();
-    
+ 
     loading.value = true;
     console.log('Fetching configurations');
-    
+ 
     const response = await axios.get(`${baseUrl}/kubeconfig/list`, {
       headers: getAuthHeaders(),
       cancelToken: cancelTokenSource.value.token
@@ -294,7 +345,7 @@ const fetchConfigurations = debounce(async () => {
 const toggleActive = debounce(async (filename, shouldActivate) => {
   if (isSubmitting.value) return;
   isSubmitting.value = true;
-  
+ 
   try {
     if (shouldActivate) {
       console.log(`Activating config: ${filename}`);
@@ -320,7 +371,7 @@ const toggleActive = debounce(async (filename, shouldActivate) => {
 const removeConfig = debounce(async (filename) => {
   if (isSubmitting.value) return;
   isSubmitting.value = true;
-  
+ 
   try {
     console.log(`Removing config: ${filename}`);
     const response = await axios.delete(`${baseUrl}/kubeconfig/remove`, {
@@ -347,7 +398,14 @@ const startInstallOperator = (filename) => {
   activeConfigForInstall.value = filename;
   showInstallModal.value = true;
 };
-// Modify the confirmInstallOperator function
+ 
+// Show modal for uninstalling operator
+const startUninstallOperator = (filename) => {
+  console.log(`Preparing to uninstall operator for: ${filename}`);
+  activeConfigForUninstall.value = filename;
+  showUninstallModal.value = true;
+};
+ 
 const confirmInstallOperator = debounce(async () => {
   if (isSubmitting.value) return;
   isSubmitting.value = true;
@@ -361,9 +419,12 @@ const confirmInstallOperator = debounce(async () => {
     if (response.status === 200) {
       console.log('Operator installed successfully');
       showMessage('success', 'Success', 'Operator installed successfully.');
+      
       // Add the current config to installed operators list
       if (activeConfigForInstall.value && !installedOperators.value.includes(activeConfigForInstall.value)) {
+        console.log('Adding to installed operators:', activeConfigForInstall.value);
         installedOperators.value.push(activeConfigForInstall.value);
+        console.log('Updated installed operators:', installedOperators.value);
       }
     }
   } catch (error) {
@@ -372,20 +433,64 @@ const confirmInstallOperator = debounce(async () => {
     if (error.response?.data?.detail?.includes('already installed') ||
         error.message?.includes('already installed')) {
       if (activeConfigForInstall.value && !installedOperators.value.includes(activeConfigForInstall.value)) {
+        console.log('Adding to installed operators (already installed):', activeConfigForInstall.value);
         installedOperators.value.push(activeConfigForInstall.value);
+        console.log('Updated installed operators:', installedOperators.value);
       }
+      showMessage('info', 'Already Installed', 'Operator is already installed on this cluster.');
+    } else {
+      showMessage('error', 'Installation Failed', error.response?.data?.detail || 'Failed to install operator.');
     }
-    showMessage('error', 'Installation Failed', error.response?.data?.detail || 'Operator is already installed.');
   } finally {
     isSubmitting.value = false;
     showInstallModal.value = false;
   }
 }, 300);
+ 
+// Modify the confirmUninstallOperator function
+const confirmUninstallOperator = debounce(async () => {
+  if (isSubmitting.value) return;
+  isSubmitting.value = true;
+  
+  try {
+    console.log('Uninstalling operator');
+    const response = await axios.post(`${baseUrl}/kubeconfig/uninstall-operator`, {}, {
+      headers: getAuthHeaders()
+    });
+ 
+    if (response.status === 200) {
+      console.log('Operator uninstalled successfully');
+      showMessage('success', 'Success', 'Operator uninstalled successfully.');
+      
+      // Remove the current config from installed operators list
+      if (activeConfigForUninstall.value) {
+        const index = installedOperators.value.indexOf(activeConfigForUninstall.value);
+        if (index > -1) {
+          installedOperators.value.splice(index, 1);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Uninstallation error:', error);
+    showMessage('error', 'Uninstallation Failed', error.response?.data?.detail || 'Failed to uninstall operator.');
+  } finally {
+    isSubmitting.value = false;
+    showUninstallModal.value = false;
+  }
+}, 300);
+ 
 // Cancel operator installation
 const cancelInstallOperator = () => {
   console.log('Operator installation cancelled');
   showInstallModal.value = false;
   activeConfigForInstall.value = null;
+};
+ 
+// Cancel operator uninstallation
+const cancelUninstallOperator = () => {
+  console.log('Operator uninstallation cancelled');
+  showUninstallModal.value = false;
+  activeConfigForUninstall.value = null;
 };
  
 // Show message helper
@@ -396,9 +501,9 @@ const showMessage = (type, title, content) => {
     title,
     content
   };
-  
+ 
   console.log(`Showing message: ${type} - ${title} - ${content}`);
-  
+ 
   // Auto-hide message after 5 seconds
   setTimeout(() => {
     message.value.show = false;
@@ -412,6 +517,8 @@ onMounted(() => {
   updateDarkModeClasses();
 });
 </script>
+ 
+ 
  
 <style scoped>
 /* Import Font Awesome */
@@ -612,6 +719,7 @@ onMounted(() => {
   transform: none !important;
 }
  
+ 
 /* Message Alert */
 .message-alert {
   display: flex;
@@ -628,11 +736,26 @@ onMounted(() => {
     opacity: 0;
     transform: translateY(-10px);
   }
+ 
   to {
     opacity: 1;
     transform: translateY(0);
   }
 }
+ 
+:deep(.uninstall-btn) {
+  background: linear-gradient(135deg, #f97316, #ea580c) !important;
+  border: none !important;
+  color: white !important;
+  box-shadow: 0 2px 6px rgba(249, 115, 22, 0.2) !important;
+}
+ 
+:deep(.uninstall-btn:hover) {
+  background: linear-gradient(135deg, #ea580c, #c2410c) !important;
+  box-shadow: 0 4px 8px rgba(249, 115, 22, 0.3) !important;
+  transform: translateY(-2px) !important;
+}
+ 
  
 .message-success {
   background-color: rgba(16, 185, 129, 0.1);
@@ -912,19 +1035,19 @@ onMounted(() => {
   transition: .4s;
 }
  
-input:checked + .slider {
+input:checked+.slider {
   background-color: #10BC3B;
 }
  
-input:checked + .slider {
+input:checked+.slider {
   background-color: #10BC3B;
 }
  
-input:focus + .slider {
+input:focus+.slider {
   box-shadow: 0 0 1px #10BC3B;
 }
  
-input:checked + .slider:before {
+input:checked+.slider:before {
   transform: translateX(24px);
 }
  
@@ -1144,23 +1267,20 @@ input:checked + .slider:before {
     align-items: flex-start;
     gap: 8px;
   }
-  
+ 
   .actions-cell {
     width: auto;
   }
-  
+ 
   .cluster-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
   }
-  
+ 
   .header-actions {
     align-self: flex-end;
   }
 }
 </style>
- 
- 
- 
  

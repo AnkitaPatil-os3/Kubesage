@@ -37,11 +37,12 @@ from datetime import datetime
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
-#----Chat section ----
+#   ----Chat section ----
 @router.post("/", response_model=MessageResponse)
 async def chat(message: MessageCreate, db: Session= get_db_session(),
                     current_user: UserInfo = Depends(get_current_user),
                     authorization: str = Header(None)):
+    print("Session ID -->:", id(db))
     token = authorization.split(" ")[1] if authorization else None
     response = await process_chat_message(db, current_user.id, message, token)
     print("chat response -->:", response)
@@ -51,51 +52,71 @@ async def chat(message: MessageCreate, db: Session= get_db_session(),
 #  ---------------------------- working ---------------------------
 
 @router.get("/history/{session_id}", response_model=ChatHistoryResponse)
-async def get_chat_session_history(session_id: str, db: Session= get_db_session(),
-                current_user: UserInfo = Depends(get_current_user)):
-    session = await get_chat_session(db, session_id, current_user.id)
-    if not session:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat session not found")
-    
-    messages = await get_chat_history(db, session_id)
-    
-    return ChatHistoryResponse(
-        session_id=session.session_id,
-        title=session.title,
-        messages=[ChatHistoryEntry(role=msg.role, content=msg.content, created_at=msg.created_at) for msg in messages],
-        created_at=session.created_at,
-        updated_at=session.updated_at
-    )
-
+async def get_chat_session_history(
+    session_id: str, 
+    limit: int = Query(50, ge=1, le=100, description="Maximum number of messages to return"),
+    db: Session = Depends(get_session),
+    current_user: UserInfo = Depends(get_current_user)
+    ):
+    """Get chat history for a session with pagination"""
+    try:
+        session = await get_chat_session(db, session_id, current_user.id)
+        if not session:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat session not found")
+        # Get messages with limit
+        messages = await get_chat_history(db, session_id, current_user.id, limit=limit)
+        return ChatHistoryResponse(
+            session_id=session.session_id,
+            title=session.title,
+            messages=[ChatHistoryEntry(role=msg.role, content=msg.content, created_at=msg.created_at) for msg in messages],
+            created_at=session.created_at,
+            updated_at=session.updated_at
+        )
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    except Exception as e:
+        logger.error(f"Error getting chat history: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve chat history. Please try again."
+        )
 
 #  ---------------------------- working ---------------------------
 
 @router.get("/sessions", response_model=ChatSessionList)
+
 async def list_chat_sessions(
     skip: int = Query(0, ge=0, description="Number of sessions to skip"),
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of sessions to return"),
     active_only: bool = Query(True, description="Return only active sessions"),
-    # db: Session= get_db_session(),
     db: Session = Depends(get_session),
     current_user: UserInfo = Depends(get_current_user)
-
-):
-    print(f"User {current_user.username} accessing chat sessions...")
+    ):
     """List all chat sessions for the current user"""
-    sessions = await list_user_chat_sessions(db, current_user.id, skip, limit, active_only)
-    
-    return ChatSessionList(
-        sessions=[
-            ChatSessionResponse(
-                id=session.id,
-                session_id=session.session_id,
-                title=session.title,
-                created_at=session.created_at,
-                updated_at=session.updated_at,
-                is_active=session.is_active
-            ) for session in sessions
-        ]
-    )
+    try:
+        # Add a smaller default limit to improve performance
+        if limit > 50:
+            limit = 50
+        sessions = await list_user_chat_sessions(db, current_user.id, skip, limit, active_only)
+        return ChatSessionList(
+            sessions=[
+                ChatSessionResponse(
+                    id=session.id,
+                    session_id=session.session_id,
+                    title=session.title,
+                    created_at=session.created_at,
+                    updated_at=session.updated_at,
+                    is_active=session.is_active
+                ) for session in sessions
+            ]
+        )
+    except Exception as e:
+        logger.error(f"Error listing chat sessions: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve chat sessions. Please try again."
+        )
 
 #  ---------------------------- working ---------------------------
 

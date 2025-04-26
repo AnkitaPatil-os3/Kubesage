@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field, root_validator
+from pydantic import BaseModel, EmailStr, Field, model_validator, ConfigDict
 from typing import Optional
 from datetime import datetime
 
@@ -28,8 +28,9 @@ class UserResponse(UserBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
+
+
 
 # Authentication Schemas
 class Token(BaseModel):
@@ -50,8 +51,8 @@ class ChangePasswordRequest(BaseModel):
     new_password: str = Field(..., min_length=6)
     confirm_password: str = Field(..., min_length=6)
  
-    @root_validator(pre=True)
-    def check_password_match(cls, values):
-        if values.get('new_password') != values.get('confirm_password'):
+    @model_validator(mode='before')
+    def check_password_match(cls, data):
+        if data.get('new_password') != data.get('confirm_password'):
             raise ValueError('Passwords do not match')
-        return values
+        return data

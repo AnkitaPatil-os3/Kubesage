@@ -32,9 +32,9 @@
                         </div>
                     </div>
                 </div>
- 
+
             </div>
- 
+
             <!-- Minimized sidebar content -->
             <div class="sidebar-minimized-content" v-show="isMinimized">
                 <div class="minimized-icons">
@@ -52,16 +52,16 @@
                             <i class="fas fa-comment-dots"></i>
                         </button>
                     </div>
- 
+
                 </div>
             </div>
- 
+
             <!-- Minimize/Expand toggle button -->
             <button class="minimize-btn" @click="toggleMinimize" :title="isMinimized ? 'Expand' : 'Minimize'">
                 <i :class="isMinimized ? 'fas fa-chevron-right' : 'fas fa-chevron-left'"></i>
             </button>
         </div>
- 
+
         <!-- Main Chat Section -->
         <div class="main-chat"
             :class="{ 'full-width': !isSidebarVisible, 'with-minimized-sidebar': isMinimized && isSidebarVisible }">
@@ -75,14 +75,14 @@
                     </button>
                 </div> -->
             </div>
- 
+
             <!-- Welcome Screen (shown when no messages) -->
             <div v-if="activeChat.messages.length === 0" class="welcome-screen">
                 <div class="welcome-content">
                     <!-- <img src="/logo-large.svg" alt="KubeSage" class="welcome-logo" /> -->
                     <h1>Welcome to KubeSage</h1>
                     <p>Your intelligent GenAI assistant for seamless Kubernetes operations and troubleshooting</p>
- 
+
                     <div class="suggestion-grid">
                         <div class="suggestion-card" @click="usePrompt('Explain my cluster health status')">
                             <i class="fas fa-heartbeat"></i>
@@ -105,9 +105,9 @@
                     </div>
                 </div>
             </div>
- 
+
             <!-- Chat Messages -->
-            <div v-else class="chat-messages" ref="chatMessagesContainer">
+            <div v-else class="chat-messages" ref="chatMessagesContainer" @scroll="handleScroll">
                 <div v-for="(message, index) in activeChat.messages" :key="index"
                     :class="['message-container', message.role]">
                     <div class="message-avatar">
@@ -133,7 +133,7 @@
                         </div>
                     </div>
                 </div>
- 
+
                 <!-- Kubectl Commands Section -->
                 <div v-if="kubectlCommands.length > 0" class="kubectl-commands-section">
                     <div v-for="(cmd, cmdIndex) in kubectlCommands" :key="cmdIndex" class="kubectl-command-block">
@@ -152,13 +152,13 @@
                             </div>
                             <pre><code class="language-bash">{{ cmd }}</code></pre>
                         </div>
- 
+
                         <!-- Command Execution Result -->
                         <div v-if="commandResults[cmdIndex]" class="command-result">
                             <div class="result-header">
                                 <span>Execution Result</span>
                             </div>
- 
+
                             <!-- Display table data if available -->
                             <div v-if="commandResults[cmdIndex].type === 'table' && commandResults[cmdIndex].data"
                                 class="result-table-container">
@@ -177,17 +177,38 @@
                                     </tbody>
                                 </table>
                             </div>
- 
+
                             <!-- Display plain text result if not a table -->
                             <pre
                                 v-else><code>{{ typeof commandResults[cmdIndex] === 'string' ? commandResults[cmdIndex] : JSON.stringify(commandResults[cmdIndex], null, 2) }}</code></pre>
                         </div>
- 
+
                     </div>
+
+                    <!-- Back to Top Button
+                    <div class="scroll-controls">
+                        <div class="scroll-to-bottom-btn" v-show="showBackToTop" @click="scrollToTop">
+                            <i class="fas fa-arrow-up"></i>
+                        </div>
+                    </div> -->
+
                 </div>
- 
+
             </div>
- 
+            <!-- Back to Top Button -->
+            <div class="scroll-controls">
+                <div class="scroll-to-bottom-btn" @click="scrollToTop">
+                    <i class="fas fa-arrow-up"></i>
+                </div>
+            </div>
+            <!-- <div class="scroll-controls">
+  <button class="scroll-to-bottom-btn" @click="scrollToBottom" title="Scroll to bottom">
+    <i class="fas fa-arrow-up"></i>
+  </button>
+</div> -->
+
+
+
             <!-- Chat Input -->
             <div class="chat-input-container">
                 <div class="chat-input">
@@ -201,7 +222,7 @@
         </div>
     </div>
 </template>
- 
+
 
 <script>
 import { ref, watch, nextTick, onMounted, computed } from 'vue';
@@ -217,9 +238,8 @@ export default {
         NButton
     },
     setup() {
-        const host = import.meta.env.VITE_CHAT_SERVICE ; 
-        const kubectlApiHost = import.meta.env.VITE_AI_AGENT_SERVICE ;
-        
+        const host = `${import.meta.env.VITE_CHAT_SERVICE}/chat/`;
+        const kubectlApiHost = `${import.meta.env.VITE_AI_AGENT_SERVICE}`;
         const chatSessions = ref([]);
         const activeChatSessionId = ref(null);
         const activeChat = ref({ messages: [], title: '' });
@@ -233,7 +253,7 @@ export default {
         const message = useMessage();
         const kubectlCommands = ref([]);
         const commandResults = ref({});
-
+        const showBackToTop = ref(false);
 
         // Add this at the beginning of your setup
         const colorScheme = useStorage('vueuse-color-scheme', 'light');
@@ -331,7 +351,7 @@ export default {
 
                 // Send the command to the backend for execution
                 const response = await axios.post(
-                    `${kubectlApiHost}/execute`,
+                    `${import.meta.env.VITE_AIAGENT_API_HOST}/execute`,
                     { command, session_id: activeChatSessionId.value },
                     { headers: getAuthHeaders() }
                 );
@@ -344,6 +364,7 @@ export default {
                 });
 
                 message.success('Command executed successfully');
+                scrollToBottom();
             } catch (error) {
                 console.error('Command execution failed:', error);
 
@@ -355,20 +376,19 @@ export default {
                 });
 
                 message.error('Command execution failed');
+                scrollToBottom();
             }
         };
 
         // Function to extract kubectl commands from response
         const extractKubectlCommands = async (responseText) => {
             try {
-                console.log("responseText:", responseText);
-                const contentData = JSON.stringify(responseText);
-                
+                console.log('start');
 
                 // Send the response to the kubectl-command API
                 const response = await axios.post(
                     `${kubectlApiHost}/kubectl-command`,
-                    { query: contentData },
+                    { query: responseText },
                     {
                         headers: {
                             'accept': 'application/json',
@@ -388,13 +408,16 @@ export default {
                 } else {
                     kubectlCommands.value = [];
                 }
+
+                // Scroll to bottom after kubectl commands are extracted
+                scrollToBottom();
             } catch (error) {
                 console.error('Failed to extract kubectl commands:', error);
                 kubectlCommands.value = [];
             }
         };
 
-
+        // Function to execute kubectl command
         const executeKubectlCommand = async (command, cmdIndex) => {
             try {
                 message.info(`Executing kubectl command: ${command}`);
@@ -430,6 +453,7 @@ export default {
                 }
 
                 message.success('Command executed successfully');
+                scrollToBottom();
             } catch (error) {
                 console.error('Kubectl command execution failed:', error);
 
@@ -442,9 +466,51 @@ export default {
                 }
 
                 message.error('Command execution failed');
+                scrollToBottom();
             }
         };
 
+        // Add this as an alternative scrollToBottom method
+        const forceScrollToBottom = () => {
+            // Try direct DOM manipulation as a fallback
+            const container = document.querySelector('.chat-messages');
+            if (container) {
+                container.scrollTop = container.scrollHeight;
+                console.log('Force scrolled using direct DOM manipulation');
+            }
+        };
+
+        // Update the scrollToBottom function to use both approaches
+        const scrollToBottom = () => {
+            nextTick(() => {
+                setTimeout(() => {
+                    if (chatMessagesContainer.value) {
+                        console.log('Scrolling to bottom');
+
+                        chatMessagesContainer.value.scrollTop = chatMessagesContainer.value.scrollHeight;
+                    }
+                    // Also try the direct DOM approach
+                    forceScrollToBottom();
+                }, 100);
+            });
+        };
+
+        // Scroll to top function
+        const scrollToTop = () => {
+            if (chatMessagesContainer.value) {
+                chatMessagesContainer.value.scrollTo({
+                    top: 0,
+                    behavior: 'smooth'
+                });
+            }
+        };
+
+        // Handle scroll events to show/hide back to top button
+        const handleScroll = () => {
+            if (chatMessagesContainer.value) {
+                showBackToTop.value = chatMessagesContainer.value.scrollTop > 500;
+            }
+        };
 
         // Add event listeners for copy and execute buttons after DOM updates
         watch(
@@ -466,11 +532,22 @@ export default {
                             executeCommand(command);
                         });
                     });
+
+                    // Scroll to bottom after messages update
+                    scrollToBottom();
                 });
             },
             { deep: true }
         );
 
+        // Watch for changes that should trigger scrolling
+        watch([
+            () => isTyping.value,
+            () => kubectlCommands.value,
+            () => commandResults.value
+        ], () => {
+            scrollToBottom();
+        }, { deep: true });
 
         // Format timestamp
         const formatTime = (timestamp) => {
@@ -534,7 +611,7 @@ export default {
         const deleteChat = async (sessionId) => {
             if (confirm('Are you sure you want to delete this chat?')) {
                 try {
-                    await axios.delete(`${host}/chat/sessions/${sessionId}`, {
+                    await axios.delete(`${host}sessions/${sessionId}`, {
                         headers: getAuthHeaders()
                     });
 
@@ -560,6 +637,11 @@ export default {
             // Apply dark mode from localStorage and update classes
             updateDarkModeClasses();
 
+            // Add scroll event listener
+            if (chatMessagesContainer.value) {
+                chatMessagesContainer.value.addEventListener('scroll', handleScroll);
+            }
+
             await fetchChatSessions();
             if (chatSessions.value.length > 0) {
                 loadChat(chatSessions.value[0].session_id);
@@ -571,7 +653,7 @@ export default {
         // Fetch all chat sessions for the user
         const fetchChatSessions = async () => {
             try {
-                const response = await axios.get(`${host}/chat/sessions`, {
+                const response = await axios.get(`${host}sessions`, {
                     headers: getAuthHeaders()
                 });
                 chatSessions.value = response.data.sessions;
@@ -586,7 +668,7 @@ export default {
                 // Clear previous command results when starting a new chat
                 commandResults.value = {};
                 const response = await axios.post(
-                    `${host}/chat/sessions`,
+                    `${host}sessions`,
                     { title: 'New Chat' },
                     {
                         headers: getAuthHeaders()
@@ -638,7 +720,7 @@ export default {
             try {
                 // Clear previous command results when loading a chat
                 commandResults.value = {};
-                const response = await axios.get(`${host}/chat/history/${sessionId}`, {
+                const response = await axios.get(`${host}history/${sessionId}`, {
                     headers: getAuthHeaders()
                 });
                 activeChatSessionId.value = sessionId;
@@ -674,6 +756,9 @@ export default {
                     const lastBotMessage = botMessages[botMessages.length - 1];
                     extractKubectlCommands(lastBotMessage.content);
                 }
+
+                // Scroll to bottom after loading chat
+                scrollToBottom();
             } catch (error) {
                 console.error('Failed to load chat history:', error);
             }
@@ -695,6 +780,9 @@ export default {
                 const userMessage = newMessage.value;
                 newMessage.value = '';
 
+                // Scroll to bottom after adding user message
+                scrollToBottom();
+
                 // If this is the first message, cache it as the question for this session
                 if (activeChat.value.messages.length === 1) {
                     const truncated = userMessage.length > 30 ? userMessage.substring(0, 30) + '...' : userMessage;
@@ -707,9 +795,12 @@ export default {
                 // Show typing indicator
                 isTyping.value = true;
 
+                // Scroll again after typing indicator appears
+                scrollToBottom();
+
                 // Send message to the backend
                 const response = await axios.post(
-                    `${host}/chat/`,
+                    `${host}`,
                     { content: userMessage, session_id: activeChatSessionId.value },
                     {
                         headers: getAuthHeaders()
@@ -728,14 +819,20 @@ export default {
                     created_at: new Date().toISOString()
                 });
 
+                // Scroll to bottom after adding bot response
+                scrollToBottom();
+
                 // Extract kubectl commands from the response
                 await extractKubectlCommands(response.data.content);
+
+                // Scroll again after kubectl commands might be added
+                scrollToBottom();
 
                 // If this is the first message, generate a title
                 if (activeChat.value.messages.length === 2) {
                     try {
                         const titleResponse = await axios.post(
-                            `${host}/chat/sessions/${activeChatSessionId.value}/title`,
+                            `${host}sessions/${activeChatSessionId.value}/title`,
                             {},
                             { headers: getAuthHeaders() }
                         );
@@ -760,6 +857,9 @@ export default {
                     content: "Sorry, I encountered an error. Please try again.",
                     created_at: new Date().toISOString()
                 });
+
+                // Scroll to bottom after error message
+                scrollToBottom();
             }
         };
 
@@ -780,37 +880,6 @@ export default {
                 if (textarea.value) {
                     textarea.value.style.height = 'auto';
                     textarea.value.style.height = `${textarea.value.scrollHeight}px`;
-                }
-            });
-        });
-
-        // Auto-scroll to the bottom of the chat messages
-        watch(
-            () => activeChat.value.messages,
-            () => {
-                nextTick(() => {
-                    if (chatMessagesContainer.value) {
-                        chatMessagesContainer.value.scrollTop = chatMessagesContainer.value.scrollHeight;
-                    }
-                });
-            },
-            { deep: true }
-        );
-
-        // Also scroll when typing indicator changes
-        watch(isTyping, () => {
-            nextTick(() => {
-                if (chatMessagesContainer.value) {
-                    chatMessagesContainer.value.scrollTop = chatMessagesContainer.value.scrollHeight;
-                }
-            });
-        });
-
-        // Also scroll when kubectl commands change
-        watch(kubectlCommands, () => {
-            nextTick(() => {
-                if (chatMessagesContainer.value) {
-                    chatMessagesContainer.value.scrollTop = chatMessagesContainer.value.scrollHeight;
                 }
             });
         });
@@ -845,7 +914,10 @@ export default {
             executeCommand,
             executeKubectlCommand,
             commandResults,
-
+            scrollToBottom,
+            scrollToTop,
+            showBackToTop,
+            handleScroll
         };
     },
 };
@@ -1836,6 +1908,33 @@ export default {
     }
 }
 
+.scroll-controls {
+    position: fixed;
+    bottom: 80px;
+    right: 20px;
+    z-index: 100;
+}
+
+.scroll-to-bottom-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: #10BC3B;
+    color: white;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 10px rgba(16, 188, 59, 0.3);
+    transition: all 0.2s ease;
+}
+
+.scroll-to-bottom-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 15px rgba(16, 188, 59, 0.4);
+}
+
 /* Chat Input */
 .chat-input-container {
     padding: 16px 24px;
@@ -1862,6 +1961,9 @@ export default {
     padding: 12px 16px;
     transition: all 0.3s ease;
     box-shadow: 0 2px 8px rgba(16, 188, 59, 0.05);
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
 }
 
 .app-container.dark-mode .chat-input {
@@ -1939,6 +2041,42 @@ export default {
 
 .app-container.dark-mode .disclaimer {
     color: #718096;
+}
+
+/* Back to Top Button */
+.back-to-top-btn {
+    position: sticky;
+
+    bottom: 20;
+    right: 30px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: #10BC3B;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 10px rgba(16, 188, 59, 0.3);
+    transition: all 0.3s ease;
+    opacity: 0.8;
+    z-index: 100;
+}
+
+.back-to-top-btn:hover {
+    transform: translateY(-3px);
+    opacity: 1;
+    box-shadow: 0 4px 15px rgba(16, 188, 59, 0.4);
+}
+
+.app-container.dark-mode .back-to-top-btn {
+    background-color: #10BC3B;
+    box-shadow: 0 2px 10px rgba(16, 188, 59, 0.5);
+}
+
+.app-container.dark-mode .back-to-top-btn:hover {
+    box-shadow: 0 4px 15px rgba(16, 188, 59, 0.6);
 }
 
 /* Responsive adjustments */

@@ -66,6 +66,8 @@ async def get_chat_session(
         
     return db.exec(query).first()
 
+
+
 async def update_session_title(
     db: Session,
     session: ChatSession,
@@ -156,22 +158,22 @@ async def add_chat_message(
     
     return new_message
 
+
 async def get_chat_history(
     db: Session, 
     session_id: str, 
-    user_id: Optional[int] = None
+    user_id: Optional[int] = None,
+    limit: int = 100
 ) -> List[ChatMessage]:
-    """Get chat history for a session"""
+    """Get chat history for a session with optional limit"""
     # Check cache first
     cache_key = get_messages_key(session_id)
     cached_messages = cache_get(cache_key)
-    
     if cached_messages:
-        return cached_messages
-    
+        # Apply limit to cached messages if needed
+        return cached_messages[:limit] if limit < len(cached_messages) else cached_messages
     # Get from database if not in cache
     query = select(ChatMessage).where(ChatMessage.session_id == session_id).order_by(ChatMessage.created_at)
-
     # If user_id is provided, verify session ownership
     if user_id is not None:
         session = await get_chat_session(db, session_id, user_id)
@@ -180,10 +182,10 @@ async def get_chat_history(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You are not authorized to access this session"
             )
-    
+    # Apply limit to query
+    query = query.limit(limit)
     # Retrieve messages from the database
     messages = db.exec(query).all()
-    
     # Update cache
     if messages:
         message_list = [
@@ -196,7 +198,6 @@ async def get_chat_history(
             for msg in messages
         ]
         cache_set(cache_key, message_list, 3600)
-    
     return messages
 
 async def process_chat_message(
