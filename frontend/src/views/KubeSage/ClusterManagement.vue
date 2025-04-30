@@ -439,7 +439,7 @@ const confirmInstallOperator = debounce(async () => {
       }
       showMessage('info', 'Already Installed', 'Operator is already installed on this cluster.');
     } else {
-      showMessage('error', 'Installation Failed', error.response?.data?.detail || 'Failed to install operator.');
+      showMessage('error', 'Installation Failed', error.response?.data?.detail || 'Operator is already installed.');
     }
   } finally {
     isSubmitting.value = false;

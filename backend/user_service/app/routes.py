@@ -70,8 +70,6 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), session: Sessi
         "expires_at": expires_at
     }
 
-
-
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
 
 @auth_router.post("/logout")
@@ -118,9 +116,6 @@ async def logout(
             detail="Error during logout"
         )
 
-
-
-
 # Endpoint to check if user is admin
 @auth_router.get("/check-admin")
 async def check_if_admin(current_user: User = Depends(get_current_user)):
@@ -131,10 +126,6 @@ async def check_if_admin(current_user: User = Depends(get_current_user)):
         "is_admin": getattr(current_user, "is_admin", False),  # Using getattr instead of get
         "username": current_user.username  # Direct attribute access
     }
-
-
-
-
 
 @auth_router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register_user(user_data: UserCreate, session: Session = Depends(get_session)):

@@ -4,40 +4,40 @@ from typing import Optional
 
 class Settings(BaseSettings):
     # App settings
-    APP_NAME: str = "KubeSage K8sGPT Operations Service"
-    DEBUG: bool = False
+    APP_NAME: str = os.getenv("APP_NAME", "KubeSage K8sGPT Operations Service")
+    DEBUG: bool = os.getenv("DEBUG", "False").lower() == "true"
     
-     # PostgreSQL connection
-    POSTGRES_USER: str = "nisha"
-    POSTGRES_PASSWORD: str = "linux"
-    POSTGRES_HOST: str = "localhost"
-    POSTGRES_PORT: str = "5432"
-    POSTGRES_DB: str = "n_k8sgpt_db"
+    # PostgreSQL connection
+    POSTGRES_USER: str = os.getenv("POSTGRES_USER", "nisha")
+    POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "linux")
+    POSTGRES_HOST: str = os.getenv("POSTGRES_HOST", "localhost")
+    POSTGRES_PORT: str = os.getenv("POSTGRES_PORT", "5432")
+    POSTGRES_DB: str = os.getenv("POSTGRES_DB", "n_k8sgpt_db")
     DATABASE_URL: str = ""  # Will be constructed from above settings
     
     # RabbitMQ settings
-    RABBITMQ_USER: str = "guest"
-    RABBITMQ_PASSWORD: str = "guest"
-    RABBITMQ_HOST: str = "localhost"
-    RABBITMQ_PORT: str = "5672"
-    RABBITMQ_VHOST: str = "/k8sGPT"
+    RABBITMQ_USER: str = os.getenv("RABBITMQ_USER", "guest")
+    RABBITMQ_PASSWORD: str = os.getenv("RABBITMQ_PASSWORD", "guest")
+    RABBITMQ_HOST: str = os.getenv("RABBITMQ_HOST", "localhost")
+    RABBITMQ_PORT: str = os.getenv("RABBITMQ_PORT", "5672")
+    RABBITMQ_VHOST: str = os.getenv("RABBITMQ_VHOST", "/k8sGPT")
     RABBITMQ_URL: str = ""  # Will be constructed from above settings
     
     # Redis settings
-    REDIS_HOST: str = "localhost"
-    REDIS_PORT: int = 6379
-    REDIS_PASSWORD: str = "2GUuagotBcTfuJ13sDBSlNSyxYhImbfs9Xqs7J8ncGIcljTNavUOornfUK1N4KcnbqOEBHLZp/9F7MhMos3"
+    REDIS_HOST: str = os.getenv("REDIS_HOST", "localhost")
+    REDIS_PORT: int = int(os.getenv("REDIS_PORT", "6379"))
+    REDIS_PASSWORD: str = os.getenv("REDIS_PASSWORD", "2GUuagotBcTfuJ13sDBSlNSyxYhImbfs9Xqs7J8ncGIcljTNavUOornfUK1N4KcnbqOEBHLZp/9F7MhMos3")
    
     # Service URLs
-    USER_SERVICE_URL: str = "https://10.0.34.168:8001"
-    KUBECONFIG_SERVICE_URL: str = "https://10.0.34.168:8002"
+    USER_SERVICE_URL: str = os.getenv("USER_SERVICE_URL")
+    KUBECONFIG_SERVICE_URL: str = os.getenv("KUBECONFIG_SERVICE_URL")
     
     # SSL
-    SSL_KEYFILE: Optional[str] = "key.pem"
-    SSL_CERTFILE: Optional[str] = "cert.pem"
+    SSL_KEYFILE: Optional[str] = os.getenv("SSL_KEYFILE", "key.pem")
+    SSL_CERTFILE: Optional[str] = os.getenv("SSL_CERTFILE", "cert.pem")
     
     # Analysis results directory
-    ANALYSIS_DIR: str = "analysis_results"
+    ANALYSIS_DIR: str = os.getenv("ANALYSIS_DIR", "analysis_results")
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

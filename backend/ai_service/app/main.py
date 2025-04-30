@@ -23,7 +23,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Allow frontend requests
 origins = [
-    "https://10.0.34.168:9980",
+    "https://10.0.32.106:9980",
     "https://localhost:9980"  # Backend API
 ]
 

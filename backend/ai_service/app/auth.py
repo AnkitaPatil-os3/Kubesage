@@ -8,7 +8,7 @@ from typing import Dict, Optional
 from datetime import datetime
 
 # Token handling
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"https://10.0.34.168:8001/auth/token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"https://10.0.32.106:8001/auth/token")
 
 async def get_current_user_from_token(token: str = Depends(oauth2_scheme)) -> Dict:
     """

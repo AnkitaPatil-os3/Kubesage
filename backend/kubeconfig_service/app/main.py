@@ -11,8 +11,8 @@ app = FastAPI(title="KubeSage KubeConfig Service")
 # Allow frontend requests
 origins = [
     "http://localhost:9980",  # Frontend running locally
-    "https://10.0.34.168:8005", # If using HTTPS locally
-    "https://10.0.34.168:9980",
+    "https://10.0.32.106:8005", # If using HTTPS locally
+    "https://10.0.32.106:9980",
     "https://localhost:9980"  # Backend API
 ]
 
