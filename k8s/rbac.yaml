@@ -1,0 +1,89 @@
+# --- RBAC for Self-Healing Service ---
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: self-healing-service-account
+  namespace: default # Must match the Deployment namespace
+  labels:
+    app: self-healing-service
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: self-healing-service-role
+  labels:
+    app: self-healing-service
+rules:
+# Permissions needed by the KubectlExecutor (adjust based on implemented commands)
+- apiGroups: [""] # Core API group
+  resources: ["pods", "pods/log"]
+  verbs: ["get", "list", "watch", "delete", "read"] # read for logs
+- apiGroups: ["apps"] # Apps API group
+  resources: ["deployments", "replicasets", "statefulsets", "daemonsets"]
+  verbs: ["get", "list", "watch", "patch", "update"] # patch/update for restart etc.
+# Add permissions for other resources if executors interact with them (e.g., services, configmaps)
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: self-healing-service-binding
+  labels:
+    app: self-healing-service
+subjects:
+- kind: ServiceAccount
+  name: self-healing-service-account
+  namespace: default # Must match the ServiceAccount namespace
+roleRef:
+  kind: ClusterRole
+  name: self-healing-service-role
+  apiGroup: rbac.authorization.k8s.io
+
+# --- RBAC for Event Watcher ---
+
+---
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: event-watcher-account
+  namespace: default # Namespace where the watcher will run
+  labels:
+    app: event-watcher
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+# Use Role/RoleBinding if watching only within a specific namespace
+# Use ClusterRole/ClusterRoleBinding if WATCH_NAMESPACE="" (all namespaces)
+kind: ClusterRole # Or Role
+metadata:
+  name: event-watcher-role
+  labels:
+    app: event-watcher
+rules:
+- apiGroups: [""] # Core API group
+  resources: ["events"]
+  verbs: ["get", "list", "watch"]
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+# Use RoleBinding if using Role above
+kind: ClusterRoleBinding # Or RoleBinding
+metadata:
+  name: event-watcher-binding
+  labels:
+    app: event-watcher
+subjects:
+- kind: ServiceAccount
+  name: event-watcher-account
+  namespace: default # Must match the ServiceAccount namespace
+roleRef:
+  kind: ClusterRole # Or Role
+  name: event-watcher-role
+  apiGroup: rbac.authorization.k8s.io

@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+pydantic
+openai
+kubernetes
+httpx
+python-dotenv
+prometheus-fastapi-instrumentator
+python-json-logger

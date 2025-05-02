@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: self-healing-service
+  namespace: default # Must match the Deployment namespace
+  labels:
+    app: self-healing-service
+spec:
+  selector:
+    app: self-healing-service # Selects pods managed by the Deployment
+  ports:
+    - protocol: TCP
+      port: 8000 # Port the service will listen on
+      targetPort: http # Name of the port defined in the Deployment's container spec (or the port number 8000)
+  type: ClusterIP # Expose the service only within the cluster

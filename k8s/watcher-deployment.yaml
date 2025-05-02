@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: event-watcher
+  namespace: default # Or your target namespace
+  labels:
+    app: event-watcher
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: event-watcher
+  template:
+    metadata:
+      labels:
+        app: event-watcher
+    spec:
+      serviceAccountName: event-watcher-account # Use the dedicated SA for the watcher
+      containers:
+      - name: watcher
+        # Replace with your actual image registry/name:tag
+        # This image needs python, watcher.py, and dependencies (kubernetes, httpx)
+        image: your-docker-registry/self-healing-watcher:latest # Or use the main service image if it includes the watcher script
+        imagePullPolicy: Always
+        command: ["python", "watcher.py"] # Command to run the watcher script
+        env:
+          # Required: URL for the self-healing service API
+          - name: SELF_HEAL_API_ENDPOINT
+            value: "http://self-healing-service.default.svc.cluster.local:8000/self-heal" # Internal service DNS name
+          # Optional: Namespace to watch (defaults to 'default' in watcher.py)
+          # - name: WATCH_NAMESPACE
+          #   value: "your-target-namespace" # Leave empty to watch all namespaces (requires ClusterRole)
+          # Optional: Event types (defaults to 'Warning' in watcher.py)
+          # - name: WATCH_EVENT_TYPES
+          #   value: "Warning,Normal"
+          # Optional: Object kinds (defaults to Pod,Deployment,... in watcher.py)
+          # - name: WATCH_OBJECT_KINDS
+          #   value: "Pod"
+          # Optional: Log level for the watcher script
+          # - name: LOG_LEVEL
+          #   value: "debug"
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "64Mi"
+          limits:
+            cpu: "200m"
+            memory: "128Mi"

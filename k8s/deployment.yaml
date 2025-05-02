@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: self-healing-service
+  namespace: default # Or your target namespace
+  labels:
+    app: self-healing-service
+spec:
+  replicas: 1 # Start with one replica
+  selector:
+    matchLabels:
+      app: self-healing-service
+  template:
+    metadata:
+      labels:
+        app: self-healing-service
+    spec:
+      containers:
+      - name: service
+        # Replace with your actual image registry/name:tag after building and pushing
+        image: your-docker-registry/self-healing-service:latest
+        imagePullPolicy: Always # Or IfNotPresent if using a stable tag
+        ports:
+        - containerPort: 8000
+          name: http
+        env:
+          # Load OpenAI API Key from a Kubernetes Secret
+          - name: OPENAI_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: self-healing-secrets # Name of the secret object
+                key: openai-api-key      # Key within the secret
+          # Optional: Mount Kubeconfig from secret if not using in-cluster config
+          # - name: KUBE_CONFIG_PATH
+          #   value: /etc/kubeconfig/config
+        # Optional: Mount Kubeconfig file from a secret if needed
+        # volumeMounts:
+        # - name: kubeconfig-volume
+        #   mountPath: /etc/kubeconfig
+        #   readOnly: true
+        resources:
+          requests:
+            cpu: "100m" # Adjust based on expected load
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+      # Optional: Define volumes if mounting secrets/configmaps
+      # volumes:
+      # - name: kubeconfig-volume
+      #   secret:
+      #     secretName: kubeconfig-secret # Secret containing the kubeconfig file
+
+      # Service account needed if using in-cluster config and requires specific permissions
+      serviceAccountName: self-healing-service-account # Must match the ServiceAccount name
+
+# --- Secret Example (Create this separately using kubectl) ---
+# apiVersion: v1
+# kind: Secret
+# metadata:
+#   name: self-healing-secrets
+#   namespace: default
+# type: Opaque
+# stringData:
+#   openai-api-key: "YOUR_ACTUAL_OPENAI_KEY"
+#   # Optional: Add argocd-token, etc. if needed by executors

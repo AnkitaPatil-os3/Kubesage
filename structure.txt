@@ -1,0 +1,11 @@
+self_healing/
+├── app/
+│   ├── main.py
+│   ├── agents/
+│   │   ├── analyzer.py
+│   │   ├── reasoner.py
+│   │   ├── enforcer.py
+│   │   └── executors.py
+│   └── models.py
+├── .env                   # API keys, K8s config
+└── requirements.txt
