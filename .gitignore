@@ -13,8 +13,8 @@ __pycache__/
 .vscode/
  
 # Node modules and build output
-frontend/node_modules/
-frontend/dist/
+./frontend/node_modules/
+./frontend/dist/
  
 # Frontend environment and cert files
 frontend/.env
