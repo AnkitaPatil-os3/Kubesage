@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 from app.models import Incident, Plan, Action
 
 # Load environment variables from .env file
-load_dotenv()
+load_dotenv(override=True)
 
 logger = logging.getLogger(__name__)
 
@@ -22,8 +22,23 @@ class ReasonerAgent:
         if not self.api_key:
             logger.error("OPENAI_API_KEY not found in environment variables.")
             raise ValueError("OPENAI_API_KEY must be set.")
-        self.client = OpenAI(api_key=self.api_key)
-        self.model = "gpt-4o" # Or another suitable model like gpt-3.5-turbo
+            
+        # Get base URL and ensure it has the proper protocol prefix
+        self.base_url = os.getenv("OPENAI_BASE_URL")
+        if self.base_url:
+            # Ensure base_url starts with http:// or https://
+            if not self.base_url.startswith(("http://", "https://")):
+                logger.warning(f"OPENAI_BASE_URL '{self.base_url}' is missing protocol. Adding https://")
+                self.base_url = f"https://{self.base_url}"
+            
+        self.model = os.getenv("OPENAI_MODEL", "gpt-4-turbo") # Add default model
+        
+        # Create client with proper base_url handling
+        client_kwargs = {"api_key": self.api_key}
+        if self.base_url:
+            client_kwargs["base_url"] = self.base_url
+            
+        self.client = OpenAI(**client_kwargs)
 
     def _create_prompt(self, incident: Incident) -> str:
         """Creates the prompt for the LLM based on the incident."""

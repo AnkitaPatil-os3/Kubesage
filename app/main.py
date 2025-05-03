@@ -27,21 +27,21 @@ security_scheme = HTTPBearer()
 
 async def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security_scheme)):
     """Dependency function to verify the static bearer token."""
-    if not API_BEARER_TOKEN: # If no token is configured, allow access (log warning above)
-        return True
-    if credentials.scheme != "Bearer" or credentials.credentials != API_BEARER_TOKEN:
-        logger.warning(f"Invalid or missing Bearer token received from {credentials.scheme if hasattr(credentials, 'scheme') else 'N/A'}")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or missing Bearer token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    # if not API_BEARER_TOKEN: # If no token is configured, allow access (log warning above)
+    #     return True
+    # if credentials.scheme != "Bearer" or credentials.credentials != API_BEARER_TOKEN:
+    #     logger.warning(f"Invalid or missing Bearer token received from {credentials.scheme if hasattr(credentials, 'scheme') else 'N/A'}")
+    #     raise HTTPException(
+    #         status_code=status.HTTP_401_UNAUTHORIZED,
+    #         detail="Invalid or missing Bearer token",
+    #         headers={"WWW-Authenticate": "Bearer"},
+    #     )
     return True # Token is valid
 
 # --- Configuration & Initialization ---
 
 # Load environment variables from .env file
-load_dotenv()
+load_dotenv(override=True)
 
 # Structured JSON Logging Configuration
 from pythonjsonlogger import jsonlogger

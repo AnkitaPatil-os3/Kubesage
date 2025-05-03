@@ -8,7 +8,7 @@ from app.models import Plan, Action, ExecutionResult, Incident
 from app.agents.executors import get_executor, BaseExecutor
 
 # Load environment variables from .env file
-load_dotenv()
+load_dotenv(override=True)
 
 logger = logging.getLogger(__name__)
 

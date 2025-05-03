@@ -1,0 +1,9 @@
+# Environment variables for the Self-Healing Kubernetes Cluster App
+
+# OpenAI API Key (replace with your actual key)
+OPENAI_API_KEY="YOUR_OPENAI_API_KEY_HERE"
+API_BEARER_TOKEN=
+OPENAI_MODEL=
+OPENAI_BASE_URL=
+# Path to Kubernetes config file (optional, defaults to in-cluster config if not set)
+# KUBE_CONFIG_PATH="/path/to/your/.kube/config"
