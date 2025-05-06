@@ -196,6 +196,10 @@ if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000)) # Allow configuring port via environment variable
     host = os.getenv("HOST", "0.0.0.0") # Listen on all interfaces by default
     log_level = os.getenv("LOG_LEVEL", "info").lower() # Default to info for production
-
+    cert_file = os.getenv("PATH_TO_SSL_CERT")
+    certkey_file = os.getenv("PATH_TO_SSL_CERT_KEY")
     logger.info(f"Starting Uvicorn server on {host}:{port} with log level {log_level}")
+    
+    if not cert_file== "" and certkey_file=="":
+        uvicorn.run(app, host=host, port=port, log_level=log_level, ssl_keyfile=certkey_file, ssl_certfile=cert_file)
     uvicorn.run(app, host=host, port=port, log_level=log_level)
