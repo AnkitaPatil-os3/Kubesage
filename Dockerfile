@@ -18,8 +18,8 @@ RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the application code into the container
-# Copying .env here for simplicity; in production, use secrets management.
-COPY .env .
+# In production, environment variables should be injected via the deployment environment (e.g., Kubernetes Secrets/ConfigMaps).
+# Do not copy .env file into the image.
 COPY ./app ./app
 
 # Expose the port the app runs on

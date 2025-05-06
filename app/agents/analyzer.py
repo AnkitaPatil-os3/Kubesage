@@ -24,19 +24,53 @@ class AnalyzerAgent:
         logger.info(f"Processing raw event received at: {raw_event.received_at}")
 
         event_data = raw_event.event_data
+        logger.debug(f"Raw event data received for analysis: {event_data}")
 
-        # --- Basic Enrichment Logic ---
-        # This is a placeholder. Real-world implementation would involve
-        # more sophisticated parsing based on the event source (e.g., K8s API).
+        # --- Enrichment Logic ---
         try:
-            # Attempt to extract common Kubernetes event fields
+            kind = "Unknown"
+            name = "Unknown"
+            namespace = "default"
+            failure_type = "UnknownFailure"
+            description = "No description provided."
+
+            # Try extracting from direct fields first (based on feedback example)
+            if "kind" in event_data and "name" in event_data:
+                kind = event_data.get("kind", "Unknown")
+                raw_name = event_data.get("name", "Unknown")
+                if "/" in raw_name:
+                    namespace, name = raw_name.split("/", 1)
+                else:
+                    name = raw_name
+                    # Keep default namespace if not specified in name
+                logger.info(f"Parsed resource from direct fields: Kind={kind}, Name={name}, Namespace={namespace}")
+                # Try to get failure details from other fields if available
+                failure_type = event_data.get("reason", failure_type) # Use 'reason' if present
+                if "error" in event_data and isinstance(event_data["error"], list) and len(event_data["error"]) > 0:
+                     # Try to get a more specific description from the 'error' field if 'message' isn't there
+                     error_text = event_data["error"][0].get("Text", "") if isinstance(event_data["error"][0], dict) else str(event_data["error"][0])
+                     description = event_data.get("message", error_text or description)
+                else:
+                     description = event_data.get("message", description)
+
+            # Fallback to involvedObject structure (original logic)
+            elif "involvedObject" in event_data:
+                involved_obj = event_data.get("involvedObject", {})
+                kind = involved_obj.get("kind", kind)
+                name = involved_obj.get("name", name)
+                namespace = involved_obj.get("namespace", namespace)
+                failure_type = event_data.get("reason", failure_type)
+                description = event_data.get("message", description)
+                logger.info(f"Parsed resource from involvedObject: Kind={kind}, Name={name}, Namespace={namespace}")
+            else:
+                 logger.warning("Could not determine affected resource from event_data structure.")
+                 # Keep defaults: Unknown/default
+
             affected_resource = {
-                "kind": event_data.get("involvedObject", {}).get("kind", "Unknown"),
-                "name": event_data.get("involvedObject", {}).get("name", "Unknown"),
-                "namespace": event_data.get("involvedObject", {}).get("namespace", "default"),
+                "kind": kind,
+                "name": name,
+                "namespace": namespace,
             }
-            failure_type = event_data.get("reason", "UnknownFailure")
-            description = event_data.get("message", "No description provided.")
             severity = self._determine_severity(failure_type) # Basic severity mapping
 
             incident = Incident(
@@ -70,44 +104,4 @@ class AnalyzerAgent:
         else:
             return "low"
 
-# Example Usage (for testing purposes)
-if __name__ == '__main__':
-    # Configure basic logging for testing
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
-    # Example Kubernetes Event (simplified)
-    sample_k8s_event_data = {
-        "metadata": {"name": "pod-xyz-crash-1", "namespace": "production"},
-        "involvedObject": {
-            "kind": "Pod",
-            "name": "my-app-pod-12345",
-            "namespace": "production",
-            "uid": "abc-123"
-        },
-        "reason": "CrashLoopBackOff",
-        "message": "Back-off restarting failed container",
-        "type": "Warning",
-        "firstTimestamp": "2024-01-01T10:00:00Z",
-        "lastTimestamp": "2024-01-01T10:05:00Z",
-        "count": 5
-    }
-
-    raw = RawEvent(event_data=sample_k8s_event_data)
-    analyzer = AnalyzerAgent()
-
-    try:
-        incident_obj = analyzer.process_event(raw)
-        print("\n--- Generated Incident ---")
-        print(incident_obj.model_dump_json(indent=2))
-    except ValueError as e:
-        print(f"\nError creating incident: {e}")
-
-    # Example of an event that might cause an error (missing key fields)
-    bad_event_data = {"some_other_key": "value"}
-    bad_raw = RawEvent(event_data=bad_event_data)
-    try:
-        incident_obj = analyzer.process_event(bad_raw)
-        print("\n--- Generated Incident (Bad Event) ---")
-        print(incident_obj.model_dump_json(indent=2))
-    except ValueError as e:
-        print(f"\nError creating incident from bad event: {e}")
+# End of AnalyzerAgent class

@@ -31,13 +31,25 @@ class EnforcerAgent:
         # Load configuration needed for executor initialization
         # This could be expanded into a dedicated config object/class
         self.executor_config = {
+            # Config for original KubectlExecutor (kept for potential fallback/other uses)
             "KUBE_CONFIG_PATH": os.getenv("KUBE_CONFIG_PATH"),
+            # Config for ArgoCDExecutor
             "ARGOCD_SERVER_URL": os.getenv("ARGOCD_SERVER_URL"),
             "ARGOCD_API_TOKEN": os.getenv("ARGOCD_API_TOKEN"),
+            "ARGOCD_VERIFY_SSL": os.getenv("ARGOCD_VERIFY_SSL", "true"), # Added from previous step
+            # Config for the new KubectlExecutor using AI Agent
+            "KUBECTL_AI_AGENT_URL": os.getenv("KUBECTL_AI_AGENT_URL"),
+            "KUBECTL_AI_AGENT_TOKEN": os.getenv("KUBECTL_AI_AGENT_TOKEN"),
+            "KUBECTL_AI_AGENT_VERIFY_SSL": os.getenv("KUBECTL_AI_AGENT_VERIFY_SSL", "true"),
             # Add other necessary config keys here
         }
         logger.info(f"EnforcerAgent initialized with max_retries={max_retries}, retry_delay={retry_delay_seconds}")
-        logger.debug(f"Executor config loaded: { {k: ('******' if 'TOKEN' in k or 'KEY' in k else v) for k, v in self.executor_config.items()} }") # Mask secrets in logs
+        # Mask secrets in logs more robustly
+        masked_config = {
+            k: ('******' if 'TOKEN' in k or 'KEY' in k else v)
+            for k, v in self.executor_config.items() if v is not None
+        }
+        logger.debug(f"Executor config loaded: {masked_config}")
 
 
     def enforce_plan(self, plan: Plan, incident: Incident) -> List[ExecutionResult]:
@@ -114,44 +126,4 @@ class EnforcerAgent:
 
         return all_results
 
-# Example Usage (for testing purposes)
-if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
-    print("\n--- Running EnforcerAgent Example ---")
-
-    # Create a sample incident and plan
-    sample_incident = Incident(
-        incident_id="inc-123",
-        affected_resource={"kind": "Pod", "name": "bad-pod-7xyz", "namespace": "testing"},
-        failure_type="CrashLoopBackOff",
-        description="Pod keeps crashing.",
-        severity="critical"
-    )
-
-    # Plan with potentially failing and succeeding actions
-    sample_plan = Plan(
-        plan_id="plan-abc",
-        incident_id=sample_incident.incident_id,
-        actions=[
-            Action(executor="kubectl", command="get_pod_logs", parameters={"name": "bad-pod-7xyz", "namespace": "testing"}, description="Get logs from the crashing pod"),
-            Action(executor="kubectl", command="delete_pod", parameters={"name": "bad-pod-7xyz", "namespace": "testing"}, description="Delete the crashing pod (will be recreated by ReplicaSet/Deployment)"),
-            Action(executor="unknown_executor", command="do_something", parameters={}, description="This action will fail due to unknown executor"), # Intentionally failing action
-            Action(executor="kubectl", command="get_pod", parameters={"name": "bad-pod-7xyz", "namespace": "testing"}, description="Check pod status after deletion (should be recreated or gone)")
-        ]
-    )
-
-    print(f"Sample Incident (before):\n{sample_incident.model_dump_json(indent=2)}")
-    print(f"\nSample Plan:\n{sample_plan.model_dump_json(indent=2)}")
-
-    # Initialize Enforcer (assumes Kube config is available, Argo config might be missing)
-    enforcer = EnforcerAgent(max_retries=1, retry_delay_seconds=1)
-
-    # Enforce the plan
-    execution_results = enforcer.enforce_plan(sample_plan, sample_incident)
-
-    print("\n--- Execution Results ---")
-    for result in execution_results:
-        print(result.model_dump_json(indent=2))
-
-    print(f"\nSample Incident (after):\n{sample_incident.model_dump_json(indent=2)}") # Check the final status
+# End of EnforcerAgent class

@@ -1,0 +1,34 @@
+# Git files
+.git
+.gitignore
+
+# Docker files
+Dockerfile
+.dockerignore
+
+# Environment files
+.env
+env-sample
+
+# Kubernetes manifests
+k8s/
+
+# Documentation/Planning
+plan.md
+structure.txt
+
+# Testing
+tests/
+test.py
+watcher.py
+sample_request.sh
+
+# Python cache/artefacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+*.egg

@@ -26,11 +26,12 @@ if not API_BEARER_TOKEN:
 security_scheme = HTTPBearer()
 
 async def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security_scheme)):
-    """Dependency function to verify the static bearer token."""
+    # """Dependency function to verify the static bearer token."""
     # if not API_BEARER_TOKEN: # If no token is configured, allow access (log warning above)
+    #     logger.warning("API_BEARER_TOKEN not set, allowing request without authentication.")
     #     return True
     # if credentials.scheme != "Bearer" or credentials.credentials != API_BEARER_TOKEN:
-    #     logger.warning(f"Invalid or missing Bearer token received from {credentials.scheme if hasattr(credentials, 'scheme') else 'N/A'}")
+    #     logger.warning(f"Invalid or missing Bearer token received.") # Avoid logging scheme directly
     #     raise HTTPException(
     #         status_code=status.HTTP_401_UNAUTHORIZED,
     #         detail="Invalid or missing Bearer token",
@@ -194,13 +195,7 @@ async def self_heal_endpoint(raw_event: RawEvent, authorized: bool = Depends(ver
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000)) # Allow configuring port via environment variable
     host = os.getenv("HOST", "0.0.0.0") # Listen on all interfaces by default
-    log_level = os.getenv("LOG_LEVEL", "info").lower()
+    log_level = os.getenv("LOG_LEVEL", "info").lower() # Default to info for production
 
     logger.info(f"Starting Uvicorn server on {host}:{port} with log level {log_level}")
     uvicorn.run(app, host=host, port=port, log_level=log_level)
-
-    # To run:
-    # 1. Ensure .env file has OPENAI_API_KEY (and optionally KUBE_CONFIG_PATH etc.)
-    # 2. Make sure dependencies are installed (pip install -r requirements.txt)
-    # 3. Run from the project root directory: python -m app.main
-    #    (or use `uvicorn app.main:app --reload` for development)
