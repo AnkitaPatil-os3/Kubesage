@@ -1,9 +1,18 @@
 # Environment variables for the Self-Healing Kubernetes Cluster App
 
 # OpenAI API Key (replace with your actual key)
-OPENAI_API_KEY="YOUR_OPENAI_API_KEY_HERE"
+OPENAI_API_KEY=
+# Static Bearer token for securing the /self-heal endpoint (generate a strong random string)
 API_BEARER_TOKEN=
 OPENAI_MODEL=
 OPENAI_BASE_URL=
 # Path to Kubernetes config file (optional, defaults to in-cluster config if not set)
-# KUBE_CONFIG_PATH="/path/to/your/.kube/config"
+KUBE_CONFIG_PATH="~/.kube/config"
+# Database configuration
+DATABASE_URL=sqlite:///./auto-rem.db
+LOG_LEVEL=debug
+ARGOCD_SERVER_URL=
+ARGOCD_API_TOKEN=
+KUBECTL_AI_AGENT_URL=
+KUBECTL_AI_AGENT_TOKEN=
+KUBECTL_AI_AGENT_VERIFY_SSL=false
