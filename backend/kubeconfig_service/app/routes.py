@@ -894,3 +894,848 @@ async def analyze(
         return JSONResponse(content=result, status_code=200)
     except HTTPException as e:
         return JSONResponse(content={"error": str(e.detail)}, status_code=e.status_code)
+
+
+
+
+
+@kubeconfig_router.post("/analyze-k8s",
+                       summary="Analyze Kubernetes Resources", 
+                       description="Analyzes Kubernetes resources using the Kubernetes client library")
+async def analyze_k8s(
+    session: Session = Depends(get_session),
+    current_user: Dict = Depends(get_current_user),
+    namespace: str = Query(None, description="Namespace to analyze"),
+    resource_types: List[str] = Query(
+        ["pods", "deployments", "services", "secrets", "storageclasses", "ingress", "pvc"],
+        description="Resource types to analyze"
+    )
+):
+    """
+    Analyzes Kubernetes resources using the Kubernetes client library.
+    
+    - Gets the active kubeconfig
+    - Connects to the Kubernetes cluster using the client library
+    - Analyzes specified resources for potential issues
+    - Returns analysis results with namespace as a separate field
+    
+    Parameters:
+        namespace: Kubernetes namespace to analyze (all namespaces if None)
+        resource_types: List of resource types to analyze
+        
+    Returns:
+        JSONResponse: Analysis results with namespace as a separate field
+        
+    Raises:
+        HTTPException: 404 error if active kubeconfig not found
+        HTTPException: Various errors if analysis fails
+    """
+    # Get the active kubeconfig
+    active_kubeconf = get_active_kubeconfig(session, current_user["id"])
+    kubeconfig_path = active_kubeconf.path
+    
+    if not os.path.exists(kubeconfig_path):
+        raise HTTPException(status_code=404, detail="Active kubeconfig file not found on disk")
+    
+    try:
+        # Load the kubeconfig
+        config.load_kube_config(config_file=kubeconfig_path)
+        
+        # Initialize API clients
+        core_v1 = client.CoreV1Api()
+        apps_v1 = client.AppsV1Api()
+        networking_v1 = client.NetworkingV1Api()
+        storage_v1 = client.StorageV1Api()
+        
+        # Initialize results list
+        flat_results = []
+        
+        # Analyze resources based on resource_types
+        for resource_type in resource_types:
+            resource_type = resource_type.lower()
+            
+            if resource_type == "pods":
+                flat_results.extend(analyze_pods(core_v1, namespace))
+            elif resource_type == "deployments":
+                flat_results.extend(analyze_deployments(apps_v1, namespace))
+            elif resource_type == "services":
+                flat_results.extend(analyze_services(core_v1, namespace))
+            elif resource_type == "secrets":
+                flat_results.extend(analyze_secrets(core_v1, namespace))
+            elif resource_type == "storageclasses":
+                flat_results.extend(analyze_storage_classes(storage_v1))
+            elif resource_type == "ingress":
+                flat_results.extend(analyze_ingress(networking_v1, core_v1, namespace))
+            elif resource_type == "pvc":
+                flat_results.extend(analyze_pvcs(core_v1, namespace))
+        
+        # Modify the results to separate namespace and name
+        modified_results = []
+        
+        for result in flat_results:
+            # Extract namespace from the name field (format: "namespace/name")
+            name_parts = result["name"].split("/", 1)
+            
+            if len(name_parts) == 2:
+                result_namespace, resource_name = name_parts
+                
+                # Create a new result with separate namespace field
+                modified_result = result.copy()
+                modified_result["namespace"] = result_namespace
+                modified_result["name"] = resource_name
+                
+                # For cluster-scoped resources
+                if result_namespace == "N/A":
+                    modified_result["namespace"] = ""
+                
+                modified_results.append(modified_result)
+            else:
+                # If the name doesn't have a namespace part, keep it as is
+                modified_result = result.copy()
+                modified_result["namespace"] = ""
+                modified_results.append(modified_result)
+        
+        # Publish analysis event
+        publish_message("kubeconfig_events", {
+            "event_type": "k8s_analysis_performed",
+            "kubeconfig_id": active_kubeconf.id,
+            "user_id": current_user["id"],
+            "username": current_user.get("username", "unknown"),
+            "cluster_name": active_kubeconf.cluster_name,
+            "resource_types": resource_types,
+            "namespace": namespace or "all",
+            "issue_count": len(flat_results),
+            "timestamp": datetime.datetime.now().isoformat()
+        })
+        
+        return JSONResponse(content=modified_results, status_code=200)
+    
+    except client.rest.ApiException as e:
+        logger.error(f"Kubernetes API error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Kubernetes API error: {str(e)}")
+    except Exception as e:
+        logger.error(f"Error analyzing Kubernetes resources: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error analyzing Kubernetes resources: {str(e)}")
+
+def analyze_pods(api, namespace=None):
+    """Analyze Pods for common issues"""
+    results = []
+    
+    # Get pods from all namespaces or specific namespace
+    if namespace:
+        pods = api.list_namespaced_pod(namespace)
+    else:
+        pods = api.list_pod_for_all_namespaces()
+    
+    for pod in pods.items:
+        pod_name = pod.metadata.name
+        pod_namespace = pod.metadata.namespace
+        full_name = f"{pod_namespace}/{pod_name}"
+        
+        # Check for pod status issues
+        if pod.status.phase not in ["Running", "Succeeded"]:
+            results.append({
+                "kind": "Pod",
+                "name": full_name,
+                "error": [{
+                    "Text": f"Pod is in {pod.status.phase} state",
+                    "KubernetesDoc": "",
+                    "Sensitive": []
+                }],
+                "details": "",
+                "parentObject": ""
+            })
+        
+        # Check container statuses
+        if pod.status.container_statuses:
+            for container in pod.status.container_statuses:
+                # Check for container restarts
+                if container.restart_count > 5:
+                    results.append({
+                        "kind": "Pod",
+                        "name": full_name,
+                        "error": [{
+                            "Text": f"Container {container.name} has restarted {container.restart_count} times",
+                            "KubernetesDoc": "",
+                            "Sensitive": []
+                        }],
+                        "details": "",
+                        "parentObject": ""
+                    })
+                
+                # Check for container not ready
+                if not container.ready and pod.status.phase == "Running":
+                    results.append({
+                        "kind": "Pod",
+                        "name": full_name,
+                        "error": [{
+                            "Text": f"Container {container.name} is not ready",
+                            "KubernetesDoc": "",
+                            "Sensitive": []
+                        }],
+                        "details": "",
+                        "parentObject": ""
+                    })
+                
+                # Check for waiting containers
+                if container.state.waiting:
+                    results.append({
+                        "kind": "Pod",
+                        "name": full_name,
+                        "error": [{
+                            "Text": f"Container {container.name} is waiting: {container.state.waiting.reason} - {container.state.waiting.message or ''}",
+                            "KubernetesDoc": "",
+                            "Sensitive": []
+                        }],
+                        "details": "",
+                        "parentObject": ""
+                    })
+                
+                # Check for terminated containers with error
+                if container.state.terminated and container.state.terminated.exit_code != 0:
+                    results.append({
+                        "kind": "Pod",
+                        "name": full_name,
+                        "error": [{
+                            "Text": f"Container {container.name} terminated with error: {container.state.terminated.reason} - {container.state.terminated.message or ''}",
+                            "KubernetesDoc": "",
+                            "Sensitive": []
+                        }],
+                        "details": "",
+                        "parentObject": ""
+                    })
+        
+        # Check for pod conditions
+        if pod.status.conditions:
+            for condition in pod.status.conditions:
+                if condition.type == "Ready" and condition.status != "True" and pod.status.phase == "Running":
+                    results.append({
+                        "kind": "Pod",
+                        "name": full_name,
+                        "error": [{
+                            "Text": f"Pod is not ready: {condition.reason} - {condition.message}",
+                            "KubernetesDoc": "",
+                            "Sensitive": []
+                        }],
+                        "details": "",
+                        "parentObject": ""
+                    })
+        
+        # Check for events related to this pod (would require additional API call)
+        # This would be a more comprehensive approach but requires more API calls
+    
+    return results
+
+def analyze_deployments(api, namespace=None):
+    """Analyze Deployments for common issues"""
+    results = []
+    
+    # Get deployments from all namespaces or specific namespace
+    if namespace:
+        deployments = api.list_namespaced_deployment(namespace)
+    else:
+        deployments = api.list_deployment_for_all_namespaces()
+    
+    for deployment in deployments.items:
+        deployment_name = deployment.metadata.name
+        deployment_namespace = deployment.metadata.namespace
+        full_name = f"{deployment_namespace}/{deployment_name}"
+        
+        # Check if deployment is available
+        if deployment.status.available_replicas is None or deployment.status.available_replicas < deployment.spec.replicas:
+            available = deployment.status.available_replicas or 0
+            results.append({
+                "kind": "Deployment",
+                "name": full_name,
+                "error": [{
+                    "Text": f"Deployment has {available}/{deployment.spec.replicas} available replicas",
+                    "KubernetesDoc": "",
+                    "Sensitive": []
+                }],
+                "details": "",
+                "parentObject": ""
+            })
+        
+        # Check for deployment conditions
+        if deployment.status.conditions:
+            for condition in deployment.status.conditions:
+                if condition.type == "Available" and condition.status != "True":
+                    results.append({
+                        "kind": "Deployment",
+                        "name": full_name,
+                        "error": [{
+                            "Text": f"Deployment is not available: {condition.reason} - {condition.message}",
+                            "KubernetesDoc": "",
+                            "Sensitive": []
+                        }],
+                        "details": "",
+                        "parentObject": ""
+                    })
+                if condition.type == "Progressing" and condition.status != "True":
+                    results.append({
+                        "kind": "Deployment",
+                        "name": full_name,
+                        "error": [{
+                            "Text": f"Deployment is not progressing: {condition.reason} - {condition.message}",
+                            "KubernetesDoc": "",
+                            "Sensitive": []
+                        }],
+                        "details": "",
+                        "parentObject": ""
+                    })
+    
+    return results
+
+def analyze_services(api, namespace=None):
+    """Analyze Services for common issues"""
+    results = []
+    
+    # Get services from all namespaces or specific namespace
+    if namespace:
+        services = api.list_namespaced_service(namespace)
+    else:
+        services = api.list_service_for_all_namespaces()
+    
+    for service in services.items:
+        service_name = service.metadata.name
+        service_namespace = service.metadata.namespace
+        full_name = f"{service_namespace}/{service_name}"
+        
+        # Check if service has no endpoints (would require additional API call)
+        try:
+            if namespace:
+                endpoints = api.read_namespaced_endpoints(service_name, service_namespace)
+            else:
+                # This is a workaround since there's no direct method to get endpoints by service name across namespaces
+                endpoints = api.read_namespaced_endpoints(service_name, service_namespace)
+            
+            if not endpoints.subsets or not any(subset.addresses for subset in endpoints.subsets):
+                results.append({
+                    "kind": "Service",
+                    "name": full_name,
+                    "error": [{
+                        "Text": "Service has no endpoints (no pods match the selector)",
+                        "KubernetesDoc": "",
+                        "Sensitive": []
+                    }],
+                    "details": "",
+                    "parentObject": ""
+                })
+        except client.rest.ApiException:
+            # Endpoint might not exist
+            results.append({
+                "kind": "Service",
+                "name": full_name,
+                "error": [{
+                    "Text": "Service has no associated endpoints",
+                    "KubernetesDoc": "",
+                    "Sensitive": []
+                }],
+                "details": "",
+                "parentObject": ""
+            })
+    
+    return results
+
+def analyze_secrets(api, namespace=None):
+    """Analyze Secrets for common issues"""
+    results = []
+    
+    # Get secrets from all namespaces or specific namespace
+    if namespace:
+        secrets = api.list_namespaced_secret(namespace)
+        # For cross-checking with pods
+        pods = api.list_namespaced_pod(namespace)
+    else:
+        secrets = api.list_secret_for_all_namespaces()
+        # For cross-checking with pods
+        pods = api.list_pod_for_all_namespaces()
+    
+    # Create a map of secret references from pods
+    secret_references = {}
+    for pod in pods.items:
+        pod_name = f"{pod.metadata.namespace}/{pod.metadata.name}"
+        
+        # Check volume-mounted secrets
+        if pod.spec.volumes:
+            for volume in pod.spec.volumes:
+                if volume.secret and volume.secret.secret_name:
+                    secret_name = volume.secret.secret_name
+                    secret_key = f"{pod.metadata.namespace}/{secret_name}"
+                    if secret_key not in secret_references:
+                        secret_references[secret_key] = []
+                    secret_references[secret_key].append({
+                        "resource": pod_name,
+                        "kind": "Pod",
+                        "usage": f"volume mount: {volume.name}"
+                    })
+        
+        # Check environment variables from secrets
+        if pod.spec.containers:
+            for container in pod.spec.containers:
+                if container.env:
+                    for env in container.env:
+                        if env.value_from and env.value_from.secret_key_ref:
+                            secret_name = env.value_from.secret_key_ref.name
+                            secret_key = f"{pod.metadata.namespace}/{secret_name}"
+                            key_name = env.value_from.secret_key_ref.key
+                            if secret_key not in secret_references:
+                                secret_references[secret_key] = []
+                            secret_references[secret_key].append({
+                                "resource": pod_name,
+                                "kind": "Pod",
+                                "usage": f"env var: {env.name}, key: {key_name}"
+                            })
+    
+    # Process each secret
+    for secret in secrets.items:
+        secret_name = secret.metadata.name
+        secret_namespace = secret.metadata.namespace
+        full_name = f"{secret_namespace}/{secret_name}"
+        secret_key = full_name
+        
+        # Skip default service account tokens
+        if secret.type == "kubernetes.io/service-account-token" and secret_name.startswith("default-token"):
+            continue
+        
+        # 1. Check for empty secrets
+        if not secret.data or len(secret.data) == 0:
+            results.append({
+                "kind": "Secret",
+                "name": full_name,
+                "error": [{
+                    "Text": "Secret has no data",
+                    "KubernetesDoc": "",
+                    "Sensitive": []
+                }],
+                "details": "",
+                "parentObject": ""
+            })
+            continue  # Skip further checks for empty secrets
+        
+        # 2. Check for malformed base64 data
+        try:
+            for key, value in secret.data.items():
+                # The kubernetes client already decodes base64, so we don't need to check this
+                pass
+        except Exception as e:
+            results.append({
+                "kind": "Secret",
+                "name": full_name,
+                "error": [{
+                    "Text": f"Secret contains malformed data: {str(e)}",
+                    "KubernetesDoc": "",
+                    "Sensitive": []
+                }],
+                "details": "",
+                "parentObject": ""
+            })
+        
+        # 3. Check for referenced but non-existent secrets is handled by the pod analysis
+        
+        # 4. Check for TLS certificate expiration
+        if secret.type == "kubernetes.io/tls" and "tls.crt" in secret.data:
+            try:
+                import base64
+                import datetime
+                import cryptography.x509
+                from cryptography.hazmat.backends import default_backend
+                
+                cert_data = base64.b64decode(secret.data["tls.crt"])
+                cert = cryptography.x509.load_pem_x509_certificate(cert_data, default_backend())
+                
+                # Check if certificate is expired
+                if cert.not_valid_after < datetime.datetime.now():
+                    results.append({
+                        "kind": "Secret",
+                        "name": full_name,
+                        "error": [{
+                            "Text": f"TLS certificate in Secret has expired on {cert.not_valid_after.strftime('%Y-%m-%d')}",
+                            "KubernetesDoc": "",
+                            "Sensitive": []
+                        }],
+                        "details": "",
+                        "parentObject": ""
+                    })
+                
+                # Check if certificate is about to expire (within 30 days)
+                days_to_expiry = (cert.not_valid_after - datetime.datetime.now()).days
+                if 0 < days_to_expiry < 30:
+                    results.append({
+                        "kind": "Secret",
+                        "name": full_name,
+                        "error": [{
+                            "Text": f"TLS certificate in Secret will expire in {days_to_expiry} days (on {cert.not_valid_after.strftime('%Y-%m-%d')})",
+                            "KubernetesDoc": "",
+                            "Sensitive": []
+                        }],
+                        "details": "",
+                        "parentObject": ""
+                    })
+            except Exception:
+                # Skip certificate validation if we can't parse it
+                pass
+        
+        # 5. Check for missing required keys based on secret type
+        if secret.type == "kubernetes.io/dockerconfigjson" and ".dockerconfigjson" not in secret.data:
+            results.append({
+                "kind": "Secret",
+                "name": full_name,
+                "error": [{
+                    "Text": "Docker config secret is missing required '.dockerconfigjson' key",
+                    "KubernetesDoc": "",
+                    "Sensitive": []
+                }],
+                "details": "",
+                "parentObject": ""
+            })
+        elif secret.type == "kubernetes.io/tls":
+            missing_keys = []
+            for required_key in ["tls.crt", "tls.key"]:
+                if required_key not in secret.data:
+                    missing_keys.append(required_key)
+            
+            if missing_keys:
+                results.append({
+                    "kind": "Secret",
+                    "name": full_name,
+                    "error": [{
+                        "Text": f"TLS secret is missing required keys: {', '.join(missing_keys)}",
+                        "KubernetesDoc": "",
+                        "Sensitive": []
+                    }],
+                    "details": "",
+                    "parentObject": ""
+                })
+        
+        # 6. Check for unused secrets
+        if secret_key not in secret_references:
+            results.append({
+                "kind": "Secret",
+                "name": full_name,
+                "error": [{
+                    "Text": "Secret is not used by any pods in the cluster",
+                    "KubernetesDoc": "",
+                    "Sensitive": []
+                }],
+                "details": "",
+                "parentObject": ""
+            })
+        
+        # 7. Check for incorrect type (requires cross-checking with pods)
+        if secret_key in secret_references:
+            for reference in secret_references[secret_key]:
+                # Check for docker registry secrets used as regular secrets
+                if secret.type == "kubernetes.io/dockerconfigjson" and "env var" in reference["usage"]:
+                    results.append({
+                        "kind": "Secret",
+                        "name": full_name,
+                        "error": [{
+                            "Text": f"Secret has type 'kubernetes.io/dockerconfigjson' but is used as environment variable in {reference['kind']} {reference['resource']}",
+                            "KubernetesDoc": "",
+                            "Sensitive": []
+                        }],
+                        "details": "",
+                        "parentObject": reference["resource"]
+                    })
+        
+        # 8. Insufficient permissions check would require RBAC analysis, which is complex
+        
+        # 9. Check for oversized secrets (1MB limit is recommended)
+        total_size = 0
+        for _, value in secret.data.items():
+            # The size in bytes of the base64 decoded value
+            total_size += len(value) if value else 0
+        
+        if total_size > 1000000:  # 1MB in bytes
+            size_mb = round(total_size / 1000000, 2)
+            results.append({
+                "kind": "Secret",
+                "name": full_name,
+                "error": [{
+                    "Text": f"Secret size ({size_mb}MB) exceeds recommended limit of 1MB",
+                    "KubernetesDoc": "",
+                    "Sensitive": []
+                }],
+                "details": "",
+                "parentObject": ""
+            })
+    
+    return results
+
+def analyze_storage_classes(api):
+    """Analyze StorageClasses for common issues"""
+    results = []
+    
+    storage_classes = api.list_storage_class()
+    
+    # Check if there are no storage classes
+    if not storage_classes.items:
+        results.append({
+            "kind": "StorageClass",
+            "name": "N/A",
+            "error": [{
+                "Text": "No StorageClasses found in the cluster",
+                "KubernetesDoc": "",
+                "Sensitive": []
+            }],
+            "details": "",
+            "parentObject": ""
+        })
+    
+    # Check for default storage class
+    default_storage_class = False
+    for sc in storage_classes.items:
+        if sc.metadata.annotations and "storageclass.kubernetes.io/is-default-class" in sc.metadata.annotations:
+            if sc.metadata.annotations["storageclass.kubernetes.io/is-default-class"].lower() == "true":
+                default_storage_class = True
+                break
+    
+    if not default_storage_class and storage_classes.items:
+        results.append({
+            "kind": "StorageClass",
+            "name": "N/A",
+            "error": [{
+                "Text": "No default StorageClass found in the cluster",
+                "KubernetesDoc": "",
+                "Sensitive": []
+            }],
+            "details": "",
+            "parentObject": ""
+        })
+    
+    return results
+
+def analyze_ingress(api_networking, api_core, namespace=None):
+    """Analyze Ingress resources for common issues"""
+    results = []
+    
+    # Get ingress from all namespaces or specific namespace
+    if namespace:
+        ingresses = api_networking.list_namespaced_ingress(namespace)
+    else:
+        ingresses = api_networking.list_ingress_for_all_namespaces()
+    
+    for ingress in ingresses.items:
+        ingress_name = ingress.metadata.name
+        ingress_namespace = ingress.metadata.namespace
+        full_name = f"{ingress_namespace}/{ingress_name}"
+        
+        # Check for TLS configuration
+        if not ingress.spec.tls:
+            results.append({
+                "kind": "Ingress",
+                "name": full_name,
+                "error": [{
+                    "Text": "Ingress does not have TLS configured",
+                    "KubernetesDoc": "",
+                    "Sensitive": []
+                }],
+                "details": "",
+                "parentObject": ""
+            })
+        
+        # Check for rules
+        if not ingress.spec.rules:
+            results.append({
+                "kind": "Ingress",
+                "name": full_name,
+                "error": [{
+                    "Text": "Ingress does not have any rules defined",
+                    "KubernetesDoc": "",
+                    "Sensitive": []
+                }],
+                "details": "",
+                "parentObject": ""
+            })
+        
+        # Check for backend services (would require additional API calls to verify if services exist)
+        for rule in ingress.spec.rules or []:
+            if rule.http and rule.http.paths:
+                for path in rule.http.paths:
+                    if path.backend and path.backend.service:
+                        service_name = path.backend.service.name
+                        service_port = path.backend.service.port.number if path.backend.service.port.number else path.backend.service.port.name
+                        
+                        # Check if service exists (would require additional API call)
+                        try:
+                            # Use the CoreV1Api to check for services
+                            api_core.read_namespaced_service(service_name, ingress_namespace)
+                        except client.rest.ApiException as e:
+                            if e.status == 404:
+                                results.append({
+                                    "kind": "Ingress",
+                                    "name": full_name,
+                                    "error": [{
+                                        "Text": f"Ingress references non-existent service: {service_name}",
+                                        "KubernetesDoc": "",
+                                        "Sensitive": []
+                                    }],
+                                    "details": "",
+                                    "parentObject": ""
+                                })
+    
+    return results
+
+
+def analyze_pvcs(api, namespace=None):
+    """Analyze PersistentVolumeClaims for common issues"""
+    results = []
+    
+    # Get PVCs from all namespaces or specific namespace
+    if namespace:
+        pvcs = api.list_namespaced_persistent_volume_claim(namespace)
+    else:
+        pvcs = api.list_persistent_volume_claim_for_all_namespaces()
+    
+    for pvc in pvcs.items:
+        pvc_name = pvc.metadata.name
+        pvc_namespace = pvc.metadata.namespace
+        full_name = f"{pvc_namespace}/{pvc_name}"
+        
+        # Check for pending PVCs
+        if pvc.status.phase == "Pending":
+            results.append({
+                "kind": "PersistentVolumeClaim",
+                "name": full_name,
+                "error": [{
+                    "Text": "PersistentVolumeClaim is in Pending state",
+                    "KubernetesDoc": "",
+                    "Sensitive": []
+                }],
+                "details": "",
+                "parentObject": ""
+            })
+        
+        # Check for PVCs with access modes that might cause issues
+        if pvc.spec.access_modes and "ReadWriteMany" in pvc.spec.access_modes:
+            # ReadWriteMany is not supported by all storage providers
+            # This is just a warning, not necessarily an error
+            if pvc.spec.storage_class_name:
+                results.append({
+                    "kind": "PersistentVolumeClaim",
+                    "name": full_name,
+                    "error": [{
+                        "Text": f"PVC uses ReadWriteMany access mode with storage class {pvc.spec.storage_class_name}, verify that this is supported",
+                        "KubernetesDoc": "",
+                        "Sensitive": []
+                    }],
+                    "details": "",
+                    "parentObject": ""
+                })
+        
+        # Check for bound PVCs with no pods using them (would require additional API calls)
+        # This is a more advanced check that would require listing pods and checking their volumes
+    
+    return results
+
+def check_pod_events(api, pod_namespace, pod_name):
+    """Check for recent events related to a pod"""
+    field_selector = f"involvedObject.name={pod_name},involvedObject.namespace={pod_namespace},involvedObject.kind=Pod"
+    events = api.list_event_for_all_namespaces(field_selector=field_selector)
+    
+    issues = []
+    for event in events.items:
+        # Focus on Warning events
+        if event.type == "Warning":
+            # Check if event is recent (last 15 minutes)
+            event_time = event.last_timestamp or event.event_time
+            if event_time:
+                event_time = event_time.replace(tzinfo=None)
+                if (datetime.datetime.utcnow() - event_time).total_seconds() < 900:  # 15 minutes in seconds
+                    issues.append({
+                        "Text": f"{event.reason}: {event.message}",
+                        "KubernetesDoc": "",
+                        "Sensitive": []
+                    })
+    
+    return issues
+
+def analyze_pod_with_events(api, namespace=None):
+    """Enhanced pod analysis that includes event information"""
+    results = []
+    
+    # Get pods from all namespaces or specific namespace
+    if namespace:
+        pods = api.list_namespaced_pod(namespace)
+    else:
+        pods = api.list_pod_for_all_namespaces()
+    
+    for pod in pods.items:
+        pod_name = pod.metadata.name
+        pod_namespace = pod.metadata.namespace
+        full_name = f"{pod_namespace}/{pod_name}"
+        
+        # Basic pod status checks (similar to analyze_pods)
+        issues = []
+        
+        # Check for pod status issues
+        if pod.status.phase not in ["Running", "Succeeded"]:
+            issues.append({
+                "Text": f"Pod is in {pod.status.phase} state",
+                "KubernetesDoc": "",
+                "Sensitive": []
+            })
+        
+        # Check container statuses
+        if pod.status.container_statuses:
+            for container in pod.status.container_statuses:
+                # Check for container restarts
+                if container.restart_count > 5:
+                    issues.append({
+                        "Text": f"Container {container.name} has restarted {container.restart_count} times",
+                        "KubernetesDoc": "",
+                        "Sensitive": []
+                    })
+                
+                # Check for container not ready
+                if not container.ready and pod.status.phase == "Running":
+                    issues.append({
+                        "Text": f"Container {container.name} is not ready",
+                        "KubernetesDoc": "",
+                        "Sensitive": []
+                    })
+                
+                # Check for waiting containers
+                if container.state.waiting:
+                    issues.append({
+                        "Text": f"Container {container.name} is waiting: {container.state.waiting.reason} - {container.state.waiting.message or ''}",
+                        "KubernetesDoc": "",
+                        "Sensitive": []
+                    })
+                
+                # Check for terminated containers with error
+                if container.state.terminated and container.state.terminated.exit_code != 0:
+                    issues.append({
+                        "Text": f"Container {container.name} terminated with error: {container.state.terminated.reason} - {container.state.terminated.message or ''}",
+                        "KubernetesDoc": "",
+                        "Sensitive": []
+                    })
+        
+        # Check for pod conditions
+        if pod.status.conditions:
+            for condition in pod.status.conditions:
+                if condition.type == "Ready" and condition.status != "True" and pod.status.phase == "Running":
+                    issues.append({
+                        "Text": f"Pod is not ready: {condition.reason} - {condition.message}",
+                        "KubernetesDoc": "",
+                        "Sensitive": []
+                    })
+        
+        # Get pod events
+        event_issues = check_pod_events(api, pod_namespace, pod_name)
+        issues.extend(event_issues)
+        
+        # Only add to results if there are issues
+        if issues:
+            results.append({
+                "kind": "Pod",
+                "name": full_name,
+                "error": issues,
+                "details": "",
+                "parentObject": ""
+            })
+    
+    return results
+
+

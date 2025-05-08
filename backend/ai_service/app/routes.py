@@ -41,34 +41,19 @@ async def get_kubectl_command(
     response: Response,
     session: Session = Depends(get_session),
     current_user: Dict = Depends(get_current_user)
-):
-    """
-    Generate kubectl commands from natural language queries.
-    
-    This endpoint takes a natural language query about Kubernetes operations and
-    translates it into executable kubectl commands. The generated commands are
-    returned but not executed.
-    
-    The service uses a large language model to interpret the query and generate
-    appropriate kubectl commands. Results are cached to improve performance for
-    repeated queries.
-    
-    Parameters:
-    - **q**: The natural language query object containing the text to translate
-      into kubectl commands
-    
-    Returns:
-    - A CommandResponse object containing the generated kubectl commands and metadata
-    
-    Raises:
-    - 400: If the query is invalid or not related to Kubernetes
-    - 401: If the user is not authenticated
-    - 422: If the generated commands are deemed unsafe
-    - 429: If the rate limit is exceeded (10 requests per minute)
-    - 500: If there's an internal server error
-    - 503: If the LLM service is unavailable
-    - 504: If the LLM service times out
-    """
+    # current_user = {
+    #         "id": 1,
+    #         "username": "nisha",
+    #         "email": "nisha@example.com",
+    #         "first_name": "nisha",
+    #         "last_name": "nisha",
+    #         "is_active": True,
+    #         "is_admin": False,
+    #         "created_at": "2025-04-26T11:40:06.512880",
+    #         "updated_at": "2025-04-26T11:40:06.512996"
+    #     }
+    ):
+
     logger.info(f"Received command generation query: '{q.query}'")
     sanitized_query = sanitize_query(q.query)
 
@@ -159,29 +144,6 @@ async def execute_kubectl_command(
     session: Session = Depends(get_session),
     current_user: Dict = Depends(get_current_user)
 ):
-    """
-    Execute a single kubectl command on the Kubernetes cluster.
-    
-    This endpoint takes a kubectl command string, validates it for safety,
-    and executes it on the connected Kubernetes cluster. The execution results
-    or errors are returned to the client.
-    
-    Safety checks are performed to prevent potentially harmful commands from
-    being executed. The service enforces rate limits to prevent abuse.
-    
-    Parameters:
-    - **req**: The execution request containing the kubectl command to execute
-    
-    Returns:
-    - A CommandResponse object containing the execution results or errors
-    
-    Raises:
-    - 400: If the command is invalid or fails safety checks
-    - 401: If the user is not authenticated
-    - 429: If the rate limit is exceeded (10 requests per minute)
-    - 500: If there's an internal server error
-    - 504: If the command execution times out
-    """
     command_to_execute = req.execute.strip()
     logger.info(f"Received execute request for command: '{command_to_execute}'")
 
@@ -238,22 +200,7 @@ async def get_query_history(
     session: Session = Depends(get_session),
     current_user: Dict = Depends(get_current_user)
 ):
-    """
-    Get the query history for the current user.
-    
-    Retrieves the history of natural language queries and kubectl commands
-    that have been generated and/or executed by the current user. Results
-    are ordered with the most recent queries first.
-    
-    Parameters:
-    - **limit**: Maximum number of history items to return (default: 50)
-    
-    Returns:
-    - A dictionary containing the user's query history
-    
-    Raises:
-    - 401: If the user is not authenticated
-    """
+    """Get the query history for the current user"""
     history = session.exec(
         select(QueryHistory)
         .where(QueryHistory.user_id == current_user["id"])

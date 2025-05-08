@@ -102,7 +102,7 @@
             <div
                 class="flex-shrink-0 z-10 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex justify-between items-center h-16">
                 <h2 class="text-xl font-semibold text-green-600 dark:text-green-500">{{ activeChat.title || 'New Chat'
-                }}</h2>
+                    }}</h2>
                 <div class="flex items-center space-x-2">
                     <!-- <button @click="toggleTheme" class="w-10 h-10 rounded-lg flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
                         <i :class="isDarkMode ? 'fas fa-sun' : 'fas fa-moon'"></i>
@@ -172,7 +172,7 @@
                                     {{ message.role === 'user' ? 'You' : 'KubeSage' }}
                                 </span>
                                 <span class="text-gray-500 dark:text-gray-400">{{ formatTime(message.created_at)
-                                }}</span>
+                                    }}</span>
                             </div>
                             <div class="prose dark:prose-invert prose-sm max-w-none"
                                 v-html="renderMarkdown(message.content)"></div>
@@ -453,81 +453,87 @@ export default {
 
                 console.log('Execute API response:', response.data);
 
-                // Process the execution result
-                if (response.data.execution_result) {
-                    // Check if it's already a structured object
-                    if (typeof response.data.execution_result === 'object' && response.data.execution_result.type) {
-                        commandResults.value[cmdIndex] = response.data.execution_result;
-                    } else {
-                        // It's a string, so we need to check if it looks like a table
-                        const resultStr = response.data.execution_result;
+                // Check if the command was successful based on execution_result being present
+                if (response.data.execution_result !== null) {
+                    // Process the execution result
+                    const resultStr = response.data.execution_result;
 
-                        // Check if the result looks like a table (has header row and data rows)
-                        const lines = resultStr.trim().split('\n');
-                        if (lines.length > 1) {
-                            const headers = lines[0].trim().split(/\s+/);
+                    // Check if it looks like a table (has header row and data rows)
+                    const lines = resultStr.trim().split('\n');
+                    if (lines.length > 1) {
+                        const headers = lines[0].trim().split(/\s+/);
 
-                            // If we have headers and data rows, try to parse as a table
-                            if (headers.length > 1 && lines.length > 1) {
-                                try {
-                                    const data = [];
-                                    // Start from line 1 (skip header)
-                                    for (let i = 1; i < lines.length; i++) {
-                                        const values = lines[i].trim().split(/\s+/);
-                                        if (values.length >= headers.length) {
-                                            const row = {};
-                                            // Match values to headers
-                                            for (let j = 0; j < headers.length; j++) {
-                                                row[headers[j].toLowerCase()] = values[j];
-                                            }
-                                            // If there are more values than headers, combine the extras
-                                            if (values.length > headers.length) {
-                                                const lastHeader = headers[headers.length - 1].toLowerCase();
-                                                row[lastHeader] = values.slice(headers.length - 1).join(' ');
-                                            }
-                                            data.push(row);
+                        // If we have headers and data rows, try to parse as a table
+                        if (headers.length > 1 && lines.length > 1) {
+                            try {
+                                const data = [];
+                                // Start from line 1 (skip header)
+                                for (let i = 1; i < lines.length; i++) {
+                                    const values = lines[i].trim().split(/\s+/);
+                                    if (values.length >= headers.length) {
+                                        const row = {};
+                                        // Match values to headers
+                                        for (let j = 0; j < headers.length; j++) {
+                                            row[headers[j].toLowerCase()] = values[j];
                                         }
+                                        // If there are more values than headers, combine the extras
+                                        if (values.length > headers.length) {
+                                            const lastHeader = headers[headers.length - 1].toLowerCase();
+                                            row[lastHeader] = values.slice(headers.length - 1).join(' ');
+                                        }
+                                        data.push(row);
                                     }
-
-                                    // Store as a structured table
-                                    commandResults.value[cmdIndex] = {
-                                        type: 'table',
-                                        data: data,
-                                        raw: resultStr
-                                    };
-                                } catch (parseError) {
-                                    // If parsing fails, store as string
-                                    console.error('Failed to parse table:', parseError);
-                                    commandResults.value[cmdIndex] = resultStr;
                                 }
-                            } else {
-                                // Not enough columns or rows for a table
+
+                                // Store as a structured table
+                                commandResults.value[cmdIndex] = {
+                                    type: 'table',
+                                    data: data,
+                                    raw: resultStr
+                                };
+                            } catch (parseError) {
+                                // If parsing fails, store as string
+                                console.error('Failed to parse table:', parseError);
                                 commandResults.value[cmdIndex] = resultStr;
                             }
                         } else {
-                            // Not enough lines for a table
+                            // Not enough columns or rows for a table
                             commandResults.value[cmdIndex] = resultStr;
                         }
+                    } else {
+                        // Not enough lines for a table
+                        commandResults.value[cmdIndex] = resultStr;
                     }
-                } else if (response.data.result) {
-                    // Fallback to result if available
-                    commandResults.value[cmdIndex] = response.data.result;
-                } else {
-                    // Default success message
-                    commandResults.value[cmdIndex] = 'Command executed successfully';
-                }
 
-                message.success('Command executed successfully');
-                scrollToBottom();
+                    // Show success message with metadata if available
+                    if (response.data.metadata?.success) {
+                        const duration = response.data.metadata.duration_ms ?
+                            ` (completed in ${Math.round(response.data.metadata.duration_ms)}ms)` : '';
+                        message.success(`Command executed successfully${duration}`);
+                    } else {
+                        message.success('Command executed successfully');
+                    }
+
+                    scrollToBottom();
+                } else {
+                    // This shouldn't happen based on the API design, but handle it just in case
+                    commandResults.value[cmdIndex] = response.data.execution_error;
+                    message.warning('Command executed but no result returned');
+                    scrollToBottom();
+                }
             } catch (error) {
                 console.error('Kubectl command execution failed:', error);
 
                 // Check if we have structured error data
-                if (error.response?.data?.execution_error) {
+                if (error.response?.data?.execution_error !== null) {
                     commandResults.value[cmdIndex] = error.response.data.execution_error;
                 } else {
-                    // Fallback to error message
-                    commandResults.value[cmdIndex] = error.response?.data?.error || error.message;
+                    // Fallback to error message or metadata
+                    if (error.response?.data?.metadata?.error_type) {
+                        commandResults.value[cmdIndex] = `Error: ${error.response.data.metadata.error_type}`;
+                    } else {
+                        commandResults.value[cmdIndex] = error.response?.data?.error || error.message;
+                    }
                 }
 
                 message.error('Command execution failed');
