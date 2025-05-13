@@ -47,6 +47,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), session: Sessi
         HTTPException: 401 error if credentials are invalid
     """
     user = authenticate_user(session, form_data.username, form_data.password)
+    print ("user is ", user)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -64,6 +65,8 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), session: Sessi
         user_id=user.id,
         expires_at=expires_at
     )
+
+    print ("user_token is ", user_token)
     session.add(user_token)
     session.commit()
     session.refresh(user_token)

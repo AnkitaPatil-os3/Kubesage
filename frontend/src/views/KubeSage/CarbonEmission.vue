@@ -3,14 +3,13 @@
       <div class="main-content">
         <!-- Header -->
         <div class="observability-header">
-          <h2>KubeSage Observability Dashboard</h2>
-         
+          <h2>Carbon Emission Monitoring</h2>
         </div>
         
         <!-- Dashboard Container with Overlay Header -->
         <div class="dashboard-container">
           <!-- Overlay header to hide Grafana's top heading -->
-          <div ></div>
+          <div></div>
           
           <iframe
             :src="grafanaUrl"
@@ -26,26 +25,24 @@
   
   <script setup>
   import { ref, onMounted, computed, watch } from 'vue';
-  import { NButton } from 'naive-ui';
   
   // Dark mode state
   const isDarkMode = ref(localStorage.getItem('darkMode') === 'true');
   
   // Grafana URL with parameters
   const grafanaUrl = computed(() => {
-    const baseUrl = import.meta.env.VITE_GRAFANA_URL;
+    const baseUrl = "https://10.0.34.212:3000/grafana-monitoring/d/NhnADUW4zIBM/kepler-exporter-dashboard";
     const params = new URLSearchParams({
       'orgId': '1',
-      'from': 'now-1h',
+      'from': 'now-15m',
       'to': 'now',
       'timezone': 'browser',
-      'var-DS': 'prometheus-kubernetes',
-      'var-DSLogs': 'ae966jr9jiebke',
-      'var-Cluster': 'OMEGA-Agent',
-      'var-Node': 'ashish-kube-m1',
-      'var-Namespace': 'alloy',
-      'var-Pod': 'agent-job-jdncd',
-      'var-Container': 'agent-container',
+      'var-datasource': 'ael20ncs6qx34d',
+      'var-namespace': '$__all',
+      'var-pod': '$__all',
+      'var-coal': '2.23',
+      'var-natural_gas': '0.91',
+      'var-petroleum': '2.13',
       'theme': isDarkMode.value ? 'dark' : 'light',
       'kiosk': 'tv', // Hide navigation
       'hideControls': 'true', // Hide controls including share button
@@ -235,3 +232,4 @@
   }
   </style>
   
+ 

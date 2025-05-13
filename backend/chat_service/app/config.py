@@ -4,7 +4,7 @@ from typing import Optional
 
 class Settings(BaseSettings):
     # PostgreSQL connection
-    POSTGRES_USER: str = os.getenv("POSTGRES_USER", "nisha")
+    POSTGRES_USER: str = os.getenv("POSTGRES_USER", "aastha")
     POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "linux")
     POSTGRES_HOST: str = os.getenv("POSTGRES_HOST", "localhost")
     POSTGRES_PORT: str = os.getenv("POSTGRES_PORT", "5432")

@@ -10,7 +10,7 @@ export const staticRoutes: AppRoute.RowRoute[] = [
     pid: null,
     roles: ['user','admin'] // Both can access
   },
-
+ 
   {
     name: 'Cluster Management',
     path: '/cluster-management',
@@ -58,7 +58,31 @@ export const staticRoutes: AppRoute.RowRoute[] = [
     pid: null,
     roles: ['user'] // Only user can access
   },
-
+ 
+  {
+    name: 'Carbon Emission',
+    path: '/carbon-emission',
+    title: 'Carbon Emission',
+    requiresAuth: true,
+    icon: 'mdi:leaf',
+    componentPath: '/KubeSage/CarbonEmission.vue',
+    id: 37,
+    pid: null,
+    roles: ['user'] // Only user can access
+  },
+ 
+  {
+    name: 'Auto Remediation',
+    path: '/auto-remediation',
+    title: 'Auto Remediation',
+    requiresAuth: true,
+    icon: 'mdi:auto-fix',
+    componentPath: '/KubeSage/autoRemediation.vue',
+    id: 36,
+    pid: null,
+    roles: ['user'] // Only user can access
+  },
+ 
   {
     name: 'Auth Settings',
     path: '/auth-settings',
@@ -84,3 +108,5 @@ export const staticRoutes: AppRoute.RowRoute[] = [
     roles: ['admin'] // Only admin can access
   }
 ]
+ 
+ 
