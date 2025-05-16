@@ -101,9 +101,9 @@
         <i class="fas fa-trash-alt"></i> Remove Operator
       </n-button>
       
-      <n-button class="action-btn delete-btn" @click="removeConfig(config.filename)">
-        <i class="fas fa-trash-alt"></i> Delete
-      </n-button>
+<n-button class="action-btn delete-btn" @click="openDeleteConfirmModal(config.filename)">
+  <i class="fas fa-trash-alt"></i> Delete
+</n-button>
     </div>
   </td>
               </tr>
@@ -128,7 +128,7 @@
               <n-button class="cancel-btn" @click="cancelInstallOperator">Cancel</n-button>
               <n-button class="confirm-btn" @click="confirmInstallOperator" :disabled="isSubmitting">
                 <span v-if="isSubmitting">
-                  <i class="fas fa-spinner fa-spin"></i> Installing...
+                  <i class="fas fa-spinner fa-spin"></i>
                 </span>
                 <span v-else>Install</span>
               </n-button>
@@ -153,7 +153,7 @@
               <n-button class="cancel-btn" @click="cancelUninstallOperator">Cancel</n-button>
               <n-button class="confirm-btn" @click="confirmUninstallOperator" :disabled="isSubmitting">
                 <span v-if="isSubmitting">
-                  <i class="fas fa-spinner fa-spin"></i> Removing...
+                  <i class="fas fa-spinner fa-spin"></i>
                 </span>
                 <span v-else>Remove</span>
               </n-button>
@@ -161,6 +161,54 @@
           </div>
         </div>
       </div>
+
+<!-- Upload Confirmation Dialog -->
+<div class="modal-overlay" v-if="showUploadConfirmModal" @click.self="cancelUpload">
+  <div class="modal-container">
+    <div class="modal-header">
+      <h3>Confirm Upload</h3>
+      <button class="close-btn" @click="cancelUpload">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="modal-content">
+      <p>Are you sure upload this file?</p>
+      <div class="modal-actions">
+        <n-button class="cancel-btn" @click="cancelUpload">Cancel</n-button>
+              <n-button class="confirm-btn" @click="confirmUpload" :disabled="isSubmitting">
+                <span v-if="isSubmitting">
+                  <i class="fas fa-spinner fa-spin"></i>
+                </span>
+                <span v-else>Upload</span>
+              </n-button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirmation Dialog -->
+<div class="modal-overlay" v-if="showDeleteConfirmModal" @click.self="cancelDelete">
+  <div class="modal-container">
+    <div class="modal-header">
+      <h3>Confirm Delete</h3>
+      <button class="close-btn" @click="cancelDelete">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="modal-content">
+      <p>Are you sure you want to delete the file?</p>
+      <div class="modal-actions">
+        <n-button class="cancel-btn" @click="cancelDelete">Cancel</n-button>
+        <n-button class="confirm-btn" @click="confirmDelete" :disabled="isSubmitting">
+          <span v-if="isSubmitting">
+            <i class="fas fa-spinner fa-spin"></i>
+          </span>
+          <span v-else>Delete</span>
+        </n-button>
+      </div>
+    </div>
+  </div>
+</div>
     </div>
   </div>
 </template>
@@ -254,25 +302,42 @@ const triggerFileInput = () => {
   }
 };
  
+const showUploadConfirmModal = ref(false);
+const fileToUpload = ref(null);
+
 // Handle file selection
 const handleFileChange = (event) => {
   const file = event.target.files[0];
   if (file) {
-    uploadFile(file);
+    fileToUpload.value = file;
+    showUploadConfirmModal.value = true;
   }
 };
- 
+
 // Handle file drop
 const handleDrop = (e) => {
   e.preventDefault();
   if (isSubmitting.value) return;
- 
+
   const files = e.dataTransfer.files;
   if (files.length && files[0].name.match(/\.(yaml|yml)$/i)) {
     uploadFile(files[0]);
   } else {
     showMessage('error', 'Invalid File', 'Please upload a valid kubeconfig file (.yaml or .yml)');
   }
+};
+
+const confirmUpload = () => {
+  if (fileToUpload.value) {
+    uploadFile(fileToUpload.value);
+  }
+  fileToUpload.value = null;
+  showUploadConfirmModal.value = false;
+};
+
+const cancelUpload = () => {
+  fileToUpload.value = null;
+  showUploadConfirmModal.value = false;
 };
  
 // Upload file to server
@@ -391,6 +456,31 @@ const removeConfig = debounce(async (filename) => {
     isSubmitting.value = false;
   }
 }, 300);
+
+// New reactive state for delete confirmation modal
+const showDeleteConfirmModal = ref(false);
+const deleteTargetFilename = ref(null);
+
+// Open delete confirmation modal
+const openDeleteConfirmModal = (filename) => {
+  deleteTargetFilename.value = filename;
+  showDeleteConfirmModal.value = true;
+};
+
+// Confirm delete action from modal
+const confirmDelete = async () => {
+  if (deleteTargetFilename.value) {
+    await removeConfig(deleteTargetFilename.value);
+    showDeleteConfirmModal.value = false;
+    deleteTargetFilename.value = null;
+  }
+};
+
+// Cancel delete action from modal
+const cancelDelete = () => {
+  showDeleteConfirmModal.value = false;
+  deleteTargetFilename.value = null;
+};
  
 // Show modal for installing operator
 const startInstallOperator = (filename) => {

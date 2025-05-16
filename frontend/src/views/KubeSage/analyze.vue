@@ -12,7 +12,6 @@
             placeholder="Select a namespace"
             @update:value="fetchNamespaces"
           />
-          
         </div>
       </div>
 
@@ -22,49 +21,98 @@
           <div class="card-icon"><i class="fas fa-cube"></i></div>
           <div class="card-title">Pods</div>
           <div class="card-description">Analyze pod configurations and identify issues</div>
-          <n-button class="analyze-btn">Analyze Pods</n-button>
+          <n-button class="analyze-btn" :disabled="loadingResource !== ''" @click.stop="goToPods">
+            <template v-if="loadingResource === 'Pod'">loading .
+              <i class="fas fa-spinner fa-spin"></i>
+            </template>
+            <template v-else>
+              Analyze Pods
+            </template>
+          </n-button>
         </div>
-        
+
         <div class="resource-card" @click="goToDeployments">
           <div class="card-icon accent-1"><i class="fas fa-layer-group"></i></div>
           <div class="card-title">Deployments</div>
           <div class="card-description">Check deployment configurations and best practices</div>
-          <n-button class="analyze-btn">Analyze Deployments</n-button>
+          <n-button class="analyze-btn" :disabled="loadingResource !== ''" @click.stop="goToDeployments">
+            <template v-if="loadingResource === 'Deployment'">loading .
+              <i class="fas fa-spinner fa-spin"></i>
+            </template>
+            <template v-else>
+              Analyze Deployments
+            </template>
+          </n-button>
         </div>
-        
+
         <div class="resource-card" @click="goToServices">
           <div class="card-icon accent-2"><i class="fas fa-network-wired"></i></div>
           <div class="card-title">Services</div>
           <div class="card-description">Validate service configurations and connectivity</div>
-          <n-button class="analyze-btn">Analyze Services</n-button>
+          <n-button class="analyze-btn" :disabled="loadingResource !== ''" @click.stop="goToServices">
+            <template v-if="loadingResource === 'Service'">loading .
+              <i class="fas fa-spinner fa-spin"></i>
+            </template>
+            <template v-else>
+              Analyze Services
+            </template>
+          </n-button>
         </div>
-        
+
         <div class="resource-card" @click="goToStorageClass">
           <div class="card-icon accent-3"><i class="fas fa-database"></i></div>
           <div class="card-title">StorageClasses</div>
           <div class="card-description">Review storage class configurations</div>
-          <n-button class="analyze-btn">Analyze StorageClasses</n-button>
+          <n-button class="analyze-btn" :disabled="loadingResource !== ''" @click.stop="goToStorageClass">
+            <template v-if="loadingResource === 'StorageClass'">loading .
+              <i class="fas fa-spinner fa-spin"></i>
+            </template>
+            <template v-else>
+              Analyze StorageClasses
+            </template>
+          </n-button>
         </div>
-        
+
         <div class="resource-card" @click="goToSecrets">
           <div class="card-icon accent-4"><i class="fas fa-key"></i></div>
           <div class="card-title">Secrets</div>
           <div class="card-description">Check secret configurations and security</div>
-          <n-button class="analyze-btn">Analyze Secrets</n-button>
+          <n-button class="analyze-btn" :disabled="loadingResource !== ''" @click.stop="goToSecrets">
+            <template v-if="loadingResource === 'Secret'">loading .
+              <i class="fas fa-spinner fa-spin"></i>
+            </template>
+            <template v-else>
+              Analyze Secrets
+            </template>
+          </n-button>
         </div>
-        
+
         <div class="resource-card" @click="goToIngress">
           <div class="card-icon accent-5"><i class="fas fa-route"></i></div>
           <div class="card-title">Ingress</div>
           <div class="card-description">Validate ingress rules and configurations</div>
-          <n-button class="analyze-btn">Analyze Ingress</n-button>
+          <n-button class="analyze-btn" :disabled="loadingResource !== ''" @click.stop="goToIngress">
+            <template v-if="loadingResource === 'Ingress'">loading .
+              <i class="fas fa-spinner fa-spin"></i>
+            </template>
+            <template v-else>
+              Analyze Ingress
+            </template>
+          </n-button>
         </div>
-        
+
         <div class="resource-card" @click="goToPVC">
           <div class="card-icon accent-6"><i class="fas fa-hdd"></i></div>
           <div class="card-title">PVC</div>
           <div class="card-description">Check persistent volume claim configurations</div>
-          <n-button class="analyze-btn">Analyze PVC</n-button>
+          <n-button class="analyze-btn" :disabled="loadingResource !== ''" @click.stop="goToPVC">
+            <template v-if="loadingResource === 'PersistentVolumeClaim'">loading .
+              <i class="fas fa-spinner fa-spin"></i>
+            </template>
+            <template v-else>
+              Analyze PVC
+            </template>
+          </n-button>
         </div>
       </div>
 
@@ -82,10 +130,25 @@
           </div>
         </div>
       </div>
+
+      <!-- Popup Message Modal -->
+      <div class="modal-overlay" v-if="showPopupMessage" @click.self="closePopupMessage">
+        <div class="modal-container">
+          <div class="modal-header">
+            <h3>Message</h3>
+            <button class="close-btn" @click="closePopupMessage">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <div class="modal-content">
+            <p>{{ popupMessage }}</p>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
- 
+
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
@@ -93,12 +156,15 @@ import {
   NSelect,
   NButton
 } from 'naive-ui';
- 
+
 const selectedNamespace = ref(''); // Default namespace
 const namespaces = ref([]);
 const showAnalysisResult = ref(false);
 const analysisResult = ref('');
 const isDarkMode = ref(localStorage.getItem('darkMode') === 'true');
+
+// New reactive state for loading buttons
+const loadingResource = ref(''); // holds resource type currently loading
 
 // API base URL
 const baseUrl = import.meta.env.VITE_KUBECONFIG_SERVICE ;
@@ -150,15 +216,26 @@ const fetchNamespaces = async () => {
   }
 };
 
+const popupMessage = ref('');
+const showPopupMessage = ref(false);
+
+const closePopupMessage = () => {
+  showPopupMessage.value = false;
+  popupMessage.value = '';
+};
+
 const analyzeK8sResource = async (resourceType) => {
   if (!selectedNamespace.value) {
-    alert("Please select a namespace first.");
+    popupMessage.value = "Please select a namespace first.";
+    showPopupMessage.value = true;
     return;
   }
- 
+
+  loadingResource.value = resourceType; // set loading state
+
   try {
     const headers = getAuthHeaders(); // Get authentication headers
- 
+
     // Define query parameters
     const params = {
       // backend: "ollama",
@@ -168,15 +245,15 @@ const analyzeK8sResource = async (resourceType) => {
       namespace: selectedNamespace.value, // Namespace from selection
       output: "json"
     };
- 
+
     console.log("Query Parameters:", params);
- 
+
     // Axios POST request with query parameters
     const response = await axios.post(`${baseUrl}/kubeconfig/analyze`, null, { headers, params });
- 
+
     if (response.status === 200) {
       const { status, results } = response.data;
- 
+
       if (status === "OK" && results === null) {
         analysisResult.value = `<p class="success-message">No issues found for ${resourceType} in namespace ${selectedNamespace.value}.</p>`;
       } else if (status === "ProblemDetected" && results) {
@@ -184,14 +261,20 @@ const analyzeK8sResource = async (resourceType) => {
           let errorText =
             result.error?.map((err) => `<span class="error-text">${err.Text}</span>`).join("<br>") ||
             "No error details available";
-          let solutionText =
-            result.details
-              ?.split("Solution:")[1]
-              ?.trim()
-              ?.split("\n")
-              ?.map((solution, idx) => `<li class="solution-item">${solution}</li>`)
-              .join("") || "No solution details available";
- 
+          // Extract solution details
+let solutionText =
+  result.details
+    ?.split("Solution:")[1]
+    ?.trim()
+    ?.split(/\d+\.\s*/)
+    ?.filter(s => s.trim() !== '')
+    ?.map((solution, idx) => {
+      const number = idx + 1;
+      const text = solution.trim().replace(/\n/g, '<br>&nbsp;&nbsp;&nbsp;&nbsp;');
+      return `<li class="solution-item"><span class="solution-number">${number}. </span><span class="solution-text">${text}</span></li>`;
+    })
+    .join("") || "No solution details available";
+
           return `
             <div class="problem-item">
               <h4 class="problem-title">Problem ${index + 1}: ${result.name}</h4>
@@ -205,7 +288,7 @@ const analyzeK8sResource = async (resourceType) => {
             </div>
           `;
         }).join("");
- 
+
         analysisResult.value = `
           <h3 class="problems-header">Problems Detected (${response.data.problems}):</h3>
           ${errorMessages}
@@ -213,7 +296,7 @@ const analyzeK8sResource = async (resourceType) => {
       } else {
         analysisResult.value = `<p class="warning-message">Unknown response status.</p>`;
       }
- 
+
       showAnalysisResult.value = true;
     } else {
       analysisResult.value = `<p class="error-message">Something went wrong. Please try again.</p>`;
@@ -223,9 +306,11 @@ const analyzeK8sResource = async (resourceType) => {
     console.error(`Error analyzing ${resourceType}:`, error);
     analysisResult.value = `<p class="error-message">Error: ${error.message}</p>`;
     showAnalysisResult.value = true;
+  } finally {
+    loadingResource.value = ''; // reset loading state
   }
 };
- 
+
 // Button click handlers
 const goToPods = () => analyzeK8sResource('Pod');
 const goToDeployments = () => analyzeK8sResource('Deployment');
@@ -234,18 +319,18 @@ const goToStorageClass = () => analyzeK8sResource('StorageClass');
 const goToSecrets = () => analyzeK8sResource('Secret');
 const goToIngress = () => analyzeK8sResource('Ingress');
 const goToPVC = () => analyzeK8sResource('PersistentVolumeClaim');
- 
+
 // Close the analysis result modal
 const closeAnalysisResult = () => {
   showAnalysisResult.value = false;
 };
- 
+
 // Fetch namespaces on component mount
 onMounted(() => {
   fetchNamespaces();
   updateDarkModeClasses();
 });
- 
+
 // Namespace options for the dropdown
 const namespaceOptions = computed(() => {
   return namespaces.value.map(namespace => ({
@@ -254,7 +339,7 @@ const namespaceOptions = computed(() => {
   }));
 });
 </script>
- 
+
 <style scoped>
 /* Import Font Awesome */
 @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
@@ -529,7 +614,7 @@ const namespaceOptions = computed(() => {
   border-radius: 16px;
   width: 90%;
   max-width: 800px;
-  max-height: 80vh;
+  max-height: 70vh;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
@@ -593,123 +678,77 @@ const namespaceOptions = computed(() => {
 }
 
 .modal-content {
-  padding: 24px;
+  padding: 28px 32px;
   overflow-y: auto;
   max-height: calc(80vh - 70px);
+  /* background: linear-gradient(135deg, #d4f8d4, #a6e6a6); */
+  border-radius: 0;
+  box-shadow: 0 10px 30px rgba(16, 188, 59, 0.25);
+  color: #145214;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-size: 1.05rem;
+  line-height: 1.7;
+  /* border: 1.5px solid #4caf50; */
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* Analysis Result Styles */
-.success-message {
-  color: #10BC3B;
-  font-size: 1.1rem;
-  padding: 16px;
-  background-color: rgba(16, 188, 59, 0.1);
-  border-radius: 8px;
-  margin-bottom: 16px;
-  border-left: 4px solid #10BC3B;
-}
-
-.error-message {
-  color: #ef4444;
-  font-size: 1.1rem;
-  padding: 16px;
-  background-color: rgba(239, 68, 68, 0.1);
-  border-radius: 8px;
-  margin-bottom: 16px;
-  border-left: 4px solid #ef4444;
-}
-
-.warning-message {
-  color: #f59e0b;
-  font-size: 1.1rem;
-  padding: 16px;
-  background-color: rgba(245, 158, 11, 0.1);
-  border-radius: 8px;
-  margin-bottom: 16px;
-  border-left: 4px solid #f59e0b;
-}
-
-.problems-header {
-  color: #ef4444;
-  margin-bottom: 24px;
-  font-size: 1.3rem;
-  border-bottom: 2px solid rgba(239, 68, 68, 0.2);
-  padding-bottom: 8px;
-}
-
-.problem-item {
-  margin-bottom: 24px;
-  padding: 20px;
-  border-radius: 12px;
-  background-color: #f9fafb;
-  border-left: 4px solid #ef4444;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-}
-
-.app-container.dark-mode .problem-item {
-  background-color: #2d3748;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.problem-title {
-  margin-top: 0;
-  margin-bottom: 16px;
-  color: #ef4444;
-  font-size: 1.1rem;
+.modal-content p {
+  margin-bottom: 1.1rem;
+  color: #2e7d32;
   font-weight: 600;
 }
 
-.app-container.dark-mode .problem-title {
-  color: #f87171;
+.modal-content h3,
+.modal-content h4 {
+  color: #1b5e20;
+  font-weight: 800;
+  margin-bottom: 0.85rem;
+  text-shadow: 0 1px 3px rgba(76, 175, 80, 0.5);
 }
 
-.problem-error {
-  margin-bottom: 16px;
-  padding: 12px;
-  background-color: rgba(239, 68, 68, 0.05);
-  border-radius: 8px;
+.modal-content ul {
+  padding-left: 1.75rem;
+  margin-bottom: 1.1rem;
+  color: #1b5e20;
 }
 
-.app-container.dark-mode .problem-error {
-  background-color: rgba(239, 68, 68, 0.1);
+.modal-content li {
+  margin-bottom: 0.6rem;
+  font-weight: 600;
 }
 
-.error-text {
-  color: #ef4444;
-  display: block;
-  margin-top: 8px;
-  line-height: 1.6;
+.modal-content strong {
+  color: #145214;
+  font-weight: 800;
 }
 
-.problem-solution {
-  margin-top: 16px;
-  padding: 12px;
-  background-color: rgba(16, 188, 59, 0.05);
-  border-radius: 8px;
+.app-container.dark-mode .modal-content {
+  background: linear-gradient(135deg, #0f2f0f, #164916);
+  box-shadow: 0 10px 30px rgba(16, 188, 59, 0.7);
+  color: #a8d5a8;
+  border: 1.5px solid #4caf50;
 }
 
-.app-container.dark-mode .problem-solution {
-  background-color: rgba(16, 188, 59, 0.1);
+.app-container.dark-mode .modal-content p {
+  color: #b2d8b2;
 }
 
-.solution-list {
-  padding-left: 20px;
-  margin-top: 8px;
+.app-container.dark-mode .modal-content h3,
+.app-container.dark-mode .modal-content h4 {
+  color: #81c784;
+  text-shadow: 0 1px 3px rgba(76, 175, 80, 0.8);
 }
 
-.solution-item {
-  color: #10BC3B;
-  margin-bottom: 8px;
-  list-style-type: none;
-  position: relative;
-  line-height: 1.6;
+.app-container.dark-mode .modal-content ul {
+  color: #81c784;
 }
 
-.solution-item::before {
-  content: "•";
-  position: absolute;
-  left: -15px;
-  color: #10BC3B;
+.app-container.dark-mode .modal-content li {
+  color: #b2d8b2;
+}
+
+.app-container.dark-mode .modal-content strong {
+  color: #a5d6a7;
 }
 
 /* Responsive adjustments */
@@ -737,11 +776,143 @@ const namespaceOptions = computed(() => {
     width: 95%;
     max-height: 90vh;
   }
-  
-  .card-icon {
-    width: 60px;
-    height: 60px;
-    font-size: 24px;
+}
+/* Animation keyframes */
+@keyframes fadeInUp {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
   }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Apply animation to problem items */
+.problem-item {
+  animation-name: fadeInUp;
+  animation-duration: 0.6s;
+  animation-fill-mode: both;
+  animation-timing-function: ease-out;
+  opacity: 0;
+  animation-delay: 0s;
+  animation-play-state: running;
+  transition: box-shadow 0.3s ease, border-color 0.3s ease;
+  cursor: default;
+}
+
+/* Stagger animation delays for each problem item */
+.problem-item:nth-child(1) {
+  animation-delay: 0.1s;
+  opacity: 1;
+}
+.problem-item:nth-child(2) {
+  animation-delay: 0.3s;
+  opacity: 1;
+}
+.problem-item:nth-child(3) {
+  animation-delay: 0.5s;
+  opacity: 1;
+}
+.problem-item:nth-child(4) {
+  animation-delay: 0.7s;
+  opacity: 1;
+}
+.problem-item:nth-child(5) {
+  animation-delay: 0.9s;
+  opacity: 1;
+}
+.problem-item:nth-child(6) {
+  animation-delay: 1.1s;
+  opacity: 1;
+}
+.problem-item:nth-child(7) {
+  animation-delay: 1.3s;
+  opacity: 1;
+}
+.problem-item:nth-child(8) {
+  animation-delay: 1.5s;
+  opacity: 1;
+}
+.problem-item:nth-child(9) {
+  animation-delay: 1.7s;
+  opacity: 1;
+}
+.problem-item:nth-child(10) {
+  animation-delay: 1.9s;
+  opacity: 1;
+}
+
+/* Hover effect */
+.problem-item:hover {
+  box-shadow: 0 8px 24px rgba(239, 68, 68, 0.3);
+  border-left-color: #dc2626;
+}
+</style>
+
+<style>
+.error-text {
+  color: #ef4444;
+  display: block;
+  margin-top: 8px;
+  line-height: 1.6;
+  /* font-weight: 600;
+  animation: fadeIn 0.8s ease forwards, pulseRed 1.5s ease-in-out infinite;
+  text-shadow: 0 0 5px rgba(239, 68, 68, 0.7); */
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* @keyframes pulseRed {
+  0%, 100% {
+    text-shadow: 0 0 5px rgba(239, 68, 68, 0.7);
+    color: #ef4444;
+  }
+  50% {
+    text-shadow: 0 0 15px rgba(239, 68, 68, 1);
+    color: #b91c1c;
+  }
+} */
+
+/* Loader styles */
+/* Removed page loading overlay styles as pageLoading is removed */
+
+/* External CSS for solution text indentation */
+.solution-list {
+  list-style: none;
+  padding-left: 0;
+  margin-left: 0;
+}
+
+.solution-item {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 0.6rem;
+}
+
+.solution-number {
+  flex: 0 0 2em;
+  font-weight: 700;
+  color: #145214;
+  text-align: right;
+  padding-right: 0.5em;
+  user-select: none;
+}
+
+.solution-text {
+  flex: 1;
+  font-weight: 400; /* changed to normal weight */
+  color: #1b5e20; /* same color as problem title */
+  line-height: 1.4;
 }
 </style>

@@ -106,7 +106,19 @@ export const staticRoutes: AppRoute.RowRoute[] = [
     id: 34,
     pid: null,
     roles: ['admin'] // Only admin can access
-  }
+  },
+
+  {
+    name: 'Resource Cost',
+    path: '/resource-cost',
+    title: 'Resource Cost',
+    requiresAuth: true,
+    icon: 'mdi:currency-usd',
+    componentPath: '/KubeSage/ResourceCost.vue',
+    id: 38,
+    pid: null,
+    roles: ['user'] // Only user can access
+  },
 ]
  
  
