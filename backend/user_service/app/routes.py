@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status ,Request
 from sqlmodel import Session, select
 from typing import List
 import datetime  # Added for timestamp
@@ -21,6 +21,7 @@ from datetime import timedelta
 from app.queue import publish_message  # Import the queue functionality
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.security import OAuth2PasswordBearer
+from app.rate_limiter import limiter
 
 
 
@@ -31,7 +32,8 @@ user_router = APIRouter()
 auth_router = APIRouter()
 
 @auth_router.post("/token", summary="User Login", description="Authenticates a user and returns an access token")
-async def login(form_data: OAuth2PasswordRequestForm = Depends(), session: Session = Depends(get_session)):
+@limiter.limit("10/minute")
+async def login( request: Request, form_data: OAuth2PasswordRequestForm = Depends(), session: Session = Depends(get_session)):
     """
     Authenticates a user with username and password.
     
@@ -89,7 +91,9 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), session: Sessi
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
 
 @auth_router.post("/logout", summary="User Logout", description="Logs out a user by invalidating their access token")
+@limiter.limit("10/minute")
 async def logout(
+    request: Request, 
     token: str = Depends(oauth2_scheme),
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
@@ -146,7 +150,8 @@ async def logout(
 
 # Endpoint to check if user is admin
 @auth_router.get("/check-admin", summary="Check Admin Status", description="Checks if the current user has admin privileges")
-async def check_if_admin(current_user: User = Depends(get_current_user)):
+@limiter.limit("10/minute")
+async def check_if_admin(request: Request, current_user: User = Depends(get_current_user)):
     """
     Checks if the current authenticated user has admin privileges.
     
@@ -161,13 +166,10 @@ async def check_if_admin(current_user: User = Depends(get_current_user)):
         "username": current_user.username  # Direct attribute access
     }
 
-
-
-
-
 @auth_router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED, 
                  summary="Register User", description="Creates a new user account")
-async def register_user(user_data: UserCreate, session: Session = Depends(get_session)):
+@limiter.limit("10/minute")
+async def register_user(request: Request, user_data: UserCreate, session: Session = Depends(get_session)):
     """
     Registers a new user in the system.
     
@@ -244,7 +246,9 @@ async def register_user(user_data: UserCreate, session: Session = Depends(get_se
 
 @auth_router.post("/change-password/{user_id}", status_code=status.HTTP_200_OK,
                  summary="Admin Change User Password", description="Allows an admin to change another user's password")
+@limiter.limit("10/minute")
 async def A_change_password(
+    request: Request, 
     user_id: int,
     password_data: ChangePasswordRequest,
     current_admin: User = Depends(get_current_admin_user),
@@ -298,7 +302,8 @@ async def A_change_password(
 
 @user_router.get("/me", response_model=UserResponse, 
                 summary="Get Current User", description="Returns the current authenticated user's information")
-async def read_users_me(current_user: User = Depends(get_current_active_user)):
+@limiter.limit("10/minute")
+async def read_users_me(request: Request, current_user: User = Depends(get_current_active_user)):
     """
     Returns the profile information of the currently authenticated user.
     
@@ -312,7 +317,9 @@ async def read_users_me(current_user: User = Depends(get_current_active_user)):
 
 @user_router.get("/", response_model=List[UserResponse], 
                 summary="List All Users", description="Returns a list of all users (admin only)")
+@limiter.limit("10/minute")
 async def list_users(
+    request: Request, 
     skip: int = 0, 
     limit: int = 100, 
     current_user: User = Depends(get_current_admin_user),
@@ -337,7 +344,9 @@ async def list_users(
 
 @user_router.get("/{user_id}", response_model=UserResponse, 
                 summary="Get User by ID", description="Returns a specific user's information (admin only)")
+@limiter.limit("10/minute")
 async def get_user(
+    request: Request, 
     user_id: int, 
     current_user: User = Depends(get_current_admin_user),
     session: Session = Depends(get_session)
@@ -364,7 +373,9 @@ async def get_user(
 
 @user_router.put("/{user_id}", response_model=UserResponse, 
                 summary="Update User", description="Updates a user's information (admin only)")
+@limiter.limit("10/minute")
 async def update_user(
+    request: Request, 
     user_id: int,
     user_update: UserUpdate,
     current_user: User = Depends(get_current_admin_user),
@@ -425,7 +436,9 @@ async def update_user(
 
 @user_router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT, 
                    summary="Delete User", description="Deletes a user account (admin only)")
+@limiter.limit("10/minute")
 async def delete_user(
+    request: Request, 
     user_id: int,
     current_user: User = Depends(get_current_admin_user),
     session: Session = Depends(get_session)

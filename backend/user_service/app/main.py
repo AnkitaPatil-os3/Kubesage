@@ -6,8 +6,14 @@ from app.consumer import start_consumers
 from app.logger import logger
 import uvicorn
 import uuid, ssl
+from app.rate_limiter import limiter, rate_limit_exceeded_handler, RateLimitExceeded
 
 app = FastAPI(title="KubeSage User Service")
+
+
+# Add limiter to app state
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 
 # Allow frontend requests
 origins = [

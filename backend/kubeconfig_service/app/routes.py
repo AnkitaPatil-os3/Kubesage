@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Query
+from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Query , Request
 from fastapi.responses import JSONResponse
 from sqlmodel import Session, select, update
 from typing import List, Dict, Optional
@@ -20,7 +20,8 @@ from app.auth import get_current_user
 from app.config import settings
 from app.logger import logger
 from app.queue import publish_message  # Updated to use our new queue implementation
- 
+from app.rate_limiter import limiter
+
 kubeconfig_router = APIRouter()
  
 def execute_command(command: str):
@@ -227,7 +228,9 @@ async def set_active_kubeconfig(
 @kubeconfig_router.get("/list", response_model=KubeconfigList,
                       summary="List Kubeconfigs", 
                       description="Returns a list of all kubeconfig files for the current user")
+@limiter.limit("10/minute")
 async def list_kubeconfigs(
+        request: Request,
         session: Session = Depends(get_session),
         current_user: Dict = Depends(get_current_user)
 ):

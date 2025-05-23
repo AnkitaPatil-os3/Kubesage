@@ -40,18 +40,18 @@ async def get_kubectl_command(
     request: Request,
     response: Response,
     session: Session = Depends(get_session),
-    current_user: Dict = Depends(get_current_user)
-    # current_user = {
-    #         "id": 1,
-    #         "username": "nisha",
-    #         "email": "nisha@example.com",
-    #         "first_name": "nisha",
-    #         "last_name": "nisha",
-    #         "is_active": True,
-    #         "is_admin": False,
-    #         "created_at": "2025-04-26T11:40:06.512880",
-    #         "updated_at": "2025-04-26T11:40:06.512996"
-    #     }
+    # current_user: Dict = Depends(get_current_user)
+    current_user = {
+            "id": 1,
+            "username": "nisha",
+            "email": "nisha@example.com",
+            "first_name": "nisha",
+            "last_name": "nisha",
+            "is_active": True,
+            "is_admin": False,
+            "created_at": "2025-04-26T11:40:06.512880",
+            "updated_at": "2025-04-26T11:40:06.512996"
+        }
     ):
 
     logger.info(f"Received command generation query: '{q.query}'")
