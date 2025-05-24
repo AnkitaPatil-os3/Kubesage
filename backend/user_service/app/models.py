@@ -2,6 +2,8 @@ from sqlmodel import SQLModel, Field
 from typing import Optional
 import datetime
 import uuid
+from datetime import datetime  # Import the datetime class directly, not the module
+
 
 class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -12,14 +14,15 @@ class User(SQLModel, table=True):
     last_name: Optional[str] = None
     is_active: bool = Field(default=True)
     is_admin: bool = Field(default=False)
-    created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
-    updated_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
+    created_at: datetime = Field(default_factory=datetime.now)  # Use datetime.now, not datetime.datetime.now    updated_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)  # Use datetime.now, not datetime.datetime.now
 
 class UserToken(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     token: str = Field(default_factory=lambda: str(uuid.uuid4()), index=True)
     user_id: int = Field(foreign_key="user.id", index=True)
-    expires_at: datetime.datetime
+    expires_at: datetime
     is_revoked: bool = Field(default=False)
-    created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
+    created_at: datetime = Field(default_factory=datetime.now)  # Use datetime.now, not datetime.datetime.now
+
     

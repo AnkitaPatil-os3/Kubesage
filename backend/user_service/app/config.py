@@ -1,6 +1,10 @@
 from pydantic_settings import BaseSettings
 import os
 from typing import Optional
+from dotenv import load_dotenv
+
+# Load .env file explicitly
+load_dotenv()  # This will load the .env file from the current directory
 
 class Settings(BaseSettings):
     # App settings
@@ -14,6 +18,20 @@ class Settings(BaseSettings):
     POSTGRES_PORT: str = os.getenv("POSTGRES_PORT", "5432")
     POSTGRES_DB: str = os.getenv("POSTGRES_DB", "n_user_db")
     DATABASE_URL: str = ""  # Will be constructed from above settings
+
+    # Email Configuration
+    MAIL_USERNAME: str = os.getenv("MAIL_USERNAME", "")
+    MAIL_PASSWORD: str = os.getenv("MAIL_PASSWORD", "")
+    MAIL_FROM: str = os.getenv("MAIL_FROM", "")  # Use a valid email here
+    MAIL_PORT: int = int(os.getenv("MAIL_PORT", "587"))  # Default to 587 (standard SMTP port)
+    MAIL_SERVER: str = os.getenv("MAIL_SERVER", "smtp.gmail.com")  # Default to Gmail
+    MAIL_FROM_NAME: str = os.getenv("MAIL_FROM_NAME", "KubeSage")
+    MAIL_STARTTLS: bool = os.getenv("MAIL_TLS", "True").lower() == "true"
+    MAIL_SSL_TLS: bool = os.getenv("MAIL_SSL", "False").lower() == "true"
+    SERVER_BASE_URL: str = os.getenv("SERVER_BASE_URL")  # Server configuration
+    USER_CONFIRMATION_TIMEOUT: int = int(os.getenv("USER_CONFIRMATION_TIMEOUT" )) # Increased to 1 hour (3600 seconds)  # User confirmation timeout in seconds
+    FRONTEND_BASE_URL: str = os.getenv("FRONTEND_BASE_URL")
+
     
     # RabbitMQ settings
     RABBITMQ_USER: str = os.getenv("RABBITMQ_USER", "guest")
@@ -42,5 +60,6 @@ class Settings(BaseSettings):
         env_file = ".env"
         env_file_encoding = "utf-8"
         case_sensitive = True
+        extra = "ignore"  # This is the key change - allow extra fields
 
 settings = Settings()

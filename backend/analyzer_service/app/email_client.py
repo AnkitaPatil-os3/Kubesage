@@ -5,33 +5,29 @@ from pydantic import EmailStr
 from app.schemas import Alert
 from app.logger import logger
 from typing import List, Dict, Any, Optional
-
-# Load environment variables directly to ensure they're available
-mail_username = os.getenv("MAIL_USERNAME", "nisha30603@gmail.com")
-mail_password = os.getenv("MAIL_PASSWORD", "ylqlgjmkppphxlvh")  # Use App Password for Gmail
-mail_from = os.getenv("MAIL_FROM", "nisha30603@gmail.com")
-mail_port = int(os.getenv("MAIL_PORT", "587"))
-mail_server = os.getenv("MAIL_SERVER", "smtp.gmail.com")
-mail_from_name = os.getenv("MAIL_FROM_NAME", "KubeSage Alert System")
-mail_starttls = os.getenv("MAIL_STARTTLS", "True").lower() == "true"
-mail_ssl_tls = os.getenv("MAIL_SSL_TLS", "False").lower() == "true"
+import uuid
+from app.config import settings
 
 # Log the configuration (without password)
-logger.info(f"Email Configuration: Server={mail_server}, Port={mail_port}, User={mail_username}, From={mail_from}")
+logger.info(f"Email Configuration: Server={settings.MAIL_SERVER}, Port={settings.MAIL_PORT}, User={settings.MAIL_USERNAME}, From={settings.MAIL_FROM}")
+
 
 # Configure email connection with updated parameter names
 conf = ConnectionConfig(
-    MAIL_USERNAME=mail_username,
-    MAIL_PASSWORD=mail_password,
-    MAIL_FROM=mail_from,
-    MAIL_PORT=mail_port,
-    MAIL_SERVER=mail_server,
-    MAIL_FROM_NAME=mail_from_name,
-    MAIL_STARTTLS=mail_starttls,
-    MAIL_SSL_TLS=mail_ssl_tls,
+    MAIL_USERNAME=settings.MAIL_USERNAME,
+    MAIL_PASSWORD=settings.MAIL_PASSWORD,
+    MAIL_FROM=settings.MAIL_FROM,
+    MAIL_PORT=settings.MAIL_PORT,
+    MAIL_SERVER=settings.MAIL_SERVER,
+    MAIL_FROM_NAME=settings.MAIL_FROM_NAME,
+    MAIL_STARTTLS=settings.MAIL_STARTTLS,  # Make sure these match your Settings class
+    MAIL_SSL_TLS=settings.MAIL_SSL_TLS,    # Make sure these match your Settings class
     USE_CREDENTIALS=True,
     VALIDATE_CERTS=True
 )
+
+# Dictionary to store alert IDs and their details for tracking responses
+alert_tracking = {}
 
 # Create a static test alert for testing purposes
 def create_test_alert() -> Alert:
@@ -66,43 +62,106 @@ async def send_alert_email(alert: Optional[Alert] = None):
         description = alert.annotations.get('description', 'No description provided')
         start_time = alert.startsAt
         
-        logger.info(f"Preparing email for alert: {alert_name}")
+        # Generate a unique ID for this alert to track responses
+        alert_id = str(uuid.uuid4())
+        alert_tracking[alert_id] = {
+            "alert": alert,
+            "status": "pending",  # pending, approved, rejected
+            "timestamp": start_time
+        }
         
-        # Format the email body
-        email_body = f"""
-        <h2>Kubernetes Alert Notification</h2>
-        <p><strong>Alert Triggered:</strong> {alert_name}</p>
-        <p><strong>Severity:</strong> {severity}</p>
-        <p><strong>Summary:</strong> {summary}</p>
-        <p><strong>Description:</strong> {description}</p>
-        <p><strong>Start Time:</strong> {start_time}</p>
-        """
+        logger.info(f"Preparing email for alert: {alert_name} with tracking ID: {alert_id}")
+        
+        # Check if severity is critical
+        is_critical = severity.lower() == "critical"
+        
+        # Format the email body - with or without Yes/No buttons based on severity
+        if is_critical:
+            # Create Yes/No action buttons with links back to our server
+            yes_url = f"{settings.SERVER_BASE_URL}/alert-response/{alert_id}/yes"
+            no_url = f"{settings.SERVER_BASE_URL}/alert-response/{alert_id}/no"
+            
+            email_body = f"""
+            <h2>KubeSage Alert Notification</h2>
+            <p><strong>Alert Triggered:</strong> {alert_name}</p>
+            <p><strong>Severity:</strong> {severity}</p>
+            <p><strong>Summary:</strong> {summary}</p>
+            <p><strong>Description:</strong> {description}</p>
+            <p><strong>Start Time:</strong> {start_time}</p>
+            
+            <p>Do you want to proceed with automatic remediation?</p>
+            
+            <div style="margin-top: 20px;">
+                <a href="{yes_url}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; margin-right: 10px; border-radius: 4px;">Yes, Proceed</a>
+                <a href="{no_url}" style="background-color: #f44336; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">No, Skip</a>
+            </div>
+            
+            <p style="margin-top: 20px; font-size: 12px; color: #666;">
+                If the buttons don't work, you can copy and paste these URLs into your browser:<br>
+                Yes: {yes_url}<br>
+                No: {no_url}
+            </p>
+            """
+            
+            subject = f"KubeSage Alert: {alert_name} - {severity} - Action Required"
+        else:
+            # For non-critical alerts, just show the information without buttons
+            email_body = f"""
+            <h2>KubeSage Alert Notification</h2>
+            <p><strong>Alert Triggered:</strong> {alert_name}</p>
+            <p><strong>Severity:</strong> {severity}</p>
+            <p><strong>Summary:</strong> {summary}</p>
+            <p><strong>Description:</strong> {description}</p>
+            <p><strong>Start Time:</strong> {start_time}</p>
+            
+            <p>This is an informational alert. Automatic remediation will be performed.</p>
+            """
+            
+            subject = f"KubeSage Alert: {alert_name} - {severity} - Information Only"
+            
+            # For non-critical alerts, automatically mark as approved
+            alert_tracking[alert_id]["status"] = "auto-approved"
         
         # Create message schema - use string directly for recipients
         message = MessageSchema(
-            subject=f"KubeSage Alert: {alert_name} - {severity}",
-            recipients=["nisha16063@gmail.com"],  # Hardcoded for testing
+            subject=subject,
+            recipients=[settings.ALERT_EMAIL_RECIPIENT],  
             body=email_body,
             subtype="html"
         )
         
-        # Log SMTP configuration (without password)
-        logger.info(f"SMTP Configuration: Server={mail_server}, Port={mail_port}, User={mail_username}")
+         # Log SMTP configuration (without password)
+        logger.info(f"SMTP Configuration: Server={settings.MAIL_SERVER}, Port={settings.MAIL_PORT}, User={settings.MAIL_USERNAME}")
         
         # Initialize FastMail and send the email
         fm = FastMail(conf)
         await fm.send_message(message)
-        logger.info(f"Alert email sent to nisha16063@gmail.com for alert: {alert_name}")
-        return True
+        logger.info(f"Alert email sent to {settings.ALERT_EMAIL_RECIPIENT} for alert: {alert_name}")
+        return True, alert_id
     except Exception as e:
         logger.error(f"Failed to send alert email: {e}")
         # More detailed error logging
         if hasattr(e, 'args') and len(e.args) > 0:
             logger.error(f"Error details: {e.args}")
-        return False
+        return False, None
 
 def send_alert_email_background(background_tasks: BackgroundTasks, alert: Optional[Alert] = None):
     """Add email sending to background tasks"""
     background_tasks.add_task(send_alert_email, alert)
     logger.info("Email task added to background tasks")
     return True
+
+def get_alert_status(alert_id: str) -> Dict:
+    """Get the current status of an alert"""
+    if alert_id in alert_tracking:
+        return alert_tracking[alert_id]
+    return None
+
+def update_alert_status(alert_id: str, status: str) -> bool:
+    """Update the status of an alert"""
+    if alert_id in alert_tracking:
+        alert_tracking[alert_id]["status"] = status
+        logger.info(f"Alert {alert_id} status updated to: {status}")
+        return True
+    logger.warning(f"Attempted to update unknown alert ID: {alert_id}")
+    return False

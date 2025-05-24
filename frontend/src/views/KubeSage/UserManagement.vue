@@ -53,7 +53,47 @@
                 </div>
 
                 <div class="modal-body">
-                    <n-form ref="createUserForm" :model="newUser" :rules="userRules">
+                    <!-- Show verification message when user is created but pending verification -->
+                    <div v-if="registrationStatus === 'pending'" class="verification-message">
+                        <n-alert type="info" :closable="false">
+                            <template #icon>
+                                <i class="fas fa-envelope"></i>
+                            </template>
+                            <p><strong>Verification Email Sent!</strong></p>
+                            <p>A confirmation email has been sent to <strong>{{ newUser.email }}</strong>.</p>
+                            <p>The user must click the confirmation link in the email to activate their account.</p>
+                            <p>Waiting for user confirmation...</p>
+                            <n-progress type="line" status="active" :percentage="100" :height="6" :processing="true"
+                                :show-indicator="false" color="#87CEFA" rail-color="#E6F7FF" :border-radius="8" />
+
+                        </n-alert>
+                    </div>
+
+                    <!-- Show success message when user is confirmed -->
+                    <div v-else-if="registrationStatus === 'confirmed'" class="verification-message">
+                        <n-alert type="success" :closable="false">
+                            <template #icon>
+                                <i class="fas fa-check-circle"></i>
+                            </template>
+                            <p><strong>User Created Successfully!</strong></p>
+                            <p>The user has confirmed their email and the account is now active.</p>
+                        </n-alert>
+                    </div>
+
+                    <!-- Show error message when there's an error -->
+                    <div v-else-if="registrationStatus === 'error'" class="verification-message">
+                        <n-alert type="error" :closable="false">
+                            <template #icon>
+                                <i class="fas fa-exclamation-circle"></i>
+                            </template>
+                            <p><strong>Registration Error</strong></p>
+                            <p>{{ registrationError }}</p>
+                            <p>Please try again or contact support if the problem persists.</p>
+                        </n-alert>
+                    </div>
+
+                    <!-- Show the form when not in pending/confirmed/error state -->
+                    <n-form v-else ref="createUserForm" :model="newUser" :rules="userRules">
                         <n-form-item label="Username" path="username">
                             <n-input v-model:value="newUser.username" placeholder="Enter username" class="modal-input">
                                 <template #prefix>
@@ -101,16 +141,26 @@
 
                 <div class="modal-footer">
                     <n-space justify="end">
-                        <n-button @click="showCreateUserModal = false" class="cancel-btn" ghost>
-                            Cancel
+                        <n-button @click="closeCreateUserModal" class="cancel-btn" ghost>
+                            {{ registrationStatus ? 'Close' : 'Cancel' }}
                         </n-button>
-                        <n-button type="primary" @click="createUser" class="submit-btn" :loading="registerLoading">
+                        <n-button v-if="!registrationStatus" type="primary" @click="createUser" class="submit-btn"
+                            :loading="registerLoading">
                             <i class="fas fa-plus-circle"></i> Create User
+                        </n-button>
+                        <n-button v-else-if="registrationStatus === 'pending'" type="primary"
+                            @click="closeCreateUserModal" class="submit-btn">
+                            <i class="fas fa-check"></i> Got It
+                        </n-button>
+                        <n-button v-else-if="registrationStatus === 'error'" type="primary"
+                            @click="resetRegistrationStatus" class="submit-btn">
+                            <i class="fas fa-redo"></i> Try Again
                         </n-button>
                     </n-space>
                 </div>
             </div>
         </n-modal>
+
 
         <!-- Edit User Modal -->
         <n-modal v-model:show="showEditUserModal" :bordered="false" class="custom-modal edit-user-modal" :style="{
@@ -229,7 +279,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, h } from 'vue';
+import { ref, computed, onMounted, onUnmounted, h } from 'vue';
 import {
     NButton,
     NCard,
@@ -248,7 +298,7 @@ import {
 import axios from 'axios';
 
 // Configuration
-const baseURL =  import.meta.env.VITE_USER_SERVICE;
+const baseURL = import.meta.env.VITE_USER_SERVICE;
 
 // Dark mode
 const isDarkMode = ref(localStorage.getItem('darkMode') === 'true');
@@ -267,6 +317,13 @@ const searchQuery = ref('');
 const showCreateUserModal = ref(false);
 const showEditUserModal = ref(false);
 const showChangePasswordModal = ref(false);
+
+// Add these new data properties
+const registrationStatus = ref(null); // null, 'pending', 'confirmed', 'error'
+const registrationError = ref('');
+const registrationTimer = ref(null);
+const confirmationId = ref(null);
+
 
 // Form Data
 const newUser = ref({
@@ -518,6 +575,7 @@ const fetchUsers = async () => {
     }
 };
 
+// Update the createUser method
 const createUser = async () => {
     try {
         await createUserForm.value?.validate();
@@ -535,23 +593,108 @@ const createUser = async () => {
             headers: getAuthHeaders()
         });
 
-        const user = {
-            ...response.data,
-            created_at: new Date().toISOString()
-        };
+        // Check if the response indicates pending verification
+        if (response.data.status === "pending") {
+            registrationStatus.value = 'pending';
+            confirmationId.value = response.data.confirmation_id;
+            message.success('Verification email sent to the user');
 
-        users.value.unshift(user);
-        message.success('User created successfully');
-        showCreateUserModal.value = false;
-        resetNewUserForm();
+            // Start polling for confirmation status
+            startConfirmationPolling(response.data.confirmation_id);
+        } else {
+            // If the user was created immediately (unlikely with email verification)
+            registrationStatus.value = 'confirmed';
+            message.success('User created successfully');
+            users.value.unshift({
+                ...newUser.value,
+                id: response.data.user_id || Date.now(),
+                created_at: new Date().toISOString()
+            });
+        }
     } catch (error) {
         console.error(error);
-        const errorMessage = error.response?.data?.detail || error.message || "User creation failed";
-        message.error(errorMessage);
+        registrationStatus.value = 'error';
+        registrationError.value = error.response?.data?.detail || error.message || "User creation failed";
+        message.error(registrationError.value);
     } finally {
         registerLoading.value = false;
     }
 };
+
+// Add a method to poll for confirmation status
+const startConfirmationPolling = (confirmation_id) => {
+    // Clear any existing timer
+    if (registrationTimer.value) {
+        clearInterval(registrationTimer.value);
+    }
+
+    console.log(`Starting polling for confirmation ID: ${confirmation_id}`);
+
+    // Poll every 5 seconds to check if the user has confirmed
+    registrationTimer.value = setInterval(async () => {
+        try {
+            const response = await axios.get(`${baseURL}/auth/confirmation-status/${confirmation_id}`, {
+                headers: getAuthHeaders()
+            });
+
+            console.log(`Polling result:`, response.data);
+
+            if (response.data.status === 'confirmed') {
+                registrationStatus.value = 'confirmed';
+                message.success('User has confirmed their email and account is now active');
+                clearInterval(registrationTimer.value);
+                registrationTimer.value = null;
+
+                // Refresh the user list to show the new user
+                fetchUsers();
+            } else if (response.data.status === 'rejected') {
+                registrationStatus.value = 'error';
+                registrationError.value = `Registration rejected. The user did not approve the registration.`;
+                clearInterval(registrationTimer.value);
+                registrationTimer.value = null;
+            } else if (response.data.status === 'expired') {
+                registrationStatus.value = 'error';
+                registrationError.value = `Registration expired. The confirmation link has expired.`;
+                clearInterval(registrationTimer.value);
+                registrationTimer.value = null;
+            }
+        } catch (error) {
+            console.error('Error checking confirmation status:', error);
+            // Don't stop polling on error, just log it
+        }
+    }, 5000); // Check every 5 seconds
+};
+
+
+// Add a method to close the modal and reset the form
+const closeCreateUserModal = () => {
+    showCreateUserModal.value = false;
+
+    // If we're in a pending state, wait a bit before resetting
+    // This gives the user time to read the message
+    if (registrationStatus.value === 'pending') {
+        setTimeout(() => {
+            resetRegistrationStatus();
+        }, 500);
+    } else {
+        resetRegistrationStatus();
+    }
+};
+
+// Add a method to reset the registration status and form
+const resetRegistrationStatus = () => {
+    registrationStatus.value = null;
+    registrationError.value = '';
+    confirmationId.value = null;
+    resetNewUserForm();
+
+    // Clear any polling timer if it exists
+    if (registrationTimer.value) {
+        clearInterval(registrationTimer.value);
+        registrationTimer.value = null;
+    }
+};
+
 
 const updateUser = async () => {
     try {
@@ -674,10 +817,51 @@ const resetNewUserForm = () => {
 onMounted(() => {
     fetchUsers();
 });
+
+// Make sure to clear the timer when the component is unmounted
+onUnmounted(() => {
+    if (registrationTimer.value) {
+        clearInterval(registrationTimer.value);
+        registrationTimer.value = null;
+    }
+});
 </script>
 <style scoped>
 /* Import Font Awesome */
 @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
+
+/* Add this to your component's <style> section */
+.verification-message {
+    margin-bottom: 20px;
+}
+
+.verification-message p {
+    margin: 8px 0;
+}
+
+.verification-message strong {
+    font-weight: 600;
+}
+
+
+/* Add this in your <style> block */
+.n-progress .n-progress-indicator {
+    box-shadow: 0 0 10px rgba(135, 206, 250, 0.7);
+    animation: pulse 1.5s infinite ease-in-out;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 0.9;
+    }
+
+    50% {
+        opacity: 0.4;
+    }
+}
+
 
 /* Main container */
 .app-container {

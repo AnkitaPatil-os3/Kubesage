@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status ,Request
 from sqlmodel import Session, select
-from typing import List
+from typing import List ,  Dict, Optional
+from pydantic import BaseModel
 import datetime  # Added for timestamp
+from datetime import datetime  # Import the datetime class directly
 
 from app.database import get_session
 from app.models import User , UserToken
@@ -15,6 +17,7 @@ from app.auth import (
     verify_password,
     get_current_user
 )
+from fastapi.responses import HTMLResponse
 from app.config import settings
 from app.logger import logger
 from datetime import timedelta
@@ -22,14 +25,362 @@ from app.queue import publish_message  # Import the queue functionality
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.security import OAuth2PasswordBearer
 from app.rate_limiter import limiter
+from app.email_client import send_confirmation_email, get_confirmation_status, update_confirmation_status
 
 
-
-# User router
+# User & Auth router
 user_router = APIRouter()
-
-# Auth router
 auth_router = APIRouter()
+
+
+
+# register user
+
+@auth_router.post("/register", status_code=status.HTTP_202_ACCEPTED)
+@limiter.limit("10/minute")
+async def register_user(request: Request, user_data: UserCreate, session: Session = Depends(get_session)):
+    """
+    Registers a new user in the system with email confirmation.
+    
+    - Validates that username and email are not already registered
+    - Sends a confirmation email to the user
+    - User must confirm within the timeout period
+    - Returns a pending status
+    
+    Returns:
+        Dict: Status message
+    
+    Raises:
+        HTTPException: 400 error if username or email already exists
+        HTTPException: 500 error if registration fails
+    """
+    # Check if username exists
+    existing_user = session.exec(select(User).where(User.username == user_data.username)).first()
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username already registered"
+        )
+    
+    # Check if email exists
+    existing_email = session.exec(select(User).where(User.email == user_data.email)).first()
+    if existing_email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered"
+        )
+    
+    try:
+        # Convert user_data to dict for email confirmation
+        user_dict = user_data.dict()
+        
+        # Send confirmation email
+        success, confirmation_id = await send_confirmation_email(user_dict)
+        
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to send confirmation email"
+            )
+        
+        logger.info(f"Registration confirmation email sent for user: {user_data.username}")
+        
+        return {
+            "status": "pending",
+            "message": f"Confirmation email sent to {user_data.email}. Please confirm within {settings.USER_CONFIRMATION_TIMEOUT} seconds."
+        }
+    
+    except Exception as e:
+        logger.error(f"Error during user registration: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="User registration failed"
+        )
+
+
+
+@auth_router.get("/confirm/{confirmation_id}/{response}", response_class=HTMLResponse)
+async def confirm_registration(confirmation_id: str, response: str, session: Session = Depends(get_session)):
+    """
+    Handle user response to registration confirmation email.
+    
+    - Validates the response (must be 'yes' or 'no')
+    - Checks if the confirmation exists and is not expired
+    - Creates the user if confirmed
+    - Returns an HTML page confirming the action
+    
+    Parameters:
+        confirmation_id: Unique identifier for the confirmation
+        response: User's response ('yes' to confirm, 'no' to reject)
+    """
+    logger.info(f"Received confirmation response: {response} for ID: {confirmation_id}")
+    
+    # Validate the response
+    if response not in ["yes", "no"]:
+        return HTMLResponse(content="""
+        <html>
+            <head>
+                <title>Invalid Response</title>
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; }
+                    h1 { color: #f44336; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <h1>Invalid Response</h1>
+                    <p>Your response must be either 'yes' or 'no'.</p>
+                    <p>Please check your email and try again with a valid link.</p>
+                </div>
+            </body>
+        </html>
+        """)
+    
+    # Check if the confirmation exists
+    confirmation_data = get_confirmation_status(confirmation_id)
+    if not confirmation_data:
+        logger.warning(f"Confirmation ID not found: {confirmation_id}")
+        return HTMLResponse(content="""
+        <html>
+            <head>
+                <title>Invalid Confirmation</title>
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; }
+                    h1 { color: #f44336; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <h1>Invalid Confirmation ID</h1>
+                    <p>The confirmation link you're using is invalid or has been processed already.</p>
+                    <p>If you were trying to register, please start the registration process again.</p>
+                </div>
+            </body>
+        </html>
+        """)
+    
+    # Check if the confirmation is still pending
+    if confirmation_data["status"] != "pending":
+        status_message = confirmation_data["status"]
+        action_taken = ""
+        
+        if status_message == "confirmed":
+            action_taken = "Your account has already been created successfully."
+            color = "#4CAF50"  # Green for success
+        elif status_message == "rejected":
+            action_taken = "You previously rejected this registration."
+            color = "#f44336"  # Red for rejection
+        elif status_message == "expired":
+            action_taken = "The confirmation link expired. Please register again."
+            color = "#FF9800"  # Orange for expired
+        else:
+            action_taken = "This confirmation has already been processed."
+            color = "#2196F3"  # Blue for other statuses
+        
+        logger.info(f"Confirmation {confirmation_id} already processed with status: {status_message}")
+        return HTMLResponse(content=f"""
+        <html>
+            <head>
+                <title>Already Processed</title>
+                <style>
+                    body {{ font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }}
+                    .container {{ max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; }}
+                    h1 {{ color: {color}; }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <h1>Confirmation Already Processed</h1>
+                    <p>{action_taken}</p>
+                    <p>Status: <strong>{status_message.capitalize()}</strong></p>
+                    <p>If you need assistance, please contact support.</p>
+                </div>
+            </body>
+        </html>
+        """)
+    
+    # Check if the confirmation has expired
+    if confirmation_data["expires_at"] < datetime.now():
+        update_confirmation_status(confirmation_id, "expired")
+        logger.warning(f"Confirmation {confirmation_id} has expired")
+        return HTMLResponse(content="""
+        <html>
+            <head>
+                <title>Confirmation Expired</title>
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; }
+                    h1 { color: #FF9800; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <h1>Confirmation Expired</h1>
+                    <p>We're sorry, but the confirmation link has expired.</p>
+                    <p>For security reasons, confirmation links are only valid for a limited time.</p>
+                    <p>Please return to the registration page and try again.</p>
+                </div>
+            </body>
+        </html>
+        """)
+    
+    # Process the confirmation based on the response
+    confirmed = (response == "yes")
+    
+    if confirmed:
+        try:
+            # Get user data from confirmation
+            user_data = confirmation_data["user_data"]
+            
+            # Create new user
+            hashed_password = get_password_hash(user_data["password"])
+            db_user = User(
+                username=user_data["username"],
+                email=user_data["email"],
+                hashed_password=hashed_password,
+                first_name=user_data.get("first_name", ""),
+                last_name=user_data.get("last_name", ""),
+                is_active=user_data.get("is_active", True),
+                is_admin=user_data.get("is_admin", False)
+            )
+            
+            # Add user to the session and commit the transaction
+            session.add(db_user)
+            session.commit()
+            session.refresh(db_user)
+            
+            logger.info(f"User {db_user.username} registered successfully after confirmation")
+            
+            # Publish user registration event
+            try:
+                publish_message("user_events", {
+                    "event_type": "user_created",
+                    "user_id": db_user.id,
+                    "username": db_user.username,
+                    "email": db_user.email,
+                    "first_name": db_user.first_name,
+                    "last_name": db_user.last_name,
+                    "is_active": db_user.is_active,
+                    "is_admin": db_user.is_admin,
+                    "timestamp": datetime.now().isoformat()
+                })
+                logger.info(f"Published user_created event for user {db_user.username}")
+            except Exception as e:
+                logger.error(f"Failed to publish user_created event: {e}")
+            
+            # Update confirmation status
+            update_confirmation_status(confirmation_id, "confirmed")
+            
+            return HTMLResponse(content=f"""
+            <html>
+                <head>
+                    <title>Registration Confirmed</title>
+                    <style>
+                        body {{ font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }}
+                        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; }}
+                        h1 {{ color: #4CAF50; }}
+                        .button {{ display: inline-block; background-color: #2196F3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; margin-top: 20px; }}
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <h1>Registration Confirmed!</h1>
+                        <p>Thank you for confirming your registration, <strong>{user_data["username"]}</strong>!</p>
+                        <p>Your account has been successfully created and is now active.</p>
+                        <p>You can now log in to KubeSage with your username and password.</p>
+                        <a href="{settings.FRONTEND_BASE_URL}/" class="button">Go to Login</a>
+                    </div>
+                </body>
+            </html>
+            """)
+            
+        except Exception as e:
+            logger.error(f"Error during user confirmation: {e}")
+            update_confirmation_status(confirmation_id, "error")
+            
+            return HTMLResponse(content=f"""
+            <html>
+                <head>
+                    <title>Registration Error</title>
+                    <style>
+                        body {{ font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }}
+                        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; }}
+                        h1 {{ color: #f44336; }}
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <h1>Registration Error</h1>
+                        <p>There was an error creating your account:</p>
+                        <p><strong>{str(e)}</strong></p>
+                        <p>This could be because:</p>
+                        <ul>
+                            <li>The username or email is already registered</li>
+                            <li>There was a database connection issue</li>
+                            <li>The server encountered an internal error</li>
+                        </ul>
+                        <p>Please try registering again or contact support if the problem persists.</p>
+                    </div>
+                </body>
+            </html>
+            """)
+    else:
+        # User rejected the registration
+        update_confirmation_status(confirmation_id, "rejected")
+        logger.info(f"User rejected registration for confirmation {confirmation_id}")
+        
+        return HTMLResponse(content=f"""
+        <html>
+            <head>
+                <title>Registration Rejected</title>
+                <style>
+                    body {{ font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }}
+                    .container {{ max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; }}
+                    h1 {{ color: #f44336; }}
+                    .button {{ display: inline-block; background-color: #2196F3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; margin-top: 20px; }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <h1>Registration Rejected</h1>
+                    <p>You have rejected this registration attempt.</p>
+                    <p>No account has been created.</p>
+                    <p>If you did not initiate this registration, no further action is needed.</p>
+                    <p>If this was a mistake and you do want to register, please start the registration process again.</p>
+                    
+                </div>
+            </body>
+        </html>
+        """)
+
+
+@auth_router.get("/confirmation-status/{confirmation_id}", response_model=dict)
+async def check_confirmation_status(
+    confirmation_id: str,
+    current_user: User = Depends(get_current_admin_user)
+):
+    """
+    Check the status of a user registration confirmation.
+    Only accessible by admin users.
+    
+    Parameters:
+        confirmation_id: The ID of the confirmation to check
+    
+    Returns:
+        Dict with confirmation status
+    """
+    confirmation_data = get_confirmation_status(confirmation_id)
+    if not confirmation_data:
+        raise HTTPException(status_code=404, detail="Confirmation not found")
+    
+    return {
+        "status": confirmation_data["status"],
+        "expires_at": confirmation_data["expires_at"].isoformat() if "expires_at" in confirmation_data else None
+    }
+
+
 
 @auth_router.post("/token", summary="User Login", description="Authenticates a user and returns an access token")
 @limiter.limit("10/minute")
@@ -77,7 +428,7 @@ async def login( request: Request, form_data: OAuth2PasswordRequestForm = Depend
         "event_type": "user_login",
         "user_id": user.id,
         "username": user.username,
-        "timestamp": datetime.datetime.now().isoformat()
+        "timestamp": datetime.now()
     })
     
     return {
@@ -85,7 +436,6 @@ async def login( request: Request, form_data: OAuth2PasswordRequestForm = Depend
         "token_type": "bearer",
         "expires_at": expires_at
     }
-
 
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
@@ -133,7 +483,7 @@ async def logout(
             "event_type": "user_logout",
             "user_id": current_user.id,
             "username": current_user.username,
-            "timestamp": datetime.datetime.now().isoformat()
+            "timestamp": datetime.now()
         })
         
         return {"message": "Successfully logged out"}
@@ -144,9 +494,6 @@ async def logout(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error during logout"
         )
-
-
-
 
 # Endpoint to check if user is admin
 @auth_router.get("/check-admin", summary="Check Admin Status", description="Checks if the current user has admin privileges")
@@ -165,83 +512,6 @@ async def check_if_admin(request: Request, current_user: User = Depends(get_curr
         "is_admin": getattr(current_user, "is_admin", False),  # Using getattr instead of get
         "username": current_user.username  # Direct attribute access
     }
-
-@auth_router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED, 
-                 summary="Register User", description="Creates a new user account")
-@limiter.limit("10/minute")
-async def register_user(request: Request, user_data: UserCreate, session: Session = Depends(get_session)):
-    """
-    Registers a new user in the system.
-    
-    - Validates that username and email are not already registered
-    - Creates a new user with hashed password
-    - Publishes a user creation event to the message queue
-    - Returns the created user information
-    
-    Returns:
-        UserResponse: The created user object
-    
-    Raises:
-        HTTPException: 400 error if username or email already exists
-        HTTPException: 500 error if registration fails
-    """
-    print(user_data)
-    # Check if username exists
-    existing_user = session.exec(select(User).where(User.username == user_data.username)).first()
-    if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username already registered"
-        )
-    
-    # Check if email exists
-    existing_email = session.exec(select(User).where(User.email == user_data.email)).first()
-    if existing_email:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
-        )
- 
-    # Create new user
-    hashed_password = get_password_hash(user_data.password)
-    db_user = User(
-        username=user_data.username,
-        email=user_data.email,
-        hashed_password=hashed_password,
-        first_name=user_data.first_name,
-        last_name=user_data.last_name,
-        is_active=user_data.is_active,
-        is_admin=user_data.is_admin
-        # is_admin="true"
-    )
-    
-    try:
-        # Add user to the session and commit the transaction
-        session.add(db_user)
-        session.commit()
-        session.refresh(db_user)
-        logger.info(f"User {db_user.username} registered successfully")
-        
-        # Publish user registration event
-        publish_message("user_events", {
-            "event_type": "user_created",
-            "user_id": db_user.id,
-            "username": db_user.username,
-            "email": db_user.email,
-            "first_name": db_user.first_name,
-            "last_name": db_user.last_name,
-            "is_active": db_user.is_active,
-            "is_admin": db_user.is_admin,
-            "timestamp": datetime.datetime.now().isoformat()
-        })
-        
-        return db_user
-
-    except Exception as e:
-        # Handle any errors that occur during the commit
-        logger.error(f"Error during user registration: {e}")
-        session.rollback()  # Rollback the transaction in case of an error
-        raise HTTPException(status_code=500, detail="User registration failed")
 
 
 @auth_router.post("/change-password/{user_id}", status_code=status.HTTP_200_OK,
@@ -294,7 +564,7 @@ async def A_change_password(
         "admin_id": current_admin.id,
         "user_id": user.id,
         "username": user.username,
-        "timestamp": datetime.datetime.now().isoformat()
+        "timestamp": datetime.now()
     })
 
     return {"detail": "Password updated successfully"}
@@ -416,7 +686,7 @@ async def update_user(
     for key, value in user_data.items():
         setattr(db_user, key, value)
     
-    db_user.updated_at = datetime.datetime.now()
+    db_user.updated_at = datetime.now()
     session.add(db_user)
     session.commit()
     session.refresh(db_user)
@@ -429,7 +699,7 @@ async def update_user(
         "user_id": db_user.id,
         "username": db_user.username,
         "updated_fields": list(user_data.keys()),
-        "timestamp": datetime.datetime.now().isoformat()
+        "timestamp": datetime.now()
     })
     
     return db_user
@@ -489,8 +759,12 @@ async def delete_user(
         "event_type": "user_deleted",
         "user_id": user_info["user_id"],
         "username": user_info["username"],
-        "timestamp": datetime.datetime.now().isoformat()
+        "timestamp": datetime.now()
     })
     
     return None
+
+
+
+
 
