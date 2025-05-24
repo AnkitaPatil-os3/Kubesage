@@ -1,10 +1,16 @@
-from fastapi import Depends, HTTPException, status , Header
-from typing import Annotated
+from fastapi import Depends, HTTPException, status, Header, Response
+from fastapi.responses import StreamingResponse
+from typing import Annotated, AsyncIterator
 from app.dependencies import get_db_session, get_current_user_dependency
 from sqlmodel import Session
 from app.database import get_session
 from app.auth import get_current_user
 from app.schemas import UserInfo
+import json
+import asyncio
+
+# Import the LangChain service
+from app.langchain_service import process_with_langchain, create_memory_from_messages, stream_langchain_response
 
 # Define common dependencies
 SessionDep = Annotated[Session, Depends(get_session)]
@@ -21,18 +27,16 @@ from app.schemas import (
 )
 from app.services import (
     create_chat_session,
-    process_chat_message,
     get_chat_session,
     get_chat_history,
     list_user_chat_sessions,
     update_session_title,
     delete_chat_session,
-    get_k8s_analysis
+    get_k8s_analysis,
+    add_chat_message
 )
-from fastapi import APIRouter, HTTPException, status,Query, Path, Body
+from fastapi import APIRouter, HTTPException, status, Query, Path, Body
 from app.dependencies import SessionDep, CurrentUser
-from app.schemas import MessageCreate, MessageResponse, ChatSessionCreate, ChatSessionUpdate, ChatSessionResponse, ChatSessionList, ChatHistoryResponse, ChatHistoryEntry
-from app.services import create_chat_session, process_chat_message, get_chat_session, get_chat_history, list_user_chat_sessions, update_session_title, delete_chat_session, get_k8s_analysis
 from datetime import datetime
 
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -41,32 +45,255 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 @router.post("/", response_model=MessageResponse, 
             summary="Send Chat Message", 
             description="Sends a message to the chat service and returns the AI response")
-async def chat(message: MessageCreate, db: Session= get_db_session(),
-                    current_user: UserInfo = Depends(get_current_user),
-                    authorization: str = Header(None)):
+async def chat(
+    message: MessageCreate, 
+    db: Session = Depends(get_session),
+    current_user: UserInfo = Depends(get_current_user),
+    authorization: str = Header(None),
+    stream: bool = Query(False, description="Whether to stream the response")
+):
     """
-    Sends a message to the chat service and processes it.
+    Sends a message to the chat service and processes it using LangChain.
     
     - Accepts a message from the user
-    - Processes the message through the AI backend
-    - Returns the AI response
+    - Processes the message through the LangChain AI backend
+    - Returns the AI response (streaming or non-streaming)
+    
+    Parameters:
+        message: The message content and session information
+        authorization: Bearer token for authentication
+        stream: Whether to stream the response
+    
+    Returns:
+        MessageResponse: The AI's response to the user's message
+        or
+        StreamingResponse: A streaming response with the AI's tokens
+    """
+    try:
+        session_id = message.session_id
+        session = None
+        
+        # Get or create session
+        if session_id:
+            # Get existing session
+            session = await get_chat_session(db, session_id, current_user.id)
+            if not session:
+                # Create new session if provided ID doesn't exist
+                session_create = ChatSessionCreate(title="New Chat")
+                session = await create_chat_session(db, current_user.id, session_create)
+                session_id = session.session_id
+        else:
+            # Create new session
+            session_create = ChatSessionCreate(title="New Chat")
+            session = await create_chat_session(db, current_user.id, session_create)
+            session_id = session.session_id
+        
+        # For new sessions, get K8s analysis first
+        is_new_session = not await get_chat_history(db, session_id)
+        analysis_output = ""
+        if is_new_session:
+            token = authorization.split(" ")[1] if authorization else None
+            analysis_output = await get_k8s_analysis(current_user.id, token)
+        
+        # Build the user content
+        if is_new_session and analysis_output:
+            user_content = f"Analysis results:\n{analysis_output}\n\nUser question: {message.content}"
+        else:
+            user_content = message.content
+        
+        # Add user message to history
+        await add_chat_message(db, session, "user", user_content)
+        
+        # Get chat history
+        messages = await get_chat_history(db, session_id)
+        
+        # Create memory from messages
+        memory = await create_memory_from_messages(messages)
+        
+        if stream:
+            # Process with LangChain (streaming)
+            langchain_result = await process_with_langchain(
+                user_message=message.content,
+                memory=memory,
+                stream=True
+            )
+            
+            # Set up streaming response
+            async def stream_response() -> AsyncIterator[str]:
+                try:
+                    streaming_handler = langchain_result["streaming_handler"]
+                    
+                    # Stream tokens as they come
+                    async for token in stream_langchain_response(streaming_handler):
+                        yield f"data: {json.dumps({'token': token, 'session_id': session_id})}\n\n"
+                    
+                    # Get the full response at the end
+                    full_response = streaming_handler.get_full_response()
+                    
+                    # Store the assistant's response
+                    await add_chat_message(db, session, "assistant", full_response)
+                    
+                    # Update session title if it's a new session
+                    if is_new_session:
+                        await update_session_title(db, session, message.content)
+                    
+                    # Send a final message indicating the stream is complete
+                    yield f"data: {json.dumps({'done': True, 'session_id': session_id})}\n\n"
+                    
+                except Exception as e:
+                    logger.error(f"Error in streaming response: {str(e)}")
+                    yield f"data: {json.dumps({'error': str(e), 'session_id': session_id})}\n\n"
+                    yield f"data: {json.dumps({'done': True, 'session_id': session_id})}\n\n"
+            
+            return StreamingResponse(
+                stream_response(),
+                media_type="text/event-stream"
+            )
+        else:
+            # Process with LangChain (non-streaming)
+            langchain_result = await process_with_langchain(
+                user_message=message.content,
+                memory=memory,
+                stream=False
+            )
+            
+            # Get the result
+            assistant_message = langchain_result["result"]
+            
+            # Store the assistant's response
+            assistant_chat_msg = await add_chat_message(db, session, "assistant", assistant_message)
+            
+            # Update session title if it's a new session
+            if is_new_session:
+                await update_session_title(db, session, message.content)
+            
+            # Return the response
+            return MessageResponse(
+                role="assistant",
+                content=assistant_message,
+                session_id=session_id,
+                created_at=assistant_chat_msg.created_at
+            )
+    except Exception as e:
+        logger.error(f"Error in chat endpoint: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred while processing your message: {str(e)}"
+        )
+
+@router.post("/stream", 
+            summary="Stream Chat Message", 
+            description="Sends a message to the chat service and streams the AI response")
+async def stream_chat(
+    message: MessageCreate, 
+    db: Session = Depends(get_session),
+    current_user: UserInfo = Depends(get_current_user),
+    authorization: str = Header(None)
+):
+    """
+    Sends a message to the chat service and streams the AI response.
+    
+    - Accepts a message from the user
+    - Processes the message through the LangChain AI backend
+    - Streams the AI response tokens as they are generated
     
     Parameters:
         message: The message content and session information
         authorization: Bearer token for authentication
     
     Returns:
-        MessageResponse: The AI's response to the user's message
-    
-    Raises:
-        HTTPException: If message processing fails
+        StreamingResponse: A streaming response with the AI's tokens
     """
-    print("Session ID -->:", id(db))
-    token = authorization.split(" ")[1] if authorization else None
-    response = await process_chat_message(db, current_user.id, message, token)
-    print("chat response -->:", response)
-    return response
-
+    try:
+        session_id = message.session_id
+        session = None
+        
+        # Get or create session
+        if session_id:
+            # Get existing session
+            session = await get_chat_session(db, session_id, current_user.id)
+            if not session:
+                # Create new session if provided ID doesn't exist
+                session_create = ChatSessionCreate(title="New Chat")
+                session = await create_chat_session(db, current_user.id, session_create)
+                session_id = session.session_id
+        else:
+            # Create new session
+            session_create = ChatSessionCreate(title="New Chat")
+            session = await create_chat_session(db, current_user.id, session_create)
+            session_id = session.session_id
+        
+        # For new sessions, get K8s analysis first
+        is_new_session = not await get_chat_history(db, session_id)
+        analysis_output = ""
+        if is_new_session:
+            token = authorization.split(" ")[1] if authorization else None
+            analysis_output = await get_k8s_analysis(current_user.id, token)
+        
+        # Build the user content
+        if is_new_session and analysis_output:
+            user_content = f"Analysis results:\n{analysis_output}\n\nUser question: {message.content}"
+        else:
+            user_content = message.content
+        
+        # Add user message to history
+        await add_chat_message(db, session, "user", user_content)
+        
+        # Get chat history
+        messages = await get_chat_history(db, session_id)
+        
+        # Create memory from messages
+        memory = await create_memory_from_messages(messages)
+        
+        # Process with LangChain (streaming)
+        langchain_result = await process_with_langchain(
+            user_message=message.content,
+            memory=memory,
+            stream=True
+        )
+        
+        # Set up streaming response
+        async def stream_response() -> AsyncIterator[str]:
+            try:
+                streaming_handler = langchain_result["streaming_handler"]
+                
+                # Stream tokens as they come
+                async for token in stream_langchain_response(streaming_handler):
+                    yield f"data: {json.dumps({'token': token, 'session_id': session_id})}\n\n"
+                
+                # Get the full response at the end
+                full_response = streaming_handler.get_full_response()
+                
+                # Store the assistant's response
+                await add_chat_message(db, session, "assistant", full_response)
+                
+                # Update session title if it's a new session
+                if is_new_session:
+                    await update_session_title(db, session, message.content)
+                
+                # Send a final message indicating the stream is complete
+                yield f"data: {json.dumps({'done': True, 'session_id': session_id})}\n\n"
+                
+            except Exception as e:
+                logger.error(f"Error in streaming response: {str(e)}")
+                yield f"data: {json.dumps({'error': str(e), 'session_id': session_id})}\n\n"
+                yield f"data: {json.dumps({'done': True, 'session_id': session_id})}\n\n"
+        
+        return StreamingResponse(
+            stream_response(),
+            media_type="text/event-stream"
+        )
+    
+    except Exception as e:
+        logger.error(f"Error in stream_chat endpoint: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred while processing your message: {str(e)}"
+        )
 
 #  ---------------------------- working ---------------------------
 
@@ -454,4 +681,3 @@ async def get_session_info(
         updated_at=session.updated_at,
         is_active=session.is_active
     )
-

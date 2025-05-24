@@ -4,6 +4,10 @@ from app.routes import router
 from app.database import create_db_and_tables
 from app.logger import logger
 import time
+# Add these imports
+import json
+from fastapi.responses import StreamingResponse
+
 
 app = FastAPI(
     title="Chat Service",

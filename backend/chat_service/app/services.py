@@ -200,13 +200,15 @@ async def get_chat_history(
         cache_set(cache_key, message_list, 3600)
     return messages
 
+from app.langchain_service import process_with_langchain, create_memory_from_messages
+
 async def process_chat_message(
     db: Session,
     user_id: int,
     message_data: MessageCreate,
     token: str
 ) -> MessageResponse:
-    """Process a chat message and get AI response"""
+    """Process a chat message and get AI response using LangChain"""
     try:
         session_id = message_data.session_id
         session = None
@@ -229,41 +231,39 @@ async def process_chat_message(
         analysis_output = ""
         if is_new_session:
             analysis_output = await get_k8s_analysis(user_id, token)
+        
         # Build the user content
         if is_new_session and analysis_output:
             user_content = f"Analysis results:\n{analysis_output}\n\nUser question: {message_data.content}"
         else:
             user_content = message_data.content
+        
         # Add user message to history
         await add_chat_message(db, session, "user", user_content)
+        
         # Get chat history
         messages = await get_chat_history(db, session_id)
-        # Build messages array for OpenAI
-        openai_messages = [
-            {
-                "role": "system", 
-                "content": "You are a helpful Kubernetes assistant. Use the analysis results and previous context to answer questions. Please respond in Markdown format for all outputs."
-            }
-        ]
-        # Add history to messages
-        for msg in messages:
-            openai_messages.append({"role": msg.role, "content": msg.content})
-        # Get AI response
-        try:
-            response = client.chat.completions.create(
-                model=settings.OPENAI_MODEL,
-                messages=openai_messages,
-                max_tokens = 2000
-            )
-            assistant_message = response.choices[0].message.content
-        except Exception as e:
-            logger.error(f"Error getting AI response: {str(e)}")
-            assistant_message = "I'm sorry, I encountered an error processing your request."
-        # Add assistant message to history
+        
+        # Create memory from messages
+        memory = await create_memory_from_messages(messages)
+        
+        # Process with LangChain (non-streaming)
+        langchain_result = await process_with_langchain(
+            user_message=message_data.content,
+            memory=memory,
+            stream=False
+        )
+        
+        # Get the result
+        assistant_message = langchain_result["result"]
+        
+        # Store the assistant's response
         assistant_chat_msg = await add_chat_message(db, session, "assistant", assistant_message)
+        
         # Update session title if it's a new session
         if is_new_session:
             await update_session_title(db, session, message_data.content)
+        
         return MessageResponse(
             role="assistant",
             content=assistant_message,
