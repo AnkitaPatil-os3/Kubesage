@@ -47,7 +47,7 @@ def create_test_alert() -> Alert:
         endsAt="2023-05-23T08:55:04Z"
     )
 
-async def send_alert_email(alert: Optional[Alert] = None):
+async def send_alert_email(alert: Optional[Alert] = None, alert_id: Optional[str] = None):
     """Send an email notification for the alert"""
     try:
         # Use the provided alert or create a test alert if none is provided
@@ -62,8 +62,10 @@ async def send_alert_email(alert: Optional[Alert] = None):
         description = alert.annotations.get('description', 'No description provided')
         start_time = alert.startsAt
         
-        # Generate a unique ID for this alert to track responses
-        alert_id = str(uuid.uuid4())
+        # Use provided alert_id or generate a new one
+        if not alert_id:
+            alert_id = str(uuid.uuid4())
+            
         alert_tracking[alert_id] = {
             "alert": alert,
             "status": "pending",  # pending, approved, rejected
@@ -145,9 +147,9 @@ async def send_alert_email(alert: Optional[Alert] = None):
             logger.error(f"Error details: {e.args}")
         return False, None
 
-def send_alert_email_background(background_tasks: BackgroundTasks, alert: Optional[Alert] = None):
+def send_alert_email_background(background_tasks: BackgroundTasks, alert: Optional[Alert] = None, alert_id: Optional[str] = None):
     """Add email sending to background tasks"""
-    background_tasks.add_task(send_alert_email, alert)
+    background_tasks.add_task(send_alert_email, alert, alert_id)
     logger.info("Email task added to background tasks")
     return True
 

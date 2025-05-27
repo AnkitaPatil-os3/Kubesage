@@ -1,9 +1,15 @@
-from fastapi import FastAPI, Request, BackgroundTasks, HTTPException
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import FastAPI, Request, BackgroundTasks, HTTPException, Depends
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from app.schemas import AlertRequest, Alert
 from app.alert_processor import process_alerts, process_alert_after_approval
 from app.logger import logger
 from app.email_client import send_alert_email, send_alert_email_background, create_test_alert, get_alert_status
+from app.database import create_db_and_tables, get_session, engine
+from app.models import AlertModel
+from sqlmodel import Session, select
+from typing import List, Optional
+import datetime
+import uuid
 
 # Create FastAPI app with metadata for documentation
 app = FastAPI(
@@ -18,6 +24,12 @@ app = FastAPI(
     redoc_url="/redoc",
     openapi_url="/openapi.json"
 )
+
+@app.on_event("startup")
+def on_startup():
+    """Initialize database on startup"""
+    create_db_and_tables()
+    logger.info("Database initialized")
 
 @app.post("/alerts", 
     summary="Process incoming alerts",
@@ -100,6 +112,71 @@ async def handle_alert_response(alert_id: str, response: str):
     </html>
     """)
 
+@app.get("/alerts", 
+    summary="Get all alerts",
+    description="Retrieves all alerts from the database with optional filtering.",
+    response_model=List[AlertModel],
+    tags=["Alerts"])
+async def get_alerts(
+    session: Session = Depends(get_session),
+    skip: int = 0,
+    limit: int = 100,
+    status: Optional[str] = None,
+    severity: Optional[str] = None,
+    approval_status: Optional[str] = None
+):
+    """
+    Get all alerts with optional filtering.
+    
+    Parameters:
+    - **skip**: Number of records to skip (for pagination)
+    - **limit**: Maximum number of records to return
+    - **status**: Filter by alert status (e.g., 'firing')
+    - **severity**: Filter by severity (e.g., 'critical', 'warning')
+    - **approval_status**: Filter by approval status (e.g., 'pending', 'approved', 'rejected')
+    """
+    query = select(AlertModel)
+    
+    # Apply filters if provided
+    if status:
+        query = query.where(AlertModel.status == status)
+    
+    if approval_status:
+        query = query.where(AlertModel.approval_status == approval_status)
+    
+    if severity:
+        # This is a bit more complex since severity is in the labels JSON
+        # We'll need to filter in Python after fetching
+        pass
+    
+    # Apply pagination
+    query = query.offset(skip).limit(limit)
+    
+    # Execute query
+    results = session.exec(query).all()
+    
+    # Apply severity filter if needed (post-processing)
+    if severity:
+        results = [alert for alert in results if alert.labels.get('severity', '').lower() == severity.lower()]
+    
+    return results
+
+@app.get("/alerts/{alert_id}", 
+    summary="Get alert by ID",
+    description="Retrieves a specific alert by its ID.",
+    response_model=AlertModel,
+    tags=["Alerts"])
+async def get_alert(alert_id: str, session: Session = Depends(get_session)):
+    """
+    Get a specific alert by ID.
+    
+    Parameters:
+    - **alert_id**: Unique identifier for the alert
+    """
+    alert = session.exec(select(AlertModel).where(AlertModel.id == alert_id)).first()
+    if not alert:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    return alert
 
 @app.get("/test-email-sync", 
     summary="Test email sending (synchronous)",
@@ -119,8 +196,23 @@ async def test_email_sync():
         # Create a test alert
         test_alert = create_test_alert()
         
+        # Save test alert to database
+        with Session(engine) as session:
+            alert_id = str(uuid.uuid4())
+            alert_model = AlertModel(
+                id=alert_id,
+                status=test_alert.status,
+                labels=test_alert.labels,
+                annotations=test_alert.annotations,
+                startsAt=test_alert.startsAt,
+                endsAt=test_alert.endsAt,
+                approval_status="pending"
+            )
+            session.add(alert_model)
+            session.commit()
+        
         # Send test email synchronously
-        result, alert_id = await send_alert_email(test_alert)
+        result, alert_id = await send_alert_email(test_alert, alert_id)
         
         if result:
             return {
@@ -166,8 +258,23 @@ async def test_non_critical_email():
             endsAt="2023-05-23T08:55:04Z"
         )
         
+        # Save test alert to database
+        with Session(engine) as session:
+            alert_id = str(uuid.uuid4())
+            alert_model = AlertModel(
+                id=alert_id,
+                status=test_alert.status,
+                labels=test_alert.labels,
+                annotations=test_alert.annotations,
+                startsAt=test_alert.startsAt,
+                endsAt=test_alert.endsAt,
+                approval_status="auto-approved"
+            )
+            session.add(alert_model)
+            session.commit()
+        
         # Send test email synchronously
-        result, alert_id = await send_alert_email(test_alert)
+        result, alert_id = await send_alert_email(test_alert, alert_id)
         
         if result:
             return {
@@ -180,3 +287,4 @@ async def test_non_critical_email():
     except Exception as e:
         logger.error(f"Test email error: {str(e)}")
         return {"status": "Error", "message": f"Exception occurred: {str(e)}"}
+

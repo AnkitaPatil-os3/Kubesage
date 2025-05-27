@@ -1,5 +1,6 @@
 from pydantic import BaseModel, EmailStr
 from typing import List, Dict, Optional
+from datetime import datetime
 
 class Alert(BaseModel):
     status: str
@@ -33,3 +34,26 @@ class EmailSettings(BaseModel):
     MAIL_SSL_TLS: bool = False  # Updated from MAIL_SSL
     USE_CREDENTIALS: bool = True
     VALIDATE_CERTS: bool = True
+
+class AlertResponse(BaseModel):
+    """Schema for alert response data"""
+    id: str
+    status: str
+    labels: Dict[str, str]
+    annotations: Dict[str, str]
+    startsAt: str
+    endsAt: str
+    approval_status: str
+    action_plan: Optional[str] = None
+    remediation_status: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+class AlertStats(BaseModel):
+    """Schema for alert statistics"""
+    total_alerts: int
+    critical_alerts: int
+    pending_approval: int
+    approved: int
+    rejected: int
+    auto_approved: int

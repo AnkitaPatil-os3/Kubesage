@@ -23,4 +23,12 @@ class Settings(BaseSettings):
     # Server configuration
     SERVER_BASE_URL: str = os.getenv("SERVER_BASE_URL")
 
+
+    # Database configuration
+    POSTGRES_USER: str = os.getenv("POSTGRES_USER")
+    POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD")
+    POSTGRES_HOST: str = os.getenv("POSTGRES_HOST")
+    POSTGRES_PORT: str = os.getenv("POSTGRES_PORT")
+    POSTGRES_DB: str = os.getenv("POSTGRES_DB")
+
 settings = Settings()

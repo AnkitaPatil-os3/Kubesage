@@ -41,18 +41,6 @@ auth_router = APIRouter()
 async def register_user(request: Request, user_data: UserCreate, session: Session = Depends(get_session)):
     """
     Registers a new user in the system with email confirmation.
-    
-    - Validates that username and email are not already registered
-    - Sends a confirmation email to the user
-    - User must confirm within the timeout period
-    - Returns a pending status
-    
-    Returns:
-        Dict: Status message
-    
-    Raises:
-        HTTPException: 400 error if username or email already exists
-        HTTPException: 500 error if registration fails
     """
     # Check if username exists
     existing_user = session.exec(select(User).where(User.username == user_data.username)).first()
@@ -87,6 +75,7 @@ async def register_user(request: Request, user_data: UserCreate, session: Sessio
         
         return {
             "status": "pending",
+            "confirmation_id": confirmation_id,  # Make sure this is included
             "message": f"Confirmation email sent to {user_data.email}. Please confirm within {settings.USER_CONFIRMATION_TIMEOUT} seconds."
         }
     
@@ -369,11 +358,21 @@ async def check_confirmation_status(
         confirmation_id: The ID of the confirmation to check
     
     Returns:
-        Dict with confirmation status
+        Dict with confirmation status 
     """
+    # Handle invalid confirmation IDs
+    if not confirmation_id or confirmation_id == "undefined":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail="Invalid confirmation ID"
+        )
+    
     confirmation_data = get_confirmation_status(confirmation_id)
     if not confirmation_data:
-        raise HTTPException(status_code=404, detail="Confirmation not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="Confirmation not found"
+        )
     
     return {
         "status": confirmation_data["status"],
@@ -719,7 +718,8 @@ async def delete_user(
     - Requires admin privileges
     - Finds the user by ID
     - Prevents admins from deleting their own account
-    - Removes the user from the database
+
+    - Removes the user's tokens first, then the user from the database
     - Publishes a user deletion event to the message queue
     
     Parameters:
@@ -743,28 +743,66 @@ async def delete_user(
             detail="Cannot delete your own account"
         )
     
-    # Store user info before deletion for event publishing
-    user_info = {
-        "user_id": db_user.id,
-        "username": db_user.username
-    }
-    
-    session.delete(db_user)
-    session.commit()
-    
-    logger.info(f"User {user_info['username']} deleted successfully")
-    
-    # Publish user deletion event
-    publish_message("user_events", {
-        "event_type": "user_deleted",
-        "user_id": user_info["user_id"],
-        "username": user_info["username"],
-        "timestamp": datetime.now()
-    })
-    
-    return None
 
 
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    try:
+        # Store user info before deletion for event publishing
+        user_info = {
+            "user_id": db_user.id,
+            "username": db_user.username
+        }
+        
+        # First, delete all tokens associated with this user
+        user_tokens = session.exec(select(UserToken).where(UserToken.user_id == user_id)).all()
+        for token in user_tokens:
+            session.delete(token)
+        
+        # Commit the token deletions
+        session.commit()
+        
+        # Now delete the user
+        session.delete(db_user)
+        session.commit()
+        
+        logger.info(f"User {user_info['username']} and associated tokens deleted successfully")
+        
+        # Publish user deletion event
+        publish_message("user_events", {
+            "event_type": "user_deleted",
+            "user_id": user_info["user_id"],
+            "username": user_info["username"],
+            "timestamp": datetime.now()
+        })
+        
+        return None
+        
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Error deleting user {user_id}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete user"
+        )

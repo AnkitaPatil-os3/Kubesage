@@ -593,14 +593,24 @@ const createUser = async () => {
             headers: getAuthHeaders()
         });
 
+        console.log('Registration response:', response.data); // Debug log
+
         // Check if the response indicates pending verification
         if (response.data.status === "pending") {
-            registrationStatus.value = 'pending';
-            confirmationId.value = response.data.confirmation_id;
-            message.success('Verification email sent to the user');
-
-            // Start polling for confirmation status
-            startConfirmationPolling(response.data.confirmation_id);
+            // Make sure confirmation_id exists before setting it
+            if (response.data.confirmation_id) {
+                registrationStatus.value = 'pending';
+                confirmationId.value = response.data.confirmation_id;
+                message.success('Verification email sent to the user');
+                
+                // Start polling for confirmation status
+                startConfirmationPolling(response.data.confirmation_id);
+            } else {
+                console.error('No confirmation_id in response:', response.data);
+                registrationStatus.value = 'error';
+                registrationError.value = 'Registration failed: No confirmation ID received';
+                message.error('Registration failed: No confirmation ID received');
+            }
         } else {
             // If the user was created immediately (unlikely with email verification)
             registrationStatus.value = 'confirmed';
@@ -623,28 +633,38 @@ const createUser = async () => {
 
 // Add a method to poll for confirmation status
 const startConfirmationPolling = (confirmation_id) => {
+    console.log('Starting confirmation polling for confirmation ID:', confirmation_id);
+    
+    // Validate confirmation_id before starting polling
+    if (!confirmation_id || confirmation_id === 'undefined') {
+        console.error('Invalid confirmation_id:', confirmation_id);
+        registrationStatus.value = 'error';
+        registrationError.value = 'Invalid confirmation ID';
+        return;
+    }
+
     // Clear any existing timer
     if (registrationTimer.value) {
         clearInterval(registrationTimer.value);
     }
-
+    
     console.log(`Starting polling for confirmation ID: ${confirmation_id}`);
-
+    
     // Poll every 5 seconds to check if the user has confirmed
     registrationTimer.value = setInterval(async () => {
         try {
             const response = await axios.get(`${baseURL}/auth/confirmation-status/${confirmation_id}`, {
                 headers: getAuthHeaders()
             });
-
+            
             console.log(`Polling result:`, response.data);
-
+            
             if (response.data.status === 'confirmed') {
                 registrationStatus.value = 'confirmed';
                 message.success('User has confirmed their email and account is now active');
                 clearInterval(registrationTimer.value);
                 registrationTimer.value = null;
-
+                
                 // Refresh the user list to show the new user
                 fetchUsers();
             } else if (response.data.status === 'rejected') {
@@ -660,7 +680,14 @@ const startConfirmationPolling = (confirmation_id) => {
             }
         } catch (error) {
             console.error('Error checking confirmation status:', error);
-            // Don't stop polling on error, just log it
+            // Stop polling on repeated errors to avoid spam
+            if (error.response?.status === 404) {
+                console.error('Confirmation not found, stopping polling');
+                clearInterval(registrationTimer.value);
+                registrationTimer.value = null;
+                registrationStatus.value = 'error';
+                registrationError.value = 'Confirmation not found';
+            }
         }
     }, 5000); // Check every 5 seconds
 };
