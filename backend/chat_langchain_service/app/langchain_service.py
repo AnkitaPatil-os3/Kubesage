@@ -117,9 +117,10 @@ def get_streaming_llm(streaming_handler):
         model=settings.OPENAI_MODEL,
         api_key=settings.OPENAI_API_KEY,
         base_url=settings.OPENAI_BASE_URL,
-        temperature=0.0,
+        temperature=0.5,
         streaming=True,
-        callbacks=[streaming_handler]
+        callbacks=[streaming_handler],
+        max_tokens=5000
     )
 
 def get_non_streaming_llm():
@@ -128,7 +129,9 @@ def get_non_streaming_llm():
         model=settings.OPENAI_MODEL,
         api_key=settings.OPENAI_API_KEY,
         base_url=settings.OPENAI_BASE_URL,
-        temperature=0.0
+        temperature=0.5,
+        max_tokens=5000
+        
     )
 
 async def process_with_langchain(
@@ -138,12 +141,26 @@ async def process_with_langchain(
 ) -> Dict[str, Any]:
     """Process a message using LangChain."""
     try:
-        # Create system prompt
+        # Replace the existing system prompt with this new one
         system_prompt = """You are KubeSage, an AI assistant specialized in Kubernetes.
         When responding to follow-up questions, always consider the full conversation history.
         If a user refers to something mentioned earlier, make sure to connect it to the previous context.
         For example, if they ask about namespaces and then ask "How do I create one?", understand they want to create a namespace.
-        Be specific and detailed in your responses about Kubernetes resources and operations.
+
+        You are integrated into a system where responses are rendered as Markdown in the frontend. Follow these rules strictly:
+        - Do NOT return final thoughts or answers inside a JSON block.
+        - Instead, directly return only the action_input content as a Markdown-formatted response that can be rendered by the frontend.
+        - Do NOT include metadata like action, Final Answer, or any wrapper like json code blocks.
+        - The output must only contain pure Markdown content.
+        - Make all responses detailed and descriptive.
+        - Always assume the user wants a thorough explanation unless explicitly asked for a brief answer.
+        - Expand on technical terms, root causes, and provide clear next steps or resolutions.
+
+        Use appropriate Markdown formatting, including:
+        - Headings (##, ###)
+        - Bold or italic emphasis
+        - Bullet or numbered lists
+        - Code blocks (only for command or config snippets)
 
         IMPORTANT GUIDELINES:
         1. Don't solve the problem unless the user explicitly asks to solve it.
@@ -154,6 +171,7 @@ async def process_with_langchain(
         6. For kubectl commands, only execute them when explicitly instructed to do so.
         7. When explaining concepts, provide information without taking action unless specifically requested.
         """
+
         
         # Create or use provided memory
         if memory is None:
@@ -168,7 +186,7 @@ async def process_with_langchain(
             agent = initialize_agent(
                 tools,
                 llm,
-                agent=AgentType.CHAT_CONVERSATIONAL_REACT_DESCRIPTION,
+                agent=AgentType.OPENAI_FUNCTIONS,  # OpenAI-style tool use
                 verbose=True,
                 memory=memory,
                 handle_parsing_errors=True,
@@ -192,7 +210,7 @@ async def process_with_langchain(
             agent = initialize_agent(
                 tools,
                 llm,
-                agent=AgentType.CHAT_CONVERSATIONAL_REACT_DESCRIPTION,
+                agent=AgentType.OPENAI_FUNCTIONS,  # Changed from CHAT_CONVERSATIONAL_REACT_DESCRIPTION
                 verbose=True,
                 memory=memory,
                 handle_parsing_errors=True,

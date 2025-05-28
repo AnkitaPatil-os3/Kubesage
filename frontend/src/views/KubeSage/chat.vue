@@ -2,10 +2,14 @@
     <div
         class="flex h-screen overflow-hidden bg-gradient-to-br from-gray-50 to-green-50 dark:from-gray-900 dark:to-gray-800 transition-colors duration-300">
         <!-- Sidebar - Fixed -->
+        <!-- new: Sidebar - Fixed and static width, no minimize toggle button -->
         <div :class="[
-            'h-screen flex flex-col transition-all duration-300 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 shadow-lg relative',
-            isSidebarVisible ? (isMinimized ? 'w-20' : 'w-72') : 'w-0 -translate-x-full'
-        ]">
+        'fixed top-27 left-60 right-auto  h-screen flex flex-col w-27  bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 shadow-lg sidebar-static ml-0 mr-0 z-40',
+         isSidebarVisible ? (isMinimized ? 'w-20' : 'w-72') : 'w-0 -translate-x-full'
+         ]">
+    <!-- new:Sidebar is now fixed positioned with explicit top, left, right, width, and z-index classes.    
+    Old sidebar was relative with flexible width; new sidebar is fixed with static width (w-27).
+    Minimize toggle button remains but sidebar is fixed in place. -->
             <!-- Sidebar header with minimize button - Fixed -->
             <div
                 class="flex-shrink-0 flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
@@ -96,23 +100,30 @@
         </div>
 
         <!-- Main Chat Section -->
-        <div
-            class="flex-1 flex flex-col h-screen overflow-hidden bg-white dark:bg-gray-900 transition-all duration-300">
-            <!-- Chat Header - Fixed -->
-            <div
-                class="flex-shrink-0 z-10 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex justify-between items-center h-16">
-                <h2 class="text-xl font-semibold text-green-600 dark:text-green-500">{{ activeChat.title || 'New Chat'
-                    }}</h2>
-                <div class="flex items-center space-x-2">
-                    <!-- <button @click="toggleTheme" class="w-10 h-10 rounded-lg flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-                        <i :class="isDarkMode ? 'fas fa-sun' : 'fas fa-moon'"></i>
-                    </button> -->
-                </div>
-            </div>
+       <!--new: Main chat section with left margin to accommodate fixed sidebar -->
+    <div class="flex-1 flex flex-col h-screen overflow-hidden bg-white dark:bg-gray-900 transition-all duration-300"
+        :class="isMinimized ? 'ml-[5rem]' : 'ml-[17rem]'">
+         <!-- Chat Header fixed with shadow and adjusted positioning -->
+    <div class="fixed top-26 z-50 ml-64 bg-white dark:bg-gray-900 backdrop-blur-md border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex justify-between items-center h-16 shadow-md"
+        :style="{ left: isMinimized ? '6rem' : '17rem', right: '0' }">
+        <h2 class="text-xl font-semibold text-green-600 dark:text-green-500">{{ activeChat.title || 'New Chat' }}</h2>
+        <div class="flex items-center space-x-2">
+            <button @click="toggleTheme" class="w-10 h-10 rounded-lg flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                <i :class="isDarkMode ? 'fas fa-sun' : 'fas fa-moon'"></i>
+            </button>
+        </div>
+    </div>
+    <!-- new:Added dynamic left margin (ml-[5rem] or ml-[17rem]) to main chat container to accommodate fixed sidebar.
+    Chat header is now fixed positioned with shadow and dynamic left/right styles. -->
 
             <!-- Welcome Screen (shown when no messages) - Scrollable -->
-            <div v-if="activeChat.messages.length === 0" ref="welcomeScreen"
-                class="flex-1 overflow-y-auto h-[calc(100vh-128px)] welcome-screen">
+            !-- Welcome screen fixed with adjusted positioning and margin-left -->
+    <div v-if="activeChat.messages.length === 0" ref="welcomeScreen"
+        class="welcome-screen"
+        :style="{ left: isMinimized ? '5rem' : '17rem' }">
+    <!-- new:Welcome screen is now fixed positioned with explicit left positioning.
+    Removed fixed height and overflow-y-auto from old code.
+    Added dynamic left style to align with sidebar width. -->
                 <div class="max-w-3xl mx-auto text-center p-8">
                     <h1
                         class="text-4xl font-bold mb-4 bg-gradient-to-r from-green-500 to-green-600 bg-clip-text text-transparent">
@@ -146,8 +157,15 @@
             </div>
 
             <!-- Chat Messages - Scrollable -->
+            <!-- new:Chat messages container with margin-top, fixed height, and overflow -->
             <div v-else ref="chatMessagesContainer"
-                class="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 h-[calc(100vh-128px)]" @scroll="handleScroll">
+            class="chat-messages-container overflow-y-auto p-4 md:p-6 space-y-6 mb-[32px] mt-10 transition-all duration-300"
+            :style="{ left: isMinimized ? '5rem' : '17rem' }"
+            @scroll="handleScroll">
+            <!-- new:Added margin-top (mt-10) and margin-bottom (mb-[32px]) to chat messages container.
+            Added dynamic left positioning to align with sidebar.
+            Removed fixed height with calc; layout managed with margins and overflow.
+            Added transition for smooth layout changes. -->
                 <div v-for="(message, index) in activeChat.messages" :key="index" class="message-container flex"
                     :class="[message.role === 'user' ? 'justify-end' : 'justify-start']">
                     <div :class="[
@@ -172,7 +190,7 @@
                                     {{ message.role === 'user' ? 'You' : 'KubeSage' }}
                                 </span>
                                 <span class="text-gray-500 dark:text-gray-400">{{ formatTime(message.created_at)
-                                    }}</span>
+                                }}</span>
                             </div>
                             <div class="prose dark:prose-invert prose-sm max-w-none"
                                 v-html="renderMarkdown(message.content)"></div>
@@ -280,9 +298,13 @@
             </button>
 
             <!-- Chat Input - Fixed at bottom -->
-            <div
-                class="flex-shrink-0 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border-t border-gray-200 dark:border-gray-700 p-4 z-30 min-h-[64px]">
-                <div
+            <!-- new:Chat input fixed at bottom with adjusted left and right positioning -->
+            <div class="fixed bottom-0 right-0 ml-70 flex-shrink-0 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border-t border-gray-200 dark:border-gray-700 p-4 z-30 min-h-[64px]"
+            :style="{left:isMinimized ? '4rem':'17rem'}" >
+            <!--new: Chat input container is now fixed positioned with explicit left positioning.
+            Added ml-70 class and dynamic left style based on sidebar minimized state. 
+            Ensures input does not overlap with fixed sidebar. -->
+               <div
                     class="flex items-end space-x-2 bg-gray-100 dark:bg-gray-800 rounded-xl p-3 shadow-sm focus-within:ring-2 focus-within:ring-green-500 transition-all">
                     <textarea v-model="newMessage" @keyup.enter.exact="sendMessage" @keydown.enter.shift.prevent
                         ref="textarea" placeholder="Ask KubeSage about your Kubernetes cluster..."
@@ -453,87 +475,81 @@ export default {
 
                 console.log('Execute API response:', response.data);
 
-                // Check if the command was successful based on execution_result being present
-                if (response.data.execution_result !== null) {
-                    // Process the execution result
-                    const resultStr = response.data.execution_result;
+                // Process the execution result
+                if (response.data.execution_result) {
+                    // Check if it's already a structured object
+                    if (typeof response.data.execution_result === 'object' && response.data.execution_result.type) {
+                        commandResults.value[cmdIndex] = response.data.execution_result;
+                    } else {
+                        // It's a string, so we need to check if it looks like a table
+                        const resultStr = response.data.execution_result;
 
-                    // Check if it looks like a table (has header row and data rows)
-                    const lines = resultStr.trim().split('\n');
-                    if (lines.length > 1) {
-                        const headers = lines[0].trim().split(/\s+/);
+                        // Check if the result looks like a table (has header row and data rows)
+                        const lines = resultStr.trim().split('\n');
+                        if (lines.length > 1) {
+                            const headers = lines[0].trim().split(/\s+/);
 
-                        // If we have headers and data rows, try to parse as a table
-                        if (headers.length > 1 && lines.length > 1) {
-                            try {
-                                const data = [];
-                                // Start from line 1 (skip header)
-                                for (let i = 1; i < lines.length; i++) {
-                                    const values = lines[i].trim().split(/\s+/);
-                                    if (values.length >= headers.length) {
-                                        const row = {};
-                                        // Match values to headers
-                                        for (let j = 0; j < headers.length; j++) {
-                                            row[headers[j].toLowerCase()] = values[j];
+                            // If we have headers and data rows, try to parse as a table
+                            if (headers.length > 1 && lines.length > 1) {
+                                try {
+                                    const data = [];
+                                    // Start from line 1 (skip header)
+                                    for (let i = 1; i < lines.length; i++) {
+                                        const values = lines[i].trim().split(/\s+/);
+                                        if (values.length >= headers.length) {
+                                            const row = {};
+                                            // Match values to headers
+                                            for (let j = 0; j < headers.length; j++) {
+                                                row[headers[j].toLowerCase()] = values[j];
+                                            }
+                                            // If there are more values than headers, combine the extras
+                                            if (values.length > headers.length) {
+                                                const lastHeader = headers[headers.length - 1].toLowerCase();
+                                                row[lastHeader] = values.slice(headers.length - 1).join(' ');
+                                            }
+                                            data.push(row);
                                         }
-                                        // If there are more values than headers, combine the extras
-                                        if (values.length > headers.length) {
-                                            const lastHeader = headers[headers.length - 1].toLowerCase();
-                                            row[lastHeader] = values.slice(headers.length - 1).join(' ');
-                                        }
-                                        data.push(row);
                                     }
-                                }
 
-                                // Store as a structured table
-                                commandResults.value[cmdIndex] = {
-                                    type: 'table',
-                                    data: data,
-                                    raw: resultStr
-                                };
-                            } catch (parseError) {
-                                // If parsing fails, store as string
-                                console.error('Failed to parse table:', parseError);
+                                    // Store as a structured table
+                                    commandResults.value[cmdIndex] = {
+                                        type: 'table',
+                                        data: data,
+                                        raw: resultStr
+                                    };
+                                } catch (parseError) {
+                                    // If parsing fails, store as string
+                                    console.error('Failed to parse table:', parseError);
+                                    commandResults.value[cmdIndex] = resultStr;
+                                }
+                            } else {
+                                // Not enough columns or rows for a table
                                 commandResults.value[cmdIndex] = resultStr;
                             }
                         } else {
-                            // Not enough columns or rows for a table
+                            // Not enough lines for a table
                             commandResults.value[cmdIndex] = resultStr;
                         }
-                    } else {
-                        // Not enough lines for a table
-                        commandResults.value[cmdIndex] = resultStr;
                     }
-
-                    // Show success message with metadata if available
-                    if (response.data.metadata?.success) {
-                        const duration = response.data.metadata.duration_ms ?
-                            ` (completed in ${Math.round(response.data.metadata.duration_ms)}ms)` : '';
-                        message.success(`Command executed successfully${duration}`);
-                    } else {
-                        message.success('Command executed successfully');
-                    }
-
-                    scrollToBottom();
+                } else if (response.data.result) {
+                    // Fallback to result if available
+                    commandResults.value[cmdIndex] = response.data.result;
                 } else {
-                    // This shouldn't happen based on the API design, but handle it just in case
-                    commandResults.value[cmdIndex] = response.data.execution_error;
-                    message.warning('Command executed but no result returned');
-                    scrollToBottom();
+                    // Default success message
+                    commandResults.value[cmdIndex] = 'Command executed successfully';
                 }
+
+                message.success('Command executed successfully');
+                scrollToBottom();
             } catch (error) {
                 console.error('Kubectl command execution failed:', error);
 
                 // Check if we have structured error data
-                if (error.response?.data?.execution_error !== null) {
+                if (error.response?.data?.execution_error) {
                     commandResults.value[cmdIndex] = error.response.data.execution_error;
                 } else {
-                    // Fallback to error message or metadata
-                    if (error.response?.data?.metadata?.error_type) {
-                        commandResults.value[cmdIndex] = `Error: ${error.response.data.metadata.error_type}`;
-                    } else {
-                        commandResults.value[cmdIndex] = error.response?.data?.error || error.message;
-                    }
+                    // Fallback to error message
+                    commandResults.value[cmdIndex] = error.response?.data?.error || error.message;
                 }
 
                 message.error('Command execution failed');
@@ -965,14 +981,53 @@ export default {
 
 
 <style>
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
 /* Import Font Awesome */
 @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
 /* Import highlight.js styles */
 @import url('https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github.min.css');
+
+
+
+/* new:Hide scrollbars and prevent page scrolling */
+html, body {
+    height: 100%;
+    overflow: hidden; /* Prevent scrolling on the entire page */
+}
+/* Hide scrollbar for IE, Edge and Firefox */
+body {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;      /* Firefox */
+}
+
+/* Welcome screen styles */
+.welcome-screen {
+    position: fixed !important;
+    top: 80px; /* below the fixed chat header */
+    left: -130px;
+    right: 0;
+    bottom: 64px; /* above the fixed chat input */
+    overflow: auto !important;
+    height: auto !important;
+    max-height: none !important;
+    margin-top: 0 !important;
+    background-color: inherit;
+    z-index: 10;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-left: 200px;
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+::-webkit-scrollbar {
+    display: none;
+}
+
+/* new:
+Scrollbars are hidden globally for all major browsers.
+Page scrolling is disabled by setting overflow: hidden on html and body.
+Welcome screen styled with fixed positioning and margin-left to align with sidebar.
+Improves fixed layout and prevents unwanted scrolling outside chat area. */
 
 /* Dark mode override for highlight.js */
 .dark .hljs {
@@ -1059,63 +1114,112 @@ textarea:-moz-focusring {
 }
 
 ::-webkit-scrollbar-thumb {
-    @apply bg-green-500/20 rounded hover:bg-green-500/40;
+    background-color: rgba(34,197,94,0.2);
+    border-radius: 9999px;
 }
 
 .dark ::-webkit-scrollbar-thumb {
-    @apply bg-green-500/30 hover:bg-green-500/50;
+    background-color: rgba(34,197,94,0.3);
 }
 
 /* Prose styles for markdown content */
 .prose pre {
-    @apply bg-gray-50 dark:bg-gray-800/50 rounded-lg overflow-x-auto;
+    background-color: #f9fafb;
+    border-radius: 0.5rem;
+    overflow-x: auto;
+}
+
+.dark .prose pre {
+    background-color: rgba(31, 41, 55, 0.5);
 }
 
 .prose code {
-    @apply font-mono text-sm;
+    font-family: monospace;
+    font-size: 0.875rem;
 }
 
 .prose p {
-    @apply mb-3;
+    margin-bottom: 0.75rem;
 }
 
 .prose p:last-child {
-    @apply mb-0;
+    margin-bottom: 0;
 }
 
 .prose h1,
 .prose h2,
 .prose h3,
 .prose h4 {
-    @apply font-semibold text-gray-800 dark:text-gray-200 mb-2;
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 0.5rem;
+}
+
+.dark .prose h1,
+.dark .prose h2,
+.dark .prose h3,
+.dark .prose h4 {
+    color: #e5e7eb;
 }
 
 .prose ul,
 .prose ol {
-    @apply pl-5 mb-3;
+    padding-left: 1.25rem;
+    margin-bottom: 0.75rem;
 }
 
 .prose li {
-    @apply mb-1;
+    margin-bottom: 0.25rem;
 }
 
 .prose blockquote {
-    @apply border-l-4 border-gray-300 dark:border-gray-600 pl-4 italic;
+    border-left-width: 4px;
+    border-left-color: #d1d5db;
+    padding-left: 1rem;
+    font-style: italic;
+}
+
+.dark .prose blockquote {
+    border-left-color: #4b5563;
 }
 
 .prose a {
-    @apply text-blue-600 dark:text-blue-400 hover:underline;
+    color: #2563eb;
+    transition: color 0.2s;
+}
+
+.dark .prose a {
+    color: #60a5fa;
+}
+
+.prose a:hover {
+    text-decoration: underline;
 }
 
 .prose table {
-    @apply w-full border-collapse mb-3;
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 0.75rem;
 }
 
 .prose th {
-    @apply bg-gray-100 dark:bg-gray-800 text-left p-2 border border-gray-300 dark:border-gray-700;
+    background-color: #f3f4f6;
+    text-align: left;
+    padding: 0.5rem;
+    border: 1px solid #d1d5db;
+}
+
+.dark .prose th {
+    background-color: #1f2937;
+    border-color: #374151;
 }
 
 .prose td {
-    @apply p-2 border border-gray-300 dark:border-gray-700;
+    padding: 0.5rem;
+    border: 1px solid #d1d5db;
+}
+
+.dark .prose td {
+    border-color: #374151;
 }
 </style>
