@@ -1,25 +1,22 @@
 {
   "compilerOptions": {
-    "target": "ESNext",
-    "jsx": "preserve",
-    "jsxImportSource": "vue",
-    "lib": ["ESNext", "DOM"],
-    "baseUrl": ".",
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "module": "ESNext",
-    "moduleResolution": "node",
-    "paths": {
-      "@/*": ["src/*"]
-    },
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
-    "types": ["node", "vite/client", "naive-ui/volar", "unplugin-icons/types/vue"],
-    "allowJs": true,
-    "strict": true,
-    "strictNullChecks": true,
-    "noUnusedLocals": true,
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
-    "skipLibCheck": true
+    "noEmit": true,
+    "jsx": "react-jsx",
+
+    /* Linting */
+    "strict": false
   },
-  "exclude": ["node_modules", "dist"]
+  "include": ["src"],
+  "references": [{"path": "./tsconfig.node.json"}]
 }
