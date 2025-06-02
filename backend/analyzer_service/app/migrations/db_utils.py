@@ -14,7 +14,7 @@ def migrate_database():
     """Run database migrations"""
     try:
         with Session(engine) as session:
-            # Check if column exists
+            # Check if complete_json_data column exists
             check_column_query = text("""
                 SELECT column_name 
                 FROM information_schema.columns 
@@ -24,7 +24,7 @@ def migrate_database():
             result = session.exec(check_column_query).first()
             
             if not result:
-                # Add the new column
+                # Add the complete_json_data column
                 alter_query = text("""
                     ALTER TABLE alerts 
                     ADD COLUMN complete_json_data JSON DEFAULT '{}';
@@ -32,9 +32,46 @@ def migrate_database():
                 
                 session.exec(alter_query)
                 session.commit()
-                logger.info("Successfully added 'complete_json_data' column")
-            else:
-                logger.info("Column 'complete_json_data' already exists")
+            
+            # Check if generated_report column exists
+            check_generated_report_query = text("""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name='alerts' AND column_name='generated_report';
+            """)
+            
+            result = session.exec(check_generated_report_query).first()
+            
+            if not result:
+                # Add the generated_report column
+                alter_query = text("""
+                    ALTER TABLE alerts 
+                    ADD COLUMN generated_report JSON DEFAULT '{}';
+                """)
+                
+                session.exec(alter_query)
+                session.commit()
+            
+            # Remove the old columns if they exist (using lowercase names)
+            columns_to_remove = ['status', 'startsat', 'endsat', 'generatorurl', 'labels', 'annotations', 'fingerprint']
+            for column in columns_to_remove:
+                check_column_query = text(f"""
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name='alerts' AND column_name='{column}';
+                """)
+                
+                result = session.exec(check_column_query).first()
+                
+                if result:
+                    # Remove the column
+                    alter_query = text(f"""
+                        ALTER TABLE alerts 
+                        DROP COLUMN {column};
+                    """)
+                    
+                    session.exec(alter_query)
+                    session.commit()
                 
     except Exception as e:
         logger.error(f"Error during database migration: {e}")
@@ -47,7 +84,6 @@ def clear_all_data():
         for alert in alerts:
             session.delete(alert)
         session.commit()
-    logger.info("All data cleared from database")
 
 def create_sample_data(count=10):
     """Create sample alert data for testing with complete JSON storage"""
@@ -95,6 +131,36 @@ def create_sample_data(count=10):
                     "alert_type": alert_type,
                     "processed_at": datetime.utcnow().isoformat()
                 }
+                
+                # Generate sample report for kubernetes event
+                generated_report = {
+                    "timestamp": complete_json_data["firstTimestamp"],
+                    "last_seen": complete_json_data["lastTimestamp"],
+                    "namespace": complete_json_data["involvedObject"]["namespace"],
+                    "resource_type": complete_json_data["involvedObject"]["kind"],
+                    "resource_name": complete_json_data["involvedObject"]["name"],
+                    "component": "kubelet",
+                    "host": f"test-host-{i+1}",
+                    "event": {
+                        "type": complete_json_data["type"],
+                        "reason": complete_json_data["reason"],
+                        "message": complete_json_data["message"],
+                        "count": complete_json_data["count"]
+                    },
+                    "source": {
+                        "reporting_component": "kubelet",
+                        "reporting_instance": f"test-host-{i+1}"
+                    },
+                    "involved_object": {
+                        "kind": complete_json_data["involvedObject"]["kind"],
+                        "namespace": complete_json_data["involvedObject"]["namespace"],
+                        "name": complete_json_data["involvedObject"]["name"],
+                        "uid": f"test-uid-{i+1}",
+                        "api_version": "v1",
+                        "resource_version": f"test-rv-{i+1}",
+                        "field_path": "spec.containers{test-container}"
+                    }
+                }
             elif alert_type == "grafana":
                 complete_json_data = {
                     "title": f"Grafana Alert {i+1}",
@@ -130,33 +196,52 @@ def create_sample_data(count=10):
                     "alert_type": alert_type,
                     "processed_at": datetime.utcnow().isoformat()
                 }
+                
+                # Generate sample report for prometheus/grafana alert
+                generated_report = {
+                    "timestamp": complete_json_data["startsAt"],
+                    "last_seen": complete_json_data["endsAt"],
+                    "namespace": complete_json_data["labels"].get("namespace", "default"),
+                    "resource_type": "Alert",
+                    "resource_name": complete_json_data["labels"]["alertname"],
+                    "component": complete_json_data["labels"]["job"],
+                    "host": complete_json_data["labels"]["instance"],
+                    "event": {
+                        "type": "Alert",
+                        "reason": complete_json_data["labels"]["alertname"],
+                        "message": complete_json_data["annotations"]["summary"],
+                        "count": 1
+                    },
+                    "source": {
+                        "reporting_component": "prometheus",
+                        "reporting_instance": complete_json_data["labels"]["instance"]
+                    },
+                    "involved_object": {
+                        "kind": "Alert",
+                        "namespace": complete_json_data["labels"].get("namespace", "default"),
+                        "name": complete_json_data["labels"]["alertname"],
+                        "uid": complete_json_data["fingerprint"],
+                        "api_version": "monitoring.coreos.com/v1",
+                        "resource_version": "",
+                        "field_path": ""
+                    }
+                }
             
             # Create alert
             alert = AlertModel(
                 id=str(uuid.uuid4()),
-                status=random.choice(statuses),
-                labels={
-                    "alertname": f"Test Alert {i+1}",
-                    "severity": severity,
-                    "instance": f"test-instance-{i+1}"
-                },
-                annotations={
-                    "summary": f"This is test alert {i+1}",
-                    "description": f"This is a detailed description for test alert {i+1}"
-                },
-                startsAt=(datetime.utcnow() - timedelta(hours=random.randint(1, 24))).isoformat(),
-                endsAt=(datetime.utcnow() + timedelta(hours=random.randint(1, 24))).isoformat(),
                 approval_status=approval_status,
                 action_plan="Sample action plan" if approval_status in ["approved", "auto-approved"] else None,
                 remediation_status=random.choice(remediation_statuses) if approval_status in ["approved", "auto-approved"] else None,
                 created_at=datetime.utcnow() - timedelta(hours=random.randint(1, 24)),
                 updated_at=datetime.utcnow(),
-                complete_json_data=complete_json_data
+                complete_json_data=complete_json_data,
+                generated_report=generated_report
             )
             session.add(alert)
         
         session.commit()
-    logger.info(f"Created {count} sample alerts with complete JSON data")
+    logger.info(f"Created {count} sample alerts with complete JSON data and generated reports")
 
 if __name__ == "__main__":
     import sys

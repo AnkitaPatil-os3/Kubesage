@@ -31,4 +31,12 @@ class Settings(BaseSettings):
     POSTGRES_PORT: str = os.getenv("POSTGRES_PORT")
     POSTGRES_DB: str = os.getenv("POSTGRES_DB")
 
+    # LLM Configuration
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+    OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
+    OPENAI_BASE_URL: str = os.getenv("OPENAI_BASE_URL", "")
+    LLM_TIMEOUT: int = int(os.getenv("LLM_TIMEOUT", "30"))
+
+
+
 settings = Settings()

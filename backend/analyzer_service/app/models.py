@@ -8,13 +8,6 @@ class AlertModel(SQLModel, table=True):
     __tablename__ = "alerts"
     
     id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
-    status: str
-    labels: Dict = Field(sa_column=Column(JSON))
-    annotations: Dict = Field(sa_column=Column(JSON))
-    startsAt: str
-    endsAt: str
-    generatorURL: Optional[str] = None
-    fingerprint: Optional[str] = None
     
     # Additional tracking fields
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -23,5 +16,6 @@ class AlertModel(SQLModel, table=True):
     action_plan: Optional[str] = None
     remediation_status: Optional[str] = None  # pending, in_progress, completed, failed
     
-    # New changes: Store complete JSON data without separate fields
+    # Store complete JSON data without separate fields
     complete_json_data: Dict[str, Any] = Field(default={}, sa_column=Column(JSON))  # Store entire incoming JSON data
+    generated_report: Dict[str, Any] = Field(default={}, sa_column=Column(JSON))  # Store generated report

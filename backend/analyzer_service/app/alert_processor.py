@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Union
+from typing import List, Dict, Any, Union , Optional
 from fastapi import BackgroundTasks
 from app.schemas import Alert, FlexibleAlert
 from app.llm_client import query_llm
@@ -11,6 +11,7 @@ from sqlmodel import Session, select
 import uuid
 import json
 from datetime import datetime
+
 
 # New changes: Store original request data separately
 def parse_flexible_alert_data(data: Union[List[Dict[str, Any]], Dict[str, Any], str], original_request_data: Any = None) -> List[FlexibleAlert]:
@@ -384,6 +385,205 @@ Kubernetes Event Details:
     prompt += "\nWhat steps should we take to resolve this issue?"
     return prompt
 
+def generate_report(alert_data: Dict[str, Any], alert_type: str = "unknown") -> Dict[str, Any]:
+    """Generate a standardized report from alert data"""
+    
+    # Default report structure
+    report = {
+        "timestamp": "",
+        "last_seen": "",
+        "namespace": "",
+        "resource_type": "",
+        "resource_name": "",
+        "component": "",
+        "host": "",
+        "event": {
+            "type": "",
+            "reason": "",
+            "message": "",
+            "count": 1
+        },
+        "source": {
+            "reporting_component": "",
+            "reporting_instance": ""
+        },
+        "involved_object": {
+            "kind": "",
+            "namespace": "",
+            "name": "",
+            "uid": "",
+            "api_version": "",
+            "resource_version": "",
+            "field_path": ""
+        }
+    }
+    
+    try:
+        if alert_type == "kubernetes-event" or "involvedObject" in alert_data:
+            # Handle Kubernetes events
+            metadata = alert_data.get("metadata", {})
+            involved_object = alert_data.get("involvedObject", {})
+            source = alert_data.get("source", {})
+            
+            report.update({
+                "timestamp": alert_data.get("firstTimestamp", alert_data.get("eventTime", datetime.utcnow().isoformat())),
+                "last_seen": alert_data.get("lastTimestamp", alert_data.get("eventTime", datetime.utcnow().isoformat())),
+                "namespace": involved_object.get("namespace", metadata.get("namespace", "default")),
+                "resource_type": involved_object.get("kind", "Unknown"),
+                "resource_name": involved_object.get("name", "unknown"),
+                "component": source.get("component", alert_data.get("reportingComponent", "unknown")),
+                "host": source.get("host", alert_data.get("reportingInstance", "unknown")),
+                "event": {
+                    "type": alert_data.get("type", "Normal"),
+                    "reason": alert_data.get("reason", "Unknown"),
+                    "message": alert_data.get("message", "No message available"),
+                    "count": alert_data.get("count", 1)
+                },
+                "source": {
+                    "reporting_component": alert_data.get("reportingComponent", source.get("component", "unknown")),
+                    "reporting_instance": alert_data.get("reportingInstance", source.get("host", "unknown"))
+                },
+                "involved_object": {
+                    "kind": involved_object.get("kind", "Unknown"),
+                    "namespace": involved_object.get("namespace", "default"),
+                    "name": involved_object.get("name", "unknown"),
+                    "uid": involved_object.get("uid", ""),
+                    "api_version": involved_object.get("apiVersion", "v1"),
+                    "resource_version": involved_object.get("resourceVersion", ""),
+                    "field_path": involved_object.get("fieldPath", "")
+                }
+            })
+            
+        elif alert_type == "prometheus" or ("labels" in alert_data and "annotations" in alert_data):
+            # Handle Prometheus alerts
+            labels = alert_data.get("labels", {})
+            annotations = alert_data.get("annotations", {})
+            
+            report.update({
+                "timestamp": alert_data.get("startsAt", datetime.utcnow().isoformat()),
+                "last_seen": alert_data.get("endsAt", datetime.utcnow().isoformat()),
+                "namespace": labels.get("namespace", "default"),
+                "resource_type": "Alert",
+                "resource_name": labels.get("alertname", "Unknown Alert"),
+                "component": labels.get("job", "prometheus"),
+                "host": labels.get("instance", "unknown"),
+                "event": {
+                    "type": "Alert",
+                    "reason": labels.get("alertname", "Unknown Alert"),
+                    "message": annotations.get("summary", annotations.get("description", "No message available")),
+                    "count": 1
+                },
+                "source": {
+                    "reporting_component": "prometheus",
+                    "reporting_instance": labels.get("instance", "unknown")
+                },
+                "involved_object": {
+                    "kind": "Alert",
+                    "namespace": labels.get("namespace", "default"),
+                    "name": labels.get("alertname", "Unknown Alert"),
+                    "uid": alert_data.get("fingerprint", ""),
+                    "api_version": "monitoring.coreos.com/v1",
+                    "resource_version": "",
+                    "field_path": ""
+                }
+            })
+            
+        elif alert_type == "grafana" or "title" in alert_data:
+            # Handle Grafana alerts
+            report.update({
+                "timestamp": alert_data.get("time", alert_data.get("timestamp", datetime.utcnow().isoformat())),
+                "last_seen": alert_data.get("time", alert_data.get("timestamp", datetime.utcnow().isoformat())),
+                "namespace": "default",
+                "resource_type": "GrafanaAlert",
+                "resource_name": alert_data.get("title", alert_data.get("name", "Unknown Grafana Alert")),
+                "component": alert_data.get("datasource", "grafana"),
+                "host": "grafana",
+                "event": {
+                    "type": "Alert",
+                    "reason": alert_data.get("title", "Grafana Alert"),
+                    "message": alert_data.get("message", alert_data.get("description", "No message available")),
+                    "count": 1
+                },
+                "source": {
+                    "reporting_component": "grafana",
+                    "reporting_instance": "grafana"
+                },
+                "involved_object": {
+                    "kind": "GrafanaAlert",
+                    "namespace": "default",
+                    "name": alert_data.get("title", "Unknown Grafana Alert"),
+                    "uid": alert_data.get("uid", ""),
+                    "api_version": "v1",
+                    "resource_version": "",
+                    "field_path": ""
+                }
+            })
+            
+        else:
+            # Handle generic alerts
+            report.update({
+                "timestamp": alert_data.get("timestamp", alert_data.get("time", datetime.utcnow().isoformat())),
+                "last_seen": alert_data.get("timestamp", alert_data.get("time", datetime.utcnow().isoformat())),
+                "namespace": "default",
+                "resource_type": "GenericAlert",
+                "resource_name": alert_data.get("name", alert_data.get("title", "Unknown Alert")),
+                "component": alert_data.get("component", "unknown"),
+                "host": alert_data.get("host", alert_data.get("source", "unknown")),
+                "event": {
+                    "type": "Alert",
+                    "reason": alert_data.get("reason", "Generic Alert"),
+                    "message": alert_data.get("message", alert_data.get("description", "No message available")),
+                    "count": alert_data.get("count", 1)
+                },
+                "source": {
+                    "reporting_component": alert_data.get("component", "unknown"),
+                    "reporting_instance": alert_data.get("host", "unknown")
+                },
+                "involved_object": {
+                    "kind": "GenericAlert",
+                    "namespace": "default",
+                    "name": alert_data.get("name", "Unknown Alert"),
+                    "uid": "",
+                    "api_version": "v1",
+                    "resource_version": "",
+                    "field_path": ""
+                }
+            })
+            
+    except Exception as e:
+        logger.error(f"Error generating report: {str(e)}")
+        # Return default report with error information
+        report.update({
+            "timestamp": datetime.utcnow().isoformat(),
+            "last_seen": datetime.utcnow().isoformat(),
+            "namespace": "default",
+            "resource_type": "ErrorAlert",
+            "resource_name": "Report Generation Failed",
+            "component": "analyzer",
+            "host": "analyzer-service",
+            "event": {
+                "type": "Error",
+                "reason": "ReportGenerationFailed",
+                "message": f"Failed to generate report: {str(e)}",
+                "count": 1
+            },
+            "source": {
+                "reporting_component": "analyzer",
+                "reporting_instance": "analyzer-service"
+            },
+            "involved_object": {
+                "kind": "ErrorAlert",
+                "namespace": "default",
+                "name": "Report Generation Failed",
+                "uid": "",
+                "api_version": "v1",
+                "resource_version": "",
+                "field_path": ""
+            }
+        })
+    
+    return report
+
 # New changes: Updated to accept original request data
 def save_alert_to_db(alert: Alert, original_request_data: Any = None) -> str:
     """Save alert to database and return the alert ID"""
@@ -392,18 +592,24 @@ def save_alert_to_db(alert: Alert, original_request_data: Any = None) -> str:
             # Create a unique ID for the alert
             alert_id = str(uuid.uuid4())
             
+            # Generate report from alert data
+            alert_dict = {
+                "status": alert.status,
+                "labels": alert.labels,
+                "annotations": alert.annotations,
+                "startsAt": alert.startsAt,
+                "endsAt": alert.endsAt,
+                "generatorURL": alert.generatorURL,
+                "fingerprint": alert.fingerprint
+            }
+            generated_report = generate_report(alert_dict, "prometheus")
+            
             # Create database model from schema
             alert_model = AlertModel(
                 id=alert_id,
-                status=alert.status,
-                labels=alert.labels,
-                annotations=alert.annotations,
-                startsAt=alert.startsAt,
-                endsAt=alert.endsAt,
-                generatorURL=alert.generatorURL,
-                fingerprint=alert.fingerprint,
                 approval_status="pending",
-                complete_json_data=original_request_data if original_request_data else {}  # Store original request data
+                complete_json_data=original_request_data if original_request_data else {},
+                generated_report=generated_report
             )
             
             # Add to database
@@ -425,53 +631,15 @@ def save_flexible_alert_to_db(alert: FlexibleAlert, original_request_data: Any =
             # Create a unique ID for the alert
             alert_id = str(uuid.uuid4())
             
-            # Extract additional fields for Kubernetes events
-            namespace = None
-            resource_kind = None
-            resource_name = None
-            
-            # Extract from the original raw data (not processed data)
-            raw_data_for_extraction = alert.raw_data
-            if alert.alert_type == "kubernetes-event" and raw_data_for_extraction:
-                involved_object = raw_data_for_extraction.get("involvedObject", {})
-                namespace = involved_object.get("namespace")
-                resource_kind = involved_object.get("kind")
-                resource_name = involved_object.get("name")
-            
-            # Create labels and annotations for compatibility
-            labels = {
-                "alertname": alert.title or "Unknown Alert",
-                "severity": alert.severity or "info",
-                "alert_type": alert.alert_type or "unknown",
-                "source": alert.source or "unknown"
-            }
-            
-            annotations = {
-                "summary": alert.title or "No summary available",
-                "description": alert.description or "No description available",
-                "alert_type": alert.alert_type or "unknown"
-            }
+            # Generate report from flexible alert data
+            generated_report = generate_report(alert.raw_data, alert.alert_type)
             
             # Create database model from flexible alert
             alert_model = AlertModel(
                 id=alert_id,
-                status=alert.status or "active",
-                labels=labels,
-                annotations=annotations,
-                startsAt=alert.timestamp or datetime.utcnow().isoformat(),
-                endsAt=alert.timestamp or datetime.utcnow().isoformat(),
                 approval_status="pending",
-                # New flexible fields
-                alert_type=alert.alert_type or "unknown",
-                source_system=alert.source,
-                raw_data=alert.raw_data,
-                severity=alert.severity or "info",
-                title=alert.title,
-                description=alert.description,
-                namespace=namespace,
-                resource_kind=resource_kind,
-                resource_name=resource_name,
-                complete_json_data=original_request_data if original_request_data else alert.raw_data  # Store original request data
+                complete_json_data=original_request_data if original_request_data else alert.raw_data,
+                generated_report=generated_report
             )
             
             # Add to database
@@ -542,3 +710,7 @@ def update_alert_remediation_status(alert_id: str, status: str):
                 logger.warning(f"Alert {alert_id} not found in database for remediation status update")
     except Exception as e:
         logger.error(f"Error updating alert remediation status in database: {e}")
+
+
+
+
