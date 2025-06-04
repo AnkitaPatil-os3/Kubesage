@@ -1,12 +1,13 @@
 from fastapi import FastAPI, Request, BackgroundTasks, HTTPException, Depends, Body
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
-
-from app.schemas import Alert, FlexibleAlertRequest
-from app.alert_processor import process_alerts, process_alert_after_approval, parse_flexible_alert_data, process_flexible_alerts
+from app.llm_client import analyze_kubernetes_incident_sync, IncidentSolution
+from fastapi import BackgroundTasks
+from app.schemas import KubernetesEvent, IncidentStats
+from app.incident_processor import parse_flexible_incident_data, process_flexible_incidents
 from app.logger import logger
-from app.email_client import send_alert_email, send_alert_email_background, create_test_alert, get_alert_status
+from app.email_client import send_incident_email
 from app.database import create_db_and_tables, get_session, engine
-from app.models import AlertModel
+from app.models import IncidentModel
 from sqlmodel import Session, select
 
 from typing import List, Optional, Dict, Any, Union
@@ -18,14 +19,14 @@ import json
 app = FastAPI(
     title="KubeSage Analyzer Service",
     description="""
-    The Analyzer Service processes Kubernetes alerts, determines their severity,
-    and takes appropriate actions. Critical alerts require user approval via email,
-    while non-critical alerts are processed automatically.
+    The Analyzer Service processes Kubernetes events and incidents, determines their severity,
+    and takes appropriate actions. Critical incidents require user approval via email,
+    while normal incidents are processed automatically.
     
-    NEW: Now supports flexible alert formats from various sources including Grafana, 
-    Kubernetes events, and custom alert systems with original data preservation.
+    Supports flexible incident formats from various sources including Kubernetes events,
+    monitoring systems, and custom incident data.
     """,
-    version="1.0.0",
+    version="2.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json"
@@ -35,138 +36,95 @@ app = FastAPI(
 def on_startup():
     """Initialize database on startup"""
     try:
-        # Step 1: Create database and tables first
         logger.info("Creating database tables...")
         create_db_and_tables()
         logger.info("Database tables created successfully")
         
-        # Step 2: Run migration to add missing columns (if any)
-        logger.info("Running database migration...")
-        from app.migrations.db_utils import migrate_database
-        migrate_database()
-        logger.info("Database migration completed successfully")
+        # Remove the migration code since AlertModel no longer exists
+        # logger.info("Running database migration...")
+        # from app.migrations.db_utils import migrate_database
+        # migrate_database()
+        # logger.info("Database migration completed successfully")
         
     except Exception as e:
         logger.error(f"Database initialization failed: {e}")
     
     logger.info("Database initialization completed")
 
-@app.post("/alerts", 
-    summary="Process incoming alerts (Enhanced with Original Data Preservation)",
+@app.post("/incidents", 
+    summary="Process incoming Kubernetes incidents/events",
     description="""
-    Receives and processes alerts from various monitoring systems with flexible format support.
-    Preserves the original incoming JSON data exactly as received from the POST API.
+    Receives and processes Kubernetes events and incidents from various monitoring systems.
     
     Supported formats:
-    - Traditional Prometheus AlertManager format
-    - Grafana alerts
-    - Kubernetes events
-    - Custom alert formats
-    - Raw JSON data
+    - Kubernetes native events
+    - Custom incident formats
+    - Monitoring system alerts converted to incidents
     
-    The API automatically detects the format and processes accordingly while preserving original data.
+    The API automatically detects the format and processes accordingly.
     """,
-    response_description="Confirmation of alert processing",
-    tags=["Alerts"])
-async def receive_alerts(
+    response_description="Confirmation of incident processing",
+    tags=["Incidents"])
+async def receive_incidents(
     background_tasks: BackgroundTasks,
     request_data: Dict[str, Any] = Body(..., 
-        description="Alert data in any format",
-        
+        description="Incident data in any format",
     )
 ):
     """
-    Process incoming alerts with flexible format support and original data preservation.
+    Process incoming Kubernetes incidents with flexible format support.
     
-    - Automatically detects alert format (Prometheus, Grafana, Kubernetes events, etc.)
-    - Preserves original incoming JSON data exactly as received
-    - Sends email notifications for all alerts
-    - For critical alerts: Waits for user approval before remediation
-    - For non-critical alerts: Automatically proceeds with remediation
-    
-    The request body can contain:
-    - Traditional AlertManager format with 'alerts' array
-    - Flexible format with 'data' field containing any alert structure
-    - Direct JSON array of alerts
-    - Raw alert data in various formats
+    - Automatically detects incident format
+    - Sends email notifications for Warning incidents
+    - For Warning incidents: Waits for user approval before remediation
+    - For Normal incidents: Automatically proceeds with remediation
     """
     try:
-        logger.info("Received alert batch - processing with flexible format support and original data preservation")
+        logger.info("Received incident batch - processing with flexible format support")
         
-        # Store original request data
-        original_request_data = request_data
+        flexible_incidents = parse_flexible_incident_data(request_data)
+        await process_flexible_incidents(flexible_incidents, background_tasks)
         
-        # Handle different input formats and preserve original data
-        if isinstance(request_data, dict):
-            # Check if it's a traditional AlertManager format
-            if "alerts" in request_data and request_data["alerts"]:
-                # Traditional AlertManager format
-                alerts_data = []
-                for alert_dict in request_data["alerts"]:
-                    alert = Alert(**alert_dict)
-                    alerts_data.append(alert)
-                await process_alerts(alerts_data, background_tasks, original_request_data)
-            else:
-                # Flexible format - treat entire dict as alert data
-                flexible_alerts = parse_flexible_alert_data(request_data, original_request_data)
-                await process_flexible_alerts(flexible_alerts, background_tasks, original_request_data)
-        
-        elif isinstance(request_data, list):
-            # Handle direct list of alerts
-            flexible_alerts = parse_flexible_alert_data(request_data, original_request_data)
-            await process_flexible_alerts(flexible_alerts, background_tasks, original_request_data)
-        
-        else:
-            # Try to parse as flexible format
-            flexible_alerts = parse_flexible_alert_data(request_data, original_request_data)
-            await process_flexible_alerts(flexible_alerts, background_tasks, original_request_data)
-        
-        return {"status": "Alerts processed successfully with original data preservation"}
+        return {"status": "Incidents processed successfully"}
         
     except Exception as e:
-        logger.error(f"Error processing alerts: {str(e)}")
-        # Try to handle as raw string data
-        try:
-            if isinstance(request_data, str):
-                flexible_alerts = parse_flexible_alert_data(request_data, request_data)
-                await process_flexible_alerts(flexible_alerts, background_tasks, request_data)
-                return {"status": "Alerts processed from raw data format with original data preservation"}
-        except Exception as fallback_error:
-            logger.error(f"Fallback processing also failed: {str(fallback_error)}")
-            raise HTTPException(status_code=400, detail=f"Unable to process alert data: {str(e)}")
+        logger.error(f"Error processing incidents: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Unable to process incident data: {str(e)}")
 
-
-@app.get("/alerts", 
-    summary="Get all alerts with complete JSON data",
-    description="Retrieves all alerts from the database with optional filtering and complete JSON data.",
-    response_model=List[AlertModel],
-    tags=["Alerts"])
-async def get_alerts(
+@app.get("/incidents", 
+    summary="Get all incidents",
+    description="Retrieves all incidents from the database with optional filtering.",
+    response_model=List[IncidentModel],
+    tags=["Incidents"])
+async def get_incidents(
     session: Session = Depends(get_session),
     skip: int = 0,
     limit: int = 100,
-    status: Optional[str] = None,
-    severity: Optional[str] = None,
-    approval_status: Optional[str] = None
+    type: Optional[str] = None,
+    namespace: Optional[str] = None,
+    involved_object_kind: Optional[str] = None
 ):
     """
-    Get all alerts with optional filtering and complete JSON data.
+    Get all incidents with optional filtering.
     
     Parameters:
     - **skip**: Number of records to skip (for pagination)
     - **limit**: Maximum number of records to return
-    - **status**: Filter by alert status (e.g., 'firing', 'active')
-    - **severity**: Filter by severity (e.g., 'critical', 'warning')
-    - **approval_status**: Filter by approval status (e.g., 'pending', 'approved', 'rejected')
+    - **type**: Filter by incident type (Normal, Warning)
+    - **namespace**: Filter by namespace
+    - **involved_object_kind**: Filter by involved object kind (Pod, Service, etc.)
     """
-    query = select(AlertModel)
+    query = select(IncidentModel)
     
     # Apply filters if provided
-    if status:
-        query = query.where(AlertModel.status == status)
+    if type:
+        query = query.where(IncidentModel.type == type)
     
-    if approval_status:
-        query = query.where(AlertModel.approval_status == approval_status)
+    if namespace:
+        query = query.where(IncidentModel.metadata_namespace == namespace)
+        
+    if involved_object_kind:
+        query = query.where(IncidentModel.involved_object_kind == involved_object_kind)
     
     # Apply pagination
     query = query.offset(skip).limit(limit)
@@ -176,207 +134,184 @@ async def get_alerts(
     
     return results
 
-@app.get("/alerts/{alert_id}", 
-    summary="Get alert by ID with complete JSON data",
-    description="Retrieves a specific alert by its ID with complete JSON data.",
-    response_model=AlertModel,
-    tags=["Alerts"])
-async def get_alert(alert_id: str, session: Session = Depends(get_session)):
+@app.get("/incidents/{incident_id}", 
+    summary="Get incident by ID",
+    description="Retrieves a specific incident by its ID.",
+    response_model=IncidentModel,
+    tags=["Incidents"])
+async def get_incident(incident_id: str, session: Session = Depends(get_session)):
     """
-    Get a specific alert by ID with complete JSON data.
+    Get a specific incident by ID.
     
     Parameters:
-    - **alert_id**: Unique identifier for the alert
+    - **incident_id**: Unique identifier for the incident
     """
-    alert = session.exec(select(AlertModel).where(AlertModel.id == alert_id)).first()
-    if not alert:
-        raise HTTPException(status_code=404, detail="Alert not found")
-    return alert
-
-@app.get("/alerts/{alert_id}/raw-data",
-    summary="Get complete JSON data for an alert",
-    description="Get the complete original JSON data that was received for this alert.",
-    tags=["Alerts"])
-async def get_alert_complete_data(alert_id: str, session: Session = Depends(get_session)):
-    """
-    Get the complete original JSON data for a specific alert.
-    
-    Parameters:
-    - **alert_id**: Unique identifier for the alert
-    """
-    alert = session.exec(select(AlertModel).where(AlertModel.id == alert_id)).first()
-    if not alert:
-        raise HTTPException(status_code=404, detail="Alert not found")
-    
-    return {
-        "alert_id": alert_id,
-        "complete_json_data": alert.complete_json_data,
-        "created_at": alert.created_at,
-        "updated_at": alert.updated_at
-    }
-
-@app.get("/alerts/{alert_id}/generated-report",
-    summary="Get generated report for an alert",
-    description="Get the generated report that was created for this alert.",
-    tags=["Alerts"])
-async def get_alert_generated_report(alert_id: str, session: Session = Depends(get_session)):
-    """
-    Get the generated report for a specific alert.
-    
-    Parameters:
-    - **alert_id**: Unique identifier for the alert
-    """
-    alert = session.exec(select(AlertModel).where(AlertModel.id == alert_id)).first()
-    if not alert:
-        raise HTTPException(status_code=404, detail="Alert not found")
-    
-    return {
-        "alert_id": alert_id,
-        "generated_report": alert.generated_report,
-        "created_at": alert.created_at,
-        "updated_at": alert.updated_at
-    }
+    incident = session.exec(select(IncidentModel).where(IncidentModel.id == incident_id)).first()
+    if not incident:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    return incident
 
 
 
-@app.get("/test-email-sync", 
-    summary="Test email sending (synchronous)",
-    description="Tests the email notification system by sending a test alert email synchronously.",
-    tags=["Testing"])
-async def test_email_sync():
+@app.post("/analyze-incident", response_model=dict)
+async def analyze_incident_endpoint(
+    incident_data: dict,
+):
     """
-    Test endpoint to verify email sending functionality synchronously.
+    Analyze a Kubernetes incident using LLM and return structured solution
     
-    - Creates a test alert
-    - Sends an email synchronously (waits for completion)
-    - Returns the status and alert ID
-    
-    This is useful for testing the email configuration and getting immediate results.
+    Args:
+        incident_data: Dictionary containing incident information
+        
+    Returns:
+        Structured solution with analysis and remediation steps
     """
     try:
-        # Create a test alert
-        test_alert = create_test_alert()
+        logger.info(f"Received incident analysis request for: {incident_data.get('id', 'unknown')}")
         
-        # Generate test report
-        test_alert_dict = {
-            "status": test_alert.status,
-            "labels": test_alert.labels,
-            "annotations": test_alert.annotations,
-            "startsAt": test_alert.startsAt,
-            "endsAt": test_alert.endsAt
+        # Analyze incident using LLM (now using sync function with timeout handling)
+        solution = analyze_kubernetes_incident_sync(incident_data)
+        
+        # Convert to dict for response
+        solution_dict = solution.model_dump()
+        
+        logger.info(f"Successfully analyzed incident: {incident_data.get('id', 'unknown')}")
+        
+        return {
+            "success": True,
+            "incident_id": incident_data.get('id'),
+            "solution": solution_dict,
+            "message": "Incident analyzed successfully"
         }
-        from app.alert_processor import generate_report
-        generated_report = generate_report(test_alert_dict, "prometheus")
         
-        # Save test alert to database
-        with Session(engine) as session:
-            alert_id = str(uuid.uuid4())
-            alert_model = AlertModel(
-                id=alert_id,
-                approval_status="pending",
-                complete_json_data={
-                    "labels": test_alert.labels,
-                    "annotations": test_alert.annotations,
-                    "status": test_alert.status,
-                    "startsAt": test_alert.startsAt,
-                    "endsAt": test_alert.endsAt,
-                    "alert_type": "test"
-                },
-                generated_report=generated_report
-            )
-            session.add(alert_model)
-            session.commit()
-        
-        # Send test email synchronously
-        result, alert_id = await send_alert_email(test_alert, alert_id)
-        
-        if result:
-            return {
-                "status": "Email test successful", 
-                "message": "Test email sent successfully",
-                "alert_id": alert_id,
-                "generated_report": generated_report
-            }
-        else:
-            return {"status": "Email test failed", "message": "Failed to send test email"}
     except Exception as e:
-        logger.error(f"Test email error: {str(e)}")
-        return {"status": "Error", "message": f"Exception occurred: {str(e)}"}
+        logger.error(f"Failed to analyze incident: {str(e)}")
+        # Still return a response even if analysis fails
+        return {
+            "success": False,
+            "incident_id": incident_data.get('id', 'unknown'),
+            "error": str(e),
+            "message": "Incident analysis failed, but basic information recorded"
+        }
 
-@app.get("/test-non-critical", 
-    summary="Test non-critical alert email",
-    description="Tests the email notification system with a non-critical alert.",
-    tags=["Testing"])
-async def test_non_critical_email():
+@app.get("/analyze-incident/{incident_id}")
+async def analyze_incident_by_id_endpoint(
+    incident_id: str,
+    session: Session = Depends(get_session)
+):
     """
-    Test endpoint to verify non-critical alert email.
+    Analyze an existing incident by ID
     
-    - Creates a test alert with 'warning' severity
-    - Sends an email synchronously
-    - Returns the status and alert ID
-    
-    This is useful for testing how non-critical alerts are handled differently
-    from critical alerts (no approval buttons, automatic remediation).
+    Args:
+        incident_id: ID of the incident to analyze
+        
+    Returns:
+        Structured solution with analysis and remediation steps
     """
     try:
-        # Create a test alert with non-critical severity
-        test_alert = Alert(
-            status="firing",
-            labels={
-                "alertname": "NonCriticalAlert",
-                "severity": "warning",  # Non-critical severity
-                "instance": "test-instance"
-            },
-            annotations={
-                "summary": "This is a test warning alert",
-                "description": "This is a test warning alert that should be auto-remediated"
-            },
-            startsAt="2023-05-23T07:55:04Z",
-            endsAt="2023-05-23T08:55:04Z"
+        # Get incident from database
+        incident = session.exec(
+            select(IncidentModel).where(IncidentModel.id == incident_id)
+        ).first()
+        
+        if not incident:
+            raise HTTPException(status_code=404, detail="Incident not found")
+        
+        # Convert incident model to dict
+        incident_data = {
+            'id': incident.id,
+            'type': incident.type,
+            'reason': incident.reason,
+            'message': incident.message,
+            'metadata_namespace': incident.metadata_namespace,
+            'metadata_creation_timestamp': incident.metadata_creation_timestamp.isoformat() if incident.metadata_creation_timestamp else None,
+            'involved_object_kind': incident.involved_object_kind,
+            'involved_object_name': incident.involved_object_name,
+            'source_component': incident.source_component,
+            'source_host': incident.source_host,
+            'reporting_component': incident.reporting_component,
+            'count': incident.count,
+            'first_timestamp': incident.first_timestamp.isoformat() if incident.first_timestamp else None,
+            'last_timestamp': incident.last_timestamp.isoformat() if incident.last_timestamp else None,
+            'involved_object_labels': incident.involved_object_labels or {},
+            'involved_object_annotations': incident.involved_object_annotations or {}
+        }
+        
+        # Analyze incident using LLM (now using sync function)
+        solution = analyze_kubernetes_incident_sync(incident_data)
+        
+        return {
+            "success": True,
+            "incident_id": incident_id,
+            "solution": solution.model_dump(),
+            "message": "Incident analyzed successfully"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to analyze incident {incident_id}: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to analyze incident: {str(e)}"
         )
-        
-        # Generate test report
-        test_alert_dict = {
-            "status": test_alert.status,
-            "labels": test_alert.labels,
-            "annotations": test_alert.annotations,
-            "startsAt": test_alert.startsAt,
-            "endsAt": test_alert.endsAt
-        }
-        from app.alert_processor import generate_report
-        generated_report = generate_report(test_alert_dict, "prometheus")
-        
-        # Save test alert to database
-        with Session(engine) as session:
-            alert_id = str(uuid.uuid4())
-            alert_model = AlertModel(
-                id=alert_id,
-                approval_status="auto-approved",
-                complete_json_data={
-                    "labels": test_alert.labels,
-                    "annotations": test_alert.annotations,
-                    "status": test_alert.status,
-                    "startsAt": test_alert.startsAt,
-                    "endsAt": test_alert.endsAt,
-                    "alert_type": "test"
-                },
-                generated_report=generated_report
-            )
-            session.add(alert_model)
-            session.commit()
-        
-        # Send test email synchronously
-        result, alert_id = await send_alert_email(test_alert, alert_id)
-        
-        if result:
-            return {
-                "status": "Non-critical email test successful", 
-                "message": "Test email sent successfully without approval buttons",
-                "alert_id": alert_id,
-                "generated_report": generated_report
+
+@app.post("/test-llm")
+async def test_llm_analysis():
+    """
+    Test endpoint to verify LLM analysis functionality
+    """
+    try:
+        # Create test incident data
+        test_incident_data = {
+            "id": "test-llm-incident-001",
+            "type": "Warning",
+            "reason": "CrashLoopBackOff",
+            "message": "Back-off restarting failed container nginx in pod nginx-deployment-abc123",
+            "metadata_namespace": "production",
+            "metadata_creation_timestamp": datetime.datetime.utcnow().isoformat(),
+            "involved_object_kind": "Pod",
+            "involved_object_name": "nginx-deployment-abc123",
+            "source_component": "kubelet",
+            "source_host": "worker-node-1",
+            "reporting_component": "kubelet",
+            "count": 10,
+            "first_timestamp": datetime.datetime.utcnow().isoformat(),
+            "last_timestamp": datetime.datetime.utcnow().isoformat(),
+            "involved_object_labels": {
+                "app": "nginx",
+                "version": "1.21"
+            },
+            "involved_object_annotations": {
+                "kubernetes.io/created-by": "deployment-controller"
             }
-        else:
-            return {"status": "Email test failed", "message": "Failed to send test email"}
+        }
+        
+        logger.info("Testing LLM analysis with sample incident data")
+        
+        # Test LLM analysis (now using sync function)
+        solution = analyze_kubernetes_incident_sync(test_incident_data)
+        
+        return {
+            "success": True,
+            "message": "LLM analysis test completed successfully",
+            "test_incident": test_incident_data,
+            "solution": {
+                "solution_id": solution.solution_id,
+                "summary": solution.summary,
+                "analysis": solution.analysis[:200] + "..." if len(solution.analysis) > 200 else solution.analysis,
+                "steps_count": len(solution.steps),
+                "confidence_score": solution.confidence_score,
+                "estimated_time_mins": solution.estimated_time_to_resolve_mins,
+                "severity_level": solution.severity_level,
+                "recommendations_count": len(solution.recommendations)
+            }
+        }
+        
     except Exception as e:
-        logger.error(f"Test email error: {str(e)}")
-        return {"status": "Error", "message": f"Exception occurred: {str(e)}"}
+        logger.error(f"LLM test failed: {str(e)}")
+        return {
+            "success": False,
+            "error": str(e),
+            "message": "LLM analysis test failed"
+        }

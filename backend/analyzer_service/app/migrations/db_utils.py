@@ -90,7 +90,6 @@ def create_sample_data(count=10):
     # First ensure the column exists
     migrate_database()
     
-    severities = ["critical", "warning", "info"]
     statuses = ["firing", "resolved"]
     approval_statuses = ["pending", "approved", "rejected", "auto-approved"]
     remediation_statuses = ["pending", "in_progress", "completed", "failed"]
@@ -98,16 +97,9 @@ def create_sample_data(count=10):
     
     with Session(engine) as session:
         for i in range(count):
-            # Determine severity and approval status
-            severity = random.choice(severities)
+            # Determine approval status
             alert_type = random.choice(alert_types)
-            
-            # For critical alerts, use manual approval statuses
-            if severity == "critical":
-                approval_status = random.choice(["pending", "approved", "rejected"])
-            else:
-                # For non-critical, use auto-approved
-                approval_status = "auto-approved"
+            approval_status = random.choice(approval_statuses)
             
             # Create complete JSON data based on alert type
             if alert_type == "kubernetes-event":
@@ -124,7 +116,7 @@ def create_sample_data(count=10):
                     },
                     "reason": "FailedScheduling",
                     "message": f"Test Kubernetes event message {i+1}",
-                    "type": "Warning" if severity in ["critical", "warning"] else "Normal",
+                    "type": "Warning",
                     "count": random.randint(1, 5),
                     "firstTimestamp": (datetime.utcnow() - timedelta(hours=random.randint(1, 24))).isoformat(),
                     "lastTimestamp": datetime.utcnow().isoformat(),

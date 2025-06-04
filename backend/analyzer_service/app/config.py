@@ -6,19 +6,17 @@ from dotenv import load_dotenv
 load_dotenv("app/.env")  # Adjust the path if needed
 
 class Settings(BaseSettings):
-    LLM_SERVICE_URL: str = os.getenv("CHAT_SERVICE_URL")
-    ENFORCER_URL: str = os.getenv("ENFORCER_URL")
 
     # Email Configuration
     MAIL_USERNAME: str = os.getenv("MAIL_USERNAME")
     MAIL_PASSWORD: str = os.getenv("MAIL_PASSWORD")
-    MAIL_FROM: str = os.getenv("MAIL_FROM")  # Use a valid email here
+    MAIL_FROM: str = os.getenv("MAIL_FROM")
     MAIL_PORT: int = int(os.getenv("MAIL_PORT"))
     MAIL_SERVER: str = os.getenv("MAIL_SERVER")
     MAIL_FROM_NAME: str = os.getenv("MAIL_FROM_NAME")
-    MAIL_STARTTLS: bool = True  # Updated parameter name
-    MAIL_SSL_TLS: bool = False  # Updated parameter name
-    ALERT_EMAIL_RECIPIENT: str = os.getenv("MAIL_RECIPIENT")
+    MAIL_STARTTLS: bool = True
+    MAIL_SSL_TLS: bool = False
+    MAIL_RECIPIENT: str = os.getenv("MAIL_RECIPIENT")  # Changed from ALERT_EMAIL_RECIPIENT
     
     # Server configuration
     SERVER_BASE_URL: str = os.getenv("SERVER_BASE_URL")
@@ -36,6 +34,9 @@ class Settings(BaseSettings):
     OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
     OPENAI_BASE_URL: str = os.getenv("OPENAI_BASE_URL", "")
     LLM_TIMEOUT: int = int(os.getenv("LLM_TIMEOUT", "30"))
+
+    class Config:
+        env_file = ".env"
 
 
 

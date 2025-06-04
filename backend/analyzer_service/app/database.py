@@ -1,23 +1,24 @@
 from sqlmodel import SQLModel, create_engine, Session
-from app.config import settings
-from app.logger import logger
+from app.models import IncidentModel  # Import the new model
+import os
 
-# Create database URL from settings
-DATABASE_URL = f"postgresql://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD}@{settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/{settings.POSTGRES_DB}"
+def get_database_url():
+    """Get database URL from environment variables"""
+    user = os.getenv("POSTGRES_USER", "nisha")
+    password = os.getenv("POSTGRES_PASSWORD", "linux")
+    host = os.getenv("POSTGRES_HOST", "localhost")
+    port = os.getenv("POSTGRES_PORT", "5432")
+    database = os.getenv("POSTGRES_DB", "n_analyzer_db")
+    
+    return f"postgresql://{user}:{password}@{host}:{port}/{database}"
 
-# Create engine
-engine = create_engine(DATABASE_URL, echo=False)
+engine = create_engine(get_database_url())
 
-# Function to create all tables
 def create_db_and_tables():
-    try:
-        SQLModel.metadata.create_all(engine)
-        logger.info("Database tables created successfully")
-    except Exception as e:
-        logger.error(f"Error creating database tables: {e}")
-        raise
+    """Create database tables"""
+    SQLModel.metadata.create_all(engine)
 
-# Function to get a database session
 def get_session():
+    """Get database session"""
     with Session(engine) as session:
         yield session

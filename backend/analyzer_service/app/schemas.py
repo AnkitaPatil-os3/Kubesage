@@ -4,40 +4,46 @@ from datetime import datetime
 
 
 # Simplified flexible alert schema
-class FlexibleAlert(BaseModel):
-    """Flexible alert schema that can handle any type of alert data from different sources"""
-    # Core fields that we'll try to extract or generate
-    alert_type: Optional[str] = "unknown"  # prometheus, grafana, kubernetes-event, etc.
-    severity: Optional[str] = "info"  # Default severity
-    status: Optional[str] = "active"  # Default status
-    
+class FlexibleIncident(BaseModel):
+    """Flexible incident schema that can handle any type of event data from different sources"""
     # Flexible data storage - can contain any structure
     raw_data: Dict[str, Any]  # Store the complete original data
-    
-    # Extracted/normalized fields for easier processing
-    title: Optional[str] = None
-    description: Optional[str] = None
-    source: Optional[str] = None
-    timestamp: Optional[str] = None
     
     class Config:
         extra = "allow"  # Allow additional fields
 
-class Alert(BaseModel):
-    status: str
-    labels: Dict[str, str]
-    annotations: Dict[str, str]
-    startsAt: str
-    endsAt: str
-    generatorURL: Optional[str] = None
-    fingerprint: Optional[str] = None
-
-# Add this new model for flexible request body
-class FlexibleAlertRequest(BaseModel):
-    """Flexible request model that accepts any JSON structure"""
+class KubernetesEvent(BaseModel):
+    """Schema for Kubernetes event data"""
+    # Metadata
+    metadata_name: str
+    metadata_namespace: Optional[str] = None
+    metadata_creation_timestamp: Optional[datetime] = None
     
-    class Config:
-        extra = "allow"  # Allow any additional fields
+    # Event Info
+    type: str
+    reason: str
+    message: str
+    count: Optional[int] = 1
+    first_timestamp: Optional[datetime] = None
+    last_timestamp: Optional[datetime] = None
+    
+    # Source Info
+    source_component: Optional[str] = None
+    source_host: Optional[str] = None
+    
+    # Involved Object
+    involved_object_kind: Optional[str] = None
+    involved_object_name: Optional[str] = None
+    involved_object_field_path: Optional[str] = None
+    involved_object_labels: Dict[str, Any] = {}
+    involved_object_annotations: Dict[str, Any] = {}
+    involved_object_owner_references: Dict[str, Any] = {}
+    
+    # Reporter Info
+    reporting_component: Optional[str] = None
+    reporting_instance: Optional[str] = None
+
+
         
 class EmailSettings(BaseModel):
     MAIL_USERNAME: str
@@ -52,22 +58,32 @@ class EmailSettings(BaseModel):
     VALIDATE_CERTS: bool = True
 
 # Simplified alert response schema
-class AlertResponse(BaseModel):
-    """Schema for alert response data with complete JSON storage"""
+class IncidentResponse(BaseModel):
+    """Schema for incident response data"""
     id: str
-    approval_status: str
-    action_plan: Optional[str] = None
-    remediation_status: Optional[str] = None
-    created_at: datetime
-    updated_at: datetime
-    complete_json_data: Dict[str, Any] = {}  # Include complete JSON data
-    generated_report: Dict[str, Any] = {}  # Include generated report
+    metadata_name: str
+    metadata_namespace: Optional[str] = None
+    metadata_creation_timestamp: Optional[datetime] = None
+    type: str
+    reason: str
+    message: str
+    count: Optional[int] = 1
+    first_timestamp: Optional[datetime] = None
+    last_timestamp: Optional[datetime] = None
+    source_component: Optional[str] = None
+    source_host: Optional[str] = None
+    involved_object_kind: Optional[str] = None
+    involved_object_name: Optional[str] = None
+    involved_object_field_path: Optional[str] = None
+    involved_object_labels: Dict[str, Any] = {}
+    involved_object_annotations: Dict[str, Any] = {}
+    involved_object_owner_references: Dict[str, Any] = {}
+    reporting_component: Optional[str] = None
+    reporting_instance: Optional[str] = None
 
-class AlertStats(BaseModel):
-    """Schema for alert statistics"""
-    total_alerts: int
-    critical_alerts: int
-    pending_approval: int
-    approved: int
-    rejected: int
-    auto_approved: int
+class IncidentStats(BaseModel):
+    """Schema for incident statistics"""
+    total_incidents: int
+    warning_incidents: int
+    normal_incidents: int
+    recent_incidents: int

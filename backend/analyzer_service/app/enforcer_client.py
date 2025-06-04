@@ -10,8 +10,7 @@ def send_to_enforcer(alert: Alert, plan: str):
     try:
         payload = {
             "alertname": alert.labels.get("alertname"),
-            "plan": plan,
-            "severity": alert.labels.get("severity")
+            "plan": plan
         }
         response = requests.post(f"{settings.ENFORCER_URL}/execute", json=payload)
         response.raise_for_status()
