@@ -163,15 +163,28 @@ async def process_flexible_incidents(incidents: List[FlexibleIncident], backgrou
             try:
                 # Use the synchronous function directly
                 solution = analyze_kubernetes_incident_sync(incident_data)
+
+                
                 logger.info(f"Generated structured solution for incident {incident_id}")
                 logger.info(f"Solution summary: {solution.summary}")
                 logger.info(f"Number of steps: {len(solution.steps)}")
                 logger.info(f"Confidence score: {solution.confidence_score}")
                 logger.info(f"Estimated resolution time: {solution.estimated_time_to_resolve_mins} minutes")
                 
-                # You can save the solution to database or use it as needed
-                # For now, just logging the key information
+                # ---- NEW LOGIC: Enforcer ----
+                try:
+                    from app.enforcer_client import enforce_remediation_plan
+                    enforcer_instructions = enforce_remediation_plan(solution)
+                    logger.info(f"Enforcer processed solution for incident {incident_id}")
+                    
+                    # ---- NEW LOGIC: Executor ----
+                    from app.executor_client import execute_remediation_steps
+                    execution_result = execute_remediation_steps(enforcer_instructions)
+                    logger.info(f"Executor completed steps for incident {incident_id}: {execution_result}")
                 
+                except Exception as enforcement_error:
+                    logger.error(f"Enforcer/Executor failed for incident {incident_id}: {str(enforcement_error)}")
+                            
             except Exception as llm_error:
                 logger.error(f"LLM analysis failed for incident {incident_id}: {str(llm_error)}")
                 # Continue processing even if LLM fails
