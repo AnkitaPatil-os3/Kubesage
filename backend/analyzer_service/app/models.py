@@ -3,6 +3,7 @@ from typing import Optional, Dict, Any, List
 from datetime import datetime
 import uuid
 
+
 class IncidentModel(SQLModel, table=True):
     """Database model for storing Kubernetes incidents/events"""
     __tablename__ = "incidents"
@@ -37,3 +38,34 @@ class IncidentModel(SQLModel, table=True):
     # Reporter Info fields
     reporting_component: Optional[str] = Field(default=None, description="Component that reported the event")
     reporting_instance: Optional[str] = Field(default=None, description="Host instance reporting the event")
+
+class ExecutionAttemptModel(SQLModel, table=True):
+    """Track execution attempts for incidents"""
+    __tablename__ = "execution_attempts"
+    
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    incident_id: str = Field(description="Related incident ID")
+    solution_id: str = Field(description="Solution ID from LLM")
+    attempt_number: int = Field(description="Attempt number (1, 2, 3)")
+    executor_name: str = Field(description="Name of executor used")
+    status: str = Field(description="success, failed, in_progress")
+    execution_result: Dict[str, Any] = Field(default={}, sa_column=Column(JSON))
+    error_message: Optional[str] = Field(default=None)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    completed_at: Optional[datetime] = Field(default=None)
+    
+class SolutionModel(SQLModel, table=True):
+    """Store LLM solutions"""
+    __tablename__ = "solutions"
+    
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    solution_id: str = Field(description="Solution ID from LLM")
+    incident_id: str = Field(description="Related incident ID")
+    summary: str = Field(description="Solution summary")
+    analysis: str = Field(sa_column=Column(Text), description="Detailed analysis")
+    steps: List[Dict[str, Any]] = Field(default=[], sa_column=Column(JSON))
+    confidence_score: Optional[float] = Field(default=None)
+    estimated_time_mins: Optional[int] = Field(default=None)
+    severity_level: str = Field(description="LOW, MEDIUM, HIGH, CRITICAL")
+    recommendations: List[str] = Field(default=[], sa_column=Column(JSON))
+    created_at: datetime = Field(default_factory=datetime.utcnow)

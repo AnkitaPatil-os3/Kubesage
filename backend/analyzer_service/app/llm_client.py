@@ -1,10 +1,13 @@
 import os
 import logging
 import json
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Union
 from datetime import datetime
 from pydantic import BaseModel, Field
-from openai import OpenAI
+from langchain_openai import ChatOpenAI
+from langchain.prompts import ChatPromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate
+from langchain.chains import LLMChain
+from langchain_core.output_parsers import JsonOutputParser
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -29,9 +32,22 @@ class IncidentSolution(BaseModel):
     severity_level: str = Field(description="Assessed severity level of the incident")
     recommendations: List[str] = Field(description="Additional recommendations for prevention")
 
+class LLMSolutionOutput(BaseModel):
+    """LangChain output parser model"""
+    solution_id: str = Field(description="Unique identifier for the solution")
+    incident_id: str = Field(description="ID of the incident this solution addresses")
+    incident_type: str = Field(description="Type of the incident (Normal/Warning)")
+    summary: str = Field(description="Concise summary of the solution strategy")
+    analysis: str = Field(description="Detailed analysis of the incident")
+    steps: List[SolutionStep] = Field(description="Detailed, ordered steps for resolution")
+    confidence_score: Optional[float] = Field(None, description="LLM's confidence in this solution (0.0 to 1.0)")
+    estimated_time_to_resolve_mins: Optional[int] = Field(None, description="Estimated time in minutes to resolve")
+    severity_level: str = Field(description="Assessed severity level of the incident")
+    recommendations: List[str] = Field(description="Additional recommendations for prevention")
+
 class KubernetesLLMClient:
     """
-    LLM client for analyzing Kubernetes incidents and providing structured solutions
+    LLM client for analyzing Kubernetes incidents and providing structured solutions using LangChain
     """
     
     def __init__(self):
@@ -43,190 +59,190 @@ class KubernetesLLMClient:
         if not self.api_key:
             raise ValueError("OpenAI API key not found. Please set OPENAI_API_KEY in configuration.")
         
-        # Initialize OpenAI client
-        client_params = {
-            "api_key": self.api_key,
-            "timeout": self.timeout
+        # Initialize LangChain LLM with increased limits
+        llm_params = {
+            "openai_api_key": self.api_key,
+            "model_name": self.model,
+            "temperature": 0.1,
+            "max_tokens": 4000,  # Increased from 3000
+            "timeout": 120,      # Increased timeout
+            "request_timeout": 120
         }
         
         if self.base_url:
-            client_params["base_url"] = self.base_url
+            llm_params["base_url"] = self.base_url
             
-        self.client = OpenAI(**client_params)
+        self.llm = ChatOpenAI(**llm_params)
         
-        logger.info(f"Initialized LLM client with model: {self.model}")
+        # Setup LangChain prompt template
+        self._setup_prompt_template()
+        
+        # Initialize output parser
+        self.output_parser = JsonOutputParser(pydantic_object=LLMSolutionOutput)
+        
+        # Create LangChain chain
+        self.chain = self.chat_prompt_template | self.llm | self.output_parser
+        
+        logger.info(f"Initialized LangChain LLM client with model: {self.model}")
 
-    def _create_system_prompt(self) -> str:
-        """Create the system prompt for incident analysis"""
-        return """You are an expert Kubernetes administrator and AI assistant specialized in analyzing Kubernetes incidents and providing actionable solutions.
+    def _setup_prompt_template(self):
+        """Setup LangChain prompt templates with improved structure"""
+        system_prompt_str = """You are an expert Kubernetes administrator and AI assistant specialized in analyzing Kubernetes incidents and providing actionable solutions.
 
 Your task is to analyze Kubernetes incident data and generate a comprehensive solution in JSON format.
 
-The solution should be structured according to this exact JSON schema:
+CRITICAL: You MUST provide a complete JSON response with ALL required fields. Do not truncate your response.
 
-{
-  "solution_id": "string (Unique identifier, e.g., SOL-KUBE-1234)",
-  "incident_id": "string (ID of the incident being analyzed)",
-  "incident_type": "string (Type: Normal or Warning)",
-  "summary": "string (Concise summary of the solution strategy)",
-  "analysis": "string (Detailed analysis of what happened and why)",
+The solution MUST be structured according to this exact JSON schema with ALL fields present:
+
+{{
+  "solution_id": "SOL-KUBE-[random-4-digits]",
+  "incident_id": "[provided incident ID]",
+  "incident_type": "[Normal or Warning]",
+  "summary": "[Brief 1-2 sentence summary]",
+  "analysis": "[Detailed analysis - keep under 500 characters]",
   "steps": [
-    {
-      "step_id": "integer (Sequential step number)",
-      "action_type": "string (KUBECTL_GET_LOGS, KUBECTL_DESCRIBE, KUBECTL_SCALE, KUBECTL_APPLY, CHECK_RESOURCE_QUOTAS, MONITOR, VERIFY, etc.)",
-      "description": "string (Detailed description of the action and its purpose)",
-      "target_resource": {
-        "kind": "string (Pod, Deployment, Service, etc.)",
-        "name": "string (Resource name)",
-        "namespace": "string (Kubernetes namespace)"
-      },
-      "command_or_payload": {
-        "command": "string (kubectl command without 'kubectl' prefix)",
-        "parameters": "object (additional parameters if needed)"
-      },
-      "expected_outcome": "string (Expected result after executing this step)"
-    }
+    {{
+      "step_id": 1,
+      "action_type": "[KUBECTL_GET_LOGS|KUBECTL_DESCRIBE|KUBECTL_SCALE|MONITOR|VERIFY]",
+      "description": "[What this step does]",
+      "target_resource": {{
+        "kind": "[Pod|Deployment|Service|etc]",
+        "name": "[resource name]",
+        "namespace": "[namespace]"
+      }},
+      "command_or_payload": {{
+        "command": "[kubectl command without 'kubectl' prefix]"
+      }},
+      "expected_outcome": "[Expected result]"
+    }}
   ],
-  "confidence_score": "float (0.0 to 1.0)",
-  "estimated_time_to_resolve_mins": "integer (estimated minutes)",
-  "severity_level": "string (LOW, MEDIUM, HIGH, CRITICAL)",
-  "recommendations": ["string (prevention recommendations)"]
-}
+  "confidence_score": 0.8,
+  "estimated_time_to_resolve_mins": 10,
+  "severity_level": "[LOW|MEDIUM|HIGH|CRITICAL]",
+  "recommendations": ["[recommendation 1]", "[recommendation 2]"]
+}}
 
-IMPORTANT GUIDELINES:
-1. For Normal events: Focus on monitoring, verification, and optimization
-2. For Warning events: Provide diagnostic and remediation steps
-3. Use appropriate kubectl commands without the 'kubectl' prefix
-4. Consider resource relationships (Deployments manage ReplicaSets manage Pods)
-5. Provide practical, safe, and actionable steps
-6. Include monitoring and verification steps
-7. Assess severity based on incident impact and urgency
+IMPORTANT RULES:
+1. For Normal events: Use severity_level "LOW", focus on monitoring steps
+2. For Warning events: Use severity_level "MEDIUM" or "HIGH", provide diagnostic steps
+3. Always include at least 1 step and 1 recommendation
+4. Keep analysis under 500 characters to avoid truncation
+5. Provide complete JSON - do not truncate the response
+6. Use simple, actionable kubectl commands
+7. ALWAYS check if resources exist before trying to access them
 
-Respond ONLY with valid JSON matching the schema above."""
+Respond ONLY with valid, complete JSON matching the schema above."""
 
-    def _create_user_prompt(self, incident_data: Dict[str, Any]) -> str:
-        """Create the user prompt with incident data - with better formatting"""
-        
-        # Clean and format the data to avoid JSON parsing issues
-        labels = incident_data.get('involved_object_labels', {})
-        annotations = incident_data.get('involved_object_annotations', {})
-        
-        # Convert complex objects to strings to avoid issues
-        labels_str = str(labels) if labels else "None"
-        annotations_str = str(annotations) if annotations else "None"
-        
-        return f"""Please analyze the following Kubernetes incident and provide a comprehensive solution:
+        human_prompt_str = """Analyze this Kubernetes incident and provide a complete solution:
 
-INCIDENT DATA:
-- ID: {incident_data.get('id', 'N/A')}
-- Type: {incident_data.get('type', 'N/A')}
-- Reason: {incident_data.get('reason', 'N/A')}
-- Message: {incident_data.get('message', 'N/A')}
-- Namespace: {incident_data.get('metadata_namespace', 'N/A')}
-- Object Kind: {incident_data.get('involved_object_kind', 'N/A')}
-- Object Name: {incident_data.get('involved_object_name', 'N/A')}
-- Source Component: {incident_data.get('source_component', 'N/A')}
-- Source Host: {incident_data.get('source_host', 'N/A')}
-- Count: {incident_data.get('count', 'N/A')}
-- Creation Time: {incident_data.get('metadata_creation_timestamp', 'N/A')}
-- Labels: {labels_str}
-- Annotations: {annotations_str}
+Incident ID: {incident_id}
+Type: {incident_type}
+Reason: {incident_reason}
+Message: {incident_message}
+Namespace: {incident_namespace}
+Object: {incident_object_kind}/{incident_object_name}
+Source: {incident_source_component}
 
-IMPORTANT: Respond with ONLY valid JSON following the exact schema provided in the system prompt. Do not include any explanatory text before or after the JSON."""
+Provide a complete JSON solution with ALL required fields. Keep analysis brief to avoid truncation."""
+
+        system_message_prompt = SystemMessagePromptTemplate.from_template(system_prompt_str)
+        human_message_prompt = HumanMessagePromptTemplate.from_template(human_prompt_str)
+        self.chat_prompt_template = ChatPromptTemplate.from_messages([
+            system_message_prompt, 
+            human_message_prompt
+        ])
 
     def analyze_incident_sync(self, incident_data: Dict[str, Any]) -> IncidentSolution:
         """
-        Synchronous method to analyze a Kubernetes incident and generate a structured solution
-        
-        Args:
-            incident_data: Dictionary containing incident information
-            
-        Returns:
-            IncidentSolution: Structured solution for the incident
-            
-        Raises:
-            Exception: If analysis fails
+        Synchronous method to analyze a Kubernetes incident using LangChain
         """
         try:
             incident_id = incident_data.get('id', 'unknown')
-            logger.info(f"Starting LLM analysis for incident: {incident_id}")
+            logger.info(f"Starting LangChain LLM analysis for incident: {incident_id}")
             
-            # Prepare messages
-            messages = [
-                {"role": "system", "content": self._create_system_prompt()},
-                {"role": "user", "content": self._create_user_prompt(incident_data)}
-            ]
+            # Prepare simplified input data for LangChain chain
+            input_data = {
+                "incident_id": incident_data.get('id', 'N/A'),
+                "incident_type": incident_data.get('type', 'N/A'),
+                "incident_reason": incident_data.get('reason', 'N/A'),
+                "incident_message": incident_data.get('message', 'N/A')[:200],  # Limit message length
+                "incident_namespace": incident_data.get('metadata_namespace', 'N/A'),
+                "incident_object_kind": incident_data.get('involved_object_kind', 'N/A'),
+                "incident_object_name": incident_data.get('involved_object_name', 'N/A'),
+                "incident_source_component": incident_data.get('source_component', 'N/A')
+            }
             
-            # Call LLM with better error handling
+            # Invoke LangChain chain with better error handling
             try:
-                logger.info(f"Calling LLM API for incident: {incident_id}")
-                response = self.client.chat.completions.create(
-                    model=self.model,
-                    messages=messages,
-                    temperature=0.1,
-                    max_tokens=3000,  # Increased token limit
-                    timeout=90,  # Increased timeout
-                    response_format={"type": "json_object"}
+                logger.info(f"Invoking LangChain chain for incident: {incident_id}")
+                chain_output: Union[LLMSolutionOutput, dict] = self.chain.invoke(input_data)
+                logger.info(f"LangChain returned output type: {type(chain_output)}")
+                
+                # Log the raw output for debugging
+                if isinstance(chain_output, dict):
+                    logger.info(f"Chain output keys: {list(chain_output.keys())}")
+                    logger.debug(f"Chain output: {chain_output}")
+                
+                # Validate the output has required fields
+                if isinstance(chain_output, dict):
+                    missing_fields = []
+                    required_fields = ['solution_id', 'incident_id', 'incident_type', 'summary', 'analysis', 'steps', 'severity_level', 'recommendations']
+                    
+                    for field in required_fields:
+                        if field not in chain_output:
+                            missing_fields.append(field)
+                    
+                    if missing_fields:
+                        logger.error(f"LangChain output missing required fields: {missing_fields}")
+                        logger.error(f"Available fields: {list(chain_output.keys())}")
+                        return self._create_fallback_solution(incident_data)
+                    
+                    # Validate steps is not empty
+                    if not chain_output.get('steps') or len(chain_output.get('steps', [])) == 0:
+                        logger.error("LangChain output has empty steps array")
+                        return self._create_fallback_solution(incident_data)
+                    
+                    try:
+                        llm_solution_output = LLMSolutionOutput.model_validate(chain_output)
+                        logger.info("Successfully validated LangChain output")
+                    except Exception as pydantic_exc:
+                        logger.error(f"Failed to validate LangChain output: {pydantic_exc}")
+                        logger.error(f"Chain output: {chain_output}")
+                        return self._create_fallback_solution(incident_data)
+                        
+                elif isinstance(chain_output, LLMSolutionOutput):
+                    llm_solution_output = chain_output
+                    logger.info("LangChain returned LLMSolutionOutput model directly")
+                else:
+                    logger.error(f"Unexpected output type from LangChain: {type(chain_output)}")
+                    return self._create_fallback_solution(incident_data)
+                
+            except Exception as chain_error:
+                logger.error(f"LangChain chain invocation failed for incident {incident_id}: {str(chain_error)}")
+                return self._create_fallback_solution(incident_data)
+            
+            # Convert to IncidentSolution
+            try:
+                solution = IncidentSolution(
+                    solution_id=llm_solution_output.solution_id,
+                    incident_id=llm_solution_output.incident_id,
+                    incident_type=llm_solution_output.incident_type,
+                    summary=llm_solution_output.summary,
+                    analysis=llm_solution_output.analysis,
+                    steps=llm_solution_output.steps,
+                    confidence_score=llm_solution_output.confidence_score,
+                    estimated_time_to_resolve_mins=llm_solution_output.estimated_time_to_resolve_mins,
+                    severity_level=llm_solution_output.severity_level,
+                    recommendations=llm_solution_output.recommendations
                 )
                 
-                # Check if response is valid
-                if not response or not response.choices:
-                    logger.error(f"Empty response from LLM for incident {incident_id}")
-                    return self._create_fallback_solution(incident_data)
-                
-                response_content = response.choices[0].message.content
-                
-                # Check if response content is empty or None
-                if not response_content or response_content.strip() == "":
-                    logger.error(f"Empty response content from LLM for incident {incident_id}")
-                    return self._create_fallback_solution(incident_data)
-                
-                logger.info(f"Received LLM response for incident {incident_id}, length: {len(response_content)}")
-                logger.debug(f"Raw LLM response: {response_content[:500]}...")  # Log first 500 chars
-                
-            except Exception as api_error:
-                logger.error(f"LLM API call failed for incident {incident_id}: {str(api_error)}")
-                return self._create_fallback_solution(incident_data)
-            
-            # Parse JSON response with better error handling
-            try:
-                # Clean the response content
-                response_content = response_content.strip()
-                
-                # Check if it starts with { (valid JSON object)
-                if not response_content.startswith('{'):
-                    logger.error(f"Response doesn't start with JSON object for incident {incident_id}")
-                    logger.error(f"Response content: {response_content[:200]}...")
-                    return self._create_fallback_solution(incident_data)
-                
-                solution_dict = json.loads(response_content)
-                
-                # Validate required fields
-                required_fields = ['solution_id', 'incident_id', 'incident_type', 'summary', 'analysis', 'steps']
-                missing_fields = [field for field in required_fields if field not in solution_dict]
-                
-                if missing_fields:
-                    logger.error(f"Missing required fields in LLM response: {missing_fields}")
-                    return self._create_fallback_solution(incident_data)
-                
-            except json.JSONDecodeError as e:
-                logger.error(f"Failed to parse LLM response as JSON for incident {incident_id}: {e}")
-                logger.error(f"Response content: {response_content[:500]}...")
-                return self._create_fallback_solution(incident_data)
-            
-            # Validate and create IncidentSolution object
-            try:
-                solution = IncidentSolution.model_validate(solution_dict)
                 logger.info(f"Successfully generated solution for incident: {incident_id}")
-                
-                # Print solution to terminal
                 self._print_solution_to_terminal(solution)
-                
                 return solution
                 
-            except Exception as e:
-                logger.error(f"Failed to validate solution structure for incident {incident_id}: {e}")
-                logger.error(f"Solution dict keys: {list(solution_dict.keys()) if isinstance(solution_dict, dict) else 'Not a dict'}")
+            except Exception as conversion_error:
+                logger.error(f"Failed to convert LLMSolutionOutput to IncidentSolution: {conversion_error}")
                 return self._create_fallback_solution(incident_data)
                 
         except Exception as e:
@@ -316,7 +332,7 @@ IMPORTANT: Respond with ONLY valid JSON following the exact schema provided in t
     def _print_solution_to_terminal(self, solution: IncidentSolution):
         """Print the solution details to terminal"""
         print("\n" + "="*80)
-        print("🤖 LLM INCIDENT ANALYSIS COMPLETE")
+        print("🤖 LANGCHAIN LLM INCIDENT ANALYSIS COMPLETE")
         print("="*80)
         print(f"📋 Solution ID: {solution.solution_id}")
         print(f"🎯 Incident ID: {solution.incident_id}")
@@ -349,7 +365,7 @@ IMPORTANT: Respond with ONLY valid JSON following the exact schema provided in t
             print(f"   {i}. {rec}")
         
         print("="*80)
-        print("✅ Analysis Complete - Solution Ready for Implementation")
+        print("✅ LangChain Analysis Complete - Solution Ready for Implementation")
         print("="*80 + "\n")
 
 # Global instance
@@ -362,7 +378,7 @@ def get_llm_client() -> KubernetesLLMClient:
 # Convenience functions
 def analyze_kubernetes_incident_sync(incident_data: Dict[str, Any]) -> IncidentSolution:
     """
-    Synchronous version of incident analysis
+    Synchronous version of incident analysis using LangChain
     
     Args:
         incident_data: Dictionary containing incident information

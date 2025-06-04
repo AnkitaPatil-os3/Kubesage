@@ -1,12 +1,11 @@
 from typing import Dict, Any, List
 from app.schemas import KubernetesEvent, FlexibleIncident
-from app.models import IncidentModel
+from app.models import IncidentModel, ExecutionAttemptModel, SolutionModel
 from app.database import engine
 from app.logger import logger
-from sqlmodel import Session
+from sqlmodel import Session, select
 from datetime import datetime
-# Replace the old import
-# from app.llm_client import query_llm
+
 from app.llm_client import analyze_kubernetes_incident_sync
 import uuid
 
@@ -138,62 +137,151 @@ async def process_flexible_incidents(incidents: List[FlexibleIncident], backgrou
                 logger.error(f"Failed to send email for incident {incident_id}: {str(email_error)}")
                 # Continue processing even if email fails
             
-            # Prepare incident data for LLM (only required and important info)
-            incident_data = {
-                "id": incident_id,
-                "type": k8s_event.type,
-                "reason": k8s_event.reason,
-                "message": k8s_event.message,
-                "metadata_namespace": k8s_event.metadata_namespace,
-                "metadata_creation_timestamp": k8s_event.metadata_creation_timestamp.isoformat() if k8s_event.metadata_creation_timestamp else None,
-                "involved_object_kind": k8s_event.involved_object_kind,
-                "involved_object_name": k8s_event.involved_object_name,
-                "source_component": k8s_event.source_component,
-                "source_host": k8s_event.source_host,
-                "reporting_component": k8s_event.reporting_component,
-                "count": k8s_event.count,
-                "first_timestamp": k8s_event.first_timestamp.isoformat() if k8s_event.first_timestamp else None,
-                "last_timestamp": k8s_event.last_timestamp.isoformat() if k8s_event.last_timestamp else None,
-                # Clean labels and annotations to avoid JSON issues
-                "involved_object_labels": _clean_dict_for_llm(k8s_event.involved_object_labels),
-                "involved_object_annotations": _clean_dict_for_llm(k8s_event.involved_object_annotations)
-            }
-            
-            logger.info(f"Prepared incident data for LLM analysis: {incident_data['id']}")
-
-            # Analyze incident using LLM to get structured solution (AFTER email is sent)
-            try:
-                # Use the synchronous function directly
-                solution = analyze_kubernetes_incident_sync(incident_data)
-
-                
-                logger.info(f"Generated structured solution for incident {incident_id}")
-                logger.info(f"Solution summary: {solution.summary}")
-                logger.info(f"Number of steps: {len(solution.steps)}")
-                logger.info(f"Confidence score: {solution.confidence_score}")
-                logger.info(f"Estimated resolution time: {solution.estimated_time_to_resolve_mins} minutes")
-                
-                # ---- NEW LOGIC: Enforcer ----
-                try:
-                    from app.enforcer_client import enforce_remediation_plan
-                    enforcer_instructions = enforce_remediation_plan(solution)
-                    logger.info(f"Enforcer processed solution for incident {incident_id}")
-                    
-                    # ---- NEW LOGIC: Executor ----
-                    from app.executor_client import execute_remediation_steps
-                    execution_result = execute_remediation_steps(enforcer_instructions)
-                    logger.info(f"Executor completed steps for incident {incident_id}: {execution_result}")
-                
-                except Exception as enforcement_error:
-                    logger.error(f"Enforcer/Executor failed for incident {incident_id}: {str(enforcement_error)}")
-                            
-            except Exception as llm_error:
-                logger.error(f"LLM analysis failed for incident {incident_id}: {str(llm_error)}")
-                # Continue processing even if LLM fails
+            # Process incident with LLM → Enforcer → Executor chain
+            await _process_incident_with_llm_chain(k8s_event, incident_id)
             
         except Exception as e:
             logger.error(f"Error processing incident: {str(e)}")
 
+async def _process_incident_with_llm_chain(k8s_event: KubernetesEvent, incident_id: str):
+    """Process incident through LLM → Enforcer → Executor chain"""
+    try:
+        # Prepare incident data for LLM
+        incident_data = {
+            "id": incident_id,
+            "type": k8s_event.type,
+            "reason": k8s_event.reason,
+            "message": k8s_event.message,
+            "metadata_namespace": k8s_event.metadata_namespace,
+            "metadata_creation_timestamp": k8s_event.metadata_creation_timestamp.isoformat() if k8s_event.metadata_creation_timestamp else None,
+            "involved_object_kind": k8s_event.involved_object_kind,
+            "involved_object_name": k8s_event.involved_object_name,
+            "source_component": k8s_event.source_component,
+            "source_host": k8s_event.source_host,
+            "reporting_component": k8s_event.reporting_component,
+            "count": k8s_event.count,
+            "first_timestamp": k8s_event.first_timestamp.isoformat() if k8s_event.first_timestamp else None,
+            "last_timestamp": k8s_event.last_timestamp.isoformat() if k8s_event.last_timestamp else None,
+            "involved_object_labels": _clean_dict_for_llm(k8s_event.involved_object_labels),
+            "involved_object_annotations": _clean_dict_for_llm(k8s_event.involved_object_annotations)
+        }
+        
+        logger.info(f"Starting LLM → Enforcer → Executor chain for incident: {incident_id}")
+
+        # Step 1: LLM Analysis
+        try:
+            solution = analyze_kubernetes_incident_sync(incident_data)
+            logger.info(f"✅ LLM analysis completed for incident {incident_id}")
+            
+            # Step 2: Enforcer Processing
+            try:
+                from app.enforcer_client import enforce_remediation_plan
+                enforcer_result = enforce_remediation_plan(solution, incident_id)
+                
+                if enforcer_result.get("status") == "max_attempts_reached":
+                    logger.warning(f"⚠️ Maximum attempts reached for incident {incident_id}")
+                    return
+                elif enforcer_result.get("status") == "error":
+                    logger.error(f"❌ Enforcer failed for incident {incident_id}")
+                    return
+                
+                logger.info(f"✅ Enforcer processing completed for incident {incident_id}")
+                
+                # Step 3: Executor Processing
+                try:
+                    from app.executor_client import execute_remediation_steps
+                    execution_result = execute_remediation_steps(enforcer_result)
+                    
+                    if execution_result.get("overall_success"):
+                        logger.info(f"✅ Execution completed successfully for incident {incident_id}")
+                    else:
+                        logger.warning(f"⚠️ Execution failed for incident {incident_id}, attempt {execution_result.get('attempt_number')}")
+                    
+                except Exception as executor_error:
+                    logger.error(f"❌ Executor failed for incident {incident_id}: {str(executor_error)}")
+                    
+            except Exception as enforcer_error:
+                logger.error(f"❌ Enforcer failed for incident {incident_id}: {str(enforcer_error)}")
+                
+        except Exception as llm_error:
+            logger.error(f"❌ LLM analysis failed for incident {incident_id}: {str(llm_error)}")
+            
+    except Exception as e:
+        logger.error(f"❌ Error in LLM chain processing for incident {incident_id}: {str(e)}")
+
+async def retry_incident_analysis(incident_id: str):
+    """Retry incident analysis after execution failure"""
+    try:
+        logger.info(f"🔄 Retrying analysis for incident {incident_id}")
+        
+        # Get original incident from database
+        with Session(engine) as session:
+            incident = session.exec(
+                select(IncidentModel).where(IncidentModel.id == incident_id)
+            ).first()
+            
+            if not incident:
+                logger.error(f"Incident {incident_id} not found for retry")
+                return
+            
+            # Get previous execution attempts for context
+            attempts = session.exec(
+                select(ExecutionAttemptModel).where(
+                    ExecutionAttemptModel.incident_id == incident_id
+                )
+            ).all()
+            
+            # Prepare enhanced incident data with failure context
+            incident_data = {
+                "id": incident_id,
+                "type": incident.type,
+                "reason": incident.reason,
+                "message": incident.message,
+                "metadata_namespace": incident.metadata_namespace,
+                "metadata_creation_timestamp": incident.metadata_creation_timestamp.isoformat() if incident.metadata_creation_timestamp else None,
+                "involved_object_kind": incident.involved_object_kind,
+                "involved_object_name": incident.involved_object_name,
+                "source_component": incident.source_component,
+                "source_host": incident.source_host,
+                "reporting_component": incident.reporting_component,
+                "count": incident.count,
+                "first_timestamp": incident.first_timestamp.isoformat() if incident.first_timestamp else None,
+                "last_timestamp": incident.last_timestamp.isoformat() if incident.last_timestamp else None,
+                "involved_object_labels": incident.involved_object_labels or {},
+                "involved_object_annotations": incident.involved_object_annotations or {},
+                # Add failure context
+                "previous_attempts": len(attempts),
+                "last_failure_reason": attempts[-1].error_message if attempts else None
+            }
+            
+            # Convert incident model back to KubernetesEvent for processing
+            k8s_event = KubernetesEvent(
+                metadata_name=incident.metadata_name,
+                metadata_namespace=incident.metadata_namespace,
+                metadata_creation_timestamp=incident.metadata_creation_timestamp,
+                type=incident.type,
+                reason=incident.reason,
+                message=incident.message,
+                count=incident.count,
+                first_timestamp=incident.first_timestamp,
+                last_timestamp=incident.last_timestamp,
+                source_component=incident.source_component,
+                source_host=incident.source_host,
+                involved_object_kind=incident.involved_object_kind,
+                involved_object_name=incident.involved_object_name,
+                involved_object_field_path=incident.involved_object_field_path,
+                involved_object_labels=incident.involved_object_labels or {},
+                involved_object_annotations=incident.involved_object_annotations or {},
+                involved_object_owner_references=incident.involved_object_owner_references or {},
+                reporting_component=incident.reporting_component,
+                reporting_instance=incident.reporting_instance
+            )
+            
+            # Process through LLM chain again
+            await _process_incident_with_llm_chain(k8s_event, incident_id)
+            
+    except Exception as e:
+        logger.error(f"Error in retry analysis for incident {incident_id}: {str(e)}")
 
 def _clean_dict_for_llm(data_dict):
     """Clean dictionary data to avoid LLM parsing issues"""
