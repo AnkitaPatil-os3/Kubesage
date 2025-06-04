@@ -1,39 +1,33 @@
+ 
 import React from "react";
 import { useHistory } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Icon } from "@iconify/react";
-import { 
-  Card, 
-  CardBody, 
-  CardHeader, 
-  Input, 
-  Button, 
+import {
+  Card,
+  CardBody,
+  CardHeader,
+  Input,
+  Button,
   Checkbox,
   Divider,
   addToast
 } from "@heroui/react";
-
-interface LoginPageProps {
-  onLogin: (email: string, password: string) => boolean;
-}
-
-export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
-  const [email, setEmail] = React.useState("");
+ 
+export const LoginPage: React.FC<{ onLogin?: (username: string, password: string) => boolean }> = ({ onLogin = () => true }) => {
+  const [username, setUsername] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [rememberMe, setRememberMe] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
-  const [errors, setErrors] = React.useState({ email: "", password: "" });
+  const [errors, setErrors] = React.useState({ username: "", password: "" });
   const history = useHistory();
   
   const validateForm = () => {
-    const newErrors = { email: "", password: "" };
+    const newErrors = { username: "", password: "" };
     let isValid = true;
     
-    if (!email) {
-      newErrors.email = "Email is required";
-      isValid = false;
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = "Email is invalid";
+    if (!username) {
+      newErrors.username = "Username is required";
       isValid = false;
     }
     
@@ -49,34 +43,76 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     return isValid;
   };
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+ 
     if (!validateForm()) return;
-    
+ 
     setIsLoading(true);
-    
-    // Simulate API call
-    setTimeout(() => {
-      const success = onLogin(email, password);
-      
-      if (success) {
+ 
+    try {
+      const response = await fetch("/auth/token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: new URLSearchParams({
+          username: username.trim(),
+          password: password.trim()
+        }).toString()
+      });
+ 
+      if (response.ok) {
+        const data = await response.json();
+        localStorage.setItem("access_token", data.access_token);
+        localStorage.setItem("refresh_token", data.refresh_token);
         addToast({
           title: "Login Successful",
           description: "Welcome to KubeSage Dashboard",
           color: "success"
         });
+        try {
+          onLogin(username, password);
+        } catch (err) {
+          console.error("Error in onLogin callback:", err);
+          addToast({
+            title: "Login Failed",
+            description: "An error occurred during login callback",
+            color: "danger"
+          });
+          setIsLoading(false);
+          return;
+        }
         history.push("/dashboard");
       } else {
+        console.error("Login failed: Invalid username or password");
         addToast({
           title: "Login Failed",
-          description: "Invalid email or password",
+          description: "Invalid username or password",
           color: "danger"
         });
       }
-      
+    } catch (error) {
+      console.error("Login failed: An error occurred during login", error);
+      addToast({
+        title: "Login Failed",
+        description: "An error occurred during login",
+        color: "danger"
+      });
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
+  };
+ 
+  const handleLogout = () => {
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
+    addToast({
+      title: "Logged Out",
+      description: "You have been logged out successfully",
+      color: "primary"
+    });
+    history.push("/login");
   };
   
   return (
@@ -90,7 +126,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       >
         <Card className="backdrop-blur-md bg-content1/90 shadow-xl border border-content2">
           <CardHeader className="flex flex-col items-center gap-2 pb-0">
-            <motion.div 
+            <motion.div
               className="w-16 h-16 rounded-xl bg-primary flex items-center justify-center mb-2"
               whileHover={{ scale: 1.05, rotate: 5 }}
               whileTap={{ scale: 0.95 }}
@@ -106,14 +142,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
           <CardBody className="py-5">
             <form onSubmit={handleSubmit} className="space-y-4">
               <Input
-                label="Email"
-                placeholder="Enter your email"
-                type="email"
-                value={email}
-                onValueChange={setEmail}
+                label="Username"
+                placeholder="Enter your username"
+                type="text"
+                value={username}
+                onValueChange={setUsername}
                 startContent={<Icon icon="lucide:mail" className="text-foreground-400" />}
-                isInvalid={!!errors.email}
-                errorMessage={errors.email}
+                isInvalid={!!errors.username}
+                errorMessage={errors.username}
                 isDisabled={isLoading}
               />
               
@@ -130,8 +166,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
               />
               
               <div className="flex items-center justify-between">
-                <Checkbox 
-                  size="sm" 
+                <Checkbox
+                  size="sm"
                   isSelected={rememberMe}
                   onValueChange={setRememberMe}
                   isDisabled={isLoading}
@@ -143,9 +179,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                 </Button>
               </div>
               
-              <Button 
-                color="primary" 
-                type="submit" 
+              <Button
+                color="primary"
+                type="submit"
                 fullWidth
                 isLoading={isLoading}
                 startContent={!isLoading && <Icon icon="lucide:log-in" />}
@@ -161,24 +197,24 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
               </div>
               
               <div className="grid grid-cols-3 gap-3">
-                <Button 
-                  variant="flat" 
+                <Button
+                  variant="flat"
                   className="bg-content2"
                   startContent={<Icon icon="logos:google-icon" />}
                   isDisabled={isLoading}
                 >
                   Google
                 </Button>
-                <Button 
-                  variant="flat" 
+                <Button
+                  variant="flat"
                   className="bg-content2"
                   startContent={<Icon icon="logos:github-icon" />}
                   isDisabled={isLoading}
                 >
                   GitHub
                 </Button>
-                <Button 
-                  variant="flat" 
+                <Button
+                  variant="flat"
                   className="bg-content2"
                   startContent={<Icon icon="logos:microsoft-icon" />}
                   isDisabled={isLoading}
@@ -197,3 +233,5 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     </div>
   );
 };
+ 
+ 

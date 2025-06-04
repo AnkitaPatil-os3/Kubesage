@@ -1,10 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
+from jose import jwt, ExpiredSignatureError, JWTError
 from sqlmodel import Session, select
 from typing import List
 import datetime  # Added for timestamp
+from pydantic import BaseModel
 
 from app.database import get_session
-from app.models import User , UserToken
+from app.models import User, UserToken
 from app.schemas import UserCreate, UserResponse, UserUpdate, LoginRequest, Token, ChangePasswordRequest
 from app.auth import (
     authenticate_user, 
@@ -19,77 +21,118 @@ from app.config import settings
 from app.logger import logger
 from datetime import timedelta
 from app.queue import publish_message  # Import the queue functionality
-from fastapi.security import OAuth2PasswordRequestForm
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer 
 
-
-
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
 # User router
 user_router = APIRouter()
 
 # Auth router
 auth_router = APIRouter()
 
-@auth_router.post("/token", summary="User Login", description="Authenticates a user and returns an access token")
-async def login(form_data: OAuth2PasswordRequestForm = Depends(), session: Session = Depends(get_session)):
+
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
+@auth_router.post("/token/refresh", summary="Refresh Access Token")
+def refresh_access_token(data: RefreshRequest):
+    refresh_token = data.refresh_token
+    if not refresh_token:
+        raise HTTPException(status_code=400, detail="Refresh token not provided")
+
+    try:
+        payload = jwt.decode(refresh_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        user_id = payload.get("sub")
+        if not user_id:
+            raise HTTPException(status_code=400, detail="Invalid token payload")
+
+        new_access_token, _ = create_access_token(data={"sub": user_id})
+        return {"access_token": new_access_token}
+    except ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Refresh token expired")
+    except JWTError:
+        raise HTTPException(status_code=403, detail="Invalid refresh token")
+    
+@auth_router.post("/logout", summary="User Logout", description="Logs out a user by invalidating their refresh token")
+def logout(response: Response):
     """
-    Authenticates a user with username and password.
-    
-    - Validates user credentials
-    - Creates and stores a JWT access token
-    - Publishes a user login event to the message queue
-    - Returns the access token with expiration information
-    
+    Logs out a user by clearing the refresh token from cookies.
+
+    - Clears the refresh token
+    - Returns a success message
+
     Returns:
-        dict: Contains access token, token type, and expiration timestamp
-    
-    Raises:
-        HTTPException: 401 error if credentials are invalid
+        dict: Success message
     """
+    response.delete_cookie(key="refresh_token", httponly=True, secure=True)
+    return {"message": "Logged out successfully"}
+
+# from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
+from sqlmodel import Session
+from datetime import datetime, timedelta
+
+from app.database import get_session
+from app.auth import (
+    authenticate_user,
+    create_access_token
+)
+from app.models import UserToken
+from app.config import settings
+from app.logger import logger
+from app.queue import publish_message
+
+
+
+@auth_router.post("/token", summary="User Login", description="Authenticates a user and returns access & refresh tokens")
+async def login(form_data: OAuth2PasswordRequestForm = Depends(), session: Session = Depends(get_session)):
     user = authenticate_user(session, form_data.username, form_data.password)
-    print ("user is ", user)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    # Token expiry times
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token, expires_at = create_access_token(
+    refresh_token_expires = timedelta(days=30)
+
+    # Generate tokens
+    access_token, access_exp = create_access_token(
         data={"sub": str(user.id)}, expires_delta=access_token_expires
     )
+    refresh_token, refresh_exp = create_access_token(
+        data={"sub": str(user.id)}, expires_delta=refresh_token_expires
+    )
 
-    # Save UserToken in the database
+    # Save access token to database
     user_token = UserToken(
         token=access_token,
         user_id=user.id,
-        expires_at=expires_at
+        expires_at=access_exp
     )
-
-    print ("user_token is ", user_token)
     session.add(user_token)
     session.commit()
     session.refresh(user_token)
 
-    print(f"User token is {user_token}, save in the database")
-        
+    logger.info(f"User {user.username} logged in with access token")
+
     # Publish login event
     publish_message("user_events", {
         "event_type": "user_login",
         "user_id": user.id,
         "username": user.username,
-        "timestamp": datetime.datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat()
     })
-    
+
     return {
-        "access_token": access_token, 
+        "access_token": access_token,
+        "refresh_token": refresh_token,
         "token_type": "bearer",
-        "expires_at": expires_at
+        "access_token_expires_at": access_exp,
+        "refresh_token_expires_at": refresh_exp
     }
-
-
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
 
 @auth_router.post("/logout", summary="User Logout", description="Logs out a user by invalidating their access token")
 async def logout(

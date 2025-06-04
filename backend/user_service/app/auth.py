@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta , UTC
 from typing import Optional
 
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi import Depends, HTTPException, status, APIRouter
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlmodel import Session, select
@@ -17,6 +17,8 @@ from app.logger import logger
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # Token handling
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
+
+router = APIRouter()
 
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
@@ -77,6 +79,29 @@ async def get_current_admin_user(current_user: User = Depends(get_current_active
     if not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions"
-        )
+        detail="Not enough permissions"
+    )
     return current_user
+
+@router.post("/auth/token")
+async def login_for_access_token(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    session: Session = Depends(get_session)
+):
+    user = authenticate_user(session, form_data.username, form_data.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token, expire = create_access_token(
+        data={"sub": str(user.id)}, expires_delta=access_token_expires
+    )
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "expires": expire.isoformat()
+    }
+

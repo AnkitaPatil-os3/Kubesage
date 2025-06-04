@@ -1,21 +1,22 @@
+ 
 import React from "react";
 import { useLocation } from "react-router-dom";
 import { Icon } from "@iconify/react";
-import { 
-  Button, 
-  Dropdown, 
-  DropdownTrigger, 
-  DropdownMenu, 
+import {
+  Button,
+  Dropdown,
+  DropdownTrigger,
+  DropdownMenu,
   DropdownItem,
   Input,
   Avatar
 } from "@heroui/react";
 import { motion } from "framer-motion";
-
+ 
 interface HeaderProps {
   toggleChat: () => void;
 }
-
+ 
 export const Header: React.FC<HeaderProps> = ({ toggleChat }) => {
   const location = useLocation();
   const [isSearchFocused, setIsSearchFocused] = React.useState(false);
@@ -31,9 +32,9 @@ export const Header: React.FC<HeaderProps> = ({ toggleChat }) => {
       default: return 'Dashboard';
     }
   };
-
+ 
   return (
-    <motion.header 
+    <motion.header
       className="h-16 border-b border-divider bg-content1 backdrop-blur-md bg-opacity-80 flex items-center justify-between px-4 md:px-6"
       initial={{ y: -20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
@@ -46,7 +47,7 @@ export const Header: React.FC<HeaderProps> = ({ toggleChat }) => {
       </div>
       
       <div className="hidden md:block">
-        <motion.h1 
+        <motion.h1
           className="text-xl font-semibold"
           key={location.pathname}
           initial={{ opacity: 0, y: -10 }}
@@ -69,9 +70,9 @@ export const Header: React.FC<HeaderProps> = ({ toggleChat }) => {
       </div>
       
       <div className="flex items-center gap-2">
-        <Button 
-          color="primary" 
-          variant="flat" 
+        <Button
+          color="primary"
+          variant="flat"
           startContent={<Icon icon="lucide:message-square" />}
           onPress={toggleChat}
           className="hidden md:flex"
@@ -106,11 +107,30 @@ export const Header: React.FC<HeaderProps> = ({ toggleChat }) => {
             <DropdownItem key="feedback" startContent={<Icon icon="lucide:message-square" />}>
               Send Feedback
             </DropdownItem>
-            <DropdownItem 
-              key="logout" 
-              className="text-danger" 
+            <DropdownItem
+              key="logout"
+              className="text-danger"
               color="danger"
               startContent={<Icon icon="lucide:log-out" />}
+              onClick={async () => {
+                try {
+                  const accessToken = localStorage.getItem('access_token');
+                  console.log('Logout request with token:', accessToken);
+                  await fetch('/auth/logout', {
+                    method: 'POST',
+                    headers: {
+                      'Authorization': `Bearer ${accessToken}`,
+                      'Content-Type': 'application/json'
+                    }
+                  });
+                } catch (error) {
+                  console.error('Logout failed:', error);
+                } finally {
+                  localStorage.removeItem('access_token');
+                  localStorage.removeItem('refresh_token');
+                  window.location.href = '/login';
+                }
+              }}
             >
               Log Out
             </DropdownItem>
@@ -120,3 +140,4 @@ export const Header: React.FC<HeaderProps> = ({ toggleChat }) => {
     </motion.header>
   );
 };
+ 

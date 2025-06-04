@@ -2,7 +2,7 @@ import React from "react";
 import { Link, useHistory } from "react-router-dom";
 import { Icon } from "@iconify/react";
 import { Button, Tooltip, Switch, Divider } from "@heroui/react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface SidebarProps {
   selectedCluster: string;
@@ -21,117 +21,274 @@ export const Sidebar: React.FC<SidebarProps> = ({
   toggleTheme,
   currentTheme
 }) => {
+  const [isCollapsed, setIsCollapsed] = React.useState(false);
+  const [expandedCategory, setExpandedCategory] = React.useState<string | null>("clusters");
   const history = useHistory();
+  
   const clusters = [
     { id: "production", name: "Production", icon: "lucide:server" },
     { id: "staging", name: "Staging", icon: "lucide:server" },
     { id: "development", name: "Development", icon: "lucide:server" },
   ];
 
-  const navItems = [
-    { id: "overview", name: "Overview", icon: "lucide:layout-dashboard", path: "/dashboard/overview" },
-    { id: "onboarding", name: "Cluster Onboarding", icon: "lucide:plus-circle", path: "/dashboard/onboarding" },
-    { id: "chatops", name: "ChatOps", icon: "lucide:message-square", path: "/dashboard/chatops" },
-    { id: "observability", name: "Observability", icon: "lucide:activity", path: "/dashboard" },
-    { id: "security", name: "Security", icon: "lucide:shield", path: "/dashboard" },
-    { id: "compliance", name: "Compliance", icon: "lucide:check-circle", path: "/dashboard" },
-    { id: "insights", name: "AI Insights", icon: "lucide:lightbulb", path: "/dashboard" },
-    { id: "admin", name: "Admin", icon: "lucide:settings", path: "/dashboard/admin" },
+  const navCategories = [
+    {
+      id: "clusters",
+      name: "CLUSTERS",
+      icon: "lucide:database",
+      items: [
+        { id: "overview", name: "Overview", icon: "lucide:layout-dashboard", path: "/dashboard/overview" },
+        { id: "onboarding", name: "Cluster Onboarding", icon: "lucide:plus-circle", path: "/dashboard/onboarding" },
+        { id: "management", name: "Management", icon: "lucide:settings-2", path: "/dashboard/management" },
+      ]
+    },
+    {
+      id: "operations",
+      name: "OPERATIONS",
+      icon: "lucide:activity",
+      items: [
+        { id: "chatops", name: "ChatOps", icon: "lucide:message-square", path: "/dashboard/chatops" },
+        { id: "observability", name: "Observability", icon: "lucide:activity", path: "/dashboard/observability" },
+        { id: "monitoring", name: "Monitoring", icon: "lucide:bar-chart", path: "/dashboard/monitoring" },
+        { id: "logging", name: "Logging", icon: "lucide:file-text", path: "/dashboard/logging" },
+      ]
+    },
+    {
+      id: "security",
+      name: "SECURITY",
+      icon: "lucide:shield",
+      items: [
+        { id: "security", name: "Security Scanner", icon: "lucide:shield", path: "/dashboard/security" },
+        { id: "compliance", name: "Compliance", icon: "lucide:check-circle", path: "/dashboard/compliance" },
+        { id: "rbac", name: "RBAC", icon: "lucide:users", path: "/dashboard/rbac" },
+        { id: "secrets", name: "Secrets", icon: "lucide:key", path: "/dashboard/secrets" },
+      ]
+    },
+    {
+      id: "ai",
+      name: "AI TOOLS",
+      icon: "lucide:cpu",
+      items: [
+        { id: "insights", name: "AI Insights", icon: "lucide:lightbulb", path: "/dashboard/insights" },
+        { id: "predictions", name: "Predictions", icon: "lucide:trending-up", path: "/dashboard/predictions" },
+        { id: "optimization", name: "Resource Optimization", icon: "lucide:zap", path: "/dashboard/optimization" },
+      ]
+    },
+    {
+      id: "settings",
+      name: "SETTINGS",
+      icon: "lucide:settings",
+      items: [
+        { id: "admin", name: "Admin", icon: "lucide:settings", path: "/dashboard/admin" },
+        { id: "profile", name: "Profile", icon: "lucide:user", path: "/dashboard/profile" },
+        { id: "preferences", name: "Preferences", icon: "lucide:sliders", path: "/dashboard/preferences" },
+      ]
+    },
   ];
+
+  const toggleCategory = (categoryId: string) => {
+    setExpandedCategory(categoryId);
+  };
+
+  const toggleCollapse = () => {
+    setIsCollapsed(!isCollapsed);
+  };
 
   return (
     <motion.aside 
-      className="hidden md:flex flex-col w-64 bg-content1 border-r border-divider"
+      className={`flex flex-col bg-content1 border-r border-divider transition-all duration-300 ${
+        isCollapsed ? "w-16" : "w-64"
+      }`}
       initial={{ x: -20, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       transition={{ duration: 0.3 }}
     >
-      <div className="p-4 flex items-center gap-2">
-        <motion.div 
-          className="bg-primary rounded-md p-1"
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-        >
-          <Icon icon="lucide:layers" className="text-white text-xl" />
-        </motion.div>
-        <h1 className="text-xl font-semibold">KubeSage</h1>
-      </div>
-      
-      <div className="p-4">
-        <h2 className="text-sm font-medium text-foreground-500 mb-2">CLUSTERS</h2>
-        <div className="space-y-1">
-          {clusters.map((cluster) => (
-            <Button
-              key={cluster.id}
-              variant={selectedCluster === cluster.id ? "flat" : "ghost"}
-              color={selectedCluster === cluster.id ? "primary" : "default"}
-              className="w-full justify-start"
-              startContent={<Icon icon={cluster.icon} />}
-              onPress={() => setSelectedCluster(cluster.id)}
-            >
-              {cluster.name}
-            </Button>
-          ))}
-        </div>
-      </div>
-      
-      <div className="p-4 flex-1">
-        <h2 className="text-sm font-medium text-foreground-500 mb-2">NAVIGATION</h2>
-        <div className="space-y-1">
-          {navItems.map((item) => (
-            <Button
-              key={item.id}
-              variant={currentPage === item.id ? "flat" : "ghost"}
-              color={currentPage === item.id ? "primary" : "default"}
-              className="w-full justify-start"
-              startContent={<Icon icon={item.icon} />}
-              onPress={() => history.push(item.path)}
-            >
-              {item.name}
-            </Button>
-          ))}
-        </div>
-      </div>
-      
-      <div className="p-4 border-t border-divider">
-        <div className="flex items-center justify-between mb-4">
-          <span className="text-sm">Theme</span>
+      <div className="p-4 flex items-center justify-between border-b border-divider">
+        {!isCollapsed && (
           <div className="flex items-center gap-2">
-            <Icon icon="lucide:sun" className={`text-sm ${currentTheme === 'light' ? 'text-primary' : 'text-foreground-400'}`} />
-            <Switch 
-              size="sm" 
-              isSelected={currentTheme === 'dark'} 
-              onValueChange={toggleTheme} 
-              color="primary"
-            />
-            <Icon icon="lucide:moon" className={`text-sm ${currentTheme === 'dark' ? 'text-primary' : 'text-foreground-400'}`} />
+            <motion.div 
+              className="bg-primary rounded-md p-1 flex-shrink-0"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Icon icon="lucide:layers" className="text-white text-xl" />
+            </motion.div>
+            <h1 className="text-xl font-semibold truncate">KubeSage</h1>
           </div>
-        </div>
+        )}
         
-        <Divider className="my-3" />
+        {isCollapsed && (
+          <motion.div 
+            className="bg-primary rounded-md p-1 mx-auto"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <Icon icon="lucide:layers" className="text-white text-xl" />
+          </motion.div>
+        )}
         
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-medium">
+        <Button
+          isIconOnly
+          variant="ghost"
+          size="sm"
+          onPress={toggleCollapse}
+        >
+          <Icon icon={isCollapsed ? "lucide:chevron-right" : "lucide:chevron-left"} />
+        </Button>
+      </div>
+      
+      <div className="flex-1 overflow-y-auto scrollbar-hide py-2">
+        {navCategories.map((category) => (
+          <div key={category.id} className="mb-3">
+            {!isCollapsed ? (
+              <>
+                <div 
+                  className={`px-4 py-2 flex items-center justify-between cursor-pointer transition-colors ${
+                    expandedCategory === category.id ? "bg-content2" : "hover:bg-content2"
+                  }`}
+                  onClick={() => toggleCategory(category.id)}
+                >
+                  <div className="flex items-center gap-2">
+                    <Icon 
+                      icon={category.icon} 
+                      className={expandedCategory === category.id ? "text-primary" : "text-foreground-500"} 
+                    />
+                    <span className={`text-xs font-medium ${
+                      expandedCategory === category.id ? "text-primary font-semibold" : "text-foreground-500"
+                    }`}>
+                      {category.name}
+                    </span>
+                  </div>
+                </div>
+                
+                <div className="pl-4 pr-2 space-y-1 py-1">
+                  {category.items.map((item) => (
+                    <Button
+                      key={item.id}
+                      variant={currentPage === item.id ? "flat" : "ghost"}
+                      color={currentPage === item.id ? "primary" : "default"}
+                      className="w-full justify-start"
+                      startContent={<Icon icon={item.icon} />}
+                      onPress={() => history.push(item.path)}
+                      size="sm"
+                    >
+                      {item.name}
+                    </Button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="py-1">
+                <Tooltip content={category.name} placement="right">
+                  <div className="flex justify-center mb-1">
+                    <Button
+                      isIconOnly
+                      variant={expandedCategory === category.id ? "flat" : "ghost"}
+                      color={expandedCategory === category.id ? "primary" : "default"}
+                      onPress={() => toggleCategory(category.id)}
+                      size="sm"
+                    >
+                      <Icon icon={category.icon} />
+                    </Button>
+                  </div>
+                </Tooltip>
+                
+                <div className="space-y-1 flex flex-col items-center">
+                  {category.items.map((item) => (
+                    <Tooltip key={item.id} content={item.name} placement="right">
+                      <Button
+                        isIconOnly
+                        variant={currentPage === item.id ? "flat" : "ghost"}
+                        color={currentPage === item.id ? "primary" : "default"}
+                        size="sm"
+                        onPress={() => history.push(item.path)}
+                      >
+                        <Icon icon={item.icon} />
+                      </Button>
+                    </Tooltip>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+      
+      <div className={`p-4 border-t border-divider ${isCollapsed ? "flex flex-col items-center" : ""}`}>
+        {!isCollapsed ? (
+          <>
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-sm">Theme</span>
+              <div className="flex items-center gap-2">
+                <Icon icon="lucide:sun" className={`text-sm ${currentTheme === 'light' ? 'text-primary' : 'text-foreground-400'}`} />
+                <Switch 
+                  size="sm" 
+                  isSelected={currentTheme === 'dark'} 
+                  onValueChange={toggleTheme} 
+                  color="primary"
+                />
+                <Icon icon="lucide:moon" className={`text-sm ${currentTheme === 'dark' ? 'text-primary' : 'text-foreground-400'}`} />
+              </div>
+            </div>
+            
+            <Divider className="my-3" />
+            
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-medium">
+                  AS
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Admin User</p>
+                  <p className="text-xs text-foreground-500">admin@kubesage.io</p>
+                </div>
+              </div>
+              <Tooltip content="Logout">
+                <Button 
+                  isIconOnly 
+                  variant="ghost" 
+                  color="danger" 
+                  size="sm"
+                  onPress={onLogout}
+                >
+                  <Icon icon="lucide:log-out" />
+                </Button>
+              </Tooltip>
+            </div>
+          </>
+        ) : (
+          <>
+            <Tooltip content="Toggle Theme" placement="right">
+              <Button
+                isIconOnly
+                variant="ghost"
+                size="sm"
+                onPress={toggleTheme}
+                className="mb-3"
+              >
+                <Icon icon={currentTheme === 'light' ? "lucide:sun" : "lucide:moon"} />
+              </Button>
+            </Tooltip>
+            
+            <Divider className="my-3 w-full" />
+            
+            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-medium mb-3">
               AS
             </div>
-            <div>
-              <p className="text-sm font-medium">Admin User</p>
-              <p className="text-xs text-foreground-500">admin@kubesage.io</p>
-            </div>
-          </div>
-          <Tooltip content="Logout">
-            <Button 
-              isIconOnly 
-              variant="ghost" 
-              color="danger" 
-              size="sm"
-              onPress={onLogout}
-            >
-              <Icon icon="lucide:log-out" />
-            </Button>
-          </Tooltip>
-        </div>
+            
+            <Tooltip content="Logout" placement="right">
+              <Button 
+                isIconOnly 
+                variant="ghost" 
+                color="danger" 
+                size="sm"
+                onPress={onLogout}
+              >
+                <Icon icon="lucide:log-out" />
+              </Button>
+            </Tooltip>
+          </>
+        )}
       </div>
     </motion.aside>
   );
