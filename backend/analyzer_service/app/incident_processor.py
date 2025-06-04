@@ -116,8 +116,9 @@ def convert_to_kubernetes_event(raw_data: Dict[str, Any]) -> KubernetesEvent:
             message=f"Failed to parse incident data: {str(e)}"
         )
 
+
 async def process_flexible_incidents(incidents: List[FlexibleIncident], background_tasks):
-    """
+    """ 
     Process a list of flexible incidents
     """
     for incident in incidents:
@@ -153,8 +154,9 @@ async def process_flexible_incidents(incidents: List[FlexibleIncident], backgrou
                 "count": k8s_event.count,
                 "first_timestamp": k8s_event.first_timestamp.isoformat() if k8s_event.first_timestamp else None,
                 "last_timestamp": k8s_event.last_timestamp.isoformat() if k8s_event.last_timestamp else None,
-                "involved_object_labels": k8s_event.involved_object_labels,
-                "involved_object_annotations": k8s_event.involved_object_annotations
+                # Clean labels and annotations to avoid JSON issues
+                "involved_object_labels": _clean_dict_for_llm(k8s_event.involved_object_labels),
+                "involved_object_annotations": _clean_dict_for_llm(k8s_event.involved_object_annotations)
             }
             
             logger.info(f"Prepared incident data for LLM analysis: {incident_data['id']}")
@@ -191,6 +193,23 @@ async def process_flexible_incidents(incidents: List[FlexibleIncident], backgrou
             
         except Exception as e:
             logger.error(f"Error processing incident: {str(e)}")
+
+
+def _clean_dict_for_llm(data_dict):
+    """Clean dictionary data to avoid LLM parsing issues"""
+    if not data_dict or not isinstance(data_dict, dict):
+        return {}
+    
+    cleaned = {}
+    for key, value in data_dict.items():
+        # Convert all values to strings and limit length
+        if isinstance(value, str) and len(value) > 200:
+            cleaned[key] = value[:200] + "..."
+        else:
+            cleaned[key] = str(value) if value is not None else ""
+    
+    return cleaned
+
 
 async def save_incident_to_db(k8s_event: KubernetesEvent) -> str:
     """
@@ -260,3 +279,6 @@ async def save_solution_to_db(solution, incident_id: str):
     except Exception as e:
         logger.error(f"Error saving solution to database: {str(e)}")
         raise e
+
+
+

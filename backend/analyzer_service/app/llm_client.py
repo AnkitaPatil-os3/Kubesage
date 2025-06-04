@@ -105,7 +105,16 @@ IMPORTANT GUIDELINES:
 Respond ONLY with valid JSON matching the schema above."""
 
     def _create_user_prompt(self, incident_data: Dict[str, Any]) -> str:
-        """Create the user prompt with incident data"""
+        """Create the user prompt with incident data - with better formatting"""
+        
+        # Clean and format the data to avoid JSON parsing issues
+        labels = incident_data.get('involved_object_labels', {})
+        annotations = incident_data.get('involved_object_annotations', {})
+        
+        # Convert complex objects to strings to avoid issues
+        labels_str = str(labels) if labels else "None"
+        annotations_str = str(annotations) if annotations else "None"
+        
         return f"""Please analyze the following Kubernetes incident and provide a comprehensive solution:
 
 INCIDENT DATA:
@@ -120,10 +129,10 @@ INCIDENT DATA:
 - Source Host: {incident_data.get('source_host', 'N/A')}
 - Count: {incident_data.get('count', 'N/A')}
 - Creation Time: {incident_data.get('metadata_creation_timestamp', 'N/A')}
-- Labels: {incident_data.get('involved_object_labels', {})}
-- Annotations: {incident_data.get('involved_object_annotations', {})}
+- Labels: {labels_str}
+- Annotations: {annotations_str}
 
-Generate a comprehensive solution following the specified JSON format."""
+IMPORTANT: Respond with ONLY valid JSON following the exact schema provided in the system prompt. Do not include any explanatory text before or after the JSON."""
 
     def analyze_incident_sync(self, incident_data: Dict[str, Any]) -> IncidentSolution:
         """
@@ -148,30 +157,61 @@ Generate a comprehensive solution following the specified JSON format."""
                 {"role": "user", "content": self._create_user_prompt(incident_data)}
             ]
             
-            # Call LLM with increased timeout and retry logic
+            # Call LLM with better error handling
             try:
+                logger.info(f"Calling LLM API for incident: {incident_id}")
                 response = self.client.chat.completions.create(
                     model=self.model,
                     messages=messages,
-                    temperature=0.1,  # Low temperature for consistent, focused responses
-                    max_tokens=2000,
-                    timeout=60,  # Increased timeout to 60 seconds
-                    response_format={"type": "json_object"}  # Ensure JSON response
+                    temperature=0.1,
+                    max_tokens=3000,  # Increased token limit
+                    timeout=90,  # Increased timeout
+                    response_format={"type": "json_object"}
                 )
+                
+                # Check if response is valid
+                if not response or not response.choices:
+                    logger.error(f"Empty response from LLM for incident {incident_id}")
+                    return self._create_fallback_solution(incident_data)
+                
+                response_content = response.choices[0].message.content
+                
+                # Check if response content is empty or None
+                if not response_content or response_content.strip() == "":
+                    logger.error(f"Empty response content from LLM for incident {incident_id}")
+                    return self._create_fallback_solution(incident_data)
+                
+                logger.info(f"Received LLM response for incident {incident_id}, length: {len(response_content)}")
+                logger.debug(f"Raw LLM response: {response_content[:500]}...")  # Log first 500 chars
+                
             except Exception as api_error:
                 logger.error(f"LLM API call failed for incident {incident_id}: {str(api_error)}")
-                # Return a fallback solution if LLM fails
                 return self._create_fallback_solution(incident_data)
             
-            # Extract and parse response
-            response_content = response.choices[0].message.content
-            logger.debug(f"Raw LLM response: {response_content}")
-            
-            # Parse JSON response
+            # Parse JSON response with better error handling
             try:
+                # Clean the response content
+                response_content = response_content.strip()
+                
+                # Check if it starts with { (valid JSON object)
+                if not response_content.startswith('{'):
+                    logger.error(f"Response doesn't start with JSON object for incident {incident_id}")
+                    logger.error(f"Response content: {response_content[:200]}...")
+                    return self._create_fallback_solution(incident_data)
+                
                 solution_dict = json.loads(response_content)
+                
+                # Validate required fields
+                required_fields = ['solution_id', 'incident_id', 'incident_type', 'summary', 'analysis', 'steps']
+                missing_fields = [field for field in required_fields if field not in solution_dict]
+                
+                if missing_fields:
+                    logger.error(f"Missing required fields in LLM response: {missing_fields}")
+                    return self._create_fallback_solution(incident_data)
+                
             except json.JSONDecodeError as e:
-                logger.error(f"Failed to parse LLM response as JSON: {e}")
+                logger.error(f"Failed to parse LLM response as JSON for incident {incident_id}: {e}")
+                logger.error(f"Response content: {response_content[:500]}...")
                 return self._create_fallback_solution(incident_data)
             
             # Validate and create IncidentSolution object
@@ -183,12 +223,14 @@ Generate a comprehensive solution following the specified JSON format."""
                 self._print_solution_to_terminal(solution)
                 
                 return solution
+                
             except Exception as e:
-                logger.error(f"Failed to validate solution structure: {e}")
+                logger.error(f"Failed to validate solution structure for incident {incident_id}: {e}")
+                logger.error(f"Solution dict keys: {list(solution_dict.keys()) if isinstance(solution_dict, dict) else 'Not a dict'}")
                 return self._create_fallback_solution(incident_data)
                 
         except Exception as e:
-            logger.error(f"Error analyzing incident {incident_data.get('id', 'unknown')}: {str(e)}")
+            logger.error(f"Unexpected error analyzing incident {incident_data.get('id', 'unknown')}: {str(e)}")
             return self._create_fallback_solution(incident_data)
 
     def _create_fallback_solution(self, incident_data: Dict[str, Any]) -> IncidentSolution:

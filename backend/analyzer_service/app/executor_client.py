@@ -1,8 +1,8 @@
 import requests
 from app.config import settings
 from app.logger import logger
-from app.schemas import Alert
-from app.models import AlertModel
+from app.schemas import KubernetesEvent
+from app.models import IncidentModel
 from app.database import engine
 from sqlmodel import Session, select
 
