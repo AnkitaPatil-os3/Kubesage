@@ -10,11 +10,17 @@ from kubernetes import client, config
 import tempfile
 from app.database import get_session
 from app.models import Kubeconf
+from app.models import Kubeconf, ClusterInfo , ClusterInfo1 # Add ClusterInfo import
 from app.schemas import (
     KubeconfigResponse,
     KubeconfigList,
     MessageResponse,
-    ClusterNamesResponse
+    ClusterNamesResponse,
+    ClusterInfoRequest,  # Add new schemas
+    ClusterInfoResponse,
+    ClusterInfoRequest1,
+    ClusterInfoResponse1  # Add new schemas
+
 )
 from app.auth import get_current_user
 from app.config import settings
@@ -1742,3 +1748,144 @@ def analyze_pod_with_events(api, namespace=None):
     return results
 
 
+
+
+
+@kubeconfig_router.post("/cluster-info", response_model=ClusterInfoResponse1, status_code=201,
+                       summary="Store Cluster Information", 
+                       description="Receives and stores cluster access information from Helm chart setup")
+async def store_cluster_info(
+    cluster_data: ClusterInfoRequest1,
+    session: Session = Depends(get_session),
+    current_user: Dict = Depends(get_current_user)
+):
+    """
+    Stores cluster access information received from Helm chart setup.
+    
+    - Receives cluster configuration data including API server details, certificates, and tokens
+    - Stores all information in the database for future reference
+    - Publishes a cluster info received event to the message queue
+    
+    Parameters:
+        cluster_data: The cluster information payload
+    
+    Returns:
+        ClusterInfoResponse: The stored cluster information record
+        
+    Raises:
+        HTTPException: 400 error if data format is invalid
+        HTTPException: 500 error if storage fails
+    """
+    logger.info(f"Cluster info received for user {current_user['id']} from source {cluster_data.metadata.source}")
+    
+    try:
+        # Parse the timestamp
+        timestamp_dt = datetime.datetime.fromisoformat(
+            cluster_data.cluster_info.timestamp.replace('Z', '+00:00')
+        ).replace(tzinfo=None)
+        
+        # Create a new ClusterInfo object
+        new_cluster_info = ClusterInfo1(
+            user_id=current_user["id"],
+            api_server_url=cluster_data.cluster_info.api_server_url,
+            internal_api_server_url=cluster_data.cluster_info.internal_api_server_url,
+            external_ip=cluster_data.cluster_info.external_ip,
+            ca_certificate=cluster_data.cluster_info.ca_certificate,
+            bearer_token=cluster_data.cluster_info.bearer_token,
+            namespace=cluster_data.cluster_info.namespace,
+            service_account=cluster_data.cluster_info.service_account,
+            cluster_role=cluster_data.cluster_info.cluster_role,
+            cluster_name=cluster_data.cluster_info.cluster_name,
+            api_access_test=cluster_data.cluster_info.api_access_test,
+            timestamp=timestamp_dt,
+            helm_release=cluster_data.cluster_info.helm_release,
+            helm_namespace=cluster_data.cluster_info.helm_namespace,
+            status=cluster_data.cluster_info.status,
+            source=cluster_data.metadata.source,
+            version=cluster_data.metadata.version
+        )
+        
+        # Add to database
+        session.add(new_cluster_info)
+        session.commit()
+        session.refresh(new_cluster_info)
+        
+        logger.info(f"User {current_user['id']} stored cluster info with ID: {new_cluster_info.id}")
+        
+        # Publish cluster info received event
+        publish_message("kubeconfig_events", {
+            "event_type": "cluster_info_received",
+            "cluster_info_id": new_cluster_info.id,
+            "user_id": current_user["id"],
+            "username": current_user.get("username", "unknown"),
+            "api_server_url": cluster_data.cluster_info.api_server_url,
+            "cluster_name": cluster_data.cluster_info.cluster_name,
+            "namespace": cluster_data.cluster_info.namespace,
+            "status": cluster_data.cluster_info.status,
+            "api_access_test": cluster_data.cluster_info.api_access_test,
+            "source": cluster_data.metadata.source,
+            "version": cluster_data.metadata.version,
+            "timestamp": datetime.datetime.now().isoformat()
+        })
+        
+        return ClusterInfoResponse1(
+            id=new_cluster_info.id,
+            user_id=new_cluster_info.user_id,
+            api_server_url=new_cluster_info.api_server_url,
+            cluster_name=new_cluster_info.cluster_name,
+            namespace=new_cluster_info.namespace,
+            status=new_cluster_info.status,
+            created_at=new_cluster_info.created_at
+        )
+        
+    except ValueError as e:
+        logger.error(f"Error parsing cluster info data: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Invalid data format: {str(e)}")
+    except Exception as e:
+        logger.error(f"Error storing cluster info: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+
+
+@kubeconfig_router.post("/c-info", response_model=ClusterInfoResponse, status_code=201)
+async def store_cluster_info(
+    cluster_data: ClusterInfoRequest,
+    session: Session = Depends(get_session)
+):
+    try:
+        timestamp_dt = datetime.datetime.fromisoformat(
+            cluster_data.cluster_info.timestamp.replace('Z', '+00:00')
+        ).replace(tzinfo=None)
+
+        new_cluster_info = ClusterInfo(
+            api_server_url=cluster_data.cluster_info.api_server_url,
+            internal_api_server_url=cluster_data.cluster_info.internal_api_server_url,
+            external_ip=cluster_data.cluster_info.external_ip,
+            ca_certificate=cluster_data.cluster_info.ca_certificate,
+            bearer_token=cluster_data.cluster_info.bearer_token,
+            namespace=cluster_data.cluster_info.namespace,
+            service_account=cluster_data.cluster_info.service_account,
+            cluster_role=cluster_data.cluster_info.cluster_role,
+            cluster_name=cluster_data.cluster_info.cluster_name,
+            api_access_test=cluster_data.cluster_info.api_access_test,
+            timestamp=timestamp_dt,
+            helm_release=cluster_data.cluster_info.helm_release,
+            helm_namespace=cluster_data.cluster_info.helm_namespace,
+            status=cluster_data.cluster_info.status,
+            source=cluster_data.metadata.source,
+            version=cluster_data.metadata.version
+        )
+
+        session.add(new_cluster_info)
+        session.commit()
+        session.refresh(new_cluster_info)
+
+        return ClusterInfoResponse(
+            id=new_cluster_info.id,
+            api_server_url=new_cluster_info.api_server_url,
+            cluster_name=new_cluster_info.cluster_name,
+            namespace=new_cluster_info.namespace,
+            status=new_cluster_info.status,
+            created_at=new_cluster_info.created_at
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")

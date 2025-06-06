@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     MAIL_STARTTLS: bool = os.getenv("MAIL_TLS", "True").lower() == "true"
     MAIL_SSL_TLS: bool = os.getenv("MAIL_SSL", "False").lower() == "true"
     SERVER_BASE_URL: str = os.getenv("SERVER_BASE_URL")  # Server configuration
-    USER_CONFIRMATION_TIMEOUT: int = int(os.getenv("USER_CONFIRMATION_TIMEOUT" )) # Increased to 1 hour (3600 seconds)  # User confirmation timeout in seconds
+    USER_CONFIRMATION_TIMEOUT: int = int(os.getenv("USER_CONFIRMATION_TIMEOUT", "3600"))
     FRONTEND_BASE_URL: str = os.getenv("FRONTEND_BASE_URL")
 
     
