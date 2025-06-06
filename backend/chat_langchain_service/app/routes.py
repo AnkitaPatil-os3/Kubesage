@@ -8,14 +8,14 @@ from app.schemas import UserInfo
 import json
 import asyncio
 from app.langchain_service import process_with_langchain, create_memory_from_messages, stream_langchain_response
-
+ 
 # Define common dependencies
 SessionDep = Annotated[Session, Depends(get_session)]
 CurrentUser = Annotated[UserInfo, Depends(get_current_user)]
 from app.schemas import (
-    MessageCreate, 
-    MessageResponse, 
-    ChatHistoryResponse, 
+    MessageCreate,
+    MessageResponse,
+    ChatHistoryResponse,
     ChatSessionCreate,
     ChatSessionUpdate,
     ChatSessionResponse,
@@ -41,60 +41,48 @@ from fastapi.responses import StreamingResponse
 from app.dependencies import SessionDep, CurrentUser
 from datetime import datetime
 from app.logger import logger
-
+ 
 router = APIRouter(prefix="/chat", tags=["chat"])
 #   ----Chat section ----
-@router.post("/", response_model=MessageResponse, 
-            summary="Send Chat Message", 
+@router.post("/", response_model=MessageResponse,
+            summary="Send Chat Message",
             description="Sends a message to the chat service and returns the AI response")
 async def chat(
-    message: MessageCreate, 
+    message: MessageCreate,
     db: Session = Depends(get_session),
     current_user: UserInfo = Depends(get_current_user),
     authorization: str = Header(None),
     stream: bool = Query(False, description="Whether to stream the response")
 ):
-    """
-    Sends a message to the chat service and processes it using LangChain.
-    
-    - Accepts a message from the user
-    - Processes the message through the LangChain AI backend
-    - Returns the AI response (streaming or non-streaming)
-    
-    Parameters:
-        message: The message content and session information
-        authorization: Bearer token for authentication
-        stream: Whether to stream the response
-    
-    Returns:
-        MessageResponse: The AI's response to the user's message
-        or
-        StreamingResponse: A streaming response with the AI's tokens
-    """
     logger.info(f"Session ID: {id(db)}")
     token = authorization.split(" ")[1] if authorization else None
     
     try:
         session_id = message.session_id
         session = None
+        is_new_session = False
         
-        # Get or create session
+        # Handle session logic
         if session_id:
-            # Get existing session
+            # Try to get existing session
             session = await get_chat_session(db, session_id, current_user.id)
             if not session:
-                # Create new session if provided ID doesn't exist
-                session_create = ChatSessionCreate(title="New Chat")
-                session = await create_chat_session(db, current_user.id, session_create)
-                session_id = session.session_id
+                # If session_id provided but doesn't exist, return error
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Chat session {session_id} not found"
+                )
+            # Check if this is actually a new session (no messages yet)
+            existing_messages = await get_chat_history(db, session_id)
+            is_new_session = len(existing_messages) == 0
         else:
-            # Create new session
+            # Create new session only when no session_id provided
             session_create = ChatSessionCreate(title="New Chat")
             session = await create_chat_session(db, current_user.id, session_create)
             session_id = session.session_id
+            is_new_session = True
         
         # For new sessions, get K8s analysis first
-        is_new_session = not await get_chat_history(db, session_id)
         analysis_output = ""
         if is_new_session:
             analysis_output = await get_k8s_analysis(current_user.id, token)
@@ -108,7 +96,7 @@ async def chat(
         # Add user message to history
         await add_chat_message(db, session, "user", user_content)
         
-        # Get chat history
+        # Get chat history AFTER adding the user message
         messages = await get_chat_history(db, session_id)
         
         # Create memory from messages
@@ -179,6 +167,9 @@ async def chat(
                 created_at=assistant_chat_msg.created_at
             )
     
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
     except Exception as e:
         logger.error(f"Error in chat endpoint: {str(e)}")
         import traceback
@@ -188,11 +179,11 @@ async def chat(
             detail=f"An error occurred while processing your message: {str(e)}"
         )
 # Add a dedicated streaming endpoint
-@router.post("/stream", 
-            summary="Stream Chat Message", 
+@router.post("/stream",
+            summary="Stream Chat Message",
             description="Sends a message to the chat service and streams the AI response")
 async def stream_chat(
-    message: MessageCreate, 
+    message: MessageCreate,
     db: Session = Depends(get_session),
     current_user: UserInfo = Depends(get_current_user),
     authorization: str = Header(None)
@@ -213,10 +204,10 @@ async def stream_chat(
     """
     # Reuse the chat endpoint with stream=True
     return await chat(message, db, current_user, authorization, stream=True)
-
+ 
 async def stream_chat_response(
-    message: str, 
-    session_id: str, 
+    message: str,
+    session_id: str,
     user_id: int,
     db: Session,
     token: str = None
@@ -253,7 +244,7 @@ async def stream_chat_response(
     # Build messages array for OpenAI
     openai_messages = [
         {
-            "role": "system", 
+            "role": "system",
             "content": "You are a helpful Kubernetes assistant. Use the analysis results and previous context to answer questions. Please respond in Markdown format for all outputs."
         }
     ]
@@ -314,12 +305,12 @@ async def stream_chat_response(
         await task
     except Exception as e:
         logger.error(f"Error in streaming task: {str(e)}")
-
+ 
 @router.get("/history/{session_id}", response_model=ChatHistoryResponse,
-           summary="Get Chat History", 
+           summary="Get Chat History",
            description="Retrieves the message history for a specific chat session")
 async def get_chat_session_history(
-    session_id: str, 
+    session_id: str,
     limit: int = Query(50, ge=1, le=100, description="Maximum number of messages to return"),
     db: Session = Depends(get_session),
     current_user: UserInfo = Depends(get_current_user)
@@ -364,9 +355,9 @@ async def get_chat_session_history(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve chat history. Please try again."
         )
-
+ 
 @router.get("/sessions", response_model=ChatSessionList,
-           summary="List Chat Sessions", 
+           summary="List Chat Sessions",
            description="Lists all chat sessions for the current user")
 async def list_chat_sessions(
     skip: int = Query(0, ge=0, description="Number of sessions to skip"),
@@ -416,9 +407,9 @@ async def list_chat_sessions(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve chat sessions. Please try again."
         )
-
+ 
 @router.post("/sessions", response_model=ChatSessionResponse, status_code=status.HTTP_201_CREATED,
-            summary="Create Chat Session", 
+            summary="Create Chat Session",
             description="Creates a new chat session")
 async def create_session(
     session_data: ChatSessionCreate,
@@ -451,9 +442,9 @@ async def create_session(
         updated_at=session.updated_at,
         is_active=session.is_active
     )
-
+ 
 @router.patch("/sessions/{session_id}", response_model=ChatSessionResponse,
-             summary="Update Chat Session", 
+             summary="Update Chat Session",
              description="Updates a chat session's title or active status")
 async def update_session(
     session_id: str = Path(..., description="The unique ID of the chat session"),
@@ -509,9 +500,9 @@ async def update_session(
         updated_at=session.updated_at,
         is_active=session.is_active
     )
-
+ 
 @router.delete("/sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT,
-              summary="Delete Chat Session", 
+              summary="Delete Chat Session",
               description="Deletes a chat session and optionally its messages")
 async def delete_session(
     session_id: str = Path(..., description="The unique ID of the chat session"),
@@ -546,9 +537,9 @@ async def delete_session(
     
     await delete_chat_session(db, session, permanent)
     # No content returned for successful deletion
-
+ 
 @router.post("/sessions/{session_id}/title", response_model=ChatSessionResponse,
-            summary="Generate Session Title", 
+            summary="Generate Session Title",
             description="Auto-generates a title for the chat session based on its content")
 async def generate_session_title(
     session_id: str = Path(..., description="The unique ID of the chat session"),
@@ -623,9 +614,9 @@ async def generate_session_title(
         updated_at=session.updated_at,
         is_active=session.is_active
     )
-
+ 
 @router.get("/analysis", response_model=dict,
-           summary="Get Kubernetes Analysis", 
+           summary="Get Kubernetes Analysis",
            description="Retrieves Kubernetes cluster analysis results")
 async def get_analysis(
     current_user: UserInfo = Depends(get_current_user),
@@ -646,9 +637,9 @@ async def get_analysis(
     token = authorization.split(" ")[1] if authorization else None
     analysis = await get_k8s_analysis(current_user.id, token)
     return {"analysis": analysis}
-
+ 
 @router.get("/sessions/{session_id}", response_model=ChatSessionResponse,
-           summary="Get Session Info", 
+           summary="Get Session Info",
            description="Retrieves information about a specific chat session")
 async def get_session_info(
     session_id: str = Path(..., description="The unique ID of the chat session"),
@@ -685,9 +676,9 @@ async def get_session_info(
         updated_at=session.updated_at,
         is_active=session.is_active
     )
-
-@router.get("/conversation/{session_id}", 
-           summary="View Conversation", 
+ 
+@router.get("/conversation/{session_id}",
+           summary="View Conversation",
            description="View the full conversation history for a session")
 async def view_conversation(
     session_id: str,
@@ -715,9 +706,9 @@ async def view_conversation(
         "title": session.title,
         "conversation": formatted_conversation
     }
-
-@router.delete("/conversation/{session_id}", 
-              summary="Clear Conversation", 
+ 
+@router.delete("/conversation/{session_id}",
+              summary="Clear Conversation",
               description="Clear the conversation history for a session")
 async def clear_conversation(
     session_id: str,
@@ -737,5 +728,41 @@ async def clear_conversation(
     db.commit()
     
     return {"message": f"Conversation history cleared for session {session_id}"}
-
+ 
+@router.get("/debug/session/{session_id}",
+           summary="Debug Session Memory",
+           description="Debug endpoint to check session memory state")
+async def debug_session_memory(
+    session_id: str,
+    db: Session = Depends(get_session),
+    current_user: UserInfo = Depends(get_current_user)
+):
+    """Debug endpoint to check session memory state."""
+    try:
+        # Get session
+        session = await get_chat_session(db, session_id, current_user.id)
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
         
+        # Get messages
+        messages = await get_chat_history(db, session_id, current_user.id)
+        
+        # Create memory
+        memory = await create_memory_from_messages(messages)
+        
+        # Get memory buffer
+        buffer = memory.buffer if hasattr(memory, 'buffer') else "No buffer"
+        
+        return {
+            "session_id": session_id,
+            "message_count": len(messages),
+            "messages": [{"role": msg.role, "content": msg.content[:100]} for msg in messages],
+            "memory_buffer": buffer[:500] if buffer else "No buffer",
+            "memory_messages": [{"type": type(msg).__name__, "content": msg.content[:100]} for msg in memory.chat_memory.messages] if hasattr(memory.chat_memory, 'messages') else []
+        }
+    except Exception as e:
+        logger.error(f"Debug error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+        
+ 
+ 

@@ -189,46 +189,12 @@ export const LoginPage: React.FC<{ onLogin?: (username: string, password: string
                 Sign In
               </Button>
               
-              <div className="relative my-4">
-                <Divider className="my-4" />
-                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-content1 px-2 text-foreground-500 text-sm">
-                  Or continue with
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-3 gap-3">
-                <Button
-                  variant="flat"
-                  className="bg-content2"
-                  startContent={<Icon icon="logos:google-icon" />}
-                  isDisabled={isLoading}
-                >
-                  Google
-                </Button>
-                <Button
-                  variant="flat"
-                  className="bg-content2"
-                  startContent={<Icon icon="logos:github-icon" />}
-                  isDisabled={isLoading}
-                >
-                  GitHub
-                </Button>
-                <Button
-                  variant="flat"
-                  className="bg-content2"
-                  startContent={<Icon icon="logos:microsoft-icon" />}
-                  isDisabled={isLoading}
-                >
-                  Microsoft
-                </Button>
-              </div>
+             
             </form>
           </CardBody>
         </Card>
         
-        <p className="text-center text-foreground-500 mt-4 text-sm">
-          Don't have an account? <Button size="sm" variant="light" className="p-0">Sign up</Button>
-        </p>
+        
       </motion.div>
     </div>
   );

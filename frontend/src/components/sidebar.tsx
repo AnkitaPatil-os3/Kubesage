@@ -33,24 +33,37 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const navCategories = [
     {
-      id: "clusters",
-      name: "CLUSTERS",
-      icon: "lucide:database",
+      id: "overview",
+      name: "OVERVIEW",
+      icon: "lucide:layout-dashboard",
       items: [
-        { id: "overview", name: "Overview", icon: "lucide:layout-dashboard", path: "/dashboard/overview" },
-        { id: "onboarding", name: "Cluster Onboarding", icon: "lucide:plus-circle", path: "/dashboard/onboarding" },
-        { id: "management", name: "Management", icon: "lucide:settings-2", path: "/dashboard/management" },
+        { id: "dashboard", name: "Dashboard", icon: "lucide:layout-dashboard", path: "/dashboard/overview" },
+        { id: "clusters", name: "Clusters", icon: "lucide:database", path: "/dashboard/upload" },
+        { id: "applications", name: "Applications", icon: "lucide:box", path: "/dashboard/upload" },
+        { id: "workloads", name: "Workloads", icon: "lucide:layers", path: "/dashboard/upload" },
+      ]
+    },
+   
+    {
+      id: "ai_features",
+      name: "AI FEATURES",
+      icon: "lucide:cpu",
+      items: [
+        { id: "insights", name: "AI Insights", icon: "lucide:lightbulb", path: "/dashboard/insights" },
+        { id: "chatops", name: "ChatOps", icon: "lucide:message-square", path: "/dashboard/chatops" },
+        { id: "predictions", name: "Predictions", icon: "lucide:trending-up", path: "/dashboard/predictions" },
+        { id: "anomalies", name: "Anomalies", icon: "lucide:alert-triangle", path: "/dashboard/anomalies" },
       ]
     },
     {
-      id: "operations",
-      name: "OPERATIONS",
-      icon: "lucide:activity",
+      id: "management",
+      name: "MANAGEMENT",
+      icon: "lucide:settings-2",
       items: [
-        { id: "chatops", name: "ChatOps", icon: "lucide:message-square", path: "/dashboard/chatops" },
         { id: "observability", name: "Observability", icon: "lucide:activity", path: "/dashboard/observability" },
-        { id: "monitoring", name: "Monitoring", icon: "lucide:bar-chart", path: "/dashboard/monitoring" },
-        { id: "logging", name: "Logging", icon: "lucide:file-text", path: "/dashboard/logging" },
+        { id: "security", name: "Security", icon: "lucide:shield", path: "/dashboard/security" },
+        { id: "cost", name: "Cost Analysis", icon: "lucide:dollar-sign", path: "/dashboard/cost" },
+        { id: "compliance", name: "Compliance", icon: "lucide:check-circle", path: "/dashboard/compliance" },
       ]
     },
     {
@@ -60,18 +73,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       items: [
         { id: "security", name: "Security Scanner", icon: "lucide:shield", path: "/dashboard/security" },
         { id: "compliance", name: "Compliance", icon: "lucide:check-circle", path: "/dashboard/compliance" },
-        { id: "rbac", name: "RBAC", icon: "lucide:users", path: "/dashboard/rbac" },
         { id: "secrets", name: "Secrets", icon: "lucide:key", path: "/dashboard/secrets" },
-      ]
-    },
-    {
-      id: "ai",
-      name: "AI TOOLS",
-      icon: "lucide:cpu",
-      items: [
-        { id: "insights", name: "AI Insights", icon: "lucide:lightbulb", path: "/dashboard/insights" },
-        { id: "predictions", name: "Predictions", icon: "lucide:trending-up", path: "/dashboard/predictions" },
-        { id: "optimization", name: "Resource Optimization", icon: "lucide:zap", path: "/dashboard/optimization" },
       ]
     },
     {
@@ -79,9 +81,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
       name: "SETTINGS",
       icon: "lucide:settings",
       items: [
-        { id: "admin", name: "Admin", icon: "lucide:settings", path: "/dashboard/admin" },
-        { id: "profile", name: "Profile", icon: "lucide:user", path: "/dashboard/profile" },
-        { id: "preferences", name: "Preferences", icon: "lucide:sliders", path: "/dashboard/preferences" },
+        { id: "settings", name: "Settings", icon: "lucide:settings", path: "/dashboard/settings" },
+        { id: "users", name: "Users & RBAC", icon: "lucide:users", path: "/dashboard/users" },
+        { id: "integrations", name: "Integrations", icon: "lucide:plug", path: "/dashboard/integrations" },
+        { id: "help", name: "Help", icon: "lucide:help-circle", path: "/dashboard/help" },
       ]
     },
   ];

@@ -6,9 +6,9 @@ from app.schemas import TokenData, UserInfo
 from app.logger import logger
 import httpx
 from typing import Optional
-
+ 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.USER_SERVICE_URL}/auth/token")
-
+ 
 async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserInfo:
     """
     Authenticate and get the current user from the token.
@@ -17,13 +17,13 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserInfo:
     It returns the user information if the token is valid.
     """
     logger.debug("Authenticating user using token...")
-
+ 
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-
+ 
     try:
         async with httpx.AsyncClient(verify=False) as client:
             response = await client.get(
@@ -50,3 +50,5 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserInfo:
     except Exception as e:
         logger.error(f"Unexpected error in auth: {str(e)}")
         raise credentials_exception
+ 
+ 

@@ -25,7 +25,8 @@ export const Header: React.FC<HeaderProps> = ({ toggleChat }) => {
   const getPageTitle = () => {
     const path = location.pathname.split('/').pop() || 'overview';
     switch(path) {
-      case 'overview': return 'Cluster Overview';
+      case 'overview': return 'Dashboard';
+      case 'upload': return 'Cluster Overview';
       case 'onboarding': return 'Cluster Onboarding';
       case 'chatops': return 'ChatOps Console';
       case 'admin': return 'Admin Dashboard';

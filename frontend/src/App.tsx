@@ -10,6 +10,8 @@ import { ClusterOnboarding } from "./pages/cluster-onboarding";
 import { ClusterHealth } from "./pages/cluster-health";
 import { ChatOps } from "./pages/chat-ops";
 import { AdminDashboard } from "./pages/admin-dashboard";
+import { UploadKubeconfig } from "./pages/upload-kubeconfig";
+import { CostAnalysis } from "./components/cost-analysis";
 
 export default function App() {
   const { theme, setTheme } = useTheme();
@@ -59,6 +61,8 @@ export default function App() {
                   <Route path="/dashboard/onboarding" component={ClusterOnboarding} />
                   <Route path="/dashboard/chatops" component={ChatOps} />
                   <Route path="/dashboard/admin" component={AdminDashboard} />
+                  <Route path="/dashboard/upload" component={UploadKubeconfig} />
+                  <Route path="/dashboard/cost" component={CostAnalysis} />
                 </Switch>
               </DashboardLayout>
             )}
