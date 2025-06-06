@@ -7,7 +7,7 @@ from app.incident_processor import parse_flexible_incident_data, process_flexibl
 from app.logger import logger
 from app.email_client import send_incident_email
 from app.database import create_db_and_tables, get_session, engine
-from app.models import IncidentModel
+from app.models import IncidentModel,ExecutorStatusModel
 from sqlmodel import Session, select
 
 from typing import List, Optional, Dict, Any, Union
@@ -256,62 +256,116 @@ async def analyze_incident_by_id_endpoint(
             detail=f"Failed to analyze incident: {str(e)}"
         )
 
-@app.post("/test-llm")
-async def test_llm_analysis():
+
+# Executor Status Endpoints
+@app.get("/executors/status",
+    summary="Get all executor statuses",
+    description="Get the current status of all executors (Active/Inactive)",
+    tags=["Executors"])
+async def get_executor_status(session: Session = Depends(get_session)):
     """
-    Test endpoint to verify LLM analysis functionality
+    Get status of all executors
+    
+    Returns:
+    - List of executors with their current status (0=Active, 1=Inactive)
     """
     try:
-        # Create test incident data
-        test_incident_data = {
-            "id": "test-llm-incident-001",
-            "type": "Warning",
-            "reason": "CrashLoopBackOff",
-            "message": "Back-off restarting failed container nginx in pod nginx-deployment-abc123",
-            "metadata_namespace": "production",
-            "metadata_creation_timestamp": datetime.datetime.utcnow().isoformat(),
-            "involved_object_kind": "Pod",
-            "involved_object_name": "nginx-deployment-abc123",
-            "source_component": "kubelet",
-            "source_host": "worker-node-1",
-            "reporting_component": "kubelet",
-            "count": 10,
-            "first_timestamp": datetime.datetime.utcnow().isoformat(),
-            "last_timestamp": datetime.datetime.utcnow().isoformat(),
-            "involved_object_labels": {
-                "app": "nginx",
-                "version": "1.21"
-            },
-            "involved_object_annotations": {
-                "kubernetes.io/created-by": "deployment-controller"
-            }
+        executors = session.exec(select(ExecutorStatusModel)).all()
+        return {
+            "executors": [
+                {
+                    "name": executor.executor_name,
+                    "status": executor.status,
+                    "status_text": "Active" if executor.status == 0 else "Inactive",
+                    "updated_at": executor.updated_at
+                }
+                for executor in executors
+            ]
         }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting executor status: {str(e)}")
+
+@app.post("/executors/{executor_name}/status",
+    summary="Update executor status",
+    description="Update the status of a specific executor (0=Active, 1=Inactive)",
+    tags=["Executors"])
+async def update_executor_status(
+    executor_name: str,
+    status: int = Body(..., description="0 for Active, 1 for Inactive"),
+    session: Session = Depends(get_session)
+):
+    """
+    Update executor status
+    
+    Parameters:
+    - **executor_name**: Name of executor (kubectl, crossplane, argocd)
+    - **status**: 0 for Active, 1 for Inactive
+    """
+    try:
+        if executor_name not in ["kubectl", "crossplane", "argocd"]:
+            raise HTTPException(
+                status_code=400, 
+                detail="Invalid executor name. Must be: kubectl, crossplane, or argocd"
+            )
         
-        logger.info("Testing LLM analysis with sample incident data")
+        if status not in [0, 1]:
+            raise HTTPException(
+                status_code=400, 
+                detail="Invalid status. Must be 0 (Active) or 1 (Inactive)"
+            )
         
-        # Test LLM analysis (now using sync function)
-        solution = analyze_kubernetes_incident_sync(test_incident_data)
+        # Find and update executor
+        executor = session.exec(
+            select(ExecutorStatusModel).where(ExecutorStatusModel.executor_name == executor_name)
+        ).first()
+        
+        if not executor:
+            # Create new executor if doesn't exist
+            executor = ExecutorStatusModel(executor_name=executor_name, status=status)
+            session.add(executor)
+        else:
+            executor.status = status
+            executor.updated_at = datetime.datetime.now(timezone.utc)
+        
+        session.commit()
+        session.refresh(executor)
+        
+        status_text = "Active" if status == 0 else "Inactive"
+        logger.info(f"Updated executor '{executor_name}' status to {status_text}")
         
         return {
             "success": True,
-            "message": "LLM analysis test completed successfully",
-            "test_incident": test_incident_data,
-            "solution": {
-                "solution_id": solution.solution_id,
-                "summary": solution.summary,
-                "analysis": solution.analysis[:200] + "..." if len(solution.analysis) > 200 else solution.analysis,
-                "steps_count": len(solution.steps),
-                "confidence_score": solution.confidence_score,
-                "estimated_time_mins": solution.estimated_time_to_resolve_mins,
-                "severity_level": solution.severity_level,
-                "recommendations_count": len(solution.recommendations)
-            }
+            "executor_name": executor_name,
+            "status": status,
+            "status_text": status_text,
+            "message": f"Executor '{executor_name}' is now {status_text}"
         }
         
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"LLM test failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error updating executor status: {str(e)}")
+
+@app.get("/executors/active",
+    summary="Get active executors",
+    description="Get list of currently active executors",
+    tags=["Executors"])
+async def get_active_executors(session: Session = Depends(get_session)):
+    """
+    Get list of active executors
+    
+    Returns:
+    - List of executor names that are currently active
+    """
+    try:
+        active_executors = session.exec(
+            select(ExecutorStatusModel).where(ExecutorStatusModel.status == 0)
+        ).all()
+        
         return {
-            "success": False,
-            "error": str(e),
-            "message": "LLM analysis test failed"
+            "active_executors": [executor.executor_name for executor in active_executors],
+            "count": len(active_executors)
         }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting active executors: {str(e)}")
+

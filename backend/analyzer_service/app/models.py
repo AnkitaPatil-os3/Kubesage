@@ -1,6 +1,6 @@
 from sqlmodel import SQLModel, Field, Column, JSON, create_engine, Text
 from typing import Optional, Dict, Any, List
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 
 
@@ -69,3 +69,13 @@ class SolutionModel(SQLModel, table=True):
     severity_level: str = Field(description="LOW, MEDIUM, HIGH, CRITICAL")
     recommendations: List[str] = Field(default=[], sa_column=Column(JSON))
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class ExecutorStatusModel(SQLModel, table=True):
+    """Track executor status"""
+    __tablename__ = "executor_status"
+    
+    id: Optional[int] = Field(default=None, primary_key=True)
+    executor_name: str = Field(index=True, unique=True)  # kubectl, crossplane, argocd
+    status: int = Field(default=0)  # 0 = Active, 1 = Inactive
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     # Server configuration
     SERVER_BASE_URL: str = os.getenv("SERVER_BASE_URL")
 
+    # SSL Configuration (add these lines)
+    SSL_KEYFILE: str = os.getenv("SSL_KEYFILE", "")
+    SSL_CERTFILE: str = os.getenv("SSL_CERTFILE", "")
 
     # Database configuration
     POSTGRES_USER: str = os.getenv("POSTGRES_USER")
@@ -37,7 +40,5 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
-
-
 
 settings = Settings()

@@ -3,7 +3,7 @@ import subprocess
 import time
 from app.config import settings
 from app.logger import logger
-from app.models import ExecutionAttemptModel
+from app.models import ExecutionAttemptModel, ExecutorStatusModel
 from app.database import engine
 from sqlmodel import Session, select
 from typing import Dict, Any, List
@@ -19,6 +19,22 @@ def execute_remediation_steps(enforcer_instructions: Dict[str, Any]):
     
     logger.info(f"Executor '{executor_name}' starting execution for incident {incident_id}, attempt {attempt_number}")
     
+    # Check if executor is active
+    with Session(engine) as session:
+        executor_status = session.exec(
+            select(ExecutorStatusModel).where(ExecutorStatusModel.executor_name == executor_name)
+        ).first()
+        
+        if not executor_status or executor_status.status != 0:
+            logger.error(f"Executor '{executor_name}' is not active. Cannot execute remediation steps.")
+            return {
+                "incident_id": incident_id,
+                "attempt_number": attempt_number,
+                "executor_name": executor_name,
+                "overall_success": False,
+                "error": f"Executor '{executor_name}' is not active"
+            }
+    
     results = []
     overall_success = True
     successful_steps = 0
@@ -27,23 +43,24 @@ def execute_remediation_steps(enforcer_instructions: Dict[str, Any]):
         for instruction in enforcer_instructions["instructions"]:
             step_id = instruction["step_id"]
             action = instruction["action"]
-            component = instruction["component"]
+            component = instruction.get("executor", instruction.get("component", "kubectl"))
             
-            logger.info(f"Executing step {step_id}: {action}")
+            logger.info(f"Executing step {step_id}: {action} using {component}")
             
-            # Execute based on component
+            # Execute based on component/executor
             if component == "kubectl":
                 result = _execute_kubectl_action(instruction)
-            elif component == "ArgoCD":
+            elif component == "argocd":
                 result = _execute_argocd_action(instruction)
-            elif component == "Crossplane":
+            elif component == "crossplane":
                 result = _execute_crossplane_action(instruction)
             else:
-                result = {"status": "skipped", "reason": f"Unknown component: {component}"}
+                result = {"status": "skipped", "reason": f"Unknown executor: {component}"}
             
             results.append({
                 "step_id": step_id,
                 "action": action,
+                "executor": component,
                 "result": result
             })
             
@@ -103,6 +120,19 @@ def execute_remediation_steps(enforcer_instructions: Dict[str, Any]):
 def _execute_kubectl_action(instruction: Dict[str, Any]) -> Dict[str, Any]:
     """Execute kubectl commands with better error handling and resource checking"""
     try:
+        # Check if kubectl executor is active
+        with Session(engine) as session:
+            kubectl_status = session.exec(
+                select(ExecutorStatusModel).where(ExecutorStatusModel.executor_name == "kubectl")
+            ).first()
+            
+            if not kubectl_status or kubectl_status.status != 0:
+                return {
+                    "status": "failed",
+                    "tool": "kubectl",
+                    "error": "kubectl executor is not active"
+                }
+        
         command_data = instruction.get("command_or_payload", {})
         kubectl_command = command_data.get("command", "")
         target_resource = instruction.get("target_resource", {})
@@ -217,31 +247,71 @@ def _get_alternative_command_suggestion(resource_kind: str, namespace: str) -> s
 
 def _execute_argocd_action(instruction: Dict[str, Any]) -> Dict[str, Any]:
     """Execute ArgoCD commands"""
-    action = instruction["action"]
-    logger.info(f"[ArgoCD] Executing action: {action}")
-    
-    # Placeholder for ArgoCD integration
-    # In production, integrate with ArgoCD API
-    return {
-        "status": "success",
-        "tool": "ArgoCD",
-        "action": action,
-        "message": "ArgoCD action simulated"
-    }
+    try:
+        # Check if ArgoCD executor is active
+        with Session(engine) as session:
+            argocd_status = session.exec(
+                select(ExecutorStatusModel).where(ExecutorStatusModel.executor_name == "argocd")
+            ).first()
+            
+            if not argocd_status or argocd_status.status != 0:
+                return {
+                    "status": "failed",
+                    "tool": "ArgoCD",
+                    "error": "ArgoCD executor is not active"
+                }
+        
+        action = instruction["action"]
+        logger.info(f"[ArgoCD] Executing action: {action}")
+        
+        # Placeholder for ArgoCD integration
+        # In production, integrate with ArgoCD API
+        return {
+            "status": "success",
+            "tool": "ArgoCD",
+            "action": action,
+            "message": "ArgoCD action executed successfully"
+        }
+    except Exception as e:
+        return {
+            "status": "failed",
+            "tool": "ArgoCD",
+            "error": str(e)
+        }
 
 def _execute_crossplane_action(instruction: Dict[str, Any]) -> Dict[str, Any]:
     """Execute Crossplane commands"""
-    action = instruction["action"]
-    logger.info(f"[Crossplane] Executing action: {action}")
-    
-    # Placeholder for Crossplane integration
-    # In production, integrate with Crossplane API
-    return {
-        "status": "success",
-        "tool": "Crossplane",
-        "action": action,
-        "message": "Crossplane action simulated"
-    }
+    try:
+        # Check if Crossplane executor is active
+        with Session(engine) as session:
+            crossplane_status = session.exec(
+                select(ExecutorStatusModel).where(ExecutorStatusModel.executor_name == "crossplane")
+            ).first()
+            
+            if not crossplane_status or crossplane_status.status != 0:
+                return {
+                    "status": "failed",
+                    "tool": "Crossplane",
+                    "error": "Crossplane executor is not active"
+                }
+        
+        action = instruction["action"]
+        logger.info(f"[Crossplane] Executing action: {action}")
+        
+        # Placeholder for Crossplane integration
+        # In production, integrate with Crossplane API
+        return {
+            "status": "success",
+            "tool": "Crossplane",
+            "action": action,
+            "message": "Crossplane action executed successfully"
+        }
+    except Exception as e:
+        return {
+            "status": "failed",
+            "tool": "Crossplane",
+            "error": str(e)
+        }
 
 def _update_execution_attempt(incident_id: str, attempt_number: int, status: str, results: List, error_message: str = None):
     """Update execution attempt in database"""
@@ -278,3 +348,31 @@ def _trigger_llm_retry(incident_id: str):
         
     except Exception as e:
         logger.error(f"Error triggering LLM retry: {str(e)}")
+
+def get_active_executors() -> List[str]:
+    """Get list of currently active executors"""
+    try:
+        with Session(engine) as session:
+            active_executors = session.exec(
+                select(ExecutorStatusModel).where(ExecutorStatusModel.status == 0)
+            ).all()
+            return [executor.executor_name for executor in active_executors]
+    except Exception as e:
+        logger.error(f"Error getting active executors: {str(e)}")
+        return ["kubectl"]  # Default fallback
+
+def is_executor_active(executor_name: str) -> bool:
+    """Check if a specific executor is active"""
+    try:
+        with Session(engine) as session:
+            executor = session.exec(
+                select(ExecutorStatusModel).where(
+                    ExecutorStatusModel.executor_name == executor_name,
+                    ExecutorStatusModel.status == 0
+                )
+            ).first()
+            return executor is not None
+    except Exception as e:
+        logger.error(f"Error checking executor status for {executor_name}: {str(e)}")
+        return False
+

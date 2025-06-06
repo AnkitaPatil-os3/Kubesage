@@ -87,3 +87,14 @@ class IncidentStats(BaseModel):
     warning_incidents: int
     normal_incidents: int
     recent_incidents: int
+
+class ExecutorStatusResponse(BaseModel):
+    """Schema for executor status response"""
+    name: str
+    status: int
+    status_text: str
+    updated_at: datetime
+
+class ExecutorStatusUpdate(BaseModel):
+    """Schema for updating executor status"""
+    status: int

@@ -19,6 +19,7 @@ class SolutionStep(BaseModel):
     target_resource: Dict[str, Any] = Field(description="Target Kubernetes resource details")
     command_or_payload: Dict[str, Any] = Field(description="Command or payload for the action")
     expected_outcome: str = Field(description="What is expected after this step is executed successfully")
+    executor: str = Field(description="Which executor should handle this step (kubectl, crossplane, argocd)")
 
 class IncidentSolution(BaseModel):
     solution_id: str = Field(description="Unique identifier for the solution")
@@ -31,6 +32,9 @@ class IncidentSolution(BaseModel):
     estimated_time_to_resolve_mins: Optional[int] = Field(None, description="Estimated time in minutes to resolve")
     severity_level: str = Field(description="Assessed severity level of the incident")
     recommendations: List[str] = Field(description="Additional recommendations for prevention")
+    active_executors: List[str] = Field(description="List of active executors used for this solution")
+
+
 
 class LLMSolutionOutput(BaseModel):
     """LangChain output parser model"""
@@ -44,6 +48,7 @@ class LLMSolutionOutput(BaseModel):
     estimated_time_to_resolve_mins: Optional[int] = Field(None, description="Estimated time in minutes to resolve")
     severity_level: str = Field(description="Assessed severity level of the incident")
     recommendations: List[str] = Field(description="Additional recommendations for prevention")
+    active_executors: List[str] = Field(description="List of active executors used for this solution")
 
 class KubernetesLLMClient:
     """
@@ -93,6 +98,8 @@ Your task is to analyze Kubernetes incident data and generate a comprehensive so
 
 CRITICAL: You MUST provide a complete JSON response with ALL required fields. Do not truncate your response.
 
+Available Executors: {active_executors}
+
 The solution MUST be structured according to this exact JSON schema with ALL fields present:
 
 {{
@@ -114,13 +121,15 @@ The solution MUST be structured according to this exact JSON schema with ALL fie
       "command_or_payload": {{
         "command": "[kubectl command without 'kubectl' prefix]"
       }},
-      "expected_outcome": "[Expected result]"
+      "expected_outcome": "[Expected result]",
+      "executor": "[kubectl|crossplane|argocd]"
     }}
   ],
   "confidence_score": 0.8,
   "estimated_time_to_resolve_mins": 10,
   "severity_level": "[LOW|MEDIUM|HIGH|CRITICAL]",
-  "recommendations": ["[recommendation 1]", "[recommendation 2]"]
+  "recommendations": ["[recommendation 1]", "[recommendation 2]"],
+  "active_executors": {active_executors}
 }}
 
 IMPORTANT RULES:
@@ -131,10 +140,15 @@ IMPORTANT RULES:
 5. Provide complete JSON - do not truncate the response
 6. Use simple, actionable kubectl commands
 7. ALWAYS check if resources exist before trying to access them
+8. ONLY use executors from the active_executors list
+9. Assign appropriate executor to each step based on the action type:
+   - kubectl: For basic Kubernetes operations (get, describe, logs, apply, delete)
+   - crossplane: For infrastructure provisioning and cloud resource management
+   - argocd: For GitOps deployments and application management
 
 Respond ONLY with valid, complete JSON matching the schema above."""
 
-        human_prompt_str = """Analyze this Kubernetes incident and provide a complete solution:
+        human_prompt_str = """Analyze this Kubernetes incident and provide a complete solution using only these active executors: {active_executors}
 
 Incident ID: {incident_id}
 Type: {incident_type}
@@ -144,7 +158,7 @@ Namespace: {incident_namespace}
 Object: {incident_object_kind}/{incident_object_name}
 Source: {incident_source_component}
 
-Provide a complete JSON solution with ALL required fields. Keep analysis brief to avoid truncation."""
+Provide a complete JSON solution with ALL required fields. Keep analysis brief to avoid truncation. Only use the available active executors."""
 
         system_message_prompt = SystemMessagePromptTemplate.from_template(system_prompt_str)
         human_message_prompt = HumanMessagePromptTemplate.from_template(human_prompt_str)
@@ -153,13 +167,13 @@ Provide a complete JSON solution with ALL required fields. Keep analysis brief t
             human_message_prompt
         ])
 
-    def analyze_incident_sync(self, incident_data: Dict[str, Any]) -> IncidentSolution:
+    def analyze_incident_sync(self, incident_data: Dict[str, Any], active_executors: List[str]) -> IncidentSolution:
         """
         Synchronous method to analyze a Kubernetes incident using LangChain
         """
         try:
             incident_id = incident_data.get('id', 'unknown')
-            logger.info(f"Starting LangChain LLM analysis for incident: {incident_id}")
+            logger.info(f"Starting LangChain LLM analysis for incident: {incident_id} with active executors: {active_executors}")
             
             # Prepare simplified input data for LangChain chain
             input_data = {
@@ -170,7 +184,8 @@ Provide a complete JSON solution with ALL required fields. Keep analysis brief t
                 "incident_namespace": incident_data.get('metadata_namespace', 'N/A'),
                 "incident_object_kind": incident_data.get('involved_object_kind', 'N/A'),
                 "incident_object_name": incident_data.get('involved_object_name', 'N/A'),
-                "incident_source_component": incident_data.get('source_component', 'N/A')
+                "incident_source_component": incident_data.get('source_component', 'N/A'),
+                "active_executors": active_executors
             }
             
             # Invoke LangChain chain with better error handling
@@ -187,7 +202,7 @@ Provide a complete JSON solution with ALL required fields. Keep analysis brief t
                 # Validate the output has required fields
                 if isinstance(chain_output, dict):
                     missing_fields = []
-                    required_fields = ['solution_id', 'incident_id', 'incident_type', 'summary', 'analysis', 'steps', 'severity_level', 'recommendations']
+                    required_fields = ['solution_id', 'incident_id', 'incident_type', 'summary', 'analysis', 'steps', 'severity_level', 'recommendations', 'active_executors']
                     
                     for field in required_fields:
                         if field not in chain_output:
@@ -196,12 +211,12 @@ Provide a complete JSON solution with ALL required fields. Keep analysis brief t
                     if missing_fields:
                         logger.error(f"LangChain output missing required fields: {missing_fields}")
                         logger.error(f"Available fields: {list(chain_output.keys())}")
-                        return self._create_fallback_solution(incident_data)
+                        return self._create_fallback_solution(incident_data, active_executors)
                     
                     # Validate steps is not empty
                     if not chain_output.get('steps') or len(chain_output.get('steps', [])) == 0:
                         logger.error("LangChain output has empty steps array")
-                        return self._create_fallback_solution(incident_data)
+                        return self._create_fallback_solution(incident_data, active_executors)
                     
                     try:
                         llm_solution_output = LLMSolutionOutput.model_validate(chain_output)
@@ -209,18 +224,18 @@ Provide a complete JSON solution with ALL required fields. Keep analysis brief t
                     except Exception as pydantic_exc:
                         logger.error(f"Failed to validate LangChain output: {pydantic_exc}")
                         logger.error(f"Chain output: {chain_output}")
-                        return self._create_fallback_solution(incident_data)
+                        return self._create_fallback_solution(incident_data, active_executors)
                         
                 elif isinstance(chain_output, LLMSolutionOutput):
                     llm_solution_output = chain_output
                     logger.info("LangChain returned LLMSolutionOutput model directly")
                 else:
                     logger.error(f"Unexpected output type from LangChain: {type(chain_output)}")
-                    return self._create_fallback_solution(incident_data)
+                    return self._create_fallback_solution(incident_data, active_executors)
                 
             except Exception as chain_error:
                 logger.error(f"LangChain chain invocation failed for incident {incident_id}: {str(chain_error)}")
-                return self._create_fallback_solution(incident_data)
+                return self._create_fallback_solution(incident_data, active_executors)
             
             # Convert to IncidentSolution
             try:
@@ -234,7 +249,8 @@ Provide a complete JSON solution with ALL required fields. Keep analysis brief t
                     confidence_score=llm_solution_output.confidence_score,
                     estimated_time_to_resolve_mins=llm_solution_output.estimated_time_to_resolve_mins,
                     severity_level=llm_solution_output.severity_level,
-                    recommendations=llm_solution_output.recommendations
+                    recommendations=llm_solution_output.recommendations,
+                    active_executors=llm_solution_output.active_executors
                 )
                 
                 logger.info(f"Successfully generated solution for incident: {incident_id}")
@@ -243,17 +259,20 @@ Provide a complete JSON solution with ALL required fields. Keep analysis brief t
                 
             except Exception as conversion_error:
                 logger.error(f"Failed to convert LLMSolutionOutput to IncidentSolution: {conversion_error}")
-                return self._create_fallback_solution(incident_data)
+                return self._create_fallback_solution(incident_data, active_executors)
                 
         except Exception as e:
             logger.error(f"Unexpected error analyzing incident {incident_data.get('id', 'unknown')}: {str(e)}")
-            return self._create_fallback_solution(incident_data)
+            return self._create_fallback_solution(incident_data, active_executors)
 
-    def _create_fallback_solution(self, incident_data: Dict[str, Any]) -> IncidentSolution:
+    def _create_fallback_solution(self, incident_data: Dict[str, Any], active_executors: List[str]) -> IncidentSolution:
         """Create a fallback solution when LLM fails"""
         incident_id = incident_data.get('id', 'unknown')
         incident_type = incident_data.get('type', 'Unknown')
         reason = incident_data.get('reason', 'Unknown')
+        
+        # Use kubectl as default executor if available, otherwise use first available
+        default_executor = "kubectl" if "kubectl" in active_executors else (active_executors[0] if active_executors else "kubectl")
         
         fallback_steps = []
         
@@ -272,7 +291,8 @@ Provide a complete JSON solution with ALL required fields. Keep analysis brief t
                     command_or_payload={
                         "command": f"describe {incident_data.get('involved_object_kind', 'pod').lower()} {incident_data.get('involved_object_name', 'unknown')} -n {incident_data.get('metadata_namespace', 'default')}"
                     },
-                    expected_outcome="Detailed information about the resource state and events"
+                    expected_outcome="Detailed information about the resource state and events",
+                    executor=default_executor
                 ),
                 SolutionStep(
                     step_id=2,
@@ -286,7 +306,8 @@ Provide a complete JSON solution with ALL required fields. Keep analysis brief t
                     command_or_payload={
                         "command": f"logs {incident_data.get('involved_object_name', 'unknown')} -n {incident_data.get('metadata_namespace', 'default')}"
                     },
-                    expected_outcome="Application logs showing error details"
+                    expected_outcome="Application logs showing error details",
+                    executor=default_executor
                 )
             ]
         else:
@@ -303,7 +324,8 @@ Provide a complete JSON solution with ALL required fields. Keep analysis brief t
                     command_or_payload={
                         "command": f"get {incident_data.get('involved_object_kind', 'pod').lower()} {incident_data.get('involved_object_name', 'unknown')} -n {incident_data.get('metadata_namespace', 'default')}"
                     },
-                    expected_outcome="Resource is in expected state"
+                    expected_outcome="Resource is in expected state",
+                    executor=default_executor
                 )
             ]
         
@@ -321,7 +343,8 @@ Provide a complete JSON solution with ALL required fields. Keep analysis brief t
                 "Check LLM service connectivity",
                 "Review incident details manually",
                 "Monitor system resources"
-            ]
+            ],
+            active_executors=active_executors
         )
         
         logger.info(f"Created fallback solution for incident: {incident_id}")
@@ -340,6 +363,7 @@ Provide a complete JSON solution with ALL required fields. Keep analysis brief t
         print(f"🔥 Severity Level: {solution.severity_level}")
         print(f"⏱️  Estimated Time: {solution.estimated_time_to_resolve_mins} minutes")
         print(f"🎯 Confidence Score: {solution.confidence_score}")
+        print(f"🔧 Active Executors: {', '.join(solution.active_executors)}")
         print("-"*80)
         
         print(f"📝 SUMMARY:")
@@ -358,6 +382,7 @@ Provide a complete JSON solution with ALL required fields. Keep analysis brief t
             if step.command_or_payload.get('command'):
                 print(f"      Command: kubectl {step.command_or_payload['command']}")
             print(f"      Expected: {step.expected_outcome}")
+            print(f"      Executor: {step.executor}")
             print()
         
         print(f"💡 RECOMMENDATIONS ({len(solution.recommendations)} items):")
@@ -376,15 +401,19 @@ def get_llm_client() -> KubernetesLLMClient:
     return llm_client
 
 # Convenience functions
-def analyze_kubernetes_incident_sync(incident_data: Dict[str, Any]) -> IncidentSolution:
+def analyze_kubernetes_incident_sync(incident_data: Dict[str, Any], active_executors: List[str] = None) -> IncidentSolution:
     """
     Synchronous version of incident analysis using LangChain
     
     Args:
         incident_data: Dictionary containing incident information
+        active_executors: List of active executor names
         
     Returns:
         IncidentSolution: Structured solution
     """
+    if active_executors is None:
+        active_executors = ["kubectl"]  # Default fallback
+    
     client = get_llm_client()
-    return client.analyze_incident_sync(incident_data)
+    return client.analyze_incident_sync(incident_data, active_executors)
