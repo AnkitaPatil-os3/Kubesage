@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     MAIL_USERNAME: str = os.getenv("MAIL_USERNAME")
     MAIL_PASSWORD: str = os.getenv("MAIL_PASSWORD")
     MAIL_FROM: str = os.getenv("MAIL_FROM")
-    MAIL_PORT: int = int(os.getenv("MAIL_PORT"))
+    MAIL_PORT: int = os.getenv("MAIL_PORT")
     MAIL_SERVER: str = os.getenv("MAIL_SERVER")
     MAIL_FROM_NAME: str = os.getenv("MAIL_FROM_NAME")
     MAIL_STARTTLS: bool = True

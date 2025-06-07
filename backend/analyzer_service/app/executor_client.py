@@ -16,6 +16,7 @@ def execute_remediation_steps(enforcer_instructions: Dict[str, Any]):
     incident_id = enforcer_instructions.get("incident_id")
     executor_name = enforcer_instructions.get("executor_name")
     attempt_number = enforcer_instructions.get("attempt_number")
+    print ("incident_id",incident_id)
     
     logger.info(f"Executor '{executor_name}' starting execution for incident {incident_id}, attempt {attempt_number}")
     
@@ -34,6 +35,7 @@ def execute_remediation_steps(enforcer_instructions: Dict[str, Any]):
                 "overall_success": False,
                 "error": f"Executor '{executor_name}' is not active"
             }
+            
     
     results = []
     overall_success = True
@@ -376,3 +378,95 @@ def is_executor_active(executor_name: str) -> bool:
         logger.error(f"Error checking executor status for {executor_name}: {str(e)}")
         return False
 
+def execute_single_remediation_command(execution_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Execute a single remediation command with safety checks
+    """
+    try:
+        command = execution_data.get("command", "")
+        executor = execution_data.get("executor", "kubectl")
+        incident_id = execution_data.get("incident_id", "unknown")
+        
+        logger.info(f"Executing single command for incident {incident_id}: kubectl {command}")
+        
+        # Safety checks - block dangerous commands
+        dangerous_patterns = [
+            "delete", "rm", "remove", "destroy", 
+            "drop", "truncate", "format", "wipe"
+        ]
+        
+        command_lower = command.lower()
+        for pattern in dangerous_patterns:
+            if pattern in command_lower and "get" not in command_lower and "describe" not in command_lower:
+                return {
+                    "status": "blocked",
+                    "reason": f"Command blocked for safety: contains '{pattern}'",
+                    "command": f"kubectl {command}",
+                    "suggestion": "Use 'get' or 'describe' commands for safe investigation"
+                }
+        
+        # Execute based on executor type
+        if executor == "kubectl":
+            return _execute_single_kubectl_command(command)
+        else:
+            return {
+                "status": "skipped",
+                "reason": f"Executor '{executor}' not implemented for single command execution"
+            }
+            
+    except Exception as e:
+        logger.error(f"Error in single command execution: {str(e)}")
+        return {
+            "status": "failed",
+            "error": str(e)
+        }
+
+def _execute_single_kubectl_command(command: str) -> Dict[str, Any]:
+    """Execute a single kubectl command"""
+    try:
+        # Construct full command
+        full_command = f"kubectl {command}"
+        
+        logger.info(f"Executing: {full_command}")
+        
+        # Execute with timeout
+        result = subprocess.run(
+            full_command.split(),
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        
+        if result.returncode == 0:
+            return {
+                "status": "success",
+                "command": full_command,
+                "output": result.stdout,
+                "execution_time": "< 30s"
+            }
+        else:
+            return {
+                "status": "failed",
+                "command": full_command,
+                "error": result.stderr.strip(),
+                "exit_code": result.returncode
+            }
+            
+    except subprocess.TimeoutExpired:
+        return {
+            "status": "failed",
+            "command": f"kubectl {command}",
+            "error": "Command timeout (30s limit exceeded)"
+        }
+    except FileNotFoundError:
+        return {
+            "status": "failed",
+            "command": f"kubectl {command}",
+            "error": "kubectl not found - please ensure kubectl is installed"
+        }
+    except Exception as e:
+        return {
+            "status": "failed",
+            "command": f"kubectl {command}",
+            "error": str(e)
+        }

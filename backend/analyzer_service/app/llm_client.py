@@ -11,7 +11,8 @@ from langchain_core.output_parsers import JsonOutputParser
 from app.config import settings
 
 logger = logging.getLogger(__name__)
-
+       
+# Move all model definitions to the top, before the client class
 class SolutionStep(BaseModel):
     step_id: int = Field(description="Sequential ID of the step")
     action_type: str = Field(description="Type of action (e.g., KUBECTL_APPLY, KUBECTL_DELETE, KUBECTL_GET_LOGS, etc.)")
@@ -34,8 +35,6 @@ class IncidentSolution(BaseModel):
     recommendations: List[str] = Field(description="Additional recommendations for prevention")
     active_executors: List[str] = Field(description="List of active executors used for this solution")
 
-
-
 class LLMSolutionOutput(BaseModel):
     """LangChain output parser model"""
     solution_id: str = Field(description="Unique identifier for the solution")
@@ -49,6 +48,28 @@ class LLMSolutionOutput(BaseModel):
     severity_level: str = Field(description="Assessed severity level of the incident")
     recommendations: List[str] = Field(description="Additional recommendations for prevention")
     active_executors: List[str] = Field(description="List of active executors used for this solution")
+
+class RemediationSolution(BaseModel):
+    """Simplified remediation solution model"""
+    issue_summary: str = Field(description="Brief summary of the Kubernetes problem")
+    suggestion: str = Field(description="Detailed explanation of what should be done and why")
+    command: str = Field(description="Single kubectl command for remediation (without kubectl prefix)")
+    is_executable: bool = Field(description="Whether the command is safe to execute automatically")
+    severity_level: str = Field(description="Assessed severity level")
+    estimated_time_mins: int = Field(description="Estimated time to resolve in minutes")
+    confidence_score: float = Field(description="Confidence in the solution")
+    active_executors: List[str] = Field(description="Available executors")
+
+class LLMRemediationOutput(BaseModel):
+    """LangChain output parser model for remediation"""
+    issue_summary: str = Field(description="Brief summary of the Kubernetes problem")
+    suggestion: str = Field(description="Detailed explanation of what should be done and why")
+    command: str = Field(description="Single kubectl command for remediation")
+    is_executable: bool = Field(description="Whether the command is safe to execute")
+    severity_level: str = Field(description="Assessed severity level")
+    estimated_time_mins: int = Field(description="Estimated time to resolve")
+    confidence_score: float = Field(description="Confidence in the solution")
+    active_executors: List[str] = Field(description="Available executors")
 
 class KubernetesLLMClient:
     """
@@ -69,8 +90,8 @@ class KubernetesLLMClient:
             "openai_api_key": self.api_key,
             "model_name": self.model,
             "temperature": 0.1,
-            "max_tokens": 4000,  # Increased from 3000
-            "timeout": 120,      # Increased timeout
+            "max_tokens": 4000,
+            "timeout": 120,
             "request_timeout": 120
         }
         
@@ -82,7 +103,7 @@ class KubernetesLLMClient:
         # Setup LangChain prompt template
         self._setup_prompt_template()
         
-        # Initialize output parser
+        # Initialize output parser - now LLMSolutionOutput is defined
         self.output_parser = JsonOutputParser(pydantic_object=LLMSolutionOutput)
         
         # Create LangChain chain
@@ -141,22 +162,18 @@ IMPORTANT RULES:
 6. Use simple, actionable kubectl commands
 7. ALWAYS check if resources exist before trying to access them
 8. ONLY use executors from the active_executors list
-9. Assign appropriate executor to each step based on the action type:
-   - kubectl: For basic Kubernetes operations (get, describe, logs, apply, delete)
-   - crossplane: For infrastructure provisioning and cloud resource management
-   - argocd: For GitOps deployments and application management
-
-Respond ONLY with valid, complete JSON matching the schema above."""
+9. Assign appropriate executor to each step based on the action type"""
 
         human_prompt_str = """Analyze this Kubernetes incident and provide a complete solution using only these active executors: {active_executors}
 
-Incident ID: {incident_id}
-Type: {incident_type}
-Reason: {incident_reason}
-Message: {incident_message}
-Namespace: {incident_namespace}
-Object: {incident_object_kind}/{incident_object_name}
-Source: {incident_source_component}
+Incident Details:
+- Incident ID: {incident_id}
+- Type: {incident_type}
+- Reason: {incident_reason}
+- Message: {incident_message}
+- Namespace: {incident_namespace}
+- Object: {incident_object_kind}/{incident_object_name}
+- Source: {incident_source_component}
 
 Provide a complete JSON solution with ALL required fields. Keep analysis brief to avoid truncation. Only use the available active executors."""
 
@@ -175,18 +192,24 @@ Provide a complete JSON solution with ALL required fields. Keep analysis brief t
             incident_id = incident_data.get('id', 'unknown')
             logger.info(f"Starting LangChain LLM analysis for incident: {incident_id} with active executors: {active_executors}")
             
-            # Prepare simplified input data for LangChain chain
+            # Prepare simplified input data for LangChain chain with proper None handling
             input_data = {
-                "incident_id": incident_data.get('id', 'N/A'),
-                "incident_type": incident_data.get('type', 'N/A'),
-                "incident_reason": incident_data.get('reason', 'N/A'),
-                "incident_message": incident_data.get('message', 'N/A')[:200],  # Limit message length
-                "incident_namespace": incident_data.get('metadata_namespace', 'N/A'),
-                "incident_object_kind": incident_data.get('involved_object_kind', 'N/A'),
-                "incident_object_name": incident_data.get('involved_object_name', 'N/A'),
-                "incident_source_component": incident_data.get('source_component', 'N/A'),
-                "active_executors": active_executors
+                "incident_id": incident_data.get('id') or 'N/A',
+                "incident_type": incident_data.get('type') or 'N/A',
+                "incident_reason": incident_data.get('reason') or 'N/A',
+                "incident_message": (incident_data.get('message') or 'N/A')[:200],  # Limit message length
+                "incident_namespace": incident_data.get('metadata_namespace') or 'N/A',
+                "incident_object_kind": incident_data.get('involved_object_kind') or 'N/A',
+                "incident_object_name": incident_data.get('involved_object_name') or 'N/A',
+                "incident_source_component": incident_data.get('source_component') or 'N/A',
+                "active_executors": active_executors or ["kubectl"]
             }
+            
+            # Validate that no values are None before sending to LLM
+            for key, value in input_data.items():
+                if value is None:
+                    input_data[key] = 'N/A'
+                    logger.warning(f"Replaced None value for {key} with 'N/A'")
             
             # Invoke LangChain chain with better error handling
             try:
@@ -205,7 +228,7 @@ Provide a complete JSON solution with ALL required fields. Keep analysis brief t
                     required_fields = ['solution_id', 'incident_id', 'incident_type', 'summary', 'analysis', 'steps', 'severity_level', 'recommendations', 'active_executors']
                     
                     for field in required_fields:
-                        if field not in chain_output:
+                        if field not in chain_output or chain_output[field] is None:
                             missing_fields.append(field)
                     
                     if missing_fields:
@@ -265,6 +288,87 @@ Provide a complete JSON solution with ALL required fields. Keep analysis brief t
             logger.error(f"Unexpected error analyzing incident {incident_data.get('id', 'unknown')}: {str(e)}")
             return self._create_fallback_solution(incident_data, active_executors)
 
+    def analyze_remediation_sync(self, alert_data: Dict[str, Any], active_executors: List[str]) -> RemediationSolution:
+        """
+        Analyze Kubernetes alert/issue and provide single-command remediation
+        """
+        try:
+            alert_name = alert_data.get('alert_name', 'Unknown')
+            logger.info(f"Starting remediation analysis for alert: {alert_name}")
+            
+            # Prepare input data for remediation analysis
+            input_data = {
+                "alert_name": alert_data.get('alert_name', 'Unknown'),
+                "namespace": alert_data.get('namespace', 'default'),
+                "resource_name": alert_data.get('pod_name', alert_data.get('resource_name', 'unknown')),
+                "issue_details": self._format_issue_details(alert_data),
+                "additional_context": self._format_additional_context(alert_data),
+                "active_executors": active_executors
+            }
+            
+            # Create remediation-specific chain
+            remediation_parser = JsonOutputParser(pydantic_object=LLMRemediationOutput)
+            remediation_chain = self.chat_prompt_template | self.llm | remediation_parser
+            
+            # Invoke chain
+            chain_output = remediation_chain.invoke(input_data)
+            
+            # Validate and convert output
+            if isinstance(chain_output, dict):
+                remediation_output = LLMRemediationOutput.model_validate(chain_output)
+            else:
+                remediation_output = chain_output
+            
+            # Convert to RemediationSolution
+            solution = RemediationSolution(
+                issue_summary=remediation_output.issue_summary,
+                suggestion=remediation_output.suggestion,
+                command=remediation_output.command,
+                is_executable=remediation_output.is_executable,
+                severity_level=remediation_output.severity_level,
+                estimated_time_mins=remediation_output.estimated_time_mins,
+                confidence_score=remediation_output.confidence_score,
+                active_executors=remediation_output.active_executors
+            )
+            
+            logger.info(f"Successfully generated remediation for alert: {alert_name}")
+            self._print_remediation_to_terminal(solution)
+            return solution
+            
+        except Exception as e:
+            logger.error(f"Error in remediation analysis: {str(e)}")
+            return self._create_fallback_remediation(alert_data, active_executors)
+
+    def _format_issue_details(self, alert_data: Dict[str, Any]) -> str:
+        """Format issue details from alert data"""
+        details = []
+        
+        if alert_data.get('usage'):
+            details.append(f"Current usage: {alert_data['usage']}")
+        if alert_data.get('threshold'):
+            details.append(f"Threshold: {alert_data['threshold']}")
+        if alert_data.get('duration'):
+            details.append(f"Duration: {alert_data['duration']}")
+        if alert_data.get('status'):
+            details.append(f"Status: {alert_data['status']}")
+        if alert_data.get('reason'):
+            details.append(f"Reason: {alert_data['reason']}")
+        
+        return "; ".join(details) if details else "No specific details provided"
+
+    def _format_additional_context(self, alert_data: Dict[str, Any]) -> str:
+        """Format additional context from alert data"""
+        context = []
+        
+        if alert_data.get('node_name'):
+            context.append(f"Node: {alert_data['node_name']}")
+        if alert_data.get('container_name'):
+            context.append(f"Container: {alert_data['container_name']}")
+        if alert_data.get('deployment_name'):
+            context.append(f"Deployment: {alert_data['deployment_name']}")
+        
+        return "; ".join(context) if context else "No additional context"
+
     def _create_fallback_solution(self, incident_data: Dict[str, Any], active_executors: List[str]) -> IncidentSolution:
         """Create a fallback solution when LLM fails"""
         incident_id = incident_data.get('id', 'unknown')
@@ -276,6 +380,11 @@ Provide a complete JSON solution with ALL required fields. Keep analysis brief t
         
         fallback_steps = []
         
+        # Create basic steps based on incident type with proper None handling
+        object_kind = incident_data.get('involved_object_kind') or 'pod'
+        object_name = incident_data.get('involved_object_name') or 'unknown'
+        namespace = incident_data.get('metadata_namespace') or 'default'
+        
         # Create basic steps based on incident type
         if incident_type == "Warning":
             fallback_steps = [
@@ -284,12 +393,12 @@ Provide a complete JSON solution with ALL required fields. Keep analysis brief t
                     action_type="KUBECTL_DESCRIBE",
                     description=f"Investigate the {reason} issue by describing the affected resource",
                     target_resource={
-                        "kind": incident_data.get('involved_object_kind', 'Unknown'),
-                        "name": incident_data.get('involved_object_name', 'unknown'),
-                        "namespace": incident_data.get('metadata_namespace', 'default')
+                        "kind": object_kind,
+                        "name": object_name,
+                        "namespace": namespace
                     },
                     command_or_payload={
-                        "command": f"describe {incident_data.get('involved_object_kind', 'pod').lower()} {incident_data.get('involved_object_name', 'unknown')} -n {incident_data.get('metadata_namespace', 'default')}"
+                        "command": f"describe {object_kind.lower()} {object_name} -n {namespace}"
                     },
                     expected_outcome="Detailed information about the resource state and events",
                     executor=default_executor
@@ -299,12 +408,12 @@ Provide a complete JSON solution with ALL required fields. Keep analysis brief t
                     action_type="KUBECTL_GET_LOGS",
                     description="Check logs for error details",
                     target_resource={
-                        "kind": incident_data.get('involved_object_kind', 'Unknown'),
-                        "name": incident_data.get('involved_object_name', 'unknown'),
-                        "namespace": incident_data.get('metadata_namespace', 'default')
+                        "kind": object_kind,
+                        "name": object_name,
+                        "namespace": namespace
                     },
                     command_or_payload={
-                        "command": f"logs {incident_data.get('involved_object_name', 'unknown')} -n {incident_data.get('metadata_namespace', 'default')}"
+                        "command": f"logs {object_name} -n {namespace}"
                     },
                     expected_outcome="Application logs showing error details",
                     executor=default_executor
@@ -317,12 +426,12 @@ Provide a complete JSON solution with ALL required fields. Keep analysis brief t
                     action_type="MONITOR",
                     description=f"Monitor the {reason} event to ensure it completed successfully",
                     target_resource={
-                        "kind": incident_data.get('involved_object_kind', 'Unknown'),
-                        "name": incident_data.get('involved_object_name', 'unknown'),
-                        "namespace": incident_data.get('metadata_namespace', 'default')
+                        "kind": object_kind,
+                        "name": object_name,
+                        "namespace": namespace
                     },
                     command_or_payload={
-                        "command": f"get {incident_data.get('involved_object_kind', 'pod').lower()} {incident_data.get('involved_object_name', 'unknown')} -n {incident_data.get('metadata_namespace', 'default')}"
+                        "command": f"get {object_kind.lower()} {object_name} -n {namespace}"
                     },
                     expected_outcome="Resource is in expected state",
                     executor=default_executor
@@ -351,6 +460,37 @@ Provide a complete JSON solution with ALL required fields. Keep analysis brief t
         self._print_solution_to_terminal(fallback_solution)
         
         return fallback_solution
+
+    def _create_fallback_remediation(self, alert_data: Dict[str, Any], active_executors: List[str]) -> RemediationSolution:
+        """Create fallback remediation when LLM fails"""
+        alert_name = alert_data.get('alert_name', 'Unknown')
+        namespace = alert_data.get('namespace', 'default')
+        resource_name = alert_data.get('pod_name', alert_data.get('resource_name', 'unknown'))
+        
+        # Basic remediation based on alert type
+        if 'CPU' in alert_name or 'cpu' in alert_name.lower():
+            command = f"top pods -n {namespace}"
+            suggestion = "Check CPU usage of pods to identify resource-intensive workloads"
+        elif 'Memory' in alert_name or 'memory' in alert_name.lower():
+            command = f"top pods -n {namespace} --sort-by=memory"
+            suggestion = "Check memory usage of pods to identify memory-intensive workloads"
+        elif 'CrashLoop' in alert_name:
+            command = f"logs {resource_name} -n {namespace} --previous"
+            suggestion = "Check previous logs to understand why the pod is crashing"
+        else:
+            command = f"describe pod {resource_name} -n {namespace}"
+            suggestion = "Get detailed information about the pod to diagnose the issue"
+        
+        return RemediationSolution(
+            issue_summary=f"Kubernetes issue detected: {alert_name}",
+            suggestion=suggestion,
+            command=command,
+            is_executable=True,
+            severity_level="MEDIUM",
+            estimated_time_mins=5,
+            confidence_score=0.6,
+            active_executors=active_executors
+        )
 
     def _print_solution_to_terminal(self, solution: IncidentSolution):
         """Print the solution details to terminal"""
@@ -393,7 +533,30 @@ Provide a complete JSON solution with ALL required fields. Keep analysis brief t
         print("✅ LangChain Analysis Complete - Solution Ready for Implementation")
         print("="*80 + "\n")
 
-# Global instance
+    def _print_remediation_to_terminal(self, solution: RemediationSolution):
+        """Print remediation solution to terminal"""
+        print("\n" + "="*80)
+        print("🔧 KUBERNETES REMEDIATION ASSISTANT")
+        print("="*80)
+        print(f"📋 Issue Summary: {solution.issue_summary}")
+        print(f"🔥 Severity Level: {solution.severity_level}")
+        print(f"⏱️  Estimated Time: {solution.estimated_time_mins} minutes")
+        print(f"🎯 Confidence Score: {solution.confidence_score}")
+        print(f"✅ Executable: {'Yes' if solution.is_executable else 'No'}")
+        print("-"*80)
+        
+        print(f"💡 SUGGESTION:")
+        print(f"   {solution.suggestion}")
+        print("-"*80)
+        
+        print(f"🔧 REMEDIATION COMMAND:")
+        print(f"   kubectl {solution.command}")
+        print("-"*80)
+        
+        print("="*80 + "\n")
+
+
+# Global instance - now all models are defined before this
 llm_client = KubernetesLLMClient()
 
 def get_llm_client() -> KubernetesLLMClient:
@@ -417,3 +580,20 @@ def analyze_kubernetes_incident_sync(incident_data: Dict[str, Any], active_execu
     
     client = get_llm_client()
     return client.analyze_incident_sync(incident_data, active_executors)
+
+def analyze_kubernetes_remediation_sync(alert_data: Dict[str, Any], active_executors: List[str] = None) -> RemediationSolution:
+    """
+    Convenience function for Kubernetes remediation analysis
+    
+    Args:
+        alert_data: Dictionary containing alert/issue information
+        active_executors: List of active executor names
+        
+    Returns:
+        RemediationSolution: Structured remediation with command
+    """
+    if active_executors is None:
+        active_executors = ["kubectl"]
+    
+    client = get_llm_client()
+    return client.analyze_remediation_sync(alert_data, active_executors)

@@ -40,11 +40,28 @@ def on_startup():
         create_db_and_tables()
         logger.info("Database tables created successfully")
         
-        # Remove the migration code since AlertModel no longer exists
-        # logger.info("Running database migration...")
-        # from app.migrations.db_utils import migrate_database
-        # migrate_database()
-        # logger.info("Database migration completed successfully")
+        # Initialize default executors
+        logger.info("Initializing default executors...")
+        with Session(engine) as session:
+            # Check if executors exist, if not create them
+            executors_to_create = ["kubectl", "crossplane", "argocd"]
+            
+            for executor_name in executors_to_create:
+                existing_executor = session.exec(
+                    select(ExecutorStatusModel).where(ExecutorStatusModel.executor_name == executor_name)
+                ).first()
+                
+                if not existing_executor:
+                    new_executor = ExecutorStatusModel(
+                        executor_name=executor_name,
+                        status=0 if executor_name == "kubectl" else 1  # kubectl active by default
+                    )
+                    session.add(new_executor)
+                    logger.info(f"Created executor: {executor_name}")
+            
+            session.commit()
+        
+        logger.info("Default executors initialized successfully")
         
     except Exception as e:
         logger.error(f"Database initialization failed: {e}")
@@ -156,6 +173,7 @@ async def get_incident(incident_id: str, session: Session = Depends(get_session)
 @app.post("/analyze-incident", response_model=dict)
 async def analyze_incident_endpoint(
     incident_data: dict,
+    session: Session = Depends(get_session)
 ):
     """
     Analyze a Kubernetes incident using LLM and return structured solution
@@ -169,8 +187,17 @@ async def analyze_incident_endpoint(
     try:
         logger.info(f"Received incident analysis request for: {incident_data.get('id', 'unknown')}")
         
+        # Get active executors
+        active_executors = session.exec(
+            select(ExecutorStatusModel).where(ExecutorStatusModel.status == 0)
+        ).all()
+        active_executor_names = [executor.executor_name for executor in active_executors]
+        
+        if not active_executor_names:
+            active_executor_names = ["kubectl"]
+        
         # Analyze incident using LLM (now using sync function with timeout handling)
-        solution = analyze_kubernetes_incident_sync(incident_data)
+        solution = analyze_kubernetes_incident_sync(incident_data, active_executor_names)
         
         # Convert to dict for response
         solution_dict = solution.model_dump()
@@ -217,6 +244,15 @@ async def analyze_incident_by_id_endpoint(
         if not incident:
             raise HTTPException(status_code=404, detail="Incident not found")
         
+        # Get active executors
+        active_executors = session.exec(
+            select(ExecutorStatusModel).where(ExecutorStatusModel.status == 0)
+        ).all()
+        active_executor_names = [executor.executor_name for executor in active_executors]
+        
+        if not active_executor_names:
+            active_executor_names = ["kubectl"]
+        
         # Convert incident model to dict
         incident_data = {
             'id': incident.id,
@@ -238,7 +274,7 @@ async def analyze_incident_by_id_endpoint(
         }
         
         # Analyze incident using LLM (now using sync function)
-        solution = analyze_kubernetes_incident_sync(incident_data)
+        solution = analyze_kubernetes_incident_sync(incident_data, active_executor_names)
         
         return {
             "success": True,
@@ -369,3 +405,686 @@ async def get_active_executors(session: Session = Depends(get_session)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting active executors: {str(e)}")
 
+@app.post("/remediate", 
+    summary="Analyze Kubernetes issue and get remediation command",
+    description="Analyze a Kubernetes alert/issue and get a single remediation command",
+    tags=["Remediation"])
+async def analyze_remediation(
+    alert_data: Dict[str, Any] = Body(...,
+        description="Alert/issue data for analysis",
+        example={
+            "alert_name": "HighCPUUsage",
+            "namespace": "default",
+            "pod_name": "backend-xyz-123",
+            "usage": "95%",
+            "threshold": "80%",
+            "duration": "15m"
+        }
+    ),
+    session: Session = Depends(get_session)
+):
+    """
+    Analyze Kubernetes issue and provide remediation command
+    
+    Expected input:
+    
+    {
+        "alert_name": "HighCPUUsage",
+        "namespace": "default",
+        "pod_name": "backend-xyz-123", 
+        "usage": "95%",
+        "threshold": "80%",
+        "duration": "15m"
+    }
+    
+    
+    Returns structured remediation with:
+    - Issue analysis
+    - Single kubectl command for remediation
+    - Safety assessment
+    - Confidence score
+    """
+    try:
+        # Get active executors
+        active_executors = session.exec(
+            select(ExecutorStatusModel).where(ExecutorStatusModel.status == 0)
+        ).all()
+        active_executor_names = [executor.executor_name for executor in active_executors]
+        
+        if not active_executor_names:
+            active_executor_names = ["kubectl"]
+        
+        # Import and use the remediation analysis function
+        from app.llm_client import analyze_kubernetes_remediation_sync
+        
+        remediation = analyze_kubernetes_remediation_sync(alert_data, active_executor_names)
+        
+        return {
+            "success": True,
+            "alert_name": alert_data.get("alert_name", "Unknown"),
+            "remediation": {
+                "issue_summary": remediation.issue_summary,
+                "suggestion": remediation.suggestion,
+                "command": f"kubectl {remediation.command}",
+                "is_executable": remediation.is_executable,
+                "severity_level": remediation.severity_level,
+                "estimated_time_mins": remediation.estimated_time_mins,
+                "confidence_score": remediation.confidence_score,
+                "active_executors": remediation.active_executors
+            },
+            "timestamp": datetime.datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error analyzing remediation: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Remediation analysis failed: {str(e)}")
+
+@app.post("/remediate/execute",
+    summary="Execute remediation command",
+    description="Execute the provided remediation command with safety checks",
+    tags=["Remediation"])
+async def execute_remediation(
+    execution_data: Dict[str, Any] = Body(...,
+        description="Execution data with command details",
+        example={
+            "command": "get pods -n default",
+            "is_executable": True,
+            "executor": "kubectl",
+            "confirm_execution": True
+        }
+    ),
+    session: Session = Depends(get_session)
+):
+    """
+    Execute a remediation command with safety checks
+    
+    Expected input:
+    
+    {
+        "command": "get pods -n default",
+        "is_executable": true,
+        "executor": "kubectl", 
+        "confirm_execution": true
+    }
+    
+    
+    Safety features:
+    - Only executes commands marked as safe
+    - Blocks destructive operations
+    - Requires explicit confirmation
+    - Timeout protection (30s limit)
+    """
+    try:
+        # Require explicit confirmation
+        if not execution_data.get("confirm_execution", False):
+            raise HTTPException(
+                status_code=400,
+                detail="Execution requires explicit confirmation. Set 'confirm_execution': true"
+            )
+        
+        # Import execution function
+        from app.executor_client import execute_single_remediation_command
+        
+        # Execute the command
+        start_time = datetime.datetime.utcnow()
+        result = execute_single_remediation_command(execution_data)
+        end_time = datetime.datetime.utcnow()
+        
+        # Save to remediation history
+        try:
+            history_record = RemediationHistoryModel(
+                alert_name=execution_data.get("alert_name", "Manual Execution"),
+                namespace=execution_data.get("namespace", "unknown"),
+                resource_name=execution_data.get("resource_name"),
+                command_executed=f"kubectl {execution_data.get('command', '')}",
+                execution_status=result.get("status", "unknown"),
+                execution_output=result.get("output", "")[:1000] if result.get("output") else None,
+                error_message=result.get("error"),
+                confidence_score=execution_data.get("confidence_score"),
+                severity_level=execution_data.get("severity_level", "UNKNOWN"),
+                execution_time_ms=int((end_time - start_time).total_seconds() * 1000)
+            )
+            session.add(history_record)
+            session.commit()
+        except Exception as history_error:
+            logger.error(f"Failed to save remediation history: {str(history_error)}")
+        
+        return {
+            "execution_result": result,
+            "timestamp": datetime.datetime.utcnow().isoformat(),
+            "safety_checks_passed": result.get("status") not in ["blocked", "skipped"],
+            "execution_time_ms": int((end_time - start_time).total_seconds() * 1000)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error executing remediation: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Execution failed: {str(e)}")
+
+@app.post("/remediate/analyze-and-execute",
+    summary="Analyze issue and optionally execute remediation",
+    description="Complete workflow: analyze Kubernetes issue and execute safe remediation",
+    tags=["Remediation"])
+async def analyze_and_execute_remediation(
+    request_data: Dict[str, Any] = Body(...,
+        description="Request with alert data and execution preferences",
+        example={
+            "alert_data": {
+                "alert_name": "HighCPUUsage",
+                "namespace": "default",
+                "pod_name": "backend-xyz-123",
+                "usage": "95%",
+                "threshold": "80%",
+                "duration": "15m"
+            },
+            "auto_execute": False,
+            "confirm_execution": False
+        }
+    ),
+    session: Session = Depends(get_session)
+):
+    """
+    Complete remediation workflow: analyze + optional execution
+    
+    Input format:
+    
+    {
+        "alert_data": {
+            "alert_name": "HighCPUUsage",
+            "namespace": "default", 
+            "pod_name": "backend-xyz-123",
+            "usage": "95%",
+            "threshold": "80%",
+            "duration": "15m"
+        },
+        "auto_execute": false,
+        "confirm_execution": false
+    }
+    
+    
+    Workflow:
+    1. Analyze the Kubernetes issue
+    2. Generate safe remediation command
+    3. Optionally execute if auto_execute=true and command is safe
+    """
+    try:
+        alert_data = request_data.get("alert_data", {})
+        auto_execute = request_data.get("auto_execute", False)
+        confirm_execution = request_data.get("confirm_execution", False)
+        
+        # Step 1: Analyze the issue
+        active_executors = session.exec(
+            select(ExecutorStatusModel).where(ExecutorStatusModel.status == 0)
+        ).all()
+        active_executor_names = [executor.executor_name for executor in active_executors]
+        
+        if not active_executor_names:
+            active_executor_names = ["kubectl"]
+        
+        from app.llm_client import analyze_kubernetes_remediation_sync
+        
+        remediation = analyze_kubernetes_remediation_sync(alert_data, active_executor_names)
+        
+        response = {
+            "analysis": {
+                "issue_summary": remediation.issue_summary,
+                "suggestion": remediation.suggestion,
+                "command": f"kubectl {remediation.command}",
+                "is_executable": remediation.is_executable,
+                "severity_level": remediation.severity_level,
+                "confidence_score": remediation.confidence_score
+            },
+            "execution_result": None,
+            "auto_executed": False
+        }
+        
+        # Step 2: Optionally execute if conditions are met
+        if auto_execute and remediation.is_executable and confirm_execution:
+            from app.executor_client import execute_single_remediation_command
+            
+            execution_data = {
+                "command": remediation.command,
+                "is_executable": remediation.is_executable,
+                "executor": "kubectl",
+                "alert_name": alert_data.get("alert_name"),
+                "namespace": alert_data.get("namespace"),
+                "resource_name": alert_data.get("pod_name", alert_data.get("resource_name")),
+                "confidence_score": remediation.confidence_score,
+                "severity_level": remediation.severity_level
+            }
+            
+            start_time = datetime.datetime.utcnow()
+            execution_result = execute_single_remediation_command(execution_data)
+            end_time = datetime.datetime.utcnow()
+            
+            response["execution_result"] = execution_result
+            response["auto_executed"] = True
+            
+            # Save to history
+            try:
+                history_record = RemediationHistoryModel(
+                    alert_name=alert_data.get("alert_name", "Auto Execution"),
+                    namespace=alert_data.get("namespace", "unknown"),
+                    resource_name=alert_data.get("pod_name", alert_data.get("resource_name")),
+                    command_executed=f"kubectl {remediation.command}",
+                    execution_status=execution_result.get("status", "unknown"),
+                    execution_output=execution_result.get("output", "")[:1000] if execution_result.get("output") else None,
+                    error_message=execution_result.get("error"),
+                    confidence_score=remediation.confidence_score,
+                    severity_level=remediation.severity_level,
+                    execution_time_ms=int((end_time - start_time).total_seconds() * 1000)
+                )
+                session.add(history_record)
+                session.commit()
+            except Exception as history_error:
+                logger.error(f"Failed to save remediation history: {str(history_error)}")
+            
+            logger.info(f"Auto-executed remediation for {alert_data.get('alert_name', 'unknown')}")
+        
+        elif auto_execute and not confirm_execution:
+            response["execution_result"] = {
+                "status": "skipped",
+                "reason": "Auto-execution requires explicit confirmation"
+            }
+        
+        elif auto_execute and not remediation.is_executable:
+            response["execution_result"] = {
+                "status": "skipped", 
+                "reason": "Command not marked as safe for automatic execution"
+            }
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error in analyze-and-execute workflow: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Workflow failed: {str(e)}")
+
+@app.get("/remediation/history",
+    summary="Get remediation history",
+    description="Get history of executed remediation commands",
+    tags=["Remediation"])
+async def get_remediation_history(
+    session: Session = Depends(get_session),
+    skip: int = 0,
+    limit: int = 50,
+    alert_name: Optional[str] = None,
+    namespace: Optional[str] = None,
+    status: Optional[str] = None
+):
+    """
+    Get remediation execution history with optional filtering
+    
+    Parameters:
+    - **skip**: Number of records to skip
+    - **limit**: Maximum records to return
+    - **alert_name**: Filter by alert name
+    - **namespace**: Filter by namespace
+    - **status**: Filter by execution status (success, failed, skipped, blocked)
+    """
+    try:
+        query = select(RemediationHistoryModel)
+        
+        if alert_name:
+            query = query.where(RemediationHistoryModel.alert_name == alert_name)
+        if namespace:
+            query = query.where(RemediationHistoryModel.namespace == namespace)
+        if status:
+            query = query.where(RemediationHistoryModel.execution_status == status)
+        
+        query = query.order_by(RemediationHistoryModel.executed_at.desc())
+        query = query.offset(skip).limit(limit)
+        
+        results = session.exec(query).all()
+        
+        return {
+            "history": [
+                {
+                    "id": record.id,
+                    "alert_name": record.alert_name,
+                    "namespace": record.namespace,
+                    "resource_name": record.resource_name,
+                    "command": record.command_executed,
+                    "status": record.execution_status,
+                    "executed_at": record.executed_at,
+                    "confidence_score": record.confidence_score,
+                    "severity_level": record.severity_level,
+                    "execution_time_ms": record.execution_time_ms,
+                    "error_message": record.error_message if record.execution_status == "failed" else None
+                }
+                for record in results
+            ],
+            "total": len(results)
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting remediation history: {str(e)}")
+
+@app.get("/remediation/stats",
+    summary="Get remediation statistics",
+    description="Get statistics about remediation executions",
+    tags=["Remediation"])
+async def get_remediation_stats(session: Session = Depends(get_session)):
+    """
+    Get remediation execution statistics
+    """
+    try:
+        # Get total executions by status
+        status_stats = session.exec(
+            select(
+                RemediationHistoryModel.execution_status,
+                func.count(RemediationHistoryModel.id).label("count")
+            ).group_by(RemediationHistoryModel.execution_status)
+        ).all()
+        
+        # Get top alert types
+        alert_stats = session.exec(
+            select(
+                RemediationHistoryModel.alert_name,
+                func.count(RemediationHistoryModel.id).label("count")
+            ).group_by(RemediationHistoryModel.alert_name)
+            .order_by(func.count(RemediationHistoryModel.id).desc())
+            .limit(10)
+        ).all()
+        
+        # Get recent activity (last 24 hours)
+        from datetime import timedelta
+        recent_cutoff = datetime.datetime.utcnow() - timedelta(hours=24)
+        recent_count = session.exec(
+            select(func.count(RemediationHistoryModel.id))
+            .where(RemediationHistoryModel.executed_at >= recent_cutoff)
+        ).first()
+        
+        return {
+            "execution_stats": {
+                status.execution_status: status.count 
+                for status in status_stats
+            },
+            "top_alerts": [
+                {"alert_name": alert.alert_name, "count": alert.count}
+                for alert in alert_stats
+            ],
+            "recent_activity": {
+                "last_24_hours": recent_count or 0
+            },
+            "timestamp": datetime.datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting remediation stats: {str(e)}")
+
+@app.get("/incidents/{incident_id}/recommendations",
+    summary="Get recommendations for specific incident",
+    description="Get LLM-generated recommendations and commands for a specific incident",
+    tags=["Recommendations"])
+async def get_incident_recommendations(
+    incident_id: str,
+    session: Session = Depends(get_session)
+):
+    """
+    Get recommendations and commands for a specific incident
+    
+    This API:
+    1. Fetches incident from database by ID
+    2. Analyzes it with LLM to get recommendations
+    3. Returns structured recommendations with executable commands
+    """
+    try:
+        # Get incident from database
+        incident = session.exec(
+            select(IncidentModel).where(IncidentModel.id == incident_id)
+        ).first()
+        
+        if not incident:
+            raise HTTPException(status_code=404, detail="Incident not found")
+        
+        # Get active executors
+        active_executors = session.exec(
+            select(ExecutorStatusModel).where(ExecutorStatusModel.status == 0)
+        ).all()
+        active_executor_names = [executor.executor_name for executor in active_executors]
+        
+        if not active_executor_names:
+            active_executor_names = ["kubectl"]
+        
+        # Prepare incident data for LLM
+        incident_data = {
+            'id': incident.id,
+            'type': incident.type,
+            'reason': incident.reason,
+            'message': incident.message,
+            'metadata_namespace': incident.metadata_namespace,
+            'metadata_creation_timestamp': incident.metadata_creation_timestamp.isoformat() if incident.metadata_creation_timestamp else None,
+            'involved_object_kind': incident.involved_object_kind,
+            'involved_object_name': incident.involved_object_name,
+            'source_component': incident.source_component,
+            'source_host': incident.source_host,
+            'reporting_component': incident.reporting_component,
+            'count': incident.count,
+            'first_timestamp': incident.first_timestamp.isoformat() if incident.first_timestamp else None,
+            'last_timestamp': incident.last_timestamp.isoformat() if incident.last_timestamp else None,
+            'involved_object_labels': incident.involved_object_labels or {},
+            'involved_object_annotations': incident.involved_object_annotations or {}
+        }
+        
+        # Analyze with LLM
+        solution = analyze_kubernetes_incident_sync(incident_data, active_executor_names)
+        
+        # Format response with executable commands
+        recommendations = []
+        for step in solution.steps:
+            recommendations.append({
+                "step_id": step.step_id,
+                "description": step.description,
+                "command": f"kubectl {step.command_or_payload.get('command', '')}",
+                "action_type": step.action_type,
+                "target_resource": step.target_resource,
+                "expected_outcome": step.expected_outcome,
+                "executor": step.executor,
+                "is_executable": step.action_type in ["KUBECTL_GET_LOGS", "KUBECTL_DESCRIBE", "KUBECTL_GET", "MONITOR"]
+            })
+        
+        return {
+            "success": True,
+            "incident_id": incident_id,
+            "incident_summary": {
+                "type": incident.type,
+                "reason": incident.reason,
+                "message": incident.message,
+                "namespace": incident.metadata_namespace,
+                "object": f"{incident.involved_object_kind}/{incident.involved_object_name}"
+            },
+            "analysis": {
+                "summary": solution.summary,
+                "severity_level": solution.severity_level,
+                "confidence_score": solution.confidence_score,
+                "estimated_time_mins": solution.estimated_time_to_resolve_mins
+            },
+            "recommendations": recommendations,
+            "general_recommendations": solution.recommendations,
+            "timestamp": datetime.datetime.utcnow().isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting recommendations for incident {incident_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get recommendations: {str(e)}")
+
+@app.post("/execute-command",
+    summary="Execute kubectl command with safety checks",
+    description="Execute a specific kubectl command with comprehensive safety checks and logging",
+    tags=["Command Execution"])
+async def execute_kubectl_command(
+    command_data: Dict[str, Any] = Body(...,
+        description="Command execution data",
+        example={
+            "incident_id": "123e4567-e89b-12d3-a456-426614174000",
+            "command": "get pods -n default",
+            "executor": "kubectl",
+            "confirm_execution": True,
+            "step_id": 1,
+            "expected_outcome": "List of pods in default namespace"
+        }
+    ),
+    session: Session = Depends(get_session)
+):
+    """
+    Execute kubectl command with safety checks
+    
+    Required fields:
+    - incident_id: ID of the related incident
+    - command: kubectl command (without 'kubectl' prefix)
+    - confirm_execution: Must be true to execute
+    
+    Optional fields:
+    - executor: Executor to use (default: kubectl)
+    - step_id: Step ID from recommendations
+    - expected_outcome: What should happen
+    """
+    try:
+        incident_id = command_data.get("incident_id")
+        command = command_data.get("command", "")
+        confirm_execution = command_data.get("confirm_execution", False)
+        executor = command_data.get("executor", "kubectl")
+        step_id = command_data.get("step_id")
+        expected_outcome = command_data.get("expected_outcome", "Command execution")
+        
+        # Validation
+        if not incident_id:
+            raise HTTPException(status_code=400, detail="incident_id is required")
+        
+        if not command:
+            raise HTTPException(status_code=400, detail="command is required")
+        
+        if not confirm_execution:
+            raise HTTPException(status_code=400, detail="confirm_execution must be true")
+        
+        # Verify incident exists
+        incident = session.exec(
+            select(IncidentModel).where(IncidentModel.id == incident_id)
+        ).first()
+        
+        if not incident:
+            raise HTTPException(status_code=404, detail="Incident not found")
+        
+        # Check if executor is active
+        executor_status = session.exec(
+            select(ExecutorStatusModel).where(
+                ExecutorStatusModel.executor_name == executor,
+                ExecutorStatusModel.status == 0
+            )
+        ).first()
+        
+        if not executor_status:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Executor '{executor}' is not active"
+            )
+        
+        # Execute command using existing function
+        from app.executor_client import execute_single_remediation_command
+        
+        execution_data = {
+            "command": command,
+            "is_executable": True,
+            "executor": executor,
+            "incident_id": incident_id,
+            "step_id": step_id,
+            "expected_outcome": expected_outcome
+        }
+        
+        start_time = datetime.datetime.utcnow()
+        execution_result = execute_single_remediation_command(execution_data)
+        end_time = datetime.datetime.utcnow()
+        
+        # Save execution history
+        try:
+            from app.models import CommandExecutionHistoryModel
+            
+            history_record = CommandExecutionHistoryModel(
+                incident_id=incident_id,
+                command_executed=f"kubectl {command}",
+                executor_used=executor,
+                execution_status=execution_result.get("status", "unknown"),
+                execution_output=execution_result.get("output", "")[:2000] if execution_result.get("output") else None,
+                error_message=execution_result.get("error"),
+                step_id=step_id,
+                expected_outcome=expected_outcome,
+                execution_time_ms=int((end_time - start_time).total_seconds() * 1000)
+            )
+            session.add(history_record)
+            session.commit()
+            logger.info(f"Saved command execution history for incident {incident_id}")
+        except Exception as history_error:
+            logger.error(f"Failed to save execution history: {str(history_error)}")
+        
+        return {
+            "success": execution_result.get("status") == "success",
+            "incident_id": incident_id,
+            "command": f"kubectl {command}",
+            "executor": executor,
+            "execution_result": execution_result,
+            "execution_time_ms": int((end_time - start_time).total_seconds() * 1000),
+            "timestamp": datetime.datetime.utcnow().isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error executing command: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Command execution failed: {str(e)}")
+
+@app.get("/incidents/{incident_id}/execution-history",
+    summary="Get command execution history for incident",
+    description="Get history of all commands executed for a specific incident",
+    tags=["Command Execution"])
+async def get_incident_execution_history(
+    incident_id: str,
+    session: Session = Depends(get_session)
+):
+    """
+    Get command execution history for a specific incident
+    """
+    try:
+        # Verify incident exists
+        incident = session.exec(
+            select(IncidentModel).where(IncidentModel.id == incident_id)
+        ).first()
+        
+        if not incident:
+            raise HTTPException(status_code=404, detail="Incident not found")
+        
+        # Get execution history
+        from app.models import CommandExecutionHistoryModel
+        
+        history = session.exec(
+            select(CommandExecutionHistoryModel)
+            .where(CommandExecutionHistoryModel.incident_id == incident_id)
+            .order_by(CommandExecutionHistoryModel.executed_at.desc())
+        ).all()
+        
+        return {
+            "incident_id": incident_id,
+            "execution_history": [
+                {
+                    "id": record.id,
+                    "command": record.command_executed,
+                    "executor": record.executor_used,
+                    "status": record.execution_status,
+                    "executed_at": record.executed_at,
+                    "execution_time_ms": record.execution_time_ms,
+                    "step_id": record.step_id,
+                    "expected_outcome": record.expected_outcome,
+                    "output": record.execution_output[:500] + "..." if record.execution_output and len(record.execution_output) > 500 else record.execution_output,
+                    "error": record.error_message if record.execution_status == "failed" else None
+                }
+                for record in history
+            ],
+            "total_executions": len(history)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting execution history: {str(e)}")

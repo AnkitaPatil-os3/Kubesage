@@ -54,38 +54,70 @@ def parse_flexible_incident_data(request_data: Dict[str, Any]) -> List[FlexibleI
 def convert_to_kubernetes_event(raw_data: Dict[str, Any]) -> KubernetesEvent:
     """
     Convert raw incident data to KubernetesEvent format
+    Enhanced to handle Elasticsearch format with _source wrapper
     """
     try:
+        # Handle Elasticsearch format with _source wrapper
+        if "_source" in raw_data:
+            source_data = raw_data["_source"]
+            es_id = raw_data.get("_id", str(uuid.uuid4()))
+        else:
+            source_data = raw_data
+            es_id = str(uuid.uuid4())
+        
         # Extract metadata
-        metadata = raw_data.get("metadata", {})
+        metadata = source_data.get("metadata", {})
         
-        # Extract event info
-        event_type = raw_data.get("type", "Normal")
-        reason = raw_data.get("reason", "Unknown")
-        message = raw_data.get("message", "No message provided")
-        count = raw_data.get("count", 1)
+        # Extract event info with proper fallbacks
+        event_type = source_data.get("type", "Normal")
+        reason = source_data.get("reason", "Unknown")
+        message = source_data.get("message", "No message provided")
+        count = source_data.get("count", 1)
         
-        # Extract timestamps
+        # Extract timestamps with better handling
         first_timestamp = None
         last_timestamp = None
         creation_timestamp = None
         
-        if "firstTimestamp" in raw_data:
-            first_timestamp = datetime.fromisoformat(raw_data["firstTimestamp"].replace("Z", "+00:00"))
-        if "lastTimestamp" in raw_data:
-            last_timestamp = datetime.fromisoformat(raw_data["lastTimestamp"].replace("Z", "+00:00"))
-        if "creationTimestamp" in metadata:
-            creation_timestamp = datetime.fromisoformat(metadata["creationTimestamp"].replace("Z", "+00:00"))
+        # Handle different timestamp formats
+        if source_data.get("firstTimestamp"):
+            try:
+                first_timestamp = datetime.fromisoformat(source_data["firstTimestamp"].replace("Z", "+00:00"))
+            except:
+                pass
+                
+        if source_data.get("lastTimestamp"):
+            try:
+                last_timestamp = datetime.fromisoformat(source_data["lastTimestamp"].replace("Z", "+00:00"))
+            except:
+                pass
+                
+        if source_data.get("eventTime"):
+            try:
+                # Use eventTime as fallback for timestamps
+                event_time = datetime.fromisoformat(source_data["eventTime"].replace("Z", "+00:00"))
+                if not first_timestamp:
+                    first_timestamp = event_time
+                if not last_timestamp:
+                    last_timestamp = event_time
+            except:
+                pass
+        
+        if metadata.get("creationTimestamp"):
+            try:
+                creation_timestamp = datetime.fromisoformat(metadata["creationTimestamp"].replace("Z", "+00:00"))
+            except:
+                pass
         
         # Extract source info
-        source = raw_data.get("source", {})
+        source = source_data.get("source", {})
         
-        # Extract involved object info
-        involved_object = raw_data.get("involvedObject", {})
+        # Extract involved object info with proper handling
+        involved_object = source_data.get("involvedObject", {})
         
         return KubernetesEvent(
-            metadata_name=metadata.get("name", f"incident-{uuid.uuid4()}"),
-            metadata_namespace=metadata.get("namespace"),
+            metadata_name=metadata.get("name", f"incident-{es_id}"),
+            metadata_namespace=metadata.get("namespace") or involved_object.get("namespace"),
             metadata_creation_timestamp=creation_timestamp,
             type=event_type,
             reason=reason,
@@ -100,19 +132,33 @@ def convert_to_kubernetes_event(raw_data: Dict[str, Any]) -> KubernetesEvent:
             involved_object_field_path=involved_object.get("fieldPath"),
             involved_object_labels=involved_object.get("labels", {}),
             involved_object_annotations=involved_object.get("annotations", {}),
-            involved_object_owner_references=involved_object.get("ownerReferences", {}),
-            reporting_component=raw_data.get("reportingComponent"),
-            reporting_instance=raw_data.get("reportingInstance")
+            involved_object_owner_references=involved_object.get("ownerReferences", []),
+            reporting_component=source_data.get("reportingComponent"),
+            reporting_instance=source_data.get("reportingInstance")
         )
         
     except Exception as e:
         logger.error(f"Error converting raw data to KubernetesEvent: {str(e)}")
-        # Return a minimal event with error info
+        logger.error(f"Raw data keys: {list(raw_data.keys()) if isinstance(raw_data, dict) else 'Not a dict'}")
+        
+        # Return a minimal event with error info but use available data
+        fallback_name = "error-incident"
+        fallback_message = "Failed to parse incident data"
+        
+        if isinstance(raw_data, dict):
+            if "_source" in raw_data:
+                source_data = raw_data["_source"]
+                fallback_name = source_data.get("metadata", {}).get("name", fallback_name)
+                fallback_message = source_data.get("message", fallback_message)
+            else:
+                fallback_name = raw_data.get("metadata", {}).get("name", fallback_name)
+                fallback_message = raw_data.get("message", fallback_message)
+        
         return KubernetesEvent(
-            metadata_name=f"error-incident-{uuid.uuid4()}",
+            metadata_name=fallback_name,
             type="Warning",
             reason="ConversionError",
-            message=f"Failed to parse incident data: {str(e)}"
+            message=f"{fallback_message}: {str(e)}"
         )
 
 

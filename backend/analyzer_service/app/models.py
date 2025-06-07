@@ -4,6 +4,23 @@ from datetime import datetime, timezone
 import uuid
 
 
+class RemediationHistoryModel(SQLModel, table=True):
+    """Track remediation command executions"""
+    __tablename__ = "remediation_history"
+    
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    alert_name: str = Field(description="Name of the alert/issue")
+    namespace: str = Field(description="Kubernetes namespace")
+    resource_name: Optional[str] = Field(default=None, description="Target resource name")
+    command_executed: str = Field(description="The kubectl command that was executed")
+    execution_status: str = Field(description="success, failed, skipped, blocked")
+    execution_output: Optional[str] = Field(default=None, description="Command output")
+    error_message: Optional[str] = Field(default=None, description="Error if execution failed")
+    confidence_score: Optional[float] = Field(default=None, description="LLM confidence in solution")
+    severity_level: str = Field(description="Issue severity level")
+    executed_at: datetime = Field(default_factory=datetime.utcnow)
+    execution_time_ms: Optional[int] = Field(default=None, description="Execution time in milliseconds")
+
 class IncidentModel(SQLModel, table=True):
     """Database model for storing Kubernetes incidents/events"""
     __tablename__ = "incidents"
@@ -79,3 +96,19 @@ class ExecutorStatusModel(SQLModel, table=True):
     status: int = Field(default=0)  # 0 = Active, 1 = Inactive
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class CommandExecutionHistoryModel(SQLModel, table=True):
+    """Track command executions for incidents"""
+    __tablename__ = "command_execution_history"
+    
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    incident_id: str = Field(description="Related incident ID")
+    command_executed: str = Field(description="Full command that was executed")
+    executor_used: str = Field(description="Executor used (kubectl, crossplane, argocd)")
+    execution_status: str = Field(description="success, failed, blocked, skipped")
+    execution_output: Optional[str] = Field(default=None, sa_column=Column(Text), description="Command output")
+    error_message: Optional[str] = Field(default=None, description="Error message if failed")
+    step_id: Optional[int] = Field(default=None, description="Step ID from recommendations")
+    expected_outcome: Optional[str] = Field(default=None, description="Expected outcome")
+    execution_time_ms: Optional[int] = Field(default=None, description="Execution time in milliseconds")
+    executed_at: datetime = Field(default_factory=datetime.utcnow)

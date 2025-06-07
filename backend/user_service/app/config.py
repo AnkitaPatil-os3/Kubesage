@@ -23,13 +23,13 @@ class Settings(BaseSettings):
     MAIL_USERNAME: str = os.getenv("MAIL_USERNAME", "")
     MAIL_PASSWORD: str = os.getenv("MAIL_PASSWORD", "")
     MAIL_FROM: str = os.getenv("MAIL_FROM", "")  # Use a valid email here
-    MAIL_PORT: int = int(os.getenv("MAIL_PORT", "587"))  # Default to 587 (standard SMTP port)
+    MAIL_PORT: int = os.getenv("MAIL_PORT", "587")  # Default to 587 (standard SMTP port)
     MAIL_SERVER: str = os.getenv("MAIL_SERVER", "smtp.gmail.com")  # Default to Gmail
     MAIL_FROM_NAME: str = os.getenv("MAIL_FROM_NAME", "KubeSage")
     MAIL_STARTTLS: bool = os.getenv("MAIL_TLS", "True").lower() == "true"
     MAIL_SSL_TLS: bool = os.getenv("MAIL_SSL", "False").lower() == "true"
     SERVER_BASE_URL: str = os.getenv("SERVER_BASE_URL")  # Server configuration
-    USER_CONFIRMATION_TIMEOUT: int = int(os.getenv("USER_CONFIRMATION_TIMEOUT" )) # Increased to 1 hour (3600 seconds)  # User confirmation timeout in seconds
+    USER_CONFIRMATION_TIMEOUT: int = os.getenv("USER_CONFIRMATION_TIMEOUT" )# Increased to 1 hour (3600 seconds)  # User confirmation timeout in seconds
     FRONTEND_BASE_URL: str = os.getenv("FRONTEND_BASE_URL")
 
     
