@@ -3,7 +3,7 @@ import { Link, useHistory } from "react-router-dom";
 import { Icon } from "@iconify/react";
 import { Button, Tooltip, Switch, Divider } from "@heroui/react";
 import { motion, AnimatePresence } from "framer-motion";
-
+ 
 interface SidebarProps {
   selectedCluster: string;
   setSelectedCluster: (cluster: string) => void;
@@ -12,9 +12,9 @@ interface SidebarProps {
   toggleTheme: () => void;
   currentTheme: string;
 }
-
-export const Sidebar: React.FC<SidebarProps> = ({ 
-  selectedCluster, 
+ 
+export const Sidebar: React.FC<SidebarProps> = ({
+  selectedCluster,
   setSelectedCluster,
   currentPage,
   onLogout,
@@ -30,7 +30,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: "staging", name: "Staging", icon: "lucide:server" },
     { id: "development", name: "Development", icon: "lucide:server" },
   ];
-
+ 
   const navCategories = [
     {
       id: "overview",
@@ -51,7 +51,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       items: [
         { id: "insights", name: "AI Insights", icon: "lucide:lightbulb", path: "/dashboard/insights" },
         { id: "chatops", name: "ChatOps", icon: "lucide:message-square", path: "/dashboard/chatops" },
-        { id: "predictions", name: "Predictions", icon: "lucide:trending-up", path: "/dashboard/predictions" },
+        { id: "remediations", name: "Remediations", icon: "lucide:trending-up", path: "/dashboard/remediations" },
         { id: "anomalies", name: "Anomalies", icon: "lucide:alert-triangle", path: "/dashboard/anomalies" },
       ]
     },
@@ -61,8 +61,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: "lucide:settings-2",
       items: [
         { id: "observability", name: "Observability", icon: "lucide:activity", path: "/dashboard/observability" },
+        { id: "carbon-emission", name: "GreenOps", icon: "lucide:activity", path: "/dashboard/carbon-emission" },
         { id: "security", name: "Security", icon: "lucide:shield", path: "/dashboard/security" },
-        { id: "cost", name: "Cost Analysis", icon: "lucide:dollar-sign", path: "/dashboard/cost" },
+        { id: "cost", name: "FinOps", icon: "lucide:dollar-sign", path: "/dashboard/cost" },
         { id: "compliance", name: "Compliance", icon: "lucide:check-circle", path: "/dashboard/compliance" },
       ]
     },
@@ -88,17 +89,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ]
     },
   ];
-
+ 
   const toggleCategory = (categoryId: string) => {
     setExpandedCategory(categoryId);
   };
-
+ 
   const toggleCollapse = () => {
     setIsCollapsed(!isCollapsed);
   };
-
+ 
   return (
-    <motion.aside 
+    <motion.aside
       className={`flex flex-col bg-content1 border-r border-divider transition-all duration-300 ${
         isCollapsed ? "w-16" : "w-64"
       }`}
@@ -109,7 +110,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div className="p-4 flex items-center justify-between border-b border-divider">
         {!isCollapsed && (
           <div className="flex items-center gap-2">
-            <motion.div 
+            <motion.div
               className="bg-primary rounded-md p-1 flex-shrink-0"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -121,7 +122,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         )}
         
         {isCollapsed && (
-          <motion.div 
+          <motion.div
             className="bg-primary rounded-md p-1 mx-auto"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -145,16 +146,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div key={category.id} className="mb-3">
             {!isCollapsed ? (
               <>
-                <div 
+                <div
                   className={`px-4 py-2 flex items-center justify-between cursor-pointer transition-colors ${
                     expandedCategory === category.id ? "bg-content2" : "hover:bg-content2"
                   }`}
                   onClick={() => toggleCategory(category.id)}
                 >
                   <div className="flex items-center gap-2">
-                    <Icon 
-                      icon={category.icon} 
-                      className={expandedCategory === category.id ? "text-primary" : "text-foreground-500"} 
+                    <Icon
+                      icon={category.icon}
+                      className={expandedCategory === category.id ? "text-primary" : "text-foreground-500"}
                     />
                     <span className={`text-xs font-medium ${
                       expandedCategory === category.id ? "text-primary font-semibold" : "text-foreground-500"
@@ -224,10 +225,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <span className="text-sm">Theme</span>
               <div className="flex items-center gap-2">
                 <Icon icon="lucide:sun" className={`text-sm ${currentTheme === 'light' ? 'text-primary' : 'text-foreground-400'}`} />
-                <Switch 
-                  size="sm" 
-                  isSelected={currentTheme === 'dark'} 
-                  onValueChange={toggleTheme} 
+                <Switch
+                  size="sm"
+                  isSelected={currentTheme === 'dark'}
+                  onValueChange={toggleTheme}
                   color="primary"
                 />
                 <Icon icon="lucide:moon" className={`text-sm ${currentTheme === 'dark' ? 'text-primary' : 'text-foreground-400'}`} />
@@ -247,10 +248,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </div>
               </div>
               <Tooltip content="Logout">
-                <Button 
-                  isIconOnly 
-                  variant="ghost" 
-                  color="danger" 
+                <Button
+                  isIconOnly
+                  variant="ghost"
+                  color="danger"
                   size="sm"
                   onPress={onLogout}
                 >
@@ -280,10 +281,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
             
             <Tooltip content="Logout" placement="right">
-              <Button 
-                isIconOnly 
-                variant="ghost" 
-                color="danger" 
+              <Button
+                isIconOnly
+                variant="ghost"
+                color="danger"
                 size="sm"
                 onPress={onLogout}
               >
@@ -296,3 +297,4 @@ export const Sidebar: React.FC<SidebarProps> = ({
     </motion.aside>
   );
 };
+ 

@@ -1,7 +1,7 @@
 *.env
-__pycache__
-app.__pycache__
-app.routers.__pycache__
+*/__pycache__
+*/app.__pycache__
+*/app.routers.__pycache__
 
 *.log
 *.yaml

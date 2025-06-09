@@ -1,768 +1,544 @@
-from fastapi import Depends, HTTPException, status, Header, Cookie, Response
-from typing import Annotated, Optional, AsyncIterator
-from app.dependencies import get_db_session, get_current_user_dependency
-from sqlmodel import Session
-from app.database import get_session
-from app.auth import get_current_user
-from app.schemas import UserInfo
+from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi.responses import StreamingResponse, JSONResponse
+from sqlmodel import Session, select
+from typing import List, Optional, AsyncGenerator, Dict, Any
 import json
-import asyncio
-from app.langchain_service import process_with_langchain, create_memory_from_messages, stream_langchain_response
- 
-# Define common dependencies
-SessionDep = Annotated[Session, Depends(get_session)]
-CurrentUser = Annotated[UserInfo, Depends(get_current_user)]
-from app.schemas import (
-    MessageCreate,
-    MessageResponse,
-    ChatHistoryResponse,
-    ChatSessionCreate,
-    ChatSessionUpdate,
-    ChatSessionResponse,
-    ChatSessionList,
-    ChatHistoryEntry,
-    ChatRequest
-)
-from app.services import (
-    create_chat_session,
-    process_chat_message,
-    get_chat_session,
-    get_chat_history,
-    list_user_chat_sessions,
-    update_session_title,
-    delete_chat_session,
-    get_k8s_analysis,
-    get_streaming_llm,
-    StreamingCallbackHandler,
-    add_chat_message  # Add this line to import the missing function
-)
-from fastapi import APIRouter, HTTPException, status, Query, Path, Body
-from fastapi.responses import StreamingResponse
-from app.dependencies import SessionDep, CurrentUser
+import uuid
 from datetime import datetime
+
+from app.database import get_session
+from app.models import ChatSession, ChatMessage
+from app.schemas import (
+    ChatRequest, MessageResponse, ChatHistoryResponse, 
+    ChatSessionCreate, ChatSessionUpdate, ChatSessionResponse, 
+    ChatSessionList, HealthResponse
+)
+from app.auth import get_current_user, get_current_active_user
+from app.langchain_service import (
+    get_streaming_llm, get_non_streaming_llm, 
+    create_memory_from_messages, get_memory_summary
+)
+from app.services import ChatService, MessageService
 from app.logger import logger
- 
-router = APIRouter(prefix="/chat", tags=["chat"])
-#   ----Chat section ----
-@router.post("/", response_model=MessageResponse,
-            summary="Send Chat Message",
-            description="Sends a message to the chat service and returns the AI response")
-async def chat(
-    message: MessageCreate,
-    db: Session = Depends(get_session),
-    current_user: UserInfo = Depends(get_current_user),
-    authorization: str = Header(None),
-    stream: bool = Query(False, description="Whether to stream the response")
+
+router = APIRouter()
+
+# Chat endpoint - API-1
+@router.post("/chat")
+async def chat_endpoint(
+    request: ChatRequest,
+    current_user: Dict[str, Any] = Depends(get_current_active_user),
+    session: Session = Depends(get_session)
 ):
-    logger.info(f"Session ID: {id(db)}")
-    token = authorization.split(" ")[1] if authorization else None
-    
+    """Main chat endpoint with streaming support."""
     try:
-        session_id = message.session_id
-        session = None
-        is_new_session = False
+        user_id = current_user["id"]
+        logger.info(f"Chat request from user {user_id}: {request.message[:100]}...")
         
-        # Handle session logic
-        if session_id:
-            # Try to get existing session
-            session = await get_chat_session(db, session_id, current_user.id)
-            if not session:
-                # If session_id provided but doesn't exist, return error
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Chat session {session_id} not found"
-                )
-            # Check if this is actually a new session (no messages yet)
-            existing_messages = await get_chat_history(db, session_id)
-            is_new_session = len(existing_messages) == 0
+        # Initialize services
+        chat_service = ChatService(session)
+        message_service = MessageService(session)
+        
+        # Validate message
+        if not message_service.validate_message_content(request.message):
+            raise HTTPException(
+                status_code=400, 
+                detail="Invalid message content"
+            )
+        
+        # Sanitize message
+        clean_message = message_service.sanitize_message_content(request.message)
+        
+        # Get or create session
+        if request.session_id:
+            chat_session = chat_service.get_session(request.session_id, user_id)
+            if not chat_session:
+                raise HTTPException(status_code=404, detail="Session not found")
         else:
-            # Create new session only when no session_id provided
-            session_create = ChatSessionCreate(title="New Chat")
-            session = await create_chat_session(db, current_user.id, session_create)
-            session_id = session.session_id
-            is_new_session = True
+            chat_session = chat_service.create_session(user_id)
         
-        # For new sessions, get K8s analysis first
-        analysis_output = ""
-        if is_new_session:
-            analysis_output = await get_k8s_analysis(current_user.id, token)
+        # Save user message
+        try:
+            user_message = chat_service.add_message(
+                chat_session.session_id, 
+                "user", 
+                clean_message
+            )
+            logger.info(f"Saved user message: {user_message.id}")
+        except Exception as e:
+            logger.error(f"Error saving user message: {e}")
+            # Continue without saving if there's a DB error
         
-        # Build the user content
-        if is_new_session and analysis_output:
-            user_content = f"Analysis results:\n{analysis_output}\n\nUser question: {message.content}"
-        else:
-            user_content = message.content
-        
-        # Add user message to history
-        await add_chat_message(db, session, "user", user_content)
-        
-        # Get chat history AFTER adding the user message
-        messages = await get_chat_history(db, session_id)
+        # Get conversation history (with error handling)
+        try:
+            messages = chat_service.get_session_messages(chat_session.session_id)
+            message_history = [
+                {"role": msg.role, "content": msg.content}
+                for msg in messages
+            ]
+        except Exception as e:
+            logger.error(f"Error getting message history: {e}")
+            # Use just the current message if history retrieval fails
+            message_history = [{"role": "user", "content": clean_message}]
         
         # Create memory from messages
-        memory = await create_memory_from_messages(messages)
+        memory = create_memory_from_messages(message_history)
         
-        if stream:
-            # Process with LangChain (streaming)
-            langchain_result = await process_with_langchain(
-                user_message=message.content,
-                memory=memory,
-                stream=True
-            )
-            
-            # Set up streaming response
-            async def stream_response() -> AsyncIterator[str]:
+        if request.stream:
+            # Streaming response
+            async def generate_stream():
                 try:
-                    streaming_handler = langchain_result["streaming_handler"]
+                    llm = get_streaming_llm()
                     
-                    # Stream tokens as they come
-                    async for token in stream_langchain_response(streaming_handler):
-                        yield f"data: {json.dumps({'token': token, 'session_id': session_id})}\n\n"
+                    # Create the prompt with memory context
+                    prompt = f"""You are KubeSage, an AI assistant specialized in Kubernetes operations and troubleshooting.
+
+Previous conversation context:
+{memory.buffer if hasattr(memory, 'buffer') else 'No previous context'}
+
+Current user message: {clean_message}
+
+Please provide a helpful response about Kubernetes. If the user asks about kubectl commands, provide them in code blocks. Be concise but informative."""
+
+                    full_response = ""
                     
-                    # Get the full response at the end
-                    full_response = streaming_handler.get_full_response()
+                    async for chunk in llm.astream(prompt):
+                        if chunk.content:
+                            full_response += chunk.content
+                            yield f"data: {json.dumps({'token': chunk.content, 'done': False})}\n\n"
                     
-                    # Store the assistant's response
-                    await add_chat_message(db, session, "assistant", full_response)
+                    # Save assistant response (with error handling)
+                    try:
+                        if message_service.should_save_message("assistant", full_response, True):
+                            chat_service.add_message(
+                                chat_session.session_id,
+                                "assistant", 
+                                full_response
+                            )
+                            logger.info("Saved assistant response")
+                    except Exception as e:
+                        logger.error(f"Error saving assistant response: {e}")
                     
-                    # Update session title if it's a new session
-                    if is_new_session:
-                        await update_session_title(db, session, message.content)
-                    
-                    # Send a final message indicating the stream is complete
-                    yield f"data: {json.dumps({'done': True, 'session_id': session_id})}\n\n"
+                    # Send completion signal
+                    yield f"data: {json.dumps({'token': None, 'done': True, 'session_id': chat_session.session_id})}\n\n"
                     
                 except Exception as e:
-                    logger.error(f"Error in streaming response: {str(e)}")
-                    yield f"data: {json.dumps({'error': str(e), 'session_id': session_id})}\n\n"
-                    yield f"data: {json.dumps({'done': True, 'session_id': session_id})}\n\n"
+                    logger.error(f"Error in streaming response: {e}")
+                    yield f"data: {json.dumps({'error': str(e), 'done': True})}\n\n"
             
             return StreamingResponse(
-                stream_response(),
-                media_type="text/event-stream"
+                generate_stream(),
+                media_type="text/plain",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive",
+                    "Access-Control-Allow-Origin": "*",
+                }
             )
+        
         else:
-            # Process with LangChain (non-streaming)
-            langchain_result = await process_with_langchain(
-                user_message=message.content,
-                memory=memory,
-                stream=False
-            )
-            
-            # Get the result
-            assistant_message = langchain_result["result"]
-            
-            # Store the assistant's response
-            assistant_chat_msg = await add_chat_message(db, session, "assistant", assistant_message)
-            
-            # Update session title if it's a new session
-            if is_new_session:
-                await update_session_title(db, session, message.content)
-            
-            # Return the response
-            return MessageResponse(
-                role="assistant",
-                content=assistant_message,
-                session_id=session_id,
-                created_at=assistant_chat_msg.created_at
-            )
+            # Non-streaming response
+            try:
+                llm = get_non_streaming_llm()
+                
+                # Create the prompt with memory context
+                prompt = f"""You are KubeSage, an AI assistant specialized in Kubernetes operations and troubleshooting.
+
+Previous conversation context:
+{memory.buffer if hasattr(memory, 'buffer') else 'No previous context'}
+
+Current user message: {clean_message}
+
+Please provide a helpful response about Kubernetes. If the user asks about kubectl commands, provide them in code blocks. Be concise but informative."""
+
+                response = await llm.ainvoke(prompt)
+                assistant_message = response.content
+                
+                # Save assistant response (with error handling)
+                try:
+                    if message_service.should_save_message("assistant", assistant_message, True):
+                        chat_service.add_message(
+                            chat_session.session_id,
+                            "assistant", 
+                            assistant_message
+                        )
+                        logger.info("Saved assistant response")
+                except Exception as e:
+                    logger.error(f"Error saving assistant response: {e}")
+                
+                return MessageResponse(
+                    role="assistant",
+                    content=assistant_message,
+                    session_id=chat_session.session_id,
+                    created_at=datetime.utcnow()
+                )
+                
+            except Exception as e:
+                logger.error(f"Error generating response: {e}")
+                raise HTTPException(
+                    status_code=500,
+                    detail="Failed to generate response"
+                )
     
     except HTTPException:
-        # Re-raise HTTP exceptions
         raise
     except Exception as e:
-        logger.error(f"Error in chat endpoint: {str(e)}")
-        import traceback
-        logger.error(traceback.format_exc())
+        logger.error(f"Error in chat endpoint: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An error occurred while processing your message: {str(e)}"
+            status_code=500,
+            detail="Internal server error"
         )
-# Add a dedicated streaming endpoint
-@router.post("/stream",
-            summary="Stream Chat Message",
-            description="Sends a message to the chat service and streams the AI response")
-async def stream_chat(
-    message: MessageCreate,
-    db: Session = Depends(get_session),
-    current_user: UserInfo = Depends(get_current_user),
-    authorization: str = Header(None)
+
+# Get chat sessions - API-2
+@router.get("/sessions", response_model=ChatSessionList)
+async def list_sessions(
+    current_user: Dict[str, Any] = Depends(get_current_active_user),
+    session: Session = Depends(get_session),
+    skip: int = 0,
+    limit: int = 50,
+    include_inactive: bool = False
 ):
-    """
-    Sends a message to the chat service and streams the AI response.
-    
-    - Accepts a message from the user
-    - Processes the message through the LangChain AI backend
-    - Streams the AI response tokens as they are generated
-    
-    Parameters:
-        message: The message content and session information
-        authorization: Bearer token for authentication
-    
-    Returns:
-        StreamingResponse: A streaming response with the AI's tokens
-    """
-    # Reuse the chat endpoint with stream=True
-    return await chat(message, db, current_user, authorization, stream=True)
- 
-async def stream_chat_response(
-    message: str,
-    session_id: str,
-    user_id: int,
-    db: Session,
-    token: str = None
-) -> AsyncIterator[str]:
-    """Generate a streaming response for the chat message."""
-    # Create a streaming callback handler
-    streaming_handler = StreamingCallbackHandler()
-    
-    # Get chat history
-    messages = await get_chat_history(db, session_id, user_id)
-    
-    # For new sessions, get K8s analysis first
-    is_new_session = len(messages) == 0
-    analysis_output = ""
-    
-    if is_new_session:
-        analysis_output = await get_k8s_analysis(user_id, token)
-    
-    # Build the user content
-    if is_new_session and analysis_output:
-        user_content = f"Analysis results:\n{analysis_output}\n\nUser question: {message}"
-    else:
-        user_content = message
-    
-    # Add user message to history
-    from app.models import ChatMessage
-    session = await get_chat_session(db, session_id, user_id)
-    from app.services import add_chat_message
-    await add_chat_message(db, session, "user", user_content)
-    
-    # Get updated chat history
-    messages = await get_chat_history(db, session_id, user_id)
-    
-    # Build messages array for OpenAI
-    openai_messages = [
-        {
-            "role": "system",
-            "content": "You are a helpful Kubernetes assistant. Use the analysis results and previous context to answer questions. Please respond in Markdown format for all outputs."
-        }
-    ]
-    
-    # Add history to messages
-    for msg in messages:
-        openai_messages.append({"role": msg.role, "content": msg.content})
-    
-    # Create LLM with streaming
-    llm = get_streaming_llm(streaming_handler)
-    
-    # Start the LLM in a background task
-    from app.config import settings
-    import openai
-    
-    task = asyncio.create_task(
-        llm.chat.completions.create(
-            model=settings.OPENAI_MODEL,
-            messages=openai_messages,
-            stream=True
-        )
-    )
-    
-    # Stream tokens as they come
-    while True:
-        try:
-            # Get the next token from the queue
-            token = await asyncio.wait_for(streaming_handler.tokens_queue.get(), timeout=30.0)
-            
-            # If token is None, we've reached the end of the stream
-            if token is None:
-                # Store the complete response in the database
-                full_response = streaming_handler.get_full_response()
-                await add_chat_message(db, session, "assistant", full_response)
-                
-                # Update session title if it's a new session
-                if is_new_session:
-                    await update_session_title(db, session, message)
-                break
-                
-            # Send the token in SSE format
-            yield f"data: {json.dumps({'token': token, 'session_id': session_id})}\n\n"
-                        
-        except asyncio.TimeoutError:
-            # If we don't get a token for 30 seconds, assume something went wrong
-            yield f"data: {json.dumps({'token': '...', 'error': 'Timeout waiting for response', 'session_id': session_id})}\n\n"
-            break
-        except Exception as e:
-            # Handle any other errors
-            yield f"data: {json.dumps({'token': '...', 'error': str(e), 'session_id': session_id})}\n\n"
-            break
-    
-    # Send a final message indicating the stream is complete
-    yield f"data: {json.dumps({'done': True, 'session_id': session_id})}\n\n"
-    
-    # Make sure the task completes
+    """List user's chat sessions."""
     try:
-        await task
-    except Exception as e:
-        logger.error(f"Error in streaming task: {str(e)}")
- 
-@router.get("/history/{session_id}", response_model=ChatHistoryResponse,
-           summary="Get Chat History",
-           description="Retrieves the message history for a specific chat session")
-async def get_chat_session_history(
-    session_id: str,
-    limit: int = Query(50, ge=1, le=100, description="Maximum number of messages to return"),
-    db: Session = Depends(get_session),
-    current_user: UserInfo = Depends(get_current_user)
-    ):
-    """
-    Retrieves the message history for a specific chat session.
-    
-    - Verifies the session belongs to the current user
-    - Retrieves messages with pagination support
-    - Returns the session details and message history
-    
-    Parameters:
-        session_id: Unique identifier for the chat session
-        limit: Maximum number of messages to return (1-100)
-    
-    Returns:
-        ChatHistoryResponse: Session details and message history
-    
-    Raises:
-        HTTPException: 404 if session not found
-        HTTPException: 500 if retrieval fails
-    """
-    try:
-        session = await get_chat_session(db, session_id, current_user.id)
-        if not session:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat session not found")
-        # Get messages with limit
-        messages = await get_chat_history(db, session_id, current_user.id, limit=limit)
-        return ChatHistoryResponse(
-            session_id=session.session_id,
-            title=session.title,
-            messages=[ChatHistoryEntry(role=msg.role, content=msg.content, created_at=msg.created_at) for msg in messages],
-            created_at=session.created_at,
-            updated_at=session.updated_at
-        )
-    except HTTPException:
-        # Re-raise HTTP exceptions
-        raise
-    except Exception as e:
-        logger.error(f"Error getting chat history: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve chat history. Please try again."
-        )
- 
-@router.get("/sessions", response_model=ChatSessionList,
-           summary="List Chat Sessions",
-           description="Lists all chat sessions for the current user")
-async def list_chat_sessions(
-    skip: int = Query(0, ge=0, description="Number of sessions to skip"),
-    limit: int = Query(100, ge=1, le=1000, description="Maximum number of sessions to return"),
-    active_only: bool = Query(True, description="Return only active sessions"),
-    db: Session = Depends(get_session),
-    current_user: UserInfo = Depends(get_current_user)
-    ):
-    """
-    Lists all chat sessions for the current user.
-    
-    - Retrieves chat sessions with pagination support
-    - Can filter for active sessions only
-    - Returns session metadata including creation and update times
-    
-    Parameters:
-        skip: Number of sessions to skip (for pagination)
-        limit: Maximum number of sessions to return
-        active_only: Whether to return only active sessions
-    
-    Returns:
-        ChatSessionList: List of chat session metadata
-    
-    Raises:
-        HTTPException: 500 if retrieval fails
-    """
-    try:
-        # Add a smaller default limit to improve performance
-        if limit > 50:
-            limit = 50
-        sessions = await list_user_chat_sessions(db, current_user.id, skip, limit, active_only)
-        return ChatSessionList(
-            sessions=[
-                ChatSessionResponse(
-                    id=session.id,
-                    session_id=session.session_id,
-                    title=session.title,
-                    created_at=session.created_at,
-                    updated_at=session.updated_at,
-                    is_active=session.is_active
-                ) for session in sessions
-            ]
-        )
-    except Exception as e:
-        logger.error(f"Error listing chat sessions: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve chat sessions. Please try again."
-        )
- 
-@router.post("/sessions", response_model=ChatSessionResponse, status_code=status.HTTP_201_CREATED,
-            summary="Create Chat Session",
-            description="Creates a new chat session")
-async def create_session(
-    session_data: ChatSessionCreate,
-    db: Session = Depends(get_session),
-    current_user: UserInfo = Depends(get_current_user)
-):
-    """
-    Creates a new chat session.
-    
-    - Creates a new chat session with the provided title
-    - Associates the session with the current user
-    - Returns the created session details
-    
-    Parameters:
-        session_data: Contains the title for the new session
-    
-    Returns:
-        ChatSessionResponse: The created chat session details
-    
-    Raises:
-        HTTPException: If session creation fails
-    """
-    session = await create_chat_session(db, current_user.id, session_data)
-    
-    return ChatSessionResponse(
-        id=session.id,
-        session_id=session.session_id,
-        title=session.title,
-        created_at=session.created_at,
-        updated_at=session.updated_at,
-        is_active=session.is_active
-    )
- 
-@router.patch("/sessions/{session_id}", response_model=ChatSessionResponse,
-             summary="Update Chat Session",
-             description="Updates a chat session's title or active status")
-async def update_session(
-    session_id: str = Path(..., description="The unique ID of the chat session"),
-    session_data: ChatSessionUpdate = Body(..., description="Session data to update"),
-    db: Session = Depends(get_session),
-    current_user: UserInfo = Depends(get_current_user)
-):
-    """
-    Updates a chat session's title or active status.
-    
-    - Verifies the session belongs to the current user
-    - Updates the session title and/or active status
-    - Returns the updated session details
-    
-    Parameters:
-        session_id: Unique identifier for the chat session
-        session_data: Contains the title and/or active status to update
-    
-    Returns:
-        ChatSessionResponse: The updated chat session details
-    
-    Raises:
-        HTTPException: 404 if session not found
-    """
-    # Get session first to verify ownership
-    session = await get_chat_session(db, session_id, current_user.id)
-    if not session:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Chat session not found"
+        user_id = current_user["id"]
+        chat_service = ChatService(session)
+        sessions = chat_service.list_user_sessions(
+            user_id, skip, limit, include_inactive
         )
         
-    
-    # Update fields
-    if session_data.title is not None:
-        session.title = session_data.title
-    
-    if session_data.is_active is not None:
-        session.is_active = session_data.is_active
-    
-    session.updated_at = datetime.utcnow()
-    
-    # Save changes
-    db.add(session)
-    db.commit()
-    db.refresh(session)
-    
-    return ChatSessionResponse(
-        id=session.id,
-        session_id=session.session_id,
-        title=session.title,
-        created_at=session.created_at,
-        updated_at=session.updated_at,
-        is_active=session.is_active
-    )
- 
-@router.delete("/sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT,
-              summary="Delete Chat Session",
-              description="Deletes a chat session and optionally its messages")
-async def delete_session(
-    session_id: str = Path(..., description="The unique ID of the chat session"),
-    permanent: bool = Query(False, description="Permanently delete the session and all its messages"),
-    db: Session = Depends(get_session),
-    current_user: UserInfo = Depends(get_current_user)
+        session_responses = [
+            ChatSessionResponse(
+                id=s.id,
+                session_id=s.session_id,
+                title=s.title,
+                created_at=s.created_at,
+                updated_at=s.updated_at,
+                is_active=s.is_active
+            )
+            for s in sessions
+        ]
+        
+        return ChatSessionList(sessions=session_responses)
+        
+    except Exception as e:
+        logger.error(f"Error listing sessions: {e}")
+        raise HTTPException(status_code=500, detail="Failed to list sessions")
+
+# Create chat session -- API-3
+@router.post("/sessions", response_model=ChatSessionResponse)
+async def create_session(
+    session_data: ChatSessionCreate,
+    current_user: Dict[str, Any] = Depends(get_current_active_user),
+    session: Session = Depends(get_session)
 ):
-    """
-    Deletes a chat session and optionally its messages.
-    
-    - Verifies the session belongs to the current user
-    - Performs either a soft delete (marking as inactive) or hard delete (removing from database)
-    - Returns no content on success
-    
-    Parameters:
-        session_id: Unique identifier for the chat session
-        permanent: Whether to permanently delete the session and all its messages
-    
-    Returns:
-        None: Returns 204 No Content on success
-    
-    Raises:
-        HTTPException: 404 if session not found
-    """
-    # Get session first to verify ownership
-    session = await get_chat_session(db, session_id, current_user.id)
-    if not session:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Chat session not found"
-        )
-    
-    await delete_chat_session(db, session, permanent)
-    # No content returned for successful deletion
- 
-@router.post("/sessions/{session_id}/title", response_model=ChatSessionResponse,
-            summary="Generate Session Title",
-            description="Auto-generates a title for the chat session based on its content")
-async def generate_session_title(
-    session_id: str = Path(..., description="The unique ID of the chat session"),
-    db: Session = Depends(get_session),
-    current_user: UserInfo = Depends(get_current_user)
-):  
-    """
-    Auto-generates a title for the chat session based on its content.
-    
-    - Verifies the session belongs to the current user
-    - Retrieves the chat history
-    - Uses the first user message to generate a title
-    - Updates the session with the generated title
-    - Returns the updated session details
-    
-    Parameters:
-        session_id: Unique identifier for the chat session
-    
-    Returns:
-        ChatSessionResponse: The updated chat session details with the generated title
-    
-    Raises:
-        HTTPException: 404 if session not found
-        HTTPException: 400 if session has no messages
-    """
-    logger.debug(f"Received session_id: {session_id}, current_user.id: {current_user.id}")
-    """Auto-generate a title for the chat session based on content"""
-    # Get session first to verify ownership
-    session = await get_chat_session(db, session_id, current_user.id)
-    if not session:
-        logger.debug(f"Session with ID {session_id} not found for user {current_user.id}")
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Chat session not found"
-        )
-    else:
-        logger.debug(f"Session found: {session.session_id}")
-    
-    # Get chat history
-    messages = await get_chat_history(db, session_id, current_user.id)
-    if not messages:
-        logger.debug(f"No messages found for session_id: {session_id}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot generate title for empty chat session"
-        )
-    else:
-        logger.debug(f"Messages found: {len(messages)}")
-    
-    # Use the first user message to generate title
-    user_messages = [msg for msg in messages if msg.role == "user"]
-    if not user_messages:
-        logger.debug(f"No user messages found in session: {session_id}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No user messages found in chat session"
-        )
-    else:
-        logger.debug(f"User messages found: {len(user_messages)}")
-    
-    first_message = user_messages[0].content
-    logger.debug(f"First user message: {first_message}")
-   
-    # Generate and update title
-    await update_session_title(db, session, first_message)
-    
-    return ChatSessionResponse(
-        id=session.id,
-        session_id=session.session_id,
-        title=session.title,
-        created_at=session.created_at,
-        updated_at=session.updated_at,
-        is_active=session.is_active
-    )
- 
-@router.get("/analysis", response_model=dict,
-           summary="Get Kubernetes Analysis",
-           description="Retrieves Kubernetes cluster analysis results")
-async def get_analysis(
-    current_user: UserInfo = Depends(get_current_user),
-    authorization: str = Header(None)
-):
-    """
-    Retrieves Kubernetes cluster analysis results directly.
-    
-    - Uses the K8sGPT service to analyze the user's Kubernetes cluster
-    - Returns the analysis results
-    
-    Returns:
-        dict: The Kubernetes analysis results
-    
-    Raises:
-        HTTPException: If analysis fails or connection to K8sGPT service fails
-    """
-    token = authorization.split(" ")[1] if authorization else None
-    analysis = await get_k8s_analysis(current_user.id, token)
-    return {"analysis": analysis}
- 
-@router.get("/sessions/{session_id}", response_model=ChatSessionResponse,
-           summary="Get Session Info",
-           description="Retrieves information about a specific chat session")
-async def get_session_info(
-    session_id: str = Path(..., description="The unique ID of the chat session"),
-    db: Session = Depends(get_session),
-    current_user: UserInfo = Depends(get_current_user)
-):
-    """
-    Retrieves information about a specific chat session.
-    
-    - Verifies the session belongs to the current user
-    - Returns the session metadata including creation and update times
-    
-    Parameters:
-        session_id: Unique identifier for the chat session
-    
-    Returns:
-        ChatSessionResponse: The chat session details
-    
-    Raises:
-        HTTPException: 404 if session not found
-    """
-    session = await get_chat_session(db, session_id, current_user.id)
-    if not session:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Chat session not found"
-        )
-    
-    return ChatSessionResponse(
-        id=session.id,
-        session_id=session.session_id,
-        title=session.title,
-        created_at=session.created_at,
-        updated_at=session.updated_at,
-        is_active=session.is_active
-    )
- 
-@router.get("/conversation/{session_id}",
-           summary="View Conversation",
-           description="View the full conversation history for a session")
-async def view_conversation(
-    session_id: str,
-    db: Session = Depends(get_session),
-    current_user: UserInfo = Depends(get_current_user)
-):
-    """View the full conversation history for a session."""
-    session = await get_chat_session(db, session_id, current_user.id)
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
-    
-    messages = await get_chat_history(db, session_id, current_user.id)
-    
-    # Format the conversation in a readable way
-    formatted_conversation = []
-    for msg in messages:
-        formatted_conversation.append({
-            "role": msg.role,
-            "content": msg.content,
-            "created_at": msg.created_at.isoformat()
-        })
-    
-    return {
-        "session_id": session_id,
-        "title": session.title,
-        "conversation": formatted_conversation
-    }
- 
-@router.delete("/conversation/{session_id}",
-              summary="Clear Conversation",
-              description="Clear the conversation history for a session")
-async def clear_conversation(
-    session_id: str,
-    db: Session = Depends(get_session),
-    current_user: UserInfo = Depends(get_current_user)
-):
-    """Clear the conversation history for a session."""
-    session = await get_chat_session(db, session_id, current_user.id)
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
-    
-    from sqlalchemy import delete
-    from app.models import ChatMessage
-    
-    # Delete all messages for this session
-    db.exec(delete(ChatMessage).where(ChatMessage.session_id == session_id))
-    db.commit()
-    
-    return {"message": f"Conversation history cleared for session {session_id}"}
- 
-@router.get("/debug/session/{session_id}",
-           summary="Debug Session Memory",
-           description="Debug endpoint to check session memory state")
-async def debug_session_memory(
-    session_id: str,
-    db: Session = Depends(get_session),
-    current_user: UserInfo = Depends(get_current_user)
-):
-    """Debug endpoint to check session memory state."""
+    """Create a new chat session."""
     try:
-        # Get session
-        session = await get_chat_session(db, session_id, current_user.id)
-        if not session:
+        user_id = current_user["id"]
+        chat_service = ChatService(session)
+        new_session = chat_service.create_session(
+            user_id, 
+            session_data.title
+        )
+        
+        return ChatSessionResponse(
+            id=new_session.id,
+            session_id=new_session.session_id,
+            title=new_session.title,
+            created_at=new_session.created_at,
+            updated_at=new_session.updated_at,
+            is_active=new_session.is_active
+        )
+        
+    except Exception as e:
+        logger.error(f"Error creating session: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create session")
+
+# Get session by ID -- API-4
+@router.put("/sessions/{session_id}", response_model=ChatSessionResponse)
+async def update_session(
+    session_id: str,
+    session_data: ChatSessionUpdate,
+    current_user: Dict[str, Any] = Depends(get_current_active_user),
+    session: Session = Depends(get_session)
+):
+    """Update a chat session."""
+    try:
+        user_id = current_user["id"]
+        chat_service = ChatService(session)
+        updated_session = chat_service.update_session(
+            session_id, 
+            user_id, 
+            session_data.model_dump(exclude_unset=True)
+        )
+        
+        if not updated_session:
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        return ChatSessionResponse(
+            id=updated_session.id,
+            session_id=updated_session.session_id,
+            title=updated_session.title,
+            created_at=updated_session.created_at,
+            updated_at=updated_session.updated_at,
+            is_active=updated_session.is_active
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating session: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update session")
+
+# Delete sesstion - API-5
+@router.delete("/sessions/{session_id}")
+async def delete_session(
+    session_id: str,
+    current_user: Dict[str, Any] = Depends(get_current_active_user),
+    session: Session = Depends(get_session)
+):
+    """Delete a chat session."""
+    try:
+        user_id = current_user["id"]
+        chat_service = ChatService(session)
+        success = chat_service.delete_session(session_id, user_id)
+        
+        if not success:
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        return {"message": "Session deleted successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting session: {e}")
+        raise HTTPException(status_code=500, detail="Failed to delete session")
+
+#  Get session history - API-6
+@router.get("/sessions/{session_id}/history", response_model=ChatHistoryResponse)
+async def get_session_history(
+    session_id: str,
+    current_user: Dict[str, Any] = Depends(get_current_active_user),
+    session: Session = Depends(get_session),
+    limit: Optional[int] = None
+):
+    """Get chat history for a session."""
+    try:
+        user_id = current_user["id"]
+        chat_service = ChatService(session)
+        
+        # Verify session ownership
+        chat_session = chat_service.get_session(session_id, user_id)
+        if not chat_session:
             raise HTTPException(status_code=404, detail="Session not found")
         
         # Get messages
-        messages = await get_chat_history(db, session_id, current_user.id)
+        messages = chat_service.get_session_messages(session_id, limit)
         
-        # Create memory
-        memory = await create_memory_from_messages(messages)
+        from app.schemas import ChatHistoryEntry
+        history_entries = [
+            ChatHistoryEntry(
+                role=msg.role,
+                content=msg.content,
+                created_at=msg.created_at
+            )
+            for msg in messages
+        ]
         
-        # Get memory buffer
-        buffer = memory.buffer if hasattr(memory, 'buffer') else "No buffer"
+        return ChatHistoryResponse(
+            session_id=session_id,
+            title=chat_session.title,
+            messages=history_entries,
+            created_at=chat_session.created_at,
+            updated_at=chat_session.updated_at
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting session history: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get session history")
+
+# Clear session messages - API-7
+@router.delete("/sessions/{session_id}/messages")
+async def clear_session_messages(
+    session_id: str,
+    current_user: Dict[str, Any] = Depends(get_current_active_user),
+    session: Session = Depends(get_session)
+):
+    """Clear all messages in a session."""
+    try:
+        user_id = current_user["id"]
+        chat_service = ChatService(session)
+        success = chat_service.clear_session_messages(session_id, user_id)
+        
+        if not success:
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        return {"message": "Session messages cleared successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error clearing session messages: {e}")
+        raise HTTPException(status_code=500, detail="Failed to clear messages")
+
+# Get session title - API-8
+@router.post("/sessions/{session_id}/title")
+async def generate_session_title(
+    session_id: str,
+    current_user: Dict[str, Any] = Depends(get_current_active_user),
+    session: Session = Depends(get_session)
+):
+    """Generate a title for the session based on conversation."""
+    try:
+        user_id = current_user["id"]
+        chat_service = ChatService(session)
+        
+        # Verify session ownership
+        chat_session = chat_service.get_session(session_id, user_id)
+        if not chat_session:
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        # Get recent messages
+        messages = chat_service.get_session_messages(session_id, limit=10)
+        
+        if not messages:
+            raise HTTPException(status_code=400, detail="No messages to generate title from")
+        
+        # Generate title using LLM
+        try:
+            llm = get_non_streaming_llm()
+            
+            # Create context from messages
+            context = "\n".join([
+                f"{msg.role}: {msg.content[:200]}..." 
+                for msg in messages[:5]  # Use first 5 messages
+            ])
+            
+            prompt = f"""Based on this conversation, generate a short, descriptive title (max 50 characters):
+
+{context}
+
+Title:"""
+            
+            response = await llm.ainvoke(prompt)
+            title = response.content.strip().replace('"', '').replace("'", "")[:50]
+            
+            # Update session title
+            updated_session = chat_service.update_session(
+                session_id, 
+                user_id, 
+                {"title": title}
+            )
+            
+            return {
+                "title": title,
+                "session_id": session_id
+            }
+            
+        except Exception as e:
+            logger.error(f"Error generating title: {e}")
+            # Fallback to a generic title
+            fallback_title = f"Chat {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}"
+            chat_service.update_session(
+                session_id, 
+                user_id, 
+                {"title": fallback_title}
+            )
+            return {
+                "title": fallback_title,
+                "session_id": session_id
+            }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in generate title: {e}")
+        raise HTTPException(status_code=500, detail="Failed to generate title")
+
+# Health and debug endpoints
+
+# Cluster health - API-9
+@router.get("/health")
+async def health_check():
+    """Health check endpoint."""
+    try:
+        # Test database connection
+        from app.database import engine
+        from sqlalchemy import text
+        
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        
+        # Test LLM connection
+        llm = get_non_streaming_llm()
+        await llm.ainvoke("Hello")
         
         return {
-            "session_id": session_id,
-            "message_count": len(messages),
-            "messages": [{"role": msg.role, "content": msg.content[:100]} for msg in messages],
-            "memory_buffer": buffer[:500] if buffer else "No buffer",
-            "memory_messages": [{"type": type(msg).__name__, "content": msg.content[:100]} for msg in memory.chat_memory.messages] if hasattr(memory.chat_memory, 'messages') else []
+            "status": "healthy",
+            "database": "connected",
+            "llm": "connected",
+            "timestamp": datetime.utcnow().isoformat()
         }
-    except Exception as e:
-        logger.error(f"Debug error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
         
- 
- 
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail=f"Service unhealthy: {str(e)}"
+        )
+# Debug endpoints - API-10
+@router.get("/debug/schema")
+async def debug_schema(
+    current_user: Dict[str, Any] = Depends(get_current_active_user),
+    session: Session = Depends(get_session)
+):
+    """Debug endpoint to check database schema."""
+    try:
+        from app.database import engine
+        from sqlalchemy import inspect
+        
+        inspector = inspect(engine)
+        tables = inspector.get_table_names()
+        
+        schema_info = {}
+        for table in tables:
+            columns = inspector.get_columns(table)
+            schema_info[table] = [
+                {
+                    "name": col["name"],
+                    "type": str(col["type"]),
+                    "nullable": col["nullable"]
+                }
+                for col in columns
+            ]
+        
+        return {
+            "tables": tables,
+            "schema": schema_info,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Schema debug failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Schema check failed: {str(e)}")
+
+# Debug and test -API-11
+@router.get("/debug/test-llm")
+async def debug_test_llm(
+    current_user: Dict[str, Any] = Depends(get_current_active_user)
+):
+    """Debug endpoint to test LLM connection."""
+    try:
+        llm = get_non_streaming_llm()
+        response = await llm.ainvoke("Respond with 'LLM is working correctly'")
+        
+        return {
+            "status": "success",
+            "response": response.content,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"LLM test failed: {e}")
+        raise HTTPException(status_code=500, detail=f"LLM test failed: {str(e)}")

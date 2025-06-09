@@ -1,30 +1,26 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import HTTPException, Depends, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
-from app.config import settings
-from app.schemas import TokenData, UserInfo
-from app.logger import logger
 import httpx
-from typing import Optional
- 
+from app.config import settings
+from app.logger import logger
+from typing import Dict, Optional
+
+# Token handling
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.USER_SERVICE_URL}/auth/token")
- 
-async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserInfo:
+
+async def get_current_user_from_token(token: str = Depends(oauth2_scheme)) -> Dict:
     """
-    Authenticate and get the current user from the token.
-    
-    This function validates the JWT token by making a request to the user service.
-    It returns the user information if the token is valid.
+    Validate token with user service and get current user information
     """
-    logger.debug("Authenticating user using token...")
- 
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
- 
+    
     try:
+        # Call user service to validate token and get user info
         async with httpx.AsyncClient(verify=False) as client:
             response = await client.get(
                 f"{settings.USER_SERVICE_URL}/users/me",
@@ -33,22 +29,46 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserInfo:
             
             if response.status_code == 200:
                 user_data = response.json()
-                return UserInfo(
-                    id=user_data["id"],
-                    username=user_data["username"],
-                    email=user_data.get("email", "")
-                )
+                return user_data
             else:
                 logger.error(f"Token validation failed: {response.text}")
                 raise credentials_exception
     except httpx.RequestError as e:
-        logger.error(f"Connection error with user service: {str(e)}")
+        logger.error(f"Error connecting to user service: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="User authentication service unavailable"
         )
     except Exception as e:
-        logger.error(f"Unexpected error in auth: {str(e)}")
+        logger.error(f"Error in authentication: {str(e)}")
         raise credentials_exception
- 
- 
+
+# Simplified version for development if user service is not available yet
+async def get_current_user_from_token_dev(token: str = Depends(oauth2_scheme)) -> Dict:
+    """
+    Development version - simply extracts user ID from token without validation
+    """
+    try:
+        # This is a simplified version that just extracts the user ID
+        # without proper validation - only for development
+        payload = jwt.decode(
+            token, 
+            settings.SECRET_KEY,  # Use the actual secret key from settings
+            algorithms=[settings.ALGORITHM]
+        )
+        user_id = int(payload.get("sub", 0))
+        if user_id <= 0:
+            raise ValueError("Invalid user ID")
+            
+        return {"id": user_id, "username": f"user{user_id}"}
+    except Exception as e:
+        logger.error(f"Dev token validation error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+# Use the appropriate function based on environment
+get_current_user = get_current_user_from_token  # Change to get_current_user_from_token_dev for development
+get_current_active_user = get_current_user_from_token  # Alias for compatibility

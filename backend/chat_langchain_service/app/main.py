@@ -1,102 +1,111 @@
-from fastapi import FastAPI, Request, Response, Cookie
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes import router
-from app.database import create_db_and_tables
-from app.logger import logger
-import time
-from typing import Optional
+from fastapi.responses import JSONResponse
 import uvicorn
-import os
- 
+from contextlib import asynccontextmanager
+
+from app.config import settings
+from app.database import create_db_and_tables
+from app.routes import router
+from app.logger import logger
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan manager."""
+    # Startup
+    logger.info("Starting Chat LangChain Service...")
+    try:
+        create_db_and_tables()
+        logger.info("Database initialized successfully")
+    except Exception as e:
+        logger.error(f"Database initialization failed: {e}")
+    
+    # Test LangChain connection
+    try:
+        from app.langchain_service import get_non_streaming_llm
+        llm = get_non_streaming_llm()
+        test_response = await llm.ainvoke("Hello")
+        logger.info("LangChain connection test successful")
+    except Exception as e:
+        logger.error(f"LangChain connection test failed: {e}")
+    
+    yield
+    
+    # Shutdown
+    logger.info("Shutting down Chat LangChain Service...")
+
+# Create FastAPI app
 app = FastAPI(
-    title="Chat Service",
-    description="Microservice for managing chat interactions with AI for Kubernetes analysis",
-    version="0.1.0"
+    title="KubeSage Chat LangChain Service",
+    description="""
+    Chat service with LangChain integration for Kubernetes assistance.
+    
+    Features:
+    - Context-aware conversations with session management
+    - LangChain-powered AI responses with tool calling
+    - Kubernetes event fetching and kubectl command execution
+    - Streaming and non-streaming responses
+    - Chat history and session management
+    - User authentication and authorization
+    """,
+    version="1.0.0",
+    lifespan=lifespan,
+    docs_url="/docs",
+    redoc_url="/redoc"
 )
- 
-# Allow frontend requests
-origins = [
-    "*",  # Allow all origins for development
-]
- 
-# Configure CORS
+
+# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],  # Configure appropriately for production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
- 
-# Request timing middleware
-@app.middleware("http")
-async def add_process_time_header(request: Request, call_next):
-    start_time = time.time()
-    response = await call_next(request)
-    process_time = time.time() - start_time
-    response.headers["X-Process-Time"] = str(process_time)
-    return response
- 
-# Include routers
-app.include_router(router)
- 
-@app.on_event("startup")
-async def startup_event():
-    logger.info("Starting Chat Service")
-    create_db_and_tables()
-    logger.info("Database tables created")
- 
-@app.on_event("shutdown")
-async def shutdown_event():
-    logger.info("Shutting down Chat Service")
- 
+
+# Include routes
+app.include_router(router, prefix="/api/v1", tags=["chat"])
+
+# Global exception handler
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Global exception handler for unhandled errors."""
+    logger.error(f"Unhandled exception: {str(exc)}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": "Internal server error",
+            "error": str(exc) if settings.DEBUG else "An unexpected error occurred"
+        }
+    )
+
+# Health check endpoint
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy"}
- 
+    """Basic health check endpoint."""
+    return {
+        "status": "healthy",
+        "service": "chat-langchain-service",
+        "version": "1.0.0"
+    }
+
+# Root endpoint
 @app.get("/")
 async def root():
+    """Root endpoint with service information."""
     return {
-        "service": "Chat Service",
-        "version": "0.1.0",
-        "status": "running"
+        "service": "KubeSage Chat LangChain Service",
+        "version": "1.0.0",
+        "docs": "/docs",
+        "health": "/health",
+        "api": "/api/v1"
     }
- 
-# Get current session (useful for frontend to know the current session)
-@app.get("/current-session")
-async def get_current_session(session_id: Optional[str] = Cookie(None)):
-    """Get the current session ID from cookie."""
-    from app.services import get_chat_session
-    
-    if not session_id:
-        return {"session_id": None, "status": "no_session"}
-    
-    session = await get_chat_session(None, session_id)
-    if not session:
-        return {"session_id": None, "status": "invalid_session"}
-    
-    return {"session_id": session_id, "status": "active"}
- 
-# Add this section to run the app with HTTPS when executed directly
+
 if __name__ == "__main__":
-    import os
-    
-    # Get the absolute path to the certificate files
-    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    ssl_keyfile = os.path.join(base_dir, "server.key")
-    ssl_certfile = os.path.join(base_dir, "server.crt")
-    
-    if os.path.exists(ssl_keyfile) and os.path.exists(ssl_certfile):
-        logger.info(f"Starting server with HTTPS using certificates at {ssl_keyfile} and {ssl_certfile}")
-        uvicorn.run(
-            "app.main:app",
-            host="0.0.0.0",
-            port=8443,
-            ssl_keyfile=ssl_keyfile,
-            ssl_certfile=ssl_certfile
-        )
-    else:
-        logger.warning(f"SSL certificates not found at {ssl_keyfile} and {ssl_certfile}, starting without HTTPS")
-        uvicorn.run("app.main:app", host="0.0.0.0", port=8000)
- 
- 
+    uvicorn.run(
+        "app.main:app",
+        host="0.0.0.0",
+        port=8003,
+        reload=settings.DEBUG,
+        log_level="info"
+    )

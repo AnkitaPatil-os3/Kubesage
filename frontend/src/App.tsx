@@ -2,7 +2,7 @@ import React from "react";
 import { Switch, Route, Redirect } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import { useTheme } from "@heroui/use-theme";
-
+ 
 // Pages
 import { LoginPage } from "./pages/login";
 import { DashboardLayout } from "./layouts/dashboard-layout";
@@ -11,8 +11,11 @@ import { ClusterHealth } from "./pages/cluster-health";
 import { ChatOps } from "./pages/chat-ops";
 import { AdminDashboard } from "./pages/admin-dashboard";
 import { UploadKubeconfig } from "./pages/upload-kubeconfig";
+import remediationsPage from "./pages/remediations";
 import { CostAnalysis } from "./components/cost-analysis";
-
+import { ObservabilityDashboard } from "./components/observability-dashboard";
+import { CarbonEmissionDashboard } from "./components/Carbon-emission";
+ 
 export default function App() {
   const { theme, setTheme } = useTheme();
   const [isAuthenticated, setIsAuthenticated] = React.useState(false);
@@ -33,7 +36,7 @@ export default function App() {
   const toggleTheme = () => {
     setTheme(theme === "light" ? "dark" : "light");
   };
-
+ 
   return (
     <div className={theme}>
       <AnimatePresence mode="wait">
@@ -50,7 +53,7 @@ export default function App() {
             {!isAuthenticated ? (
               <Redirect to="/login" />
             ) : (
-              <DashboardLayout 
+              <DashboardLayout
                 onLogout={handleLogout}
                 toggleTheme={toggleTheme}
                 currentTheme={theme}
@@ -63,6 +66,9 @@ export default function App() {
                   <Route path="/dashboard/admin" component={AdminDashboard} />
                   <Route path="/dashboard/upload" component={UploadKubeconfig} />
                   <Route path="/dashboard/cost" component={CostAnalysis} />
+                  <Route path="/dashboard/remediations" component={remediationsPage} />
+                  <Route path="/dashboard/observability" component={ObservabilityDashboard} />
+                  <Route path="/dashboard/carbon-emission" component={CarbonEmissionDashboard} />
                 </Switch>
               </DashboardLayout>
             )}

@@ -210,7 +210,8 @@ async def check_if_admin(current_user: User = Depends(get_current_user)):
 
 
 
-
+# Register API
+# Register API
 @auth_router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED, 
                  summary="Register User", description="Creates a new user account")
 async def register_user(user_data: UserCreate, session: Session = Depends(get_session)):
@@ -256,7 +257,6 @@ async def register_user(user_data: UserCreate, session: Session = Depends(get_se
         last_name=user_data.last_name,
         is_active=user_data.is_active,
         is_admin=user_data.is_admin
-        # is_admin="true"
     )
     
     try:
@@ -276,7 +276,7 @@ async def register_user(user_data: UserCreate, session: Session = Depends(get_se
             "last_name": db_user.last_name,
             "is_active": db_user.is_active,
             "is_admin": db_user.is_admin,
-            "timestamp": datetime.datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat()  # Fixed: removed duplicate datetime
         })
         
         return db_user

@@ -10,9 +10,7 @@ import uuid, ssl
 app = FastAPI(title="KubeSage User Service")
 
 # Allow frontend requests
-origins = [
-    "*",  # Frontend running locally   
-]
+
 
 # ✅ Configure CORS
 app.add_middleware(

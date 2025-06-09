@@ -8,11 +8,11 @@ class Settings(BaseSettings):
     DEBUG: bool = os.getenv("DEBUG", "False").lower() == "true"
     
     # PostgreSQL connection
-    POSTGRES_USER: str = os.getenv("POSTGRES_USER", "aastha")
-    POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "linux")
-    POSTGRES_HOST: str = os.getenv("POSTGRES_HOST", "localhost")
-    POSTGRES_PORT: str = os.getenv("POSTGRES_PORT", "5432")
-    POSTGRES_DB: str = os.getenv("POSTGRES_DB", "n_user_db")
+    POSTGRES_USER: str = os.getenv("POSTGRES_USER")
+    POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD")
+    POSTGRES_HOST: str = os.getenv("POSTGRES_HOST")
+    POSTGRES_PORT: str = os.getenv("POSTGRES_PORT")
+    POSTGRES_DB: str = os.getenv("POSTGRES_DB")
     DATABASE_URL: str = ""  # Will be constructed from above settings
     
     # RabbitMQ settings
