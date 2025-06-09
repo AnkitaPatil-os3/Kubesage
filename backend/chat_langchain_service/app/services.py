@@ -242,6 +242,16 @@ async def get_chat_history(
     limit: int = 100
 ) -> List[ChatMessage]:
     """Get chat history for a session with optional limit"""
+    
+    # If user_id is provided, verify session ownership first
+    if user_id is not None:
+        session = await get_chat_session(db, session_id, user_id)
+        if not session:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You are not authorized to access this session"
+            )
+    
     # Check cache first
     cache_key = get_messages_key(session_id)
     cached_messages = cache_get(cache_key)
@@ -252,34 +262,17 @@ async def get_chat_history(
     # Get from database if not in cache
     query = select(ChatMessage).where(ChatMessage.session_id == session_id).order_by(ChatMessage.created_at)
     
-    # If user_id is provided, verify session ownership
-    if user_id is not None:
-        session = await get_chat_session(db, session_id, user_id)
-        if not session:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You are not authorized to access this session"
-            )
-    
     # Apply limit to query
     query = query.limit(limit)
     
     # Retrieve messages from the database
     messages = db.exec(query).all()
     
-    # Update cache
+    # Update cache with the retrieved messages
     if messages:
-        message_list = [
-            {
-                "id": msg.id,
-                "role": msg.role,
-                "content": msg.content,
-                "created_at": msg.created_at.isoformat()
-            }
-            for msg in messages
-        ]
-        cache_set(cache_key, message_list, 3600)
+        cache_set(cache_key, messages, 3600)
     
+    logger.info(f"Retrieved {len(messages)} messages for session {session_id}")
     return messages
 
 # Update the process_chat_message function to use LangChain for streaming
@@ -405,3 +398,13 @@ async def get_k8s_analysis(user_id: int, token: str = None) -> str:
     except Exception as e:
         logger.error(f"Unexpected error: {str(e)}")
         return "An unexpected error occurred while fetching Kubernetes analysis."
+
+async def validate_session_access(db: Session, session_id: str, user_id: int) -> ChatSession:
+    """Validate that user has access to the session"""
+    session = await get_chat_session(db, session_id, user_id)
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Chat session not found or access denied"
+        )
+    return session

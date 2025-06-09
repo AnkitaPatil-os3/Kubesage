@@ -133,68 +133,47 @@ def get_non_streaming_llm():
         max_tokens=5000
         
     )
-
 async def process_with_langchain(
     user_message: str, 
     memory: Optional[ConversationBufferMemory] = None,
     stream: bool = False
 ) -> Dict[str, Any]:
-    """Process a message using LangChain."""
+    """Process a message using LangChain with direct context injection."""
     try:
-        # Replace the existing system prompt with this new one
-        system_prompt = """You are KubeSage, an AI assistant specialized in Kubernetes.
-        When responding to follow-up questions, always consider the full conversation history.
-        If a user refers to something mentioned earlier, make sure to connect it to the previous context.
-        For example, if they ask about namespaces and then ask "How do I create one?", understand they want to create a namespace.
-
-        You are integrated into a system where responses are rendered as Markdown in the frontend. Follow these rules strictly:
-        - Do NOT return final thoughts or answers inside a JSON block.
-        - Instead, directly return only the action_input content as a Markdown-formatted response that can be rendered by the frontend.
-        - Do NOT include metadata like action, Final Answer, or any wrapper like json code blocks.
-        - The output must only contain pure Markdown content.
-        - Make all responses detailed and descriptive.
-        - Always assume the user wants a thorough explanation unless explicitly asked for a brief answer.
-        - Expand on technical terms, root causes, and provide clear next steps or resolutions.
-
-        Use appropriate Markdown formatting, including:
-        - Headings (##, ###)
-        - Bold or italic emphasis
-        - Bullet or numbered lists
-        - Code blocks (only for command or config snippets)
-
-        IMPORTANT GUIDELINES:
-        1. Don't solve the problem unless the user explicitly asks to solve it.
-        2. If the user is only describing or asking about a problem, just explain or acknowledge it — do not execute or take action.
-        3. Only execute commands or take actions when the user gives an explicit instruction like "run this command", "execute", "create", or similar clear directives.
-        4. Follow the user's instructions exactly, and do not execute anything on your own without permission.
-        5. If you are unable to complete a requested task, inform the user immediately.
-        6. For kubectl commands, only execute them when explicitly instructed to do so.
-        7. When explaining concepts, provide information without taking action unless specifically requested.
-        """
-
-        
         # Create or use provided memory
         if memory is None:
             memory = ConversationBufferMemory(return_messages=True, memory_key="chat_history")
+        
+        # Get conversation history as string
+        conversation_context = ""
+        if hasattr(memory.chat_memory, 'messages') and memory.chat_memory.messages:
+            conversation_context = "\n\nPrevious conversation:\n"
+            for msg in memory.chat_memory.messages:
+                if hasattr(msg, 'content'):
+                    role = "Human" if "Human" in str(type(msg)) else "Assistant"
+                    conversation_context += f"{role}: {msg.content}\n"
+        
+        # Inject context directly into the user message
+        enhanced_message = f"{conversation_context}\n\nCurrent question: {user_message}\n\nPlease respond considering the full conversation history above."
+        
+        logger.info(f"Enhanced message with context: {enhanced_message[:200]}...")
         
         if stream:
             # Streaming response
             streaming_handler = StreamingCallbackHandler()
             llm = get_streaming_llm(streaming_handler)
             
-            # Initialize agent with streaming
+            # Use simple agent without complex memory handling
             agent = initialize_agent(
                 tools,
                 llm,
-                agent=AgentType.OPENAI_FUNCTIONS,  # OpenAI-style tool use
+                agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
                 verbose=True,
-                memory=memory,
-                handle_parsing_errors=True,
-                system_message=system_prompt
+                handle_parsing_errors=True
             )
             
-            # Start the agent in a background task
-            task = asyncio.create_task(agent.ainvoke({"input": user_message}))
+            # Start the agent in a background task with enhanced message
+            task = asyncio.create_task(agent.ainvoke({"input": enhanced_message}))
             
             return {
                 "type": "streaming",
@@ -206,19 +185,17 @@ async def process_with_langchain(
             # Non-streaming response
             llm = get_non_streaming_llm()
             
-            # Initialize agent
+            # Use simple agent without complex memory handling
             agent = initialize_agent(
                 tools,
                 llm,
-                agent=AgentType.OPENAI_FUNCTIONS,  # Changed from CHAT_CONVERSATIONAL_REACT_DESCRIPTION
+                agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
                 verbose=True,
-                memory=memory,
-                handle_parsing_errors=True,
-                system_message=system_prompt
+                handle_parsing_errors=True
             )
             
-            # Invoke the agent
-            result = await agent.ainvoke({"input": user_message})
+            # Invoke the agent with enhanced message
+            result = await agent.ainvoke({"input": enhanced_message})
             
             return {
                 "type": "non_streaming",
@@ -243,16 +220,38 @@ async def process_with_langchain(
                 "memory": memory
             }
 
+
+
 async def create_memory_from_messages(messages):
     """Create a ConversationBufferMemory from stored messages."""
-    memory = ConversationBufferMemory(return_messages=True, memory_key="chat_history")
+    memory = ConversationBufferMemory(
+        return_messages=True, 
+        memory_key="chat_history",
+        human_prefix="Human",
+        ai_prefix="Assistant"
+    )
     
-    # Add messages to memory
+    # Add messages to memory in chronological order
     for msg in messages:
+        logger.info(f"Adding message to memory: {msg.role} - {msg.content[:50]}...")
         if msg.role == 'user':
             memory.chat_memory.add_user_message(msg.content)
         elif msg.role == 'assistant':
             memory.chat_memory.add_ai_message(msg.content)
+    
+    # Verify memory contents
+    logger.info(f"Created memory with {len(messages)} messages")
+    if hasattr(memory.chat_memory, 'messages'):
+        logger.info(f"Memory contains {len(memory.chat_memory.messages)} messages")
+        for i, msg in enumerate(memory.chat_memory.messages):
+            logger.info(f"Memory message {i}: {type(msg).__name__} - {msg.content[:100]}...")
+    
+    # Test memory buffer
+    try:
+        buffer = memory.buffer
+        logger.info(f"Memory buffer: {buffer[:200]}...")
+    except Exception as e:
+        logger.error(f"Error accessing memory buffer: {e}")
     
     return memory
 

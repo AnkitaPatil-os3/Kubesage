@@ -54,47 +54,35 @@ async def chat(
     authorization: str = Header(None),
     stream: bool = Query(False, description="Whether to stream the response")
 ):
-    """
-    Sends a message to the chat service and processes it using LangChain.
-    
-    - Accepts a message from the user
-    - Processes the message through the LangChain AI backend
-    - Returns the AI response (streaming or non-streaming)
-    
-    Parameters:
-        message: The message content and session information
-        authorization: Bearer token for authentication
-        stream: Whether to stream the response
-    
-    Returns:
-        MessageResponse: The AI's response to the user's message
-        or
-        StreamingResponse: A streaming response with the AI's tokens
-    """
     logger.info(f"Session ID: {id(db)}")
     token = authorization.split(" ")[1] if authorization else None
     
     try:
         session_id = message.session_id
         session = None
+        is_new_session = False
         
-        # Get or create session
+        # Handle session logic
         if session_id:
-            # Get existing session
+            # Try to get existing session
             session = await get_chat_session(db, session_id, current_user.id)
             if not session:
-                # Create new session if provided ID doesn't exist
-                session_create = ChatSessionCreate(title="New Chat")
-                session = await create_chat_session(db, current_user.id, session_create)
-                session_id = session.session_id
+                # If session_id provided but doesn't exist, return error
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Chat session {session_id} not found"
+                )
+            # Check if this is actually a new session (no messages yet)
+            existing_messages = await get_chat_history(db, session_id)
+            is_new_session = len(existing_messages) == 0
         else:
-            # Create new session
+            # Create new session only when no session_id provided
             session_create = ChatSessionCreate(title="New Chat")
             session = await create_chat_session(db, current_user.id, session_create)
             session_id = session.session_id
+            is_new_session = True
         
         # For new sessions, get K8s analysis first
-        is_new_session = not await get_chat_history(db, session_id)
         analysis_output = ""
         if is_new_session:
             analysis_output = await get_k8s_analysis(current_user.id, token)
@@ -108,7 +96,7 @@ async def chat(
         # Add user message to history
         await add_chat_message(db, session, "user", user_content)
         
-        # Get chat history
+        # Get chat history AFTER adding the user message
         messages = await get_chat_history(db, session_id)
         
         # Create memory from messages
@@ -179,6 +167,9 @@ async def chat(
                 created_at=assistant_chat_msg.created_at
             )
     
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
     except Exception as e:
         logger.error(f"Error in chat endpoint: {str(e)}")
         import traceback
@@ -738,4 +729,38 @@ async def clear_conversation(
     
     return {"message": f"Conversation history cleared for session {session_id}"}
 
+@router.get("/debug/session/{session_id}", 
+           summary="Debug Session Memory", 
+           description="Debug endpoint to check session memory state")
+async def debug_session_memory(
+    session_id: str,
+    db: Session = Depends(get_session),
+    current_user: UserInfo = Depends(get_current_user)
+):
+    """Debug endpoint to check session memory state."""
+    try:
+        # Get session
+        session = await get_chat_session(db, session_id, current_user.id)
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        # Get messages
+        messages = await get_chat_history(db, session_id, current_user.id)
+        
+        # Create memory
+        memory = await create_memory_from_messages(messages)
+        
+        # Get memory buffer
+        buffer = memory.buffer if hasattr(memory, 'buffer') else "No buffer"
+        
+        return {
+            "session_id": session_id,
+            "message_count": len(messages),
+            "messages": [{"role": msg.role, "content": msg.content[:100]} for msg in messages],
+            "memory_buffer": buffer[:500] if buffer else "No buffer",
+            "memory_messages": [{"type": type(msg).__name__, "content": msg.content[:100]} for msg in memory.chat_memory.messages] if hasattr(memory.chat_memory, 'messages') else []
+        }
+    except Exception as e:
+        logger.error(f"Debug error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
         
