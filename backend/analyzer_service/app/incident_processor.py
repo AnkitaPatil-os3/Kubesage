@@ -16,57 +16,80 @@ def parse_flexible_incident_data(request_data: Dict[str, Any]) -> List[FlexibleI
     incidents = []
     
     try:
+        print(f"🔍 PARSING REQUEST DATA: {type(request_data)}")
+        print(f"🔍 REQUEST DATA KEYS: {list(request_data.keys()) if isinstance(request_data, dict) else 'Not a dict'}")
+        
         # Handle Kubernetes events format
         if "items" in request_data and isinstance(request_data["items"], list):
+            print("📋 Processing items array format")
             for item in request_data["items"]:
                 incident = FlexibleIncident(raw_data=item)
                 incidents.append(incident)
         
         # Handle single incident
         elif "metadata" in request_data and "type" in request_data:
+            print("📋 Processing direct Kubernetes event format")
             incident = FlexibleIncident(raw_data=request_data)
             incidents.append(incident)
         
         # Handle array of incidents
         elif isinstance(request_data, list):
+            print("📋 Processing array format")
             for item in request_data:
                 incident = FlexibleIncident(raw_data=item)
                 incidents.append(incident)
         
         # Handle custom format with 'events' key
         elif "events" in request_data:
+            print("📋 Processing events array format")
             for event in request_data["events"]:
                 incident = FlexibleIncident(raw_data=event)
                 incidents.append(incident)
         
+        # Handle Elasticsearch format with _source
+        elif "_source" in request_data:
+            print("📋 Processing Elasticsearch format with _source")
+            incident = FlexibleIncident(raw_data=request_data)
+            incidents.append(incident)
+        
         # Handle single incident in custom format
         else:
+            print("📋 Processing generic format")
             incident = FlexibleIncident(raw_data=request_data)
             incidents.append(incident)
             
-        logger.info(f"Parsed {len(incidents)} incidents from request data")
+        print(f"✅ PARSED {len(incidents)} INCIDENTS")
         return incidents
         
     except Exception as e:
+        print(f"❌ ERROR PARSING INCIDENT DATA: {str(e)}")
         logger.error(f"Error parsing incident data: {str(e)}")
         return []
 
 def convert_to_kubernetes_event(raw_data: Dict[str, Any]) -> KubernetesEvent:
     """
-    Convert raw incident data to KubernetesEvent format
-    Enhanced to handle Elasticsearch format with _source wrapper
+    Convert raw incident data to KubernetesEvent format - SIMPLIFIED VERSION
     """
+    print("\n" + "="*80)
+    print("🔄 STARTING CONVERSION TO KUBERNETES EVENT")
+    print("="*80)
+    
     try:
         # Handle Elasticsearch format with _source wrapper
         if "_source" in raw_data:
             source_data = raw_data["_source"]
             es_id = raw_data.get("_id", str(uuid.uuid4()))
+            print(f"📦 ELASTICSEARCH FORMAT DETECTED - ID: {es_id}")
         else:
             source_data = raw_data
             es_id = str(uuid.uuid4())
+            print(f"📦 DIRECT FORMAT DETECTED - ID: {es_id}")
         
-        # Extract metadata
+        print(f"📋 SOURCE DATA KEYS: {list(source_data.keys())}")
+        
+        # Extract metadata with safe access
         metadata = source_data.get("metadata", {})
+        print(f"🏷️  METADATA: {metadata}")
         
         # Extract event info with proper fallbacks
         event_type = source_data.get("type", "Normal")
@@ -74,50 +97,107 @@ def convert_to_kubernetes_event(raw_data: Dict[str, Any]) -> KubernetesEvent:
         message = source_data.get("message", "No message provided")
         count = source_data.get("count", 1)
         
+        print(f"📊 EVENT INFO:")
+        print(f"   Type: {event_type}")
+        print(f"   Reason: {reason}")
+        print(f"   Message: {message[:100]}...")
+        print(f"   Count: {count}")
+        
         # Extract timestamps with better handling
         first_timestamp = None
         last_timestamp = None
         creation_timestamp = None
         
         # Handle different timestamp formats
-        if source_data.get("firstTimestamp"):
-            try:
-                first_timestamp = datetime.fromisoformat(source_data["firstTimestamp"].replace("Z", "+00:00"))
-            except:
-                pass
-                
-        if source_data.get("lastTimestamp"):
-            try:
-                last_timestamp = datetime.fromisoformat(source_data["lastTimestamp"].replace("Z", "+00:00"))
-            except:
-                pass
-                
-        if source_data.get("eventTime"):
-            try:
-                # Use eventTime as fallback for timestamps
-                event_time = datetime.fromisoformat(source_data["eventTime"].replace("Z", "+00:00"))
-                if not first_timestamp:
-                    first_timestamp = event_time
-                if not last_timestamp:
-                    last_timestamp = event_time
-            except:
-                pass
-        
+        timestamp_fields = ["firstTimestamp", "lastTimestamp", "eventTime"]
+        for field in timestamp_fields:
+            if source_data.get(field):
+                try:
+                    ts_value = source_data[field]
+                    if ts_value and ts_value != "null":
+                        parsed_ts = datetime.fromisoformat(ts_value.replace("Z", "+00:00"))
+                        if field == "firstTimestamp":
+                            first_timestamp = parsed_ts
+                        elif field == "lastTimestamp":
+                            last_timestamp = parsed_ts
+                        elif field == "eventTime":
+                            if not first_timestamp:
+                                first_timestamp = parsed_ts
+                            if not last_timestamp:
+                                last_timestamp = parsed_ts
+                        print(f"⏰ PARSED {field}: {parsed_ts}")
+                except Exception as ts_error:
+                    print(f"⚠️  TIMESTAMP PARSE ERROR {field}: {ts_error}")
+                    
         if metadata.get("creationTimestamp"):
             try:
                 creation_timestamp = datetime.fromisoformat(metadata["creationTimestamp"].replace("Z", "+00:00"))
-            except:
-                pass
+                print(f"⏰ CREATION TIMESTAMP: {creation_timestamp}")
+            except Exception as ts_error:
+                print(f"⚠️  CREATION TIMESTAMP ERROR: {ts_error}")
         
         # Extract source info
         source = source_data.get("source", {})
+        print(f"🔧 SOURCE: {source}")
         
-        # Extract involved object info with proper handling
+        # Extract involved object info
         involved_object = source_data.get("involvedObject", {})
+        print(f"🎯 INVOLVED OBJECT: {involved_object}")
         
-        return KubernetesEvent(
-            metadata_name=metadata.get("name", f"incident-{es_id}"),
-            metadata_namespace=metadata.get("namespace") or involved_object.get("namespace"),
+        # CRITICAL FIX: Handle owner references by converting to simple dict
+        owner_references_raw = involved_object.get("ownerReferences", [])
+        print(f"👑 RAW OWNER REFERENCES: {owner_references_raw}")
+        print(f"👑 OWNER REFERENCES TYPE: {type(owner_references_raw)}")
+        
+        # Convert to simple dict format to avoid validation issues
+        owner_references_dict = {}
+        if owner_references_raw:
+            if isinstance(owner_references_raw, list) and len(owner_references_raw) > 0:
+                # Take first owner reference and flatten it
+                first_owner = owner_references_raw[0]
+                if isinstance(first_owner, dict):
+                    owner_references_dict = {
+                        "apiVersion": str(first_owner.get("apiVersion", "")),
+                        "kind": str(first_owner.get("kind", "")),
+                        "name": str(first_owner.get("name", "")),
+                        "uid": str(first_owner.get("uid", "")),
+                        "controller": bool(first_owner.get("controller", False)),
+                        "blockOwnerDeletion": bool(first_owner.get("blockOwnerDeletion", False))
+                    }
+            elif isinstance(owner_references_raw, dict):
+                owner_references_dict = owner_references_raw
+        
+        print(f"👑 PROCESSED OWNER REFERENCES: {owner_references_dict}")
+        
+        # Extract all the fields we need
+        metadata_name = metadata.get("name", f"incident-{es_id}")
+        metadata_namespace = metadata.get("namespace") or involved_object.get("namespace")
+        source_component = source.get("component")
+        source_host = source.get("host")
+        involved_object_kind = involved_object.get("kind")
+        involved_object_name = involved_object.get("name")
+        involved_object_field_path = involved_object.get("fieldPath")
+        involved_object_labels = involved_object.get("labels", {})
+        involved_object_annotations = involved_object.get("annotations", {})
+        reporting_component = source_data.get("reportingComponent")
+        reporting_instance = source_data.get("reportingInstance")
+        
+        print(f"\n📝 FINAL EXTRACTED DATA:")
+        print(f"   metadata_name: {metadata_name}")
+        print(f"   metadata_namespace: {metadata_namespace}")
+        print(f"   type: {event_type}")
+        print(f"   reason: {reason}")
+        print(f"   involved_object_kind: {involved_object_kind}")
+        print(f"   involved_object_name: {involved_object_name}")
+        print(f"   source_component: {source_component}")
+        print(f"   reporting_component: {reporting_component}")
+        
+        # Create the KubernetesEvent object WITHOUT validation issues
+        print(f"\n🏗️  CREATING KUBERNETES EVENT OBJECT...")
+        
+        k8s_event = KubernetesEvent(
+            metadata_name=metadata_name,
+            metadata_namespace=metadata_namespace,
             metadata_creation_timestamp=creation_timestamp,
             type=event_type,
             reason=reason,
@@ -125,73 +205,117 @@ def convert_to_kubernetes_event(raw_data: Dict[str, Any]) -> KubernetesEvent:
             count=count,
             first_timestamp=first_timestamp,
             last_timestamp=last_timestamp,
-            source_component=source.get("component"),
-            source_host=source.get("host"),
-            involved_object_kind=involved_object.get("kind"),
-            involved_object_name=involved_object.get("name"),
-            involved_object_field_path=involved_object.get("fieldPath"),
-            involved_object_labels=involved_object.get("labels", {}),
-            involved_object_annotations=involved_object.get("annotations", {}),
-            involved_object_owner_references=involved_object.get("ownerReferences", []),
-            reporting_component=source_data.get("reportingComponent"),
-            reporting_instance=source_data.get("reportingInstance")
+            source_component=source_component,
+            source_host=source_host,
+            involved_object_kind=involved_object_kind,
+            involved_object_name=involved_object_name,
+            involved_object_field_path=involved_object_field_path,
+            involved_object_labels=involved_object_labels or {},
+            involved_object_annotations=involved_object_annotations or {},
+            involved_object_owner_references=owner_references_dict,  # Now properly converted
+            reporting_component=reporting_component,
+            reporting_instance=reporting_instance
         )
+        
+        print(f"✅ KUBERNETES EVENT CREATED SUCCESSFULLY!")
+        print(f"   Event Name: {k8s_event.metadata_name}")
+        print(f"   Event Type: {k8s_event.type}")
+        print(f"   Event Reason: {k8s_event.reason}")
+        print("="*80 + "\n")
+        
+        return k8s_event
         
     except Exception as e:
+        print(f"❌ CONVERSION ERROR: {str(e)}")
+        print(f"❌ ERROR TYPE: {type(e)}")
         logger.error(f"Error converting raw data to KubernetesEvent: {str(e)}")
-        logger.error(f"Raw data keys: {list(raw_data.keys()) if isinstance(raw_data, dict) else 'Not a dict'}")
         
-        # Return a minimal event with error info but use available data
-        fallback_name = "error-incident"
-        fallback_message = "Failed to parse incident data"
+        # Create a minimal fallback event that will definitely work
+        print(f"🔄 CREATING FALLBACK EVENT...")
         
-        if isinstance(raw_data, dict):
+        try:
+            # Extract basic info for fallback
             if "_source" in raw_data:
                 source_data = raw_data["_source"]
-                fallback_name = source_data.get("metadata", {}).get("name", fallback_name)
-                fallback_message = source_data.get("message", fallback_message)
+                es_id = raw_data.get("_id", str(uuid.uuid4()))
             else:
-                fallback_name = raw_data.get("metadata", {}).get("name", fallback_name)
-                fallback_message = raw_data.get("message", fallback_message)
-        
-        return KubernetesEvent(
-            metadata_name=fallback_name,
-            type="Warning",
-            reason="ConversionError",
-            message=f"{fallback_message}: {str(e)}"
-        )
-
+                source_data = raw_data
+                es_id = str(uuid.uuid4())
+            
+            fallback_name = source_data.get("metadata", {}).get("name", f"fallback-{es_id}")
+            fallback_message = source_data.get("message", f"Original conversion failed: {str(e)}")
+            fallback_namespace = source_data.get("metadata", {}).get("namespace")
+            fallback_type = source_data.get("type", "Warning")
+            fallback_reason = "ConversionError"
+            
+            fallback_event = KubernetesEvent(
+                metadata_name=fallback_name,
+                metadata_namespace=fallback_namespace,
+                type=fallback_type,
+                reason=fallback_reason,
+                message=fallback_message,
+                involved_object_kind=source_data.get("involvedObject", {}).get("kind"),
+                involved_object_name=source_data.get("involvedObject", {}).get("name"),
+                reporting_component=source_data.get("reportingComponent")
+            )
+            
+            print(f"✅ FALLBACK EVENT CREATED: {fallback_event.metadata_name}")
+            return fallback_event
+            
+        except Exception as fallback_error:
+            print(f"❌ EVEN FALLBACK FAILED: {fallback_error}")
+            # Last resort - absolute minimal event
+            return KubernetesEvent(
+                metadata_name=f"critical-error-{uuid.uuid4()}",
+                type="Warning",
+                reason="CriticalConversionError",
+                message=f"Complete conversion failure: {str(e)}"
+            )
 
 async def process_flexible_incidents(incidents: List[FlexibleIncident], background_tasks):
     """ 
     Process a list of flexible incidents
     """
-    for incident in incidents:
+    print(f"\n🚀 PROCESSING {len(incidents)} FLEXIBLE INCIDENTS")
+    
+    for i, incident in enumerate(incidents, 1):
         try:
+            print(f"\n📋 PROCESSING INCIDENT {i}/{len(incidents)}")
+            
             # Convert to standard format
             k8s_event = convert_to_kubernetes_event(incident.raw_data)
+            print(f"✅ CONVERTED TO KUBERNETES EVENT: {k8s_event.metadata_name}")
             
             # Save to database
             incident_id = await save_incident_to_db(k8s_event)
+            print(f"✅ SAVED TO DATABASE WITH ID: {incident_id}")
             
             # Send email notification IMMEDIATELY before LLM analysis
             from app.email_client import send_incident_email
             try:
                 await send_incident_email(k8s_event, incident_id)
-                logger.info(f"Email sent successfully for incident: {incident_id}")
+                print(f"✅ EMAIL SENT FOR INCIDENT: {incident_id}")
             except Exception as email_error:
-                logger.error(f"Failed to send email for incident {incident_id}: {str(email_error)}")
+                print(f"⚠️  EMAIL FAILED FOR INCIDENT {incident_id}: {str(email_error)}")
                 # Continue processing even if email fails
             
             # Process incident with LLM → Enforcer → Executor chain
             await _process_incident_with_llm_chain(k8s_event, incident_id)
             
         except Exception as e:
+            print(f"❌ ERROR PROCESSING INCIDENT {i}: {str(e)}")
             logger.error(f"Error processing incident: {str(e)}")
 
 async def _process_incident_with_llm_chain(k8s_event: KubernetesEvent, incident_id: str):
     """Process incident through LLM → Enforcer → Executor chain"""
     try:
+        print(f"\n🤖 STARTING LLM CHAIN FOR INCIDENT: {incident_id}")
+        
+        # Get active executors first
+        from app.executor_client import get_active_executors
+        active_executors = get_active_executors()
+        print(f"🔧 ACTIVE EXECUTORS: {active_executors}")
+        
         # Prepare incident data for LLM
         incident_data = {
             "id": incident_id,
@@ -212,47 +336,53 @@ async def _process_incident_with_llm_chain(k8s_event: KubernetesEvent, incident_
             "involved_object_annotations": _clean_dict_for_llm(k8s_event.involved_object_annotations)
         }
         
+        print(f"📊 INCIDENT DATA FOR LLM: {incident_data}")
+        
         logger.info(f"Starting LLM → Enforcer → Executor chain for incident: {incident_id}")
 
         # Step 1: LLM Analysis
         try:
-            solution = analyze_kubernetes_incident_sync(incident_data)
-            logger.info(f"✅ LLM analysis completed for incident {incident_id}")
+            print(f"🧠 STARTING LLM ANALYSIS...")
+            solution = analyze_kubernetes_incident_sync(incident_data, active_executors)
+            print(f"✅ LLM ANALYSIS COMPLETED FOR INCIDENT {incident_id}")
             
             # Step 2: Enforcer Processing
             try:
+                print(f"⚖️  STARTING ENFORCER PROCESSING...")
                 from app.enforcer_client import enforce_remediation_plan
                 enforcer_result = enforce_remediation_plan(solution, incident_id)
                 
                 if enforcer_result.get("status") == "max_attempts_reached":
-                    logger.warning(f"⚠️ Maximum attempts reached for incident {incident_id}")
+                    print(f"⚠️  MAXIMUM ATTEMPTS REACHED FOR INCIDENT {incident_id}")
                     return
                 elif enforcer_result.get("status") == "error":
-                    logger.error(f"❌ Enforcer failed for incident {incident_id}")
+                    print(f"❌ ENFORCER FAILED FOR INCIDENT {incident_id}")
                     return
                 
-                logger.info(f"✅ Enforcer processing completed for incident {incident_id}")
+                print(f"✅ ENFORCER PROCESSING COMPLETED FOR INCIDENT {incident_id}")
                 
                 # Step 3: Executor Processing
                 try:
+                    print(f"🔧 STARTING EXECUTOR PROCESSING...")
                     from app.executor_client import execute_remediation_steps
                     execution_result = execute_remediation_steps(enforcer_result)
                     
                     if execution_result.get("overall_success"):
-                        logger.info(f"✅ Execution completed successfully for incident {incident_id}")
+                        print(f"✅ EXECUTION COMPLETED SUCCESSFULLY FOR INCIDENT {incident_id}")
                     else:
-                        logger.warning(f"⚠️ Execution failed for incident {incident_id}, attempt {execution_result.get('attempt_number')}")
+                        print(f"⚠️  EXECUTION FAILED FOR INCIDENT {incident_id}, ATTEMPT {execution_result.get('attempt_number')}")
                     
                 except Exception as executor_error:
-                    logger.error(f"❌ Executor failed for incident {incident_id}: {str(executor_error)}")
+                    print(f"❌ EXECUTOR FAILED FOR INCIDENT {incident_id}: {str(executor_error)}")
                     
             except Exception as enforcer_error:
-                logger.error(f"❌ Enforcer failed for incident {incident_id}: {str(enforcer_error)}")
+                print(f"❌ ENFORCER FAILED FOR INCIDENT {incident_id}: {str(enforcer_error)}")
                 
         except Exception as llm_error:
-            logger.error(f"❌ LLM analysis failed for incident {incident_id}: {str(llm_error)}")
+            print(f"❌ LLM ANALYSIS FAILED FOR INCIDENT {incident_id}: {str(llm_error)}")
             
     except Exception as e:
+        print(f"❌ ERROR IN LLM CHAIN PROCESSING FOR INCIDENT {incident_id}: {str(e)}")
         logger.error(f"❌ Error in LLM chain processing for incident {incident_id}: {str(e)}")
 
 async def retry_incident_analysis(incident_id: str):
@@ -276,6 +406,10 @@ async def retry_incident_analysis(incident_id: str):
                     ExecutionAttemptModel.incident_id == incident_id
                 )
             ).all()
+            
+            # Get active executors
+            from app.executor_client import get_active_executors
+            active_executors = get_active_executors()
             
             # Prepare enhanced incident data with failure context
             incident_data = {
@@ -347,11 +481,38 @@ def _clean_dict_for_llm(data_dict):
 
 async def save_incident_to_db(k8s_event: KubernetesEvent) -> str:
     """
-    Save incident to database
+    Save incident to database with enhanced error handling and detailed logging
     """
+    print(f"\n💾 SAVING INCIDENT TO DATABASE")
+    print("="*60)
+    
     try:
         with Session(engine) as session:
             incident_id = str(uuid.uuid4())
+            
+            print(f"🆔 GENERATED INCIDENT ID: {incident_id}")
+            print(f"📝 INCIDENT DATA TO SAVE:")
+            print(f"   metadata_name: {k8s_event.metadata_name}")
+            print(f"   metadata_namespace: {k8s_event.metadata_namespace}")
+            print(f"   metadata_creation_timestamp: {k8s_event.metadata_creation_timestamp}")
+            print(f"   type: {k8s_event.type}")
+            print(f"   reason: {k8s_event.reason}")
+            print(f"   message: {k8s_event.message[:100]}...")
+            print(f"   count: {k8s_event.count}")
+            print(f"   first_timestamp: {k8s_event.first_timestamp}")
+            print(f"   last_timestamp: {k8s_event.last_timestamp}")
+            print(f"   source_component: {k8s_event.source_component}")
+            print(f"   source_host: {k8s_event.source_host}")
+            print(f"   involved_object_kind: {k8s_event.involved_object_kind}")
+            print(f"   involved_object_name: {k8s_event.involved_object_name}")
+            print(f"   involved_object_field_path: {k8s_event.involved_object_field_path}")
+            print(f"   involved_object_labels: {k8s_event.involved_object_labels}")
+            print(f"   involved_object_annotations: {k8s_event.involved_object_annotations}")
+            print(f"   involved_object_owner_references: {k8s_event.involved_object_owner_references}")
+            print(f"   reporting_component: {k8s_event.reporting_component}")
+            print(f"   reporting_instance: {k8s_event.reporting_instance}")
+            
+            print(f"\n🏗️  CREATING INCIDENT MODEL...")
             
             incident_model = IncidentModel(
                 id=incident_id,
@@ -376,14 +537,31 @@ async def save_incident_to_db(k8s_event: KubernetesEvent) -> str:
                 reporting_instance=k8s_event.reporting_instance
             )
             
+            print(f"✅ INCIDENT MODEL CREATED SUCCESSFULLY")
+            print(f"💾 ADDING TO SESSION...")
+            
             session.add(incident_model)
+            
+            print(f"💾 COMMITTING TO DATABASE...")
             session.commit()
+            
+            print(f"🔄 REFRESHING MODEL...")
             session.refresh(incident_model)
             
-            logger.info(f"Saved incident to database with ID: {incident_id}")
+            print(f"✅ SUCCESSFULLY SAVED INCIDENT TO DATABASE!")
+            print(f"🆔 FINAL INCIDENT ID: {incident_id}")
+            print(f"📝 SAVED METADATA NAME: {incident_model.metadata_name}")
+            print(f"📝 SAVED TYPE: {incident_model.type}")
+            print(f"📝 SAVED REASON: {incident_model.reason}")
+            print("="*60)
+            
+            logger.info(f"Successfully saved incident to database with ID: {incident_id}")
             return incident_id
             
     except Exception as e:
+        print(f"❌ ERROR SAVING INCIDENT TO DATABASE: {str(e)}")
+        print(f"❌ ERROR TYPE: {type(e)}")
+        print(f"❌ EVENT DATA THAT FAILED: {k8s_event}")
         logger.error(f"Error saving incident to database: {str(e)}")
         raise e
 
@@ -392,8 +570,6 @@ async def save_solution_to_db(solution, incident_id: str):
     Save LLM solution to database (optional)
     """
     try:
-        # You would need to create a SolutionModel in your models.py
-        # This is just an example of how you might store it
         solution_data = {
             "incident_id": incident_id,
             "solution_id": solution.solution_id,
@@ -413,6 +589,3 @@ async def save_solution_to_db(solution, incident_id: str):
     except Exception as e:
         logger.error(f"Error saving solution to database: {str(e)}")
         raise e
-
-
-

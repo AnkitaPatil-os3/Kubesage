@@ -9,12 +9,27 @@ from app.email_client import send_incident_email
 from app.database import create_db_and_tables, get_session, engine
 from app.models import IncidentModel,ExecutorStatusModel
 from sqlmodel import Session, select
+from fastapi.middleware.cors import CORSMiddleware  # Import CORSMiddleware
 
 from typing import List, Optional, Dict, Any, Union
 import datetime
 import uuid
 import json
+app = FastAPI(title="KubeSage User Service")
 
+origins = [
+    "*",  # Frontend running locally   
+]
+
+
+# ✅ Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins, or specify allowed origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allow all HTTP methods
+    allow_headers=["*"],  # Allow all headers
+)
 # Create FastAPI app with metadata for documentation
 app = FastAPI(
     title="KubeSage Analyzer Service",
@@ -97,15 +112,24 @@ async def receive_incidents(
     - For Normal incidents: Automatically proceeds with remediation
     """
     try:
+        print(f"\n🚀 RECEIVED INCIDENT BATCH - STARTING PROCESSING")
+        print("="*80)
+        print(f"📥 REQUEST DATA TYPE: {type(request_data)}")
+        print(f"📥 REQUEST DATA: {request_data}")
+        print("="*80)
+        
         logger.info("Received incident batch - processing with flexible format support")
         
         flexible_incidents = parse_flexible_incident_data(request_data)
+        print(f"📋 PARSED {len(flexible_incidents)} FLEXIBLE INCIDENTS")
+        
         await process_flexible_incidents(flexible_incidents, background_tasks)
         
+        print(f"✅ INCIDENT PROCESSING COMPLETED SUCCESSFULLY")
         return {"status": "Incidents processed successfully"}
         
     except Exception as e:
-        logger.error(f"Error processing incidents: {str(e)}")
+        print(f"Error processing incidents: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Unable to process incident data: {str(e)}")
 
 @app.get("/incidents", 
@@ -131,7 +155,9 @@ async def get_incidents(
     - **namespace**: Filter by namespace
     - **involved_object_kind**: Filter by involved object kind (Pod, Service, etc.)
     """
+
     query = select(IncidentModel)
+    # print(f"🔍 QUERY: {query}")
     
     # Apply filters if provided
     if type:
@@ -1088,3 +1114,5 @@ async def get_incident_execution_history(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting execution history: {str(e)}")
+
+        
