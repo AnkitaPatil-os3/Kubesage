@@ -15,6 +15,8 @@ import remediationsPage from "./pages/remediations";
 import { CostAnalysis } from "./components/cost-analysis";
 import { ObservabilityDashboard } from "./components/observability-dashboard";
 import { CarbonEmissionDashboard } from "./components/Carbon-emission";
+import ClusterAnalyze from "./components/cluster-analyze";
+
  
 export default function App() {
   const { theme, setTheme } = useTheme();
@@ -69,6 +71,7 @@ export default function App() {
                   <Route path="/dashboard/remediations" component={remediationsPage} />
                   <Route path="/dashboard/observability" component={ObservabilityDashboard} />
                   <Route path="/dashboard/carbon-emission" component={CarbonEmissionDashboard} />
+                  <Route path="/dashboard/analyze" component={ClusterAnalyze} />
                 </Switch>
               </DashboardLayout>
             )}

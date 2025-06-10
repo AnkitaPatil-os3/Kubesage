@@ -128,6 +128,7 @@ async def receive_incidents(
         print(f"Error processing incidents: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Unable to process incident data: {str(e)}")
 
+
 @app.get("/incidents", 
     summary="Get all incidents",
     description="Retrieves all incidents from the database with optional filtering.",

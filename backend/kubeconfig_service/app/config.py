@@ -25,6 +25,12 @@ class Settings(BaseSettings):
     
     # User service URL for authentication
     USER_SERVICE_URL: str = os.getenv("USER_SERVICE_URL")
+
+     # LLM settings for K8s problem solving
+    OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")
+    OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
+    OPENAI_BASE_URL: Optional[str] = os.getenv("OPENAI_BASE_URL")
+    LLM_ENABLED: bool = os.getenv("LLM_ENABLED", "True").lower() == "true"
     
     # SSL
     SSL_KEYFILE: Optional[str] = os.getenv("SSL_KEYFILE", "key.pem")

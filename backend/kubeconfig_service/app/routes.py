@@ -1345,12 +1345,12 @@ def analyze_secrets(api, namespace=None):
                 cert = cryptography.x509.load_pem_x509_certificate(cert_data, default_backend())
                 
                 # Check if certificate is expired
-                if cert.not_valid_after < datetime.datetime.now():
+                if cert.not_valid_after_utc < datetime.datetime.now(timezone.utc):
                     results.append({
                         "kind": "Secret",
                         "name": full_name,
                         "error": [{
-                            "Text": f"TLS certificate in Secret has expired on {cert.not_valid_after.strftime('%Y-%m-%d')}",
+                            "Text": f"TLS certificate in Secret has expired on {cert.not_valid_after_utc.strftime('%Y-%m-%d')}",
                             "KubernetesDoc": "",
                             "Sensitive": []
                         }],
@@ -1359,13 +1359,13 @@ def analyze_secrets(api, namespace=None):
                     })
                 
                 # Check if certificate is about to expire (within 30 days)
-                days_to_expiry = (cert.not_valid_after - datetime.datetime.now()).days
+                days_to_expiry = (cert.not_valid_after_utc - datetime.datetime.now(timezone.utc)).days
                 if 0 < days_to_expiry < 30:
                     results.append({
                         "kind": "Secret",
                         "name": full_name,
                         "error": [{
-                            "Text": f"TLS certificate in Secret will expire in {days_to_expiry} days (on {cert.not_valid_after.strftime('%Y-%m-%d')})",
+                            "Text": f"TLS certificate in Secret will expire in {days_to_expiry} days (on {cert.not_valid_after_utc.strftime('%Y-%m-%d')})",
                             "KubernetesDoc": "",
                             "Sensitive": []
                         }],
@@ -1462,6 +1462,7 @@ def analyze_secrets(api, namespace=None):
             })
     
     return results
+
 
 def analyze_storage_classes(api):
     """Analyze StorageClasses for common issues"""
@@ -1737,5 +1738,250 @@ def analyze_pod_with_events(api, namespace=None):
             })
     
     return results
+
+
+
+
+
+
+# **************************** llm analyze solution ****************************
+from app.llm_service import K8sLLMService
+
+
+@kubeconfig_router.post("/analyze-k8s-with-solutions",
+                       summary="Analyze Kubernetes Resources with AI Solutions", 
+                       description="Analyzes Kubernetes resources and provides AI-generated solutions for each problem")
+async def analyze_k8s_with_solutions(
+    session: Session = Depends(get_session),
+    current_user: Dict = Depends(get_current_user),
+    namespace: str = Query(None, description="Namespace to analyze"),
+    resource_types: List[str] = Query(
+        ["pods", "deployments", "services", "secrets", "storageclasses", "ingress", "pvc"],
+        description="Resource types to analyze"
+    )
+):
+    """
+    Analyzes Kubernetes resources and provides AI-generated solutions for each problem.
+    
+    - Gets the active kubeconfig
+    - Connects to the Kubernetes cluster using the client library
+    - Analyzes specified resources for potential issues
+    - Uses LLM service to generate solutions for each problem
+    - Returns problems with their corresponding solutions
+    
+    Parameters:
+        namespace: Kubernetes namespace to analyze (all namespaces if None)
+        resource_types: List of resource types to analyze
+        
+    Returns:
+        JSONResponse: List of problems with AI-generated solutions
+        
+    Raises:
+        HTTPException: 404 error if active kubeconfig not found
+        HTTPException: Various errors if analysis fails
+    """
+    # Check if LLM is enabled
+    if not settings.LLM_ENABLED:
+        raise HTTPException(
+            status_code=400, 
+            detail="LLM functionality is disabled. Please enable it in settings to use AI solutions."
+        )
+    
+    # Get the active kubeconfig
+    active_kubeconf = get_active_kubeconfig(session, current_user["id"])
+    kubeconfig_path = active_kubeconf.path
+    
+    if not os.path.exists(kubeconfig_path):
+        raise HTTPException(status_code=404, detail="Active kubeconfig file not found on disk")
+    
+    try:
+        # Load the kubeconfig
+        config.load_kube_config(config_file=kubeconfig_path)
+        
+        # Initialize API clients
+        core_v1 = client.CoreV1Api()
+        apps_v1 = client.AppsV1Api()
+        networking_v1 = client.NetworkingV1Api()
+        storage_v1 = client.StorageV1Api()
+        
+        # Initialize results list
+        flat_results = []
+        
+        # Analyze resources based on resource_types
+        for resource_type in resource_types:
+            resource_type = resource_type.lower()
+            
+            if resource_type == "pods":
+                flat_results.extend(analyze_pods(core_v1, namespace))
+            elif resource_type == "deployments":
+                flat_results.extend(analyze_deployments(apps_v1, namespace))
+            elif resource_type == "services":
+                flat_results.extend(analyze_services(core_v1, namespace))
+            elif resource_type == "secrets":
+                flat_results.extend(analyze_secrets(core_v1, namespace))
+            elif resource_type == "storageclasses":
+                flat_results.extend(analyze_storage_classes(storage_v1))
+            elif resource_type == "ingress":
+                flat_results.extend(analyze_ingress(networking_v1, core_v1, namespace))
+            elif resource_type == "pvc":
+                flat_results.extend(analyze_pvcs(core_v1, namespace))
+        
+        # Process results and generate solutions using LLM
+        problems_with_solutions = []
+        
+        # Initialize LLM service
+        try:
+            llm_service = K8sLLMService()
+        except Exception as e:
+            logger.error(f"Failed to initialize LLM service: {str(e)}")
+            raise HTTPException(
+                status_code=500, 
+                detail=f"Failed to initialize LLM service: {str(e)}"
+            )
+        
+        # Group errors by resource to avoid duplicate solutions
+        resource_errors = {}
+        
+        for result in flat_results:
+            # Extract namespace from the name field (format: "namespace/name")
+            name_parts = result["name"].split("/", 1)
+            
+            if len(name_parts) == 2:
+                result_namespace, resource_name = name_parts
+                if result_namespace == "N/A":
+                    result_namespace = ""
+            else:
+                result_namespace = ""
+                resource_name = result["name"]
+            
+            # Create a unique key for each resource
+            resource_key = f"{result['kind']}/{result_namespace}/{resource_name}"
+            
+            if resource_key not in resource_errors:
+                resource_errors[resource_key] = {
+                    "kind": result["kind"],
+                    "name": resource_name,
+                    "namespace": result_namespace,
+                    "errors": [],
+                    "details": result.get("details", ""),
+                    "parentObject": result.get("parentObject", "")
+                }
+            
+            # Add all errors for this resource
+            if isinstance(result["error"], list):
+                resource_errors[resource_key]["errors"].extend(result["error"])
+            else:
+                resource_errors[resource_key]["errors"].append(result["error"])
+        
+        # Generate solutions for each resource's problems
+        for resource_key, resource_data in resource_errors.items():
+            # Combine all error texts for this resource
+            error_texts = []
+            for error in resource_data["errors"]:
+                if isinstance(error, dict) and "Text" in error:
+                    error_texts.append(error["Text"])
+                elif isinstance(error, str):
+                    error_texts.append(error)
+            
+            combined_error_text = "; ".join(error_texts)
+            
+            # Generate solution using LLM
+            try:
+                solution = llm_service.generate_solution(
+                    error_text=combined_error_text,
+                    kind=resource_data["kind"],
+                    name=resource_data["name"],
+                    namespace=resource_data["namespace"],
+                    context={
+                        "cluster_name": active_kubeconf.cluster_name,
+                        "total_errors": len(error_texts)
+                    }
+                )
+                
+                # Validate solution structure
+                if not isinstance(solution, dict):
+                    raise ValueError("Invalid solution format")
+                
+                # Ensure required fields exist with defaults
+                solution.setdefault("solution_summary", "Solution generated")
+                solution.setdefault("detailed_solution", "Please check the remediation steps")
+                solution.setdefault("remediation_steps", [])
+                solution.setdefault("confidence_score", 0.5)
+                solution.setdefault("estimated_time_mins", 30)
+                solution.setdefault("additional_notes", "")
+                
+                # Create the problem-solution pair
+                problem_with_solution = {
+                    "problem": {
+                        "kind": resource_data["kind"],
+                        "name": resource_data["name"],
+                        "namespace": resource_data["namespace"],
+                        "errors": resource_data["errors"],
+                        "details": resource_data["details"],
+                        "parentObject": resource_data["parentObject"]
+                    },
+                    "solution": solution
+                }
+                
+                problems_with_solutions.append(problem_with_solution)
+                
+            except Exception as e:
+                logger.error(f"Failed to generate solution for {resource_key}: {str(e)}")
+                # Add problem with fallback solution if LLM fails
+                problem_with_solution = {
+                    "problem": {
+                        "kind": resource_data["kind"],
+                        "name": resource_data["name"],
+                        "namespace": resource_data["namespace"],
+                        "errors": resource_data["errors"],
+                        "details": resource_data["details"],
+                        "parentObject": resource_data["parentObject"]
+                    },
+                    "solution": {
+                        "solution_summary": "Manual investigation required",
+                        "detailed_solution": f"Unable to generate automated solution. Error: {combined_error_text}",
+                        "remediation_steps": [
+                            {
+                                "step_id": 1,
+                                "action_type": "MANUAL_CHECK",
+                                "description": "Investigate the issue manually",
+                                "command": f"kubectl describe {resource_data['kind'].lower()} {resource_data['name']} -n {resource_data['namespace']}" if resource_data['namespace'] else f"kubectl describe {resource_data['kind'].lower()} {resource_data['name']}",
+                                "expected_outcome": "Get detailed information about the resource"
+                            }
+                        ],
+                        "confidence_score": 0.3,
+                        "estimated_time_mins": 30,
+                        "additional_notes": f"LLM generation failed: {str(e)}"
+                    }
+                }
+                problems_with_solutions.append(problem_with_solution)
+        
+        # Publish analysis event
+        publish_message("kubeconfig_events", {
+            "event_type": "k8s_analysis_with_solutions_performed",
+            "kubeconfig_id": active_kubeconf.id,
+            "user_id": current_user["id"],
+            "username": current_user.get("username", "unknown"),
+            "cluster_name": active_kubeconf.cluster_name,
+            "resource_types": resource_types,
+            "namespace": namespace or "all",
+            "problem_count": len(problems_with_solutions),
+            "timestamp": datetime.datetime.now().isoformat()
+        })
+        
+        return JSONResponse(content={
+            "cluster_name": active_kubeconf.cluster_name,
+            "namespace": namespace or "all",
+            "analyzed_resource_types": resource_types,
+            "total_problems": len(problems_with_solutions),
+            "problems_with_solutions": problems_with_solutions
+        }, status_code=200)
+    
+    except client.rest.ApiException as e:
+        logger.error(f"Kubernetes API error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Kubernetes API error: {str(e)}")
+    except Exception as e:
+        logger.error(f"Error analyzing Kubernetes resources with solutions: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error analyzing Kubernetes resources with solutions: {str(e)}")
 
 

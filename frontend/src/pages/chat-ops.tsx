@@ -103,7 +103,7 @@ interface StreamingToken {
 }
 
 // API Configuration
-const API_BASE_URL = 'https://10.0.32.123:8004/api/v1';
+const API_BASE_URL = 'https://10.0.32.106:8004/api/v1';
 
 // Helper function to get auth headers
 const getAuthHeaders = () => {

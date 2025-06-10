@@ -77,7 +77,7 @@ const md = new MarkdownIt({
 });
 
 // API Base URL
-const API_BASE_URL = 'https://10.0.32.123:8006';
+const API_BASE_URL = 'https://10.0.32.106:8006';
 
 // Types
 interface KubernetesIncident {
