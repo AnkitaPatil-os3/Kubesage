@@ -68,7 +68,7 @@ def parse_flexible_incident_data(request_data: Dict[str, Any]) -> List[FlexibleI
 
 def convert_to_kubernetes_event(raw_data: Dict[str, Any]) -> KubernetesEvent:
     """
-    Convert raw incident data to KubernetesEvent format - SIMPLIFIED VERSION
+    Convert raw incident data to KubernetesEvent format - FIXED VERSION
     """
     print("\n" + "="*80)
     print("🔄 STARTING CONVERSION TO KUBERNETES EVENT")
@@ -87,140 +87,194 @@ def convert_to_kubernetes_event(raw_data: Dict[str, Any]) -> KubernetesEvent:
         
         print(f"📋 SOURCE DATA KEYS: {list(source_data.keys())}")
         
-        # Extract metadata with safe access
-        metadata = source_data.get("metadata", {})
-        print(f"🏷️  METADATA: {metadata}")
-        
-        # Extract event info with proper fallbacks
-        event_type = source_data.get("type", "Normal")
-        reason = source_data.get("reason", "Unknown")
-        message = source_data.get("message", "No message provided")
-        count = source_data.get("count", 1)
-        
-        print(f"📊 EVENT INFO:")
-        print(f"   Type: {event_type}")
-        print(f"   Reason: {reason}")
-        print(f"   Message: {message[:100]}...")
-        print(f"   Count: {count}")
-        
-        # Extract timestamps with better handling
-        first_timestamp = None
-        last_timestamp = None
-        creation_timestamp = None
-        
-        # Handle different timestamp formats
-        timestamp_fields = ["firstTimestamp", "lastTimestamp", "eventTime"]
-        for field in timestamp_fields:
-            if source_data.get(field):
+        # FIXED: Check if data is already in flattened format (direct from API)
+        if "metadata_namespace" in source_data or "involved_object_kind" in source_data:
+            print("🔧 DETECTED FLATTENED FORMAT - USING DIRECT MAPPING")
+            
+            # Direct mapping for flattened format
+            metadata_name = source_data.get("metadata_name") or f"incident-{es_id}"
+            metadata_namespace = source_data.get("metadata_namespace")
+            metadata_creation_timestamp = None
+            
+            # Parse creation timestamp if provided
+            if source_data.get("metadata_creation_timestamp"):
                 try:
-                    ts_value = source_data[field]
-                    if ts_value and ts_value != "null":
-                        parsed_ts = datetime.fromisoformat(ts_value.replace("Z", "+00:00"))
-                        if field == "firstTimestamp":
-                            first_timestamp = parsed_ts
-                        elif field == "lastTimestamp":
-                            last_timestamp = parsed_ts
-                        elif field == "eventTime":
-                            if not first_timestamp:
-                                first_timestamp = parsed_ts
-                            if not last_timestamp:
-                                last_timestamp = parsed_ts
-                        print(f"⏰ PARSED {field}: {parsed_ts}")
+                    metadata_creation_timestamp = datetime.fromisoformat(
+                        source_data["metadata_creation_timestamp"].replace("Z", "+00:00")
+                    )
                 except Exception as ts_error:
-                    print(f"⚠️  TIMESTAMP PARSE ERROR {field}: {ts_error}")
+                    print(f"⚠️  TIMESTAMP PARSE ERROR: {ts_error}")
+            
+            # Parse other timestamps
+            first_timestamp = None
+            last_timestamp = None
+            
+            if source_data.get("first_timestamp"):
+                try:
+                    first_timestamp = datetime.fromisoformat(
+                        source_data["first_timestamp"].replace("Z", "+00:00")
+                    )
+                except:
+                    pass
                     
-        if metadata.get("creationTimestamp"):
-            try:
-                creation_timestamp = datetime.fromisoformat(metadata["creationTimestamp"].replace("Z", "+00:00"))
-                print(f"⏰ CREATION TIMESTAMP: {creation_timestamp}")
-            except Exception as ts_error:
-                print(f"⚠️  CREATION TIMESTAMP ERROR: {ts_error}")
-        
-        # Extract source info
-        source = source_data.get("source", {})
-        print(f"🔧 SOURCE: {source}")
-        
-        # Extract involved object info
-        involved_object = source_data.get("involvedObject", {})
-        print(f"🎯 INVOLVED OBJECT: {involved_object}")
-        
-        # CRITICAL FIX: Handle owner references by converting to simple dict
-        owner_references_raw = involved_object.get("ownerReferences", [])
-        print(f"👑 RAW OWNER REFERENCES: {owner_references_raw}")
-        print(f"👑 OWNER REFERENCES TYPE: {type(owner_references_raw)}")
-        
-        # Convert to simple dict format to avoid validation issues
-        owner_references_dict = {}
-        if owner_references_raw:
-            if isinstance(owner_references_raw, list) and len(owner_references_raw) > 0:
-                # Take first owner reference and flatten it
-                first_owner = owner_references_raw[0]
-                if isinstance(first_owner, dict):
-                    owner_references_dict = {
-                        "apiVersion": str(first_owner.get("apiVersion", "")),
-                        "kind": str(first_owner.get("kind", "")),
-                        "name": str(first_owner.get("name", "")),
-                        "uid": str(first_owner.get("uid", "")),
-                        "controller": bool(first_owner.get("controller", False)),
-                        "blockOwnerDeletion": bool(first_owner.get("blockOwnerDeletion", False))
-                    }
-            elif isinstance(owner_references_raw, dict):
-                owner_references_dict = owner_references_raw
-        
-        print(f"👑 PROCESSED OWNER REFERENCES: {owner_references_dict}")
-        
-        # Extract all the fields we need
-        metadata_name = metadata.get("name", f"incident-{es_id}")
-        metadata_namespace = metadata.get("namespace") or involved_object.get("namespace")
-        source_component = source.get("component")
-        source_host = source.get("host")
-        involved_object_kind = involved_object.get("kind")
-        involved_object_name = involved_object.get("name")
-        involved_object_field_path = involved_object.get("fieldPath")
-        involved_object_labels = involved_object.get("labels", {})
-        involved_object_annotations = involved_object.get("annotations", {})
-        reporting_component = source_data.get("reportingComponent")
-        reporting_instance = source_data.get("reportingInstance")
-        
-        print(f"\n📝 FINAL EXTRACTED DATA:")
-        print(f"   metadata_name: {metadata_name}")
-        print(f"   metadata_namespace: {metadata_namespace}")
-        print(f"   type: {event_type}")
-        print(f"   reason: {reason}")
-        print(f"   involved_object_kind: {involved_object_kind}")
-        print(f"   involved_object_name: {involved_object_name}")
-        print(f"   source_component: {source_component}")
-        print(f"   reporting_component: {reporting_component}")
-        
-        # Create the KubernetesEvent object WITHOUT validation issues
-        print(f"\n🏗️  CREATING KUBERNETES EVENT OBJECT...")
-        
-        k8s_event = KubernetesEvent(
-            metadata_name=metadata_name,
-            metadata_namespace=metadata_namespace,
-            metadata_creation_timestamp=creation_timestamp,
-            type=event_type,
-            reason=reason,
-            message=message,
-            count=count,
-            first_timestamp=first_timestamp,
-            last_timestamp=last_timestamp,
-            source_component=source_component,
-            source_host=source_host,
-            involved_object_kind=involved_object_kind,
-            involved_object_name=involved_object_name,
-            involved_object_field_path=involved_object_field_path,
-            involved_object_labels=involved_object_labels or {},
-            involved_object_annotations=involved_object_annotations or {},
-            involved_object_owner_references=owner_references_dict,  # Now properly converted
-            reporting_component=reporting_component,
-            reporting_instance=reporting_instance
-        )
+            if source_data.get("last_timestamp"):
+                try:
+                    last_timestamp = datetime.fromisoformat(
+                        source_data["last_timestamp"].replace("Z", "+00:00")
+                    )
+                except:
+                    pass
+            
+            # Create KubernetesEvent with direct mapping
+            k8s_event = KubernetesEvent(
+                metadata_name=metadata_name,
+                metadata_namespace=metadata_namespace,
+                metadata_creation_timestamp=metadata_creation_timestamp,
+                type=source_data.get("type", "Normal"),
+                reason=source_data.get("reason", "Unknown"),
+                message=source_data.get("message", "No message provided"),
+                count=source_data.get("count", 1),
+                first_timestamp=first_timestamp,
+                last_timestamp=last_timestamp,
+                source_component=source_data.get("source_component"),
+                source_host=source_data.get("source_host"),
+                involved_object_kind=source_data.get("involved_object_kind"),
+                involved_object_name=source_data.get("involved_object_name"),
+                involved_object_field_path=source_data.get("involved_object_field_path"),
+                involved_object_labels=source_data.get("involved_object_labels", {}),
+                involved_object_annotations=source_data.get("involved_object_annotations", {}),
+                involved_object_owner_references=source_data.get("involved_object_owner_references", {}),
+                reporting_component=source_data.get("reporting_component"),
+                reporting_instance=source_data.get("reporting_instance")
+            )
+            
+        else:
+            print("🔧 DETECTED NESTED FORMAT - USING NESTED MAPPING")
+            
+            # Original nested format handling (for Elasticsearch _source format)
+            metadata = source_data.get("metadata", {})
+            print(f"🏷️  METADATA: {metadata}")
+            
+            # Extract event info with proper fallbacks
+            event_type = source_data.get("type", "Normal")
+            reason = source_data.get("reason", "Unknown")
+            message = source_data.get("message", "No message provided")
+            count = source_data.get("count", 1)
+            
+            print(f"📊 EVENT INFO:")
+            print(f"   Type: {event_type}")
+            print(f"   Reason: {reason}")
+            print(f"   Message: {message[:100]}...")
+            print(f"   Count: {count}")
+            
+            # Extract timestamps with better handling
+            first_timestamp = None
+            last_timestamp = None
+            creation_timestamp = None
+            
+            # Handle different timestamp formats
+            timestamp_fields = ["firstTimestamp", "lastTimestamp", "eventTime"]
+            for field in timestamp_fields:
+                if source_data.get(field):
+                    try:
+                        ts_value = source_data[field]
+                        if ts_value and ts_value != "null":
+                            parsed_ts = datetime.fromisoformat(ts_value.replace("Z", "+00:00"))
+                            if field == "firstTimestamp":
+                                first_timestamp = parsed_ts
+                            elif field == "lastTimestamp":
+                                last_timestamp = parsed_ts
+                            elif field == "eventTime":
+                                if not first_timestamp:
+                                    first_timestamp = parsed_ts
+                                if not last_timestamp:
+                                    last_timestamp = parsed_ts
+                            print(f"⏰ PARSED {field}: {parsed_ts}")
+                    except Exception as ts_error:
+                        print(f"⚠️  TIMESTAMP PARSE ERROR {field}: {ts_error}")
+                        
+            if metadata.get("creationTimestamp"):
+                try:
+                    creation_timestamp = datetime.fromisoformat(metadata["creationTimestamp"].replace("Z", "+00:00"))
+                    print(f"⏰ CREATION TIMESTAMP: {creation_timestamp}")
+                except Exception as ts_error:
+                    print(f"⚠️  CREATION TIMESTAMP ERROR: {ts_error}")
+            
+            # Extract source info
+            source = source_data.get("source", {})
+            print(f"🔧 SOURCE: {source}")
+            
+            # Extract involved object info
+            involved_object = source_data.get("involvedObject", {})
+            print(f"🎯 INVOLVED OBJECT: {involved_object}")
+            
+            # Handle owner references by converting to simple dict
+            owner_references_raw = involved_object.get("ownerReferences", [])
+            print(f"👑 RAW OWNER REFERENCES: {owner_references_raw}")
+            
+            # Convert to simple dict format to avoid validation issues
+            owner_references_dict = {}
+            if owner_references_raw:
+                if isinstance(owner_references_raw, list) and len(owner_references_raw) > 0:
+                    # Take first owner reference and flatten it
+                    first_owner = owner_references_raw[0]
+                    if isinstance(first_owner, dict):
+                        owner_references_dict = {
+                            "apiVersion": str(first_owner.get("apiVersion", "")),
+                            "kind": str(first_owner.get("kind", "")),
+                            "name": str(first_owner.get("name", "")),
+                            "uid": str(first_owner.get("uid", "")),
+                            "controller": bool(first_owner.get("controller", False)),
+                            "blockOwnerDeletion": bool(first_owner.get("blockOwnerDeletion", False))
+                        }
+                elif isinstance(owner_references_raw, dict):
+                    owner_references_dict = owner_references_raw
+            
+            print(f"👑 PROCESSED OWNER REFERENCES: {owner_references_dict}")
+            
+            # Extract all the fields we need
+            metadata_name = metadata.get("name", f"incident-{es_id}")
+            metadata_namespace = metadata.get("namespace") or involved_object.get("namespace")
+            source_component = source.get("component")
+            source_host = source.get("host")
+            involved_object_kind = involved_object.get("kind")
+            involved_object_name = involved_object.get("name")
+            involved_object_field_path = involved_object.get("fieldPath")
+            involved_object_labels = involved_object.get("labels", {})
+            involved_object_annotations = involved_object.get("annotations", {})
+            reporting_component = source_data.get("reportingComponent")
+            reporting_instance = source_data.get("reportingInstance")
+            
+            # Create the KubernetesEvent object
+            k8s_event = KubernetesEvent(
+                metadata_name=metadata_name,
+                metadata_namespace=metadata_namespace,
+                metadata_creation_timestamp=creation_timestamp,
+                type=event_type,
+                reason=reason,
+                message=message,
+                count=count,
+                first_timestamp=first_timestamp,
+                last_timestamp=last_timestamp,
+                source_component=source_component,
+                source_host=source_host,
+                involved_object_kind=involved_object_kind,
+                involved_object_name=involved_object_name,
+                involved_object_field_path=involved_object_field_path,
+                involved_object_labels=involved_object_labels or {},
+                involved_object_annotations=involved_object_annotations or {},
+                involved_object_owner_references=owner_references_dict,
+                reporting_component=reporting_component,
+                reporting_instance=reporting_instance
+            )
         
         print(f"✅ KUBERNETES EVENT CREATED SUCCESSFULLY!")
         print(f"   Event Name: {k8s_event.metadata_name}")
         print(f"   Event Type: {k8s_event.type}")
         print(f"   Event Reason: {k8s_event.reason}")
+        print(f"   Namespace: {k8s_event.metadata_namespace}")
+        print(f"   Object Kind: {k8s_event.involved_object_kind}")
+        print(f"   Object Name: {k8s_event.involved_object_name}")
         print("="*80 + "\n")
         
         return k8s_event
@@ -244,7 +298,7 @@ def convert_to_kubernetes_event(raw_data: Dict[str, Any]) -> KubernetesEvent:
             
             fallback_name = source_data.get("metadata", {}).get("name", f"fallback-{es_id}")
             fallback_message = source_data.get("message", f"Original conversion failed: {str(e)}")
-            fallback_namespace = source_data.get("metadata", {}).get("namespace")
+            fallback_namespace = source_data.get("metadata", {}).get("namespace") or source_data.get("metadata_namespace")
             fallback_type = source_data.get("type", "Warning")
             fallback_reason = "ConversionError"
             
@@ -254,9 +308,9 @@ def convert_to_kubernetes_event(raw_data: Dict[str, Any]) -> KubernetesEvent:
                 type=fallback_type,
                 reason=fallback_reason,
                 message=fallback_message,
-                involved_object_kind=source_data.get("involvedObject", {}).get("kind"),
-                involved_object_name=source_data.get("involvedObject", {}).get("name"),
-                reporting_component=source_data.get("reportingComponent")
+                involved_object_kind=source_data.get("involvedObject", {}).get("kind") or source_data.get("involved_object_kind"),
+                involved_object_name=source_data.get("involvedObject", {}).get("name") or source_data.get("involved_object_name"),
+                reporting_component=source_data.get("reportingComponent") or source_data.get("reporting_component")
             )
             
             print(f"✅ FALLBACK EVENT CREATED: {fallback_event.metadata_name}")

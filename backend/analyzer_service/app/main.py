@@ -1,19 +1,21 @@
 from fastapi import FastAPI, Request, BackgroundTasks, HTTPException, Depends, Body
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
-from app.llm_client import analyze_kubernetes_incident_sync, IncidentSolution
+# Update the import statement at the top of main.py
+from app.llm_client import analyze_kubernetes_incident_sync, IncidentSolution, analyze_kubernetes_remediation_sync
 from fastapi import BackgroundTasks
 from app.schemas import KubernetesEvent, IncidentStats
 from app.incident_processor import parse_flexible_incident_data, process_flexible_incidents
 from app.logger import logger
 from app.email_client import send_incident_email
 from app.database import create_db_and_tables, get_session, engine
-from app.models import IncidentModel,ExecutorStatusModel
-from sqlmodel import Session, select
+from app.models import IncidentModel, ExecutorStatusModel, SolutionModel, RemediationHistoryModel, CommandExecutionHistoryModel
+from sqlmodel import Session, select, func
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.cors import CORSMiddleware
 
 from typing import List, Optional, Dict, Any, Union
 import datetime
+from datetime import timezone
 import uuid
 import json
 
@@ -78,7 +80,9 @@ def on_startup():
         logger.error(f"Database initialization failed: {e}")
     
     logger.info("Database initialization completed")
+    
 
+#  api_1 -Incident data processing and store in database 
 @app.post("/incidents", 
     summary="Process incoming Kubernetes incidents/events",
     description="""
@@ -129,6 +133,11 @@ async def receive_incidents(
         raise HTTPException(status_code=400, detail=f"Unable to process incident data: {str(e)}")
 
 
+
+
+
+
+#  api_2 - Get all incidents
 @app.get("/incidents", 
     summary="Get all incidents",
     description="Retrieves all incidents from the database with optional filtering.",
@@ -172,6 +181,11 @@ async def get_incidents(
     
     return results
 
+
+
+
+
+#  api_3 - Get incident by ID
 @app.get("/incidents/{incident_id}", 
     summary="Get incident by ID",
     description="Retrieves a specific incident by its ID.",
@@ -191,7 +205,7 @@ async def get_incident(incident_id: str, session: Session = Depends(get_session)
 
 
 
-# Recommendation API-1
+#  api_4 - analyze incident and llm give solution after analysis
 @app.post("/analyze-incident", response_model=dict)
 async def analyze_incident_endpoint(
     incident_data: dict,
@@ -207,7 +221,9 @@ async def analyze_incident_endpoint(
         Structured solution with analysis and remediation steps
     """
     try:
-        logger.info(f"Received incident analysis request for: {incident_data.get('id', 'unknown')}")
+
+        incident_id = incident_data.get('id', 'unknown')
+        logger.info(f"🚀 Received incident analysis request for: {incident_id}")
         
         # Get active executors
         active_executors = session.exec(
@@ -218,45 +234,67 @@ async def analyze_incident_endpoint(
         if not active_executor_names:
             active_executor_names = ["kubectl"]
         
+        logger.info(f"🔧 Active executors: {active_executor_names}")
+        
         # Analyze incident using LLM (now using sync function with timeout handling)
         solution = analyze_kubernetes_incident_sync(incident_data, active_executor_names)
         
-        # Convert to dict for response
-        solution_dict = solution.model_dump()
+        # Save solution to database
+        try:
+            logger.info(f"💾 Saving solution to database for incident: {incident_id}")
+            
+            solution_model = SolutionModel(
+                solution_id=solution.solution_id,
+                incident_id=solution.incident_id,
+                summary=solution.summary,
+                analysis=solution.analysis,
+                steps=[step.model_dump() for step in solution.steps],  # Convert to dict
+                confidence_score=solution.confidence_score,
+                estimated_time_to_resolve_mins=solution.estimated_time_to_resolve_mins,  # Fixed field name
+                severity_level=solution.severity_level,
+                recommendations=solution.recommendations,
+                executed_at=None,
+                execution_result=None
+            )
+            
+            session.add(solution_model)
+            session.commit()
+            session.refresh(solution_model)
+            
+            logger.info(f"✅ Solution saved to database with ID: {solution_model.id}")
+            
+        except Exception as db_error:
+            logger.error(f"⚠️ Error saving solution to database: {str(db_error)}")
+            # Continue even if database save fails - don't block the response
         
-        logger.info(f"Successfully analyzed incident: {incident_data.get('id', 'unknown')}")
-        
+        # Return dynamic LLM response
         return {
             "success": True,
-            "incident_id": incident_data.get('id'),
-            "solution": solution_dict,
-            "message": "Incident analyzed successfully"
+            "incident_id": incident_id,
+            "solution": solution.model_dump(),
+            "message": "Incident analyzed successfully using LLM",
+            "llm_service_status": "active",
+            "analysis_type": "dynamic",
+            "timestamp": datetime.datetime.utcnow().isoformat()
         }
         
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Failed to analyze incident: {str(e)}")
-        # Still return a response even if analysis fails
-        return {
-            "success": False,
-            "incident_id": incident_data.get('id', 'unknown'),
-            "error": str(e),
-            "message": "Incident analysis failed, but basic information recorded"
-        }
+        logger.error(f"❌ Unexpected error in incident analysis: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Incident analysis failed: {str(e)}"
+        )
 
-# Recommendation API-2
+#  api_5 - analyze incident by id
 @app.get("/analyze-incident/{incident_id}")
 async def analyze_incident_by_id_endpoint(
     incident_id: str,
     session: Session = Depends(get_session)
 ):
     """
-    Analyze an existing incident by ID
-    
-    Args:
-        incident_id: ID of the incident to analyze
-        
-    Returns:
-        Structured solution with analysis and remediation steps
+    Analyze an existing incident by ID using LLM
     """
     try:
         # Get incident from database
@@ -296,27 +334,37 @@ async def analyze_incident_by_id_endpoint(
             'involved_object_annotations': incident.involved_object_annotations or {}
         }
         
-        # Analyze incident using LLM (now using sync function)
-        solution = analyze_kubernetes_incident_sync(incident_data, active_executor_names)
-        
-        return {
-            "success": True,
-            "incident_id": incident_id,
-            "solution": solution.model_dump(),
-            "message": "Incident analyzed successfully"
-        }
+        # Analyze incident using LLM - NO FALLBACK
+        try:
+            solution = analyze_kubernetes_incident_sync(incident_data, active_executor_names)
+            
+            return {
+                "success": True,
+                "incident_id": incident_id,
+                "solution": solution.model_dump(),
+                "message": "Incident analyzed successfully using LLM",
+                "llm_service_status": "active",
+                "analysis_type": "dynamic",
+                "timestamp": datetime.datetime.utcnow().isoformat()
+            }
+            
+        except Exception as llm_error:
+            logger.error(f"❌ LLM analysis failed for incident {incident_id}: {str(llm_error)}")
+            raise HTTPException(
+                status_code=503,
+                detail=f"LLM analysis service unavailable: {str(llm_error)}"
+            )
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to analyze incident {incident_id}: {str(e)}")
+        logger.error(f"❌ Failed to analyze incident {incident_id}: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to analyze incident: {str(e)}"
         )
 
-
-# Executor Status Endpoints
+#  api_6 - get executor status
 @app.get("/executors/status",
     summary="Get all executor statuses",
     description="Get the current status of all executors (Active/Inactive)",
@@ -344,6 +392,7 @@ async def get_executor_status(session: Session = Depends(get_session)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting executor status: {str(e)}")
 
+#  api_7 - give executor status
 @app.post("/executors/{executor_name}/status",
     summary="Update executor status",
     description="Update the status of a specific executor (0=Active, 1=Inactive)",
@@ -405,6 +454,7 @@ async def update_executor_status(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error updating executor status: {str(e)}")
 
+#  api_8 - get active executors
 @app.get("/executors/active",
     summary="Get active executors",
     description="Get list of currently active executors",
@@ -428,10 +478,10 @@ async def get_active_executors(session: Session = Depends(get_session)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting active executors: {str(e)}")
 
-# Recommendation API-3
+#  api_9 -  Analyze Kubernetes issue and get remediation command
 @app.post("/remediate", 
     summary="Analyze Kubernetes issue and get remediation command",
-    description="Analyze a Kubernetes alert/issue and get a single remediation command",
+    description="Analyze a Kubernetes alert/issue and get a single remediation command using LLM",
     tags=["Remediation"])
 async def analyze_remediation(
     alert_data: Dict[str, Any] = Body(...,
@@ -448,27 +498,13 @@ async def analyze_remediation(
     session: Session = Depends(get_session)
 ):
     """
-    Analyze Kubernetes issue and provide remediation command
-    
-    Expected input:
-    
-    {
-        "alert_name": "HighCPUUsage",
-        "namespace": "default",
-        "pod_name": "backend-xyz-123", 
-        "usage": "95%",
-        "threshold": "80%",
-        "duration": "15m"
-    }
-    
-    
-    Returns structured remediation with:
-    - Issue analysis
-    - Single kubectl command for remediation
-    - Safety assessment
-    - Confidence score
+    Analyze Kubernetes issue and provide remediation command using LLM
     """
     try:
+        # Validate required fields
+        if not alert_data.get("alert_name"):
+            raise HTTPException(status_code=400, detail="alert_name is required")
+        
         # Get active executors
         active_executors = session.exec(
             select(ExecutorStatusModel).where(ExecutorStatusModel.status == 0)
@@ -478,32 +514,42 @@ async def analyze_remediation(
         if not active_executor_names:
             active_executor_names = ["kubectl"]
         
-        # Import and use the remediation analysis function
-        from app.llm_client import analyze_kubernetes_remediation_sync
+        # Analyze using LLM - NO FALLBACK
+        try:
+            remediation = analyze_kubernetes_remediation_sync(alert_data, active_executor_names)
+            
+            return {
+                "success": True,
+                "alert_name": alert_data.get("alert_name"),
+                "remediation": {
+                    "issue_summary": remediation.issue_summary,
+                    "suggestion": remediation.suggestion,
+                    "command": f"kubectl {remediation.command}",
+                    "is_executable": remediation.is_executable,
+                    "severity_level": remediation.severity_level,
+                    "estimated_time_mins": remediation.estimated_time_mins,
+                    "confidence_score": remediation.confidence_score,
+                    "active_executors": remediation.active_executors
+                },
+                "llm_service_status": "active",
+                "analysis_type": "dynamic",
+                "timestamp": datetime.datetime.utcnow().isoformat()
+            }
+            
+        except Exception as llm_error:
+            logger.error(f"❌ LLM remediation analysis failed: {str(llm_error)}")
+            raise HTTPException(
+                status_code=503,
+                detail=f"LLM remediation service unavailable: {str(llm_error)}"
+            )
         
-        remediation = analyze_kubernetes_remediation_sync(alert_data, active_executor_names)
-        
-        return {
-            "success": True,
-            "alert_name": alert_data.get("alert_name", "Unknown"),
-            "remediation": {
-                "issue_summary": remediation.issue_summary,
-                "suggestion": remediation.suggestion,
-                "command": f"kubectl {remediation.command}",
-                "is_executable": remediation.is_executable,
-                "severity_level": remediation.severity_level,
-                "estimated_time_mins": remediation.estimated_time_mins,
-                "confidence_score": remediation.confidence_score,
-                "active_executors": remediation.active_executors
-            },
-            "timestamp": datetime.datetime.utcnow().isoformat()
-        }
-        
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error analyzing remediation: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Remediation analysis failed: {str(e)}")
 
-# Recommendation API-4
+#  api_10 - Execute remediation command
 @app.post("/remediate/execute",
     summary="Execute remediation command",
     description="Execute the provided remediation command with safety checks",
@@ -587,7 +633,7 @@ async def execute_remediation(
         logger.error(f"Error executing remediation: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Execution failed: {str(e)}")
 
-# Recommendation API-5
+# api_11 - Analyze and Execute Remediation
 @app.post("/remediate/analyze-and-execute",
     summary="Analyze issue and optionally execute remediation",
     description="Complete workflow: analyze Kubernetes issue and execute safe remediation",
@@ -726,7 +772,7 @@ async def analyze_and_execute_remediation(
         logger.error(f"Error in analyze-and-execute workflow: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Workflow failed: {str(e)}")
 
-# Recommendation API-6
+# api_12 - Get Remediation History
 @app.get("/remediation/history",
     summary="Get remediation history",
     description="Get history of executed remediation commands",
@@ -750,6 +796,9 @@ async def get_remediation_history(
     - **status**: Filter by execution status (success, failed, skipped, blocked)
     """
     try:
+        # Import here if needed
+        from app.models import RemediationHistoryModel
+        
         query = select(RemediationHistoryModel)
         
         if alert_name:
@@ -787,7 +836,7 @@ async def get_remediation_history(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting remediation history: {str(e)}")
 
-# Recommendation API-7
+# api_13 - Get Remediation Statistics
 @app.get("/remediation/stats",
     summary="Get remediation statistics",
     description="Get statistics about remediation executions",
@@ -797,6 +846,9 @@ async def get_remediation_stats(session: Session = Depends(get_session)):
     Get remediation execution statistics
     """
     try:
+        # Import here if needed
+        from app.models import RemediationHistoryModel
+        
         # Get total executions by status
         status_stats = session.exec(
             select(
@@ -841,7 +893,7 @@ async def get_remediation_stats(session: Session = Depends(get_session)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting remediation stats: {str(e)}")
 
-# Recommendation API-8
+# api_14 - Get Remediation Recommendations
 @app.get("/incidents/{incident_id}/recommendations",
     summary="Get recommendations for specific incident",
     description="Get LLM-generated recommendations and commands for a specific incident",
@@ -940,7 +992,7 @@ async def get_incident_recommendations(
         logger.error(f"Error getting recommendations for incident {incident_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to get recommendations: {str(e)}")
 
-# Recommendation API-9
+# api_15 - Execute Command
 @app.post("/execute-command",
     summary="Execute kubectl command with safety checks",
     description="Execute a specific kubectl command with comprehensive safety checks and logging",
@@ -1065,7 +1117,7 @@ async def execute_kubectl_command(
         logger.error(f"Error executing command: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Command execution failed: {str(e)}")
 
-# Recommendations API-10
+# api_16 - Get command execution history for incident
 @app.get("/incidents/{incident_id}/execution-history",
     summary="Get command execution history for incident",
     description="Get history of all commands executed for a specific incident",

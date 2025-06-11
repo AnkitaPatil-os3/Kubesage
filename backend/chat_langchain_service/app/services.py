@@ -6,6 +6,7 @@ import html
 
 from app.models import ChatSession, ChatMessage, User
 from app.logger import logger
+from app.config import settings
 
 class MessageService:
     """Service for handling message operations and validation."""
@@ -14,55 +15,26 @@ class MessageService:
         self.session = session
     
     def validate_message_content(self, content: str) -> bool:
-        """Validate message content."""
+        """Validate message content with relaxed rules."""
         if not content or not content.strip():
             return False
         
-        if len(content) > 10000:  # Max message length
+        if len(content) > settings.MAX_MESSAGE_LENGTH:
             return False
-        
-        # Check for potentially harmful content
-        harmful_patterns = [
-            r'<script[^>]*>.*?</script>',
-            r'javascript:',
-            r'on\w+\s*=',
-        ]
-        
-        for pattern in harmful_patterns:
-            if re.search(pattern, content, re.IGNORECASE):
-                return False
         
         return True
     
     def sanitize_message_content(self, content: str) -> str:
-        """Sanitize message content."""
-        # HTML escape
-        content = html.escape(content)
-        
-        # Remove excessive whitespace
-        content = re.sub(r'\s+', ' ', content).strip()
+        """Light sanitization preserving kubectl commands and YAML."""
+        # Remove excessive whitespace but preserve structure
+        content = re.sub(r'\n\s*\n\s*\n', '\n\n', content)  # Max 2 consecutive newlines
+        content = content.strip()
         
         # Limit length
-        if len(content) > 10000:
-            content = content[:10000] + "..."
+        if len(content) > settings.MAX_MESSAGE_LENGTH:
+            content = content[:settings.MAX_MESSAGE_LENGTH] + "... (message truncated)"
         
         return content
-    
-    def should_save_message(self, role: str, content: str, success: bool = True) -> bool:
-        """Determine if a message should be saved to database."""
-        # Don't save failed AI responses
-        if role == "assistant" and not success:
-            return False
-        
-        # Don't save empty messages
-        if not content or not content.strip():
-            return False
-        
-        # Don't save error messages
-        if "error" in content.lower() and role == "assistant":
-            return False
-        
-        return True
 
 class ChatService:
     """Service for handling chat session operations."""
@@ -70,7 +42,7 @@ class ChatService:
     def __init__(self, session: Session):
         self.session = session
     
-    def create_session(self, user_id: int, title: str = "New Chat") -> ChatSession:
+    def create_session(self, user_id: int, title: str = "Kubernetes Chat") -> ChatSession:
         """Create a new chat session."""
         try:
             chat_session = ChatSession(
@@ -83,12 +55,12 @@ class ChatService:
             self.session.commit()
             self.session.refresh(chat_session)
             
-            logger.info(f"Created new chat session: {chat_session.session_id}")
+            logger.info(f"✅ Created new chat session: {chat_session.session_id}")
             return chat_session
             
         except Exception as e:
             self.session.rollback()
-            logger.error(f"Error creating chat session: {e}")
+            logger.error(f"❌ Error creating chat session: {e}")
             raise
     
     def get_session(self, session_id: str, user_id: int) -> Optional[ChatSession]:
@@ -101,7 +73,7 @@ class ChatService:
             return self.session.exec(statement).first()
             
         except Exception as e:
-            logger.error(f"Error getting chat session: {e}")
+            logger.error(f"❌ Error getting chat session: {e}")
             return None
     
     def list_user_sessions(
@@ -121,10 +93,12 @@ class ChatService:
             statement = statement.order_by(ChatSession.updated_at.desc())
             statement = statement.offset(skip).limit(limit)
             
-            return self.session.exec(statement).all()
+            sessions = self.session.exec(statement).all()
+            logger.info(f"📋 Retrieved {len(sessions)} sessions for user {user_id}")
+            return sessions
             
         except Exception as e:
-            logger.error(f"Error listing user sessions: {e}")
+            logger.error(f"❌ Error listing user sessions: {e}")
             return []
     
     def update_session(
@@ -149,12 +123,12 @@ class ChatService:
             self.session.commit()
             self.session.refresh(chat_session)
             
-            logger.info(f"Updated chat session: {session_id}")
+            logger.info(f"✅ Updated chat session: {session_id}")
             return chat_session
             
         except Exception as e:
             self.session.rollback()
-            logger.error(f"Error updating chat session: {e}")
+            logger.error(f"❌ Error updating chat session: {e}")
             return None
     
     def delete_session(self, session_id: str, user_id: int) -> bool:
@@ -165,25 +139,23 @@ class ChatService:
                 return False
             
             # Delete all messages first
-            self.session.exec(
+            messages = self.session.exec(
                 select(ChatMessage).where(ChatMessage.session_id == session_id)
             ).all()
             
-            for message in self.session.exec(
-                select(ChatMessage).where(ChatMessage.session_id == session_id)
-            ).all():
+            for message in messages:
                 self.session.delete(message)
             
             # Delete the session
             self.session.delete(chat_session)
             self.session.commit()
             
-            logger.info(f"Deleted chat session: {session_id}")
+            logger.info(f"🗑️ Deleted chat session: {session_id}")
             return True
             
         except Exception as e:
             self.session.rollback()
-            logger.error(f"Error deleting chat session: {e}")
+            logger.error(f"❌ Error deleting chat session: {e}")
             return False
     
     def add_message(self, session_id: str, role: str, content: str) -> ChatMessage:
@@ -207,12 +179,12 @@ class ChatService:
                 self.session.add(chat_session)
                 self.session.commit()
             
-            logger.info(f"Added message to session {session_id}: {role}")
+            logger.info(f"💾 Added {role} message to session {session_id}")
             return message
             
         except Exception as e:
             self.session.rollback()
-            logger.error(f"Error adding message: {e}")
+            logger.error(f"❌ Error adding message: {e}")
             raise
     
     def get_session_messages(
@@ -229,10 +201,12 @@ class ChatService:
             if limit:
                 statement = statement.limit(limit)
             
-            return self.session.exec(statement).all()
+            messages = self.session.exec(statement).all()
+            logger.info(f"📚 Retrieved {len(messages)} messages for session {session_id}")
+            return messages
             
         except Exception as e:
-            logger.error(f"Error getting session messages: {e}")
+            logger.error(f"❌ Error getting session messages: {e}")
             return []
     
     def clear_session_messages(self, session_id: str, user_id: int) -> bool:
@@ -253,12 +227,12 @@ class ChatService:
             
             self.session.commit()
             
-            logger.info(f"Cleared messages for session: {session_id}")
+            logger.info(f"🧹 Cleared {len(messages)} messages for session: {session_id}")
             return True
             
         except Exception as e:
             self.session.rollback()
-            logger.error(f"Error clearing session messages: {e}")
+            logger.error(f"❌ Error clearing session messages: {e}")
             return False
     
     def get_session_stats(self, user_id: int) -> Dict[str, Any]:
@@ -287,7 +261,7 @@ class ChatService:
                 )
             ).all()
             
-            return {
+            stats = {
                 "total_sessions": total_sessions,
                 "active_sessions": active_sessions,
                 "total_messages": total_messages,
@@ -298,15 +272,56 @@ class ChatService:
                 )
             }
             
+            logger.info(f"📊 Generated stats for user {user_id}: {stats}")
+            return stats
+            
         except Exception as e:
-            logger.error(f"Error getting session stats: {e}")
+            logger.error(f"❌ Error getting session stats: {e}")
             return {
                 "total_sessions": 0,
                 "active_sessions": 0,
                 "total_messages": 0,
                 "recent_sessions": 0,
-                "last_activity": None
+                "last_activity": None,
+                "error": str(e)
             }
+    
+    def cleanup_old_sessions(self, days: int = 30) -> int:
+        """Clean up old inactive sessions."""
+        try:
+            cutoff_date = datetime.utcnow() - timedelta(days=days)
+            
+            # Find old inactive sessions
+            old_sessions = self.session.exec(
+                select(ChatSession).where(
+                    ChatSession.is_active == False,
+                    ChatSession.updated_at < cutoff_date
+                )
+            ).all()
+            
+            cleaned_count = 0
+            for session in old_sessions:
+                # Delete messages first
+                messages = self.session.exec(
+                    select(ChatMessage).where(ChatMessage.session_id == session.session_id)
+                ).all()
+                
+                for message in messages:
+                    self.session.delete(message)
+                
+                # Delete session
+                self.session.delete(session)
+                cleaned_count += 1
+            
+            self.session.commit()
+            
+            logger.info(f"🧹 Cleaned up {cleaned_count} old sessions")
+            return cleaned_count
+            
+        except Exception as e:
+            self.session.rollback()
+            logger.error(f"❌ Error cleaning up old sessions: {e}")
+            return 0
 
 class AnalyticsService:
     """Service for handling analytics and usage tracking."""
@@ -314,39 +329,158 @@ class AnalyticsService:
     def __init__(self, session: Session):
         self.session = session
     
-    def track_message(self, user_id: int, session_id: str, role: str, content_length: int):
-        """Track message for analytics."""
+    def track_chat_interaction(
+        self, 
+        user_id: int, 
+        session_id: str, 
+        message_length: int,
+        response_time: float,
+        errors_included: bool = False
+    ):
+        """Track chat interaction for analytics."""
         try:
-            # This could be expanded to store detailed analytics
-            logger.info(f"Message tracked: user={user_id}, session={session_id}, role={role}, length={content_length}")
+            interaction_data = {
+                "user_id": user_id,
+                "session_id": session_id,
+                "message_length": message_length,
+                "response_time": response_time,
+                "errors_included": errors_included,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+            
+            logger.info(f"📈 Tracked interaction: {interaction_data}")
             
         except Exception as e:
-            logger.error(f"Error tracking message: {e}")
+            logger.error(f"❌ Error tracking interaction: {e}")
     
     def get_usage_stats(self, user_id: Optional[int] = None) -> Dict[str, Any]:
         """Get usage statistics."""
         try:
-            # Basic stats - can be expanded
+            base_query = select(ChatSession)
             if user_id:
-                sessions = self.session.exec(
-                    select(ChatSession).where(ChatSession.user_id == user_id)
-                ).all()
-            else:
-                sessions = self.session.exec(select(ChatSession)).all()
+                base_query = base_query.where(ChatSession.user_id == user_id)
             
+            sessions = self.session.exec(base_query).all()
+            
+            # Calculate stats
             total_sessions = len(sessions)
             active_sessions = len([s for s in sessions if s.is_active])
             
-            return {
+            # Get message counts
+            total_messages = 0
+            for session in sessions:
+                messages = self.session.exec(
+                    select(ChatMessage).where(ChatMessage.session_id == session.session_id)
+                ).all()
+                total_messages += len(messages)
+            
+            # Recent activity (last 24 hours)
+            day_ago = datetime.utcnow() - timedelta(days=1)
+            recent_sessions = [s for s in sessions if s.updated_at >= day_ago]
+            
+            stats = {
                 "total_sessions": total_sessions,
                 "active_sessions": active_sessions,
+                "total_messages": total_messages,
+                "recent_sessions_24h": len(recent_sessions),
+                "average_messages_per_session": total_messages / max(total_sessions, 1),
+                "timestamp": datetime.utcnow().isoformat()
+            }
+            
+            if user_id:
+                stats["user_id"] = user_id
+            
+            logger.info(f"📊 Generated usage stats: {stats}")
+            return stats
+            
+        except Exception as e:
+            logger.error(f"❌ Error getting usage stats: {e}")
+            return {
+                "total_sessions": 0,
+                "active_sessions": 0,
+                "total_messages": 0,
+                "recent_sessions_24h": 0,
+                "average_messages_per_session": 0,
+                "timestamp": datetime.utcnow().isoformat(),
+                "error": str(e)
+            }
+    
+    def get_error_collection_stats(self) -> Dict[str, Any]:
+        """Get statistics about error collection usage."""
+        try:
+            # This would be enhanced with actual tracking data
+            # For now, return basic info
+            stats = {
+                "error_collection_enabled": settings.COLLECT_ERRORS_ON_NEW_CHAT,
+                "max_errors_per_type": settings.MAX_ERRORS_PER_TYPE,
+                "collection_timeout": settings.ERROR_COLLECTION_TIMEOUT,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+            
+            return stats
+            
+        except Exception as e:
+            logger.error(f"❌ Error getting error collection stats: {e}")
+            return {
+                "error": str(e),
+                "timestamp": datetime.utcnow().isoformat()
+            }
+
+class HealthService:
+    """Service for health checks and monitoring."""
+    
+    def __init__(self, session: Session):
+        self.session = session
+    
+    def check_database_health(self) -> Dict[str, Any]:
+        """Check database connectivity and performance."""
+        try:
+            start_time = datetime.utcnow()
+            
+            # Test basic query
+            result = self.session.exec(select(ChatSession).limit(1)).first()
+            
+            end_time = datetime.utcnow()
+            response_time = (end_time - start_time).total_seconds()
+            
+            return {
+                "status": "healthy",
+                "response_time_seconds": response_time,
                 "timestamp": datetime.utcnow().isoformat()
             }
             
         except Exception as e:
-            logger.error(f"Error getting usage stats: {e}")
+            logger.error(f"❌ Database health check failed: {e}")
             return {
-                "total_sessions": 0,
-                "active_sessions": 0,
+                "status": "unhealthy",
+                "error": str(e),
+                "timestamp": datetime.utcnow().isoformat()
+            }
+    
+    def get_service_metrics(self) -> Dict[str, Any]:
+        """Get basic service metrics."""
+        try:
+            # Count total sessions and messages
+            total_sessions = len(self.session.exec(select(ChatSession)).all())
+            total_messages = len(self.session.exec(select(ChatMessage)).all())
+            
+            # Count active sessions (updated in last 24 hours)
+            day_ago = datetime.utcnow() - timedelta(days=1)
+            active_sessions = len(self.session.exec(
+                select(ChatSession).where(ChatSession.updated_at >= day_ago)
+            ).all())
+            
+            return {
+                "total_sessions": total_sessions,
+                "total_messages": total_messages,
+                "active_sessions_24h": active_sessions,
+                "average_messages_per_session": total_messages / max(total_sessions, 1),
+                "timestamp": datetime.utcnow().isoformat()
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ Error getting service metrics: {e}")
+            return {
+                "error": str(e),
                 "timestamp": datetime.utcnow().isoformat()
             }

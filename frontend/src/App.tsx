@@ -20,12 +20,26 @@ import ClusterAnalyze from "./components/cluster-analyze";
  
 export default function App() {
   const { theme, setTheme } = useTheme();
-  const [isAuthenticated, setIsAuthenticated] = React.useState(false);
+  
+  // Initialize authentication state from localStorage
+  const [isAuthenticated, setIsAuthenticated] = React.useState(() => {
+    const savedAuth = localStorage.getItem('isAuthenticated');
+    return savedAuth === 'true';
+  });
+  
+  // Update localStorage whenever authentication state changes
+  React.useEffect(() => {
+    localStorage.setItem('isAuthenticated', isAuthenticated.toString());
+  }, [isAuthenticated]);
   
   const handleLogin = (email: string, password: string) => {
     // In a real app, this would validate credentials with an API
     if (email && password) {
       setIsAuthenticated(true);
+      // Store authentication state in localStorage
+      localStorage.setItem('isAuthenticated', 'true');
+      // If you have user data, store it as well
+      localStorage.setItem('userEmail', email);
       return true;
     }
     return false;
@@ -33,6 +47,10 @@ export default function App() {
   
   const handleLogout = () => {
     setIsAuthenticated(false);
+    // Clear authentication data from localStorage
+    localStorage.removeItem('isAuthenticated');
+    localStorage.removeItem('userEmail');
+    localStorage.removeItem('access_token'); // Clear any existing tokens
   };
   
   const toggleTheme = () => {
@@ -85,3 +103,5 @@ export default function App() {
     </div>
   );
 }
+ 
+ 

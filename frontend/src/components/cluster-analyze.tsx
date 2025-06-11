@@ -80,13 +80,76 @@ interface ClusterAnalyzeProps {
 }
 
 const RESOURCE_TYPES = [
-    { key: 'pods', label: 'Pods', icon: 'mdi:cube-outline', description: 'Running containers and their status' },
-    { key: 'deployments', label: 'Deployments', icon: 'mdi:rocket-launch-outline', description: 'Application deployments and replicas' },
-    { key: 'services', label: 'Services', icon: 'mdi:network-outline', description: 'Network services and endpoints' },
-    { key: 'secrets', label: 'Secrets', icon: 'mdi:key-outline', description: 'Sensitive configuration data' },
-    { key: 'storageclasses', label: 'Storage Classes', icon: 'mdi:database-outline', description: 'Storage provisioning classes' },
-    { key: 'ingress', label: 'Ingress', icon: 'mdi:web', description: 'External access and routing' },
-    { key: 'pvc', label: 'Persistent Volume Claims', icon: 'mdi:harddisk', description: 'Storage volume requests' }
+    { 
+        key: 'pods', 
+        label: 'Pods', 
+        icon: 'mdi:cube-outline', 
+        description: 'Running containers and their status',
+        color: 'bg-gradient-to-br from-blue-500 to-blue-600',
+        lightColor: 'bg-blue-50 border-blue-200',
+        textColor: 'text-blue-600',
+        iconBg: 'bg-blue-100'
+    },
+    { 
+        key: 'deployments', 
+        label: 'Deployments', 
+        icon: 'mdi:rocket-launch-outline', 
+        description: 'Application deployments and replicas',
+        color: 'bg-gradient-to-br from-green-500 to-green-600',
+        lightColor: 'bg-green-50 border-green-200',
+        textColor: 'text-green-600',
+        iconBg: 'bg-green-100'
+    },
+    { 
+        key: 'services', 
+        label: 'Services', 
+        icon: 'mdi:network-outline', 
+        description: 'Network services and endpoints',
+        color: 'bg-gradient-to-br from-purple-500 to-purple-600',
+        lightColor: 'bg-purple-50 border-purple-200',
+        textColor: 'text-purple-600',
+        iconBg: 'bg-purple-100'
+    },
+    { 
+        key: 'secrets', 
+        label: 'Secrets', 
+        icon: 'mdi:key-outline', 
+        description: 'Sensitive configuration data',
+        color: 'bg-gradient-to-br from-red-500 to-red-600',
+        lightColor: 'bg-red-50 border-red-200',
+        textColor: 'text-red-600',
+        iconBg: 'bg-red-100'
+    },
+    { 
+        key: 'storageclasses', 
+        label: 'Storage Classes', 
+        icon: 'mdi:database-outline', 
+        description: 'Storage provisioning classes',
+        color: 'bg-gradient-to-br from-orange-500 to-orange-600',
+        lightColor: 'bg-orange-50 border-orange-200',
+        textColor: 'text-orange-600',
+        iconBg: 'bg-orange-100'
+    },
+    { 
+        key: 'ingress', 
+        label: 'Ingress', 
+        icon: 'mdi:web', 
+        description: 'External access and routing',
+        color: 'bg-gradient-to-br from-teal-500 to-teal-600',
+        lightColor: 'bg-teal-50 border-teal-200',
+        textColor: 'text-teal-600',
+        iconBg: 'bg-teal-100'
+    },
+    { 
+        key: 'pvc', 
+        label: 'Persistent Volume Claims', 
+        icon: 'mdi:harddisk', 
+        description: 'Storage volume requests',
+        color: 'bg-gradient-to-br from-indigo-500 to-indigo-600',
+        lightColor: 'bg-indigo-50 border-indigo-200',
+        textColor: 'text-indigo-600',
+        iconBg: 'bg-indigo-100'
+    }
 ];
 
 const ACTION_TYPE_ICONS = {
@@ -133,7 +196,7 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
     const fetchNamespaces = async () => {
         try {
             const token = localStorage.getItem('access_token');
-            const response = await fetch('https://10.0.32.106:8002/kubeconfig/namespaces', {
+            const response = await fetch('/kubeconfig/namespaces', {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -166,7 +229,7 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
 
             params.append('resource_types', selectedResourceType);
 
-            const response = await fetch(`https://10.0.32.106:8002/kubeconfig/analyze-k8s-with-solutions?${params}`, {
+            const response = await fetch(`/kubeconfig/analyze-k8s-with-solutions?${params}`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -456,70 +519,126 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                             </Select>
                         </div>
 
-                        {/* Resource Types Selection - Fixed Cards */}
+                        {/* Resource Types Selection - Beautified Cards */}
                         <div>
-                            <label className="block text-sm font-medium mb-3">Resource Type</label>
-                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-2">
+                            <label className="block text-sm font-medium mb-4">Resource Type</label>
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
                                 {RESOURCE_TYPES.map((type) => (
                                     <motion.div
                                         key={type.key}
-                                        whileHover={{ scale: 1.02 }}
+                                        whileHover={{ scale: 1.05, y: -2 }}
                                         whileTap={{ scale: 0.98 }}
+                                        className="relative group"
                                     >
                                         <Card
                                             isPressable
                                             isHoverable
-                                            className={`cursor-pointer transition-all duration-200 h-24 w-full ${
+                                            className={`cursor-pointer transition-all duration-300 h-28 w-full overflow-hidden ${
                                                 selectedResourceType === type.key
-                                                    ? 'border-2 border-primary bg-primary/10'
-                                                    : 'border border-default-200 hover:border-primary/50'
+                                                    ? `border-2 ${type.lightColor} shadow-lg transform scale-105`
+                                                    : 'hover:border-default-300 hover:shadow-md'
                                             }`}
                                             onPress={() => setSelectedResourceType(type.key)}
                                         >
-                                            <CardBody className="p-2 relative">
-                                                <div className="flex flex-col items-center justify-center text-center h-full space-y-1">
-                                                    <div className={`p-1.5 rounded-full ${
+                                            {/* Background Gradient for Selected Card */}
+                                            {selectedResourceType === type.key && (
+                                                <div className={`absolute inset-0 ${type.color} opacity-10`} />
+                                            )}
+                                            
+                                            {/* Hover Glow Effect - moved to top level */}
+                                            <div className={`absolute inset-0 rounded-lg opacity-0 group-hover:opacity-20 transition-opacity duration-300 ${type.color} z-0`} />
+                                            
+                                            <CardBody className="p-3 relative z-10">
+                                                <div className="flex flex-col items-center justify-center text-center h-full space-y-2">
+                                                    {/* Icon Container */}
+                                                    <div className={`relative p-2.5 rounded-xl transition-all duration-300 ${
                                                         selectedResourceType === type.key
-                                                            ? 'bg-primary text-white'
-                                                            : 'bg-default-100 text-default-600'
+                                                            ? `${type.color} text-white shadow-lg`
+                                                            : `${type.iconBg} ${type.textColor}`
                                                     }`}>
                                                         <Icon 
                                                             icon={type.icon} 
-                                                            className="text-lg"
+                                                            className="text-xl"
                                                         />
+                                                        
+                                                        {/* Pulse Animation for Selected */}
+                                                        {selectedResourceType === type.key && (
+                                                            <div className={`absolute inset-0 ${type.color} rounded-xl animate-ping opacity-20`} />
+                                                        )}
                                                     </div>
+                                                    
+                                                    {/* Label */}
                                                     <div className="flex-1 flex flex-col justify-center">
-                                                        <h3 className={`font-semibold text-xs leading-tight ${
+                                                        <h3 className={`font-bold text-xs leading-tight transition-colors duration-300 ${
                                                             selectedResourceType === type.key
-                                                                ? 'text-primary'
+                                                                ? type.textColor
                                                                 : 'text-default-700'
                                                         }`}>
                                                             {type.label}
                                                         </h3>
                                                     </div>
+                                                    
+                                                    {/* Selection Indicator */}
                                                     {selectedResourceType === type.key && (
-                                                        <div className="absolute top-1 right-1">
-                                                            <Icon 
-                                                                icon="mdi:check-circle" 
-                                                                className="text-primary text-sm"
-                                                            />
-                                                        </div>
+                                                        <motion.div 
+                                                            initial={{ scale: 0, opacity: 0 }}
+                                                            animate={{ scale: 1, opacity: 1 }}
+                                                            className="absolute top-2 right-2"
+                                                        >
+                                                            <div className={`${type.color} rounded-full p-1 shadow-lg`}>
+                                                                <Icon 
+                                                                    icon="mdi:check" 
+                                                                    className="text-white text-xs"
+                                                                />
+                                                            </div>
+                                                        </motion.div>
                                                     )}
+                                                    
+                                                    {/* Hover Glow Effect */}
+                                                    
+                                                    <div className={`absolute inset-0 rounded-lg opacity-0 hover:opacity-20 transition-opacity duration-300 ${type.color}`} />
                                                 </div>
                                             </CardBody>
                                         </Card>
                                     </motion.div>
                                 ))}
                             </div>
-                            {/* Selected Resource Description */}
-                            <div className="mt-3 p-3 bg-default-50 rounded-lg">
-                                <p className="text-sm text-default-600">
-                                    <span className="font-medium">
-                                        {RESOURCE_TYPES.find(type => type.key === selectedResourceType)?.label}:
-                                    </span>{' '}
-                                    {RESOURCE_TYPES.find(type => type.key === selectedResourceType)?.description}
-                                </p>
-                            </div>
+                            
+                            {/* Enhanced Selected Resource Description */}
+                            <motion.div 
+                                key={selectedResourceType}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="mt-4"
+                            >
+                                <Card className={`${RESOURCE_TYPES.find(type => type.key === selectedResourceType)?.lightColor} border-2`}>
+                                    <CardBody className="p-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`p-2 rounded-lg ${RESOURCE_TYPES.find(type => type.key === selectedResourceType)?.color} text-white`}>
+                                                <Icon 
+                                                    icon={RESOURCE_TYPES.find(type => type.key === selectedResourceType)?.icon || 'mdi:cube-outline'} 
+                                                    className="text-lg"
+                                                />
+                                            </div>
+                                            <div className="flex-1">
+                                                <h4 className={`font-bold text-sm ${RESOURCE_TYPES.find(type => type.key === selectedResourceType)?.textColor}`}>
+                                                    {RESOURCE_TYPES.find(type => type.key === selectedResourceType)?.label}
+                                                </h4>
+                                                <p className="text-xs text-default-600 mt-1">
+                                                    {RESOURCE_TYPES.find(type => type.key === selectedResourceType)?.description}
+                                                </p>
+                                            </div>
+                                            <Chip 
+                                                size="sm" 
+                                                variant="flat" 
+                                                className={`${RESOURCE_TYPES.find(type => type.key === selectedResourceType)?.textColor} bg-white/50`}
+                                            >
+                                                Selected
+                                            </Chip>
+                                        </div>
+                                    </CardBody>
+                                </Card>
+                            </motion.div>
                         </div>
                     </div>
 
@@ -552,12 +671,24 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                         <p className="text-default-500 mb-4">
                             Scanning {RESOURCE_TYPES.find(type => type.key === selectedResourceType)?.label} and generating AI solutions...
                         </p>
+                        <div className="bg-warning-50 border border-warning-200 rounded-lg p-4 mb-4 max-w-md mx-auto">
+                            <div className="flex items-center gap-2 mb-2">
+                                <Icon icon="mdi:clock-outline" className="text-warning-600" />
+                                <span className="text-sm font-medium text-warning-800">Estimated Time</span>
+                            </div>
+                            <p className="text-sm text-warning-700">
+                                This process will take approximately <strong>2-3 minutes</strong> to analyze cluster issues and generate AI-powered solutions.
+                            </p>
+                        </div>
                         <Progress
                             size="sm"
                             isIndeterminate
                             color="primary"
                             className="max-w-md mx-auto"
                         />
+                        <p className="text-xs text-default-400 mt-3">
+                            Please wait while we examine your cluster resources...
+                        </p>
                     </CardBody>
                 </Card>
             )}

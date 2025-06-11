@@ -1,60 +1,62 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-import uvicorn
 from contextlib import asynccontextmanager
+import uvicorn
+from datetime import datetime
 
 from app.config import settings
 from app.database import create_db_and_tables
 from app.routes import router
 from app.logger import logger
+from app.langchain_service import initialize_kubernetes, KUBERNETES_SERVICE_VERSION
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
     # Startup
-    logger.info("Starting Chat LangChain Service...")
+    logger.info("🚀 Starting KubeSage Simplified Chat Service...")
+    logger.info(f"📋 Service Version: {KUBERNETES_SERVICE_VERSION}")
+    logger.info(f"🔧 LLM Provider: {settings.LLM_PROVIDER}")
+    logger.info(f"🎯 Kubeconfig: {settings.get_kubeconfig_path()}")
+    
+    # Initialize database
     try:
         create_db_and_tables()
-        logger.info("Database initialized successfully")
+        logger.info("✅ Database initialized successfully")
     except Exception as e:
-        logger.error(f"Database initialization failed: {e}")
+        logger.error(f"❌ Database initialization failed: {e}")
     
-    # Test LangChain connection
+    # Initialize Kubernetes
     try:
-        from app.langchain_service import get_non_streaming_llm
-        llm = get_non_streaming_llm()
-        test_response = await llm.ainvoke("Hello")
-        logger.info("LangChain connection test successful")
+        k8s_status = initialize_kubernetes()
+        if k8s_status["success"]:
+            logger.info("✅ Kubernetes client initialized successfully")
+            logger.info(f"📊 Cluster: {k8s_status.get('cluster_version', 'Unknown version')}")
+        else:
+            logger.warning(f"⚠️ Kubernetes initialization warning: {k8s_status.get('error', 'Unknown error')}")
     except Exception as e:
-        logger.error(f"LangChain connection test failed: {e}")
+        logger.error(f"❌ Kubernetes initialization failed: {e}")
+    
+    logger.info("🎉 Service startup completed")
     
     yield
     
     # Shutdown
-    logger.info("Shutting down Chat LangChain Service...")
+    logger.info("🛑 Shutting down KubeSage Chat Service...")
+    logger.info("👋 Service shutdown completed")
 
 # Create FastAPI app
 app = FastAPI(
-    title="KubeSage Chat LangChain Service",
-    description="""
-    Chat service with LangChain integration for Kubernetes assistance.
-    
-    Features:
-    - Context-aware conversations with session management
-    - LangChain-powered AI responses with tool calling
-    - Kubernetes event fetching and kubectl command execution
-    - Streaming and non-streaming responses
-    - Chat history and session management
-    - User authentication and authorization
-    """,
-    version="1.0.0",
+    title="KubeSage Simplified Chat Service",
+    description="AI-powered Kubernetes assistant with error collection and direct LLM processing",
+    version=KUBERNETES_SERVICE_VERSION,
     lifespan=lifespan,
-    docs_url="/docs",
-    redoc_url="/redoc"
+    docs_url="/docs" if settings.DEBUG else None,
+    redoc_url="/redoc" if settings.DEBUG else None
 )
 
-# Add CORS middleware
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Configure appropriately for production
@@ -63,49 +65,86 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routes
-app.include_router(router, prefix="/api/v1", tags=["chat"])
+# Request logging middleware
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    """Log all requests."""
+    start_time = datetime.utcnow()
+    
+    # Log request
+    logger.info(f"📥 {request.method} {request.url.path} - {request.client.host if request.client else 'unknown'}")
+    
+    # Process request
+    response = await call_next(request)
+    
+    # Log response
+    process_time = (datetime.utcnow() - start_time).total_seconds()
+    logger.info(f"📤 {request.method} {request.url.path} - {response.status_code} - {process_time:.3f}s")
+    
+    return response
 
 # Global exception handler
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    """Global exception handler for unhandled errors."""
-    logger.error(f"Unhandled exception: {str(exc)}", exc_info=True)
+    """Global exception handler."""
+    logger.error(f"💥 Unhandled exception in {request.method} {request.url.path}: {str(exc)}")
+    
     return JSONResponse(
         status_code=500,
         content={
-            "detail": "Internal server error",
-            "error": str(exc) if settings.DEBUG else "An unexpected error occurred"
+            "error": "Internal server error",
+            "message": "An unexpected error occurred. Please try again later.",
+            "timestamp": datetime.utcnow().isoformat(),
+            "service": "kubesage-simplified-chat",
+            "version": KUBERNETES_SERVICE_VERSION
         }
     )
 
-# Health check endpoint
-@app.get("/health")
-async def health_check():
-    """Basic health check endpoint."""
-    return {
-        "status": "healthy",
-        "service": "chat-langchain-service",
-        "version": "1.0.0"
-    }
+# Include routes
+app.include_router(router, prefix="/api/v1")
 
 # Root endpoint
 @app.get("/")
 async def root():
     """Root endpoint with service information."""
     return {
-        "service": "KubeSage Chat LangChain Service",
-        "version": "1.0.0",
-        "docs": "/docs",
-        "health": "/health",
-        "api": "/api/v1"
+        "service": "KubeSage Simplified Chat Service",
+        "version": KUBERNETES_SERVICE_VERSION,
+        "description": "AI-powered Kubernetes assistant with error collection and direct LLM processing",
+        "status": "running",
+        "timestamp": datetime.utcnow().isoformat(),
+        "endpoints": {
+            "chat": "/api/v1/chat",
+            "health": "/api/v1/health",
+            "info": "/api/v1/info",
+            "docs": "/docs" if settings.DEBUG else "disabled"
+        },
+        "features": [
+            "Kubernetes error collection",
+            "Direct LLM processing",
+            "Conversation history",
+            "Session management",
+            "Multiple LLM providers"
+        ]
+    }
+
+# Health check endpoint (also available at root level)
+@app.get("/health")
+async def root_health():
+    """Root level health check."""
+    return {
+        "status": "healthy",
+        "service": "kubesage-simplified-chat",
+        "version": KUBERNETES_SERVICE_VERSION,
+        "timestamp": datetime.utcnow().isoformat()
     }
 
 if __name__ == "__main__":
+    logger.info(f"🚀 Starting server on {settings.HOST}:{settings.PORT}")
     uvicorn.run(
         "app.main:app",
-        host="0.0.0.0",
-        port=8003,
+        host=settings.HOST,
+        port=settings.PORT,
         reload=settings.DEBUG,
-        log_level="info"
+        log_level=settings.LOG_LEVEL.lower()
     )

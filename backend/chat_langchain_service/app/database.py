@@ -1,6 +1,7 @@
 from sqlmodel import SQLModel, create_engine, Session
 from sqlalchemy import text, inspect
 from app.config import settings
+
 from app.logger import logger
 import time
 

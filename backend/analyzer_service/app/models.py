@@ -1,4 +1,5 @@
 from sqlmodel import SQLModel, Field, Column, JSON, create_engine, Text
+from sqlalchemy import Text  # Add this import
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone
 import uuid
@@ -82,10 +83,16 @@ class SolutionModel(SQLModel, table=True):
     analysis: str = Field(sa_column=Column(Text), description="Detailed analysis")
     steps: List[Dict[str, Any]] = Field(default=[], sa_column=Column(JSON))
     confidence_score: Optional[float] = Field(default=None)
-    estimated_time_mins: Optional[int] = Field(default=None)
+    estimated_time_to_resolve_mins: Optional[int] = Field(default=None)
     severity_level: str = Field(description="LOW, MEDIUM, HIGH, CRITICAL")
     recommendations: List[str] = Field(default=[], sa_column=Column(JSON))
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    # Add the missing fields that the code is trying to insert
+    is_executed: bool = Field(default=False, description="Whether solution was executed")
+    execution_status: Optional[str] = Field(default=None, description="Execution status")
+    executed_at: Optional[datetime] = Field(default=None, description="When solution was executed")
+    execution_result: Dict[str, Any] = Field(default={}, sa_column=Column(JSON), description="Execution results")
 
 class ExecutorStatusModel(SQLModel, table=True):
     """Track executor status"""

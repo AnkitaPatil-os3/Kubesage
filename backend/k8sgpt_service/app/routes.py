@@ -528,3 +528,6 @@ def execute_command(command: str):
     except Exception as e:
         print(f"An error occurred: {str(e)}")
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+
+
+

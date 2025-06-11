@@ -1,44 +1,42 @@
 import React from "react";
 import { Card, CardBody, CardHeader, Button, Spinner } from "@heroui/react";
 import { Icon } from "@iconify/react";
-
+ 
 interface CostAnalysisProps {
   selectedCluster?: string;
 }
-
+ 
 export const CostAnalysis: React.FC<CostAnalysisProps> = ({ selectedCluster }) => {
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
-
+ 
   // Grafana URL with parameters to hide UI elements
   const grafanaUrl = React.useMemo(() => {
-    const baseUrl = "https://10.0.32.103:3000/d/opencost-mixin-kover-jkwq/opencost-overview";
+    const baseUrl = "https://10.0.32.103:3000/grafana-monitoring/d/opencost-mixin-kover-jkwq/finops-overview";
     const params = new URLSearchParams({
       orgId: "1",
-      from: "now-30m",
+      from: "now-1h",
       to: "now",
-      timezone: "utc",
-      "var-datasource": "fekxeesdvhgcgb",
-      "var-job": "prometheus.scrape.opencost",
       theme: "light",
-      // Hide Grafana UI elements
-      kiosk: "tv", // This hides the top navigation and side menu
-      // Alternative: use "kiosk=1" to hide only the top navigation
+      hideControls: 'true', // Hide controls including share button
+      toolbar: 'false' // Hide toolbar
+      // Hide UI elements for embedded view
+      // kiosk: "tv",
     });
     
     return `${baseUrl}?${params.toString()}`;
-  }, []);
-
+  }, [selectedCluster]);
+ 
   const handleIframeLoad = () => {
     setIsLoading(false);
     setError(null);
   };
-
+ 
   const handleIframeError = () => {
     setIsLoading(false);
     setError("Failed to load Grafana dashboard. Please check if Grafana is accessible.");
   };
-
+ 
   const refreshDashboard = () => {
     setIsLoading(true);
     setError(null);
@@ -48,37 +46,15 @@ export const CostAnalysis: React.FC<CostAnalysisProps> = ({ selectedCluster }) =
       iframe.src = iframe.src;
     }
   };
-
+ 
   return (
     <div className="space-y-6">
       <Card className="w-full">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Icon icon="lucide:dollar-sign" className="text-primary" />
-            <div>
-              <h2 className="text-xl font-semibold">Cost Analysis</h2>
-              <p className="text-sm text-foreground-500">
-                OpenCost dashboard showing cluster cost breakdown and analytics
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="flat"
-              size="sm"
-              onPress={refreshDashboard}
-              startContent={<Icon icon="lucide:refresh-cw" />}
-            >
-              Refresh
-            </Button>
-            
-          </div>
-        </CardHeader>
-        <CardBody className="p-0">
+        <CardBody className="p-0 relative">
           <div className="relative w-full" style={{ height: "calc(100vh - 200px)" }}>
             {isLoading && (
               <div className="absolute inset-0 flex items-center justify-center bg-content1 z-10">
-                <div className="flex flex-col items-center gap-3">
+                <div className="flex flex-col items-center gap-4">
                   <Spinner size="lg" color="primary" />
                   <p className="text-sm text-foreground-500">Loading cost dashboard...</p>
                 </div>
@@ -105,7 +81,7 @@ export const CostAnalysis: React.FC<CostAnalysisProps> = ({ selectedCluster }) =
                 </div>
               </div>
             )}
-
+ 
             <iframe
               id="grafana-iframe"
               src={grafanaUrl}
@@ -119,10 +95,25 @@ export const CostAnalysis: React.FC<CostAnalysisProps> = ({ selectedCluster }) =
                 background: "transparent"
               }}
             />
+ 
+            {/* Overlay header to hide Grafana dashboard header */}
+            <div className="absolute top-0 left-0 right-0 z-30 bg-content1 shadow-sm">
+              <div className="justify-center py-4 px-6 border-b border-divider">
+                <div className="flex gap-3">
+                  <Icon icon="lucide:dollar-sign" className="text-primary text-4xl mt-1" />
+                  <div>
+                    <h3 className="text-xl font-semibold text-foreground">Cost Analysis</h3>
+                    <p className="text-sm text-foreground-500">
+                      OpenCost dashboard showing cluster cost breakdown and analytics
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </CardBody>
       </Card>
-
+ 
       {/* Additional Cost Insights Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
@@ -136,7 +127,7 @@ export const CostAnalysis: React.FC<CostAnalysisProps> = ({ selectedCluster }) =
             </div>
           </CardBody>
         </Card>
-
+ 
         <Card>
           <CardBody className="text-center">
             <div className="flex flex-col items-center gap-2">
@@ -148,7 +139,7 @@ export const CostAnalysis: React.FC<CostAnalysisProps> = ({ selectedCluster }) =
             </div>
           </CardBody>
         </Card>
-
+ 
         <Card>
           <CardBody className="text-center">
             <div className="flex flex-col items-center gap-2">
@@ -164,5 +155,7 @@ export const CostAnalysis: React.FC<CostAnalysisProps> = ({ selectedCluster }) =
     </div>
   );
 };
-
+ 
 export default CostAnalysis;
+ 
+ 

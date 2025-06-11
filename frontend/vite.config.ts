@@ -16,23 +16,23 @@ export default defineConfig(({ mode }) => {
       },
       proxy: {
         '/auth': {
-          target: env.VITE_USER_SERVICE_URL,
+          target: env.VITE_USER_SERVICE,
           changeOrigin: true,
           secure: false,
         },
         '/api': {
-        target: 'https://10.0.32.108:8005',
+        target: 'https://10.0.32.106:8005',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
         secure: false // If using self-signed certificates
       },
         '/kubeconfig': {
-          target: env.VITE_KUBECONFIG_SERVICE_URL,
+          target: env.VITE_KUBECONFIG_SERVICE,
           changeOrigin: true,
           secure: false,
         },
         '/chat': {
-          target: env.VITE_CHAT_SERVICE_URL,
+          target: env.VITE_CHAT_SERVICE,
           changeOrigin: true,
           secure: false,
         },

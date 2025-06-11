@@ -15,18 +15,13 @@ export const ObservabilityDashboard: React.FC<ObservabilityDashboardProps> = ({ 
         const baseUrl = "https://10.0.32.103:3000/grafana-monitoring/d/ddonjajttscn4e/kub-cluster-details";
         const params = new URLSearchParams({
             orgId: "1",
-            "var-DS": "delfjenv5n30ga",
-            "var-Cluster": selectedCluster || "OMEGA-Agent",
-            "var-Node": "ashish-master",
-            "var-Namespace": "calico-system",
-            "var-Pod": "calico-node-s56zs",
-            "var-Container": "calico-node",
-            "var-logs": "eemj7g7ndgzcwe",
-            from: "1749426869920",
-            to: "1749448469920",
+            from: "now-1h",
+            to: "now",
             theme: "light",
+            hideControls: 'true', // Hide controls including share button
+            toolbar: 'false' // Hide toolbar
             // Hide UI elements for embedded view
-            kiosk: "tv",
+            // kiosk: "tv",
         });
  
         return `${baseUrl}?${params.toString()}`;
@@ -55,32 +50,11 @@ export const ObservabilityDashboard: React.FC<ObservabilityDashboardProps> = ({ 
     return (
         <div className="space-y-6">
             <Card className="w-full">
-                <CardHeader className="flex flex-row items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <Icon icon="lucide:activity" className="text-primary" />
-                        <div>
-                            <h2 className="text-xl font-semibold">Cluster Overview</h2>
-                            <p className="text-sm text-foreground-500">
-                                Real-time cluster metrics, performance analytics and resource monitoring
-                            </p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Button
-                            variant="flat"
-                            size="sm"
-                            onPress={refreshDashboard}
-                            startContent={<Icon icon="lucide:refresh-cw" />}
-                        >
-                            Refresh
-                        </Button>
-                    </div>
-                </CardHeader>
-                <CardBody className="p-0">
+                <CardBody className="p-0 relative">
                     <div className="relative w-full" style={{ height: "calc(100vh - 200px)" }}>
                         {isLoading && (
                             <div className="absolute inset-0 flex items-center justify-center bg-content1 z-10">
-                                <div className="flex flex-col items-center gap-3">
+                                <div className="flex flex-col items-center gap-4">
                                     <Spinner size="lg" color="primary" />
                                     <p className="text-sm text-foreground-500">Loading cluster dashboard...</p>
                                 </div>
@@ -121,6 +95,21 @@ export const ObservabilityDashboard: React.FC<ObservabilityDashboardProps> = ({ 
                                 background: "transparent"
                             }}
                         />
+ 
+                        {/* Overlay header to hide Grafana dashboard header */}
+                        <div className="absolute top-0 left-0 right-0 z-30 bg-content1 shadow-sm">
+                            <div className="justify-center py-4 px-6 border-b border-divider">
+                                <div className="flex gap-3">
+                                    <Icon icon="lucide:activity" className="text-primary text-4xl mt-1" />
+                                    <div>
+                                        <h3 className="text-xl font-semibold text-foreground">Kubernetes Cluster Monitoring</h3>
+                                        <p className="text-sm text-foreground-500">
+                                            Real-time cluster metrics, performance analytics and resource monitoring
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </CardBody>
             </Card>

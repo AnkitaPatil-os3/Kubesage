@@ -12,14 +12,16 @@ export const CarbonEmissionDashboard: React.FC<CarbonEmissionDashboardProps> = (
  
     // Dashboard URL with parameters to hide UI elements
     const dashboardUrl = React.useMemo(() => {
-        const baseUrl = "https://10.0.32.103:3000/grafana-monitoring/d/NhnADUW4zIBM/kepler-exporter-dashboard";
+        const baseUrl = "https://10.0.32.103:3000/grafana-monitoring/d/NhnADUW4zIB/greenops-overview";
         const params = new URLSearchParams({
             orgId: "1",
             from: "now-5m",
             to: "now",
             theme: "light",
+            hideControls: 'true', // Hide controls including share button
+            toolbar: 'false' // Hide toolbar
             // Hide UI elements for embedded view
-            kiosk: "tv",
+            // kiosk: "tv",
         });
  
         return `${baseUrl}?${params.toString()}`;
@@ -48,32 +50,12 @@ export const CarbonEmissionDashboard: React.FC<CarbonEmissionDashboardProps> = (
     return (
         <div className="space-y-6">
             <Card className="w-full">
-                <CardHeader className="flex flex-row items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <Icon icon="lucide:leaf" className="text-success" />
-                        <div>
-                            <h2 className="text-xl font-semibold">Carbon Emission Dashboard</h2>
-                            <p className="text-sm text-foreground-500">
-                                Real-time carbon footprint monitoring and energy consumption analytics
-                            </p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Button
-                            variant="flat"
-                            size="sm"
-                            onPress={refreshDashboard}
-                            startContent={<Icon icon="lucide:refresh-cw" />}
-                        >
-                            Refresh
-                        </Button>
-                    </div>
-                </CardHeader>
-                <CardBody className="p-0">
+                
+                <CardBody className="p-0 relative">
                     <div className="relative w-full" style={{ height: "calc(100vh - 200px)" }}>
                         {isLoading && (
                             <div className="absolute inset-0 flex items-center justify-center bg-content1 z-10">
-                                <div className="flex flex-col items-center gap-3">
+                                <div className="flex flex-col items-center gap-4">
                                     <Spinner size="lg" color="success" />
                                     <p className="text-sm text-foreground-500">Loading carbon emission dashboard...</p>
                                 </div>
@@ -114,6 +96,22 @@ export const CarbonEmissionDashboard: React.FC<CarbonEmissionDashboardProps> = (
                                 background: "transparent"
                             }}
                         />
+ 
+                        {/* Overlay header to hide Grafana dashboard header */}
+                        <div className="absolute top-0 left-0 right-0 z-30 bg-content1 shadow-sm">
+                            <div className="justify-center py-4 px-6 border-b border-divider">
+                                <div className="flex gap-3">
+                                    <Icon icon="lucide:cpu" className="text-success text-4xl mt-1" />
+                                    <div>
+                                    <h3 className="text-xl font-semibold text-foreground">Sustainable Computing</h3>
+                                    <p className="text-sm text-foreground-500 ">
+                                Real-time carbon footprint monitoring and energy consumption analytics
+                            </p>
+                                    </div>
+                                </div>
+                                
+                            </div>
+                        </div>
                     </div>
                 </CardBody>
             </Card>
@@ -161,3 +159,5 @@ export const CarbonEmissionDashboard: React.FC<CarbonEmissionDashboardProps> = (
 };
  
 export default CarbonEmissionDashboard;
+ 
+ 

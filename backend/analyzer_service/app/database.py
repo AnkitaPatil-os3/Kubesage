@@ -15,8 +15,15 @@ def get_database_url():
 engine = create_engine(get_database_url())
 
 def create_db_and_tables():
-    """Create database tables"""
-    SQLModel.metadata.create_all(engine)
+    """Create database and tables"""
+    try:
+        # Drop and recreate tables to ensure schema is correct
+        SQLModel.metadata.drop_all(engine)
+        SQLModel.metadata.create_all(engine)
+        logger.info("✅ Database tables created successfully")
+    except Exception as e:
+        logger.error(f"❌ Error creating database tables: {e}")
+        raise
 
 def get_session():
     """Get database session"""
