@@ -10,7 +10,6 @@ from kubernetes import client, config
 import os
 
 from langchain_openai import ChatOpenAI
-
 # Service version
 KUBERNETES_SERVICE_VERSION = "2.0.0-simple"
 

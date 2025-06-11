@@ -258,8 +258,6 @@ async def execute_kubectl(
         logger.error(f"Direct kubectl execution failed: {e}")
         raise HTTPException(status_code=500, detail=f"Command execution failed: {str(e)}")
 
-
-
 # Get chat sessions - API-3
 @router.get("/sessions", response_model=ChatSessionList)
 async def list_sessions(

@@ -3,6 +3,7 @@ from typing import Optional, List
 from datetime import datetime
 import uuid
 
+
 class User(SQLModel, table=True):
     """User model - should match the user service model."""
     __tablename__ = "users"

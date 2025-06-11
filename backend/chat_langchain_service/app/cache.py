@@ -5,6 +5,7 @@ from app.logger import logger
 from typing import Any, Dict, Optional, Union
 from functools import wraps
 
+
 # Initialize Redis connection
 try:
     redis_client = Redis(

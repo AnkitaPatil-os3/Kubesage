@@ -5,6 +5,7 @@ from app.config import settings
 from app.logger import logger
 import time
 
+
 # Create database engine with better error handling
 def create_database_engine():
     """Create database engine with retry logic."""

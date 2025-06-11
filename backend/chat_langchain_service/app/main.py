@@ -4,7 +4,6 @@ from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 import uvicorn
 from datetime import datetime
-
 from app.config import settings
 from app.database import create_db_and_tables
 from app.routes import router

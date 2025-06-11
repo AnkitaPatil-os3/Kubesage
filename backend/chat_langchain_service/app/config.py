@@ -3,6 +3,7 @@ from pydantic_settings import BaseSettings
 from dotenv import load_dotenv
 from typing import Dict, Any
 
+
 # Load environment variables
 load_dotenv()
 

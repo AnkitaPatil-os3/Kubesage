@@ -1,6 +1,7 @@
 import logging
 import sys
 from app.config import settings
+
  
 # Configure logger
 logger = logging.getLogger("chat_service")

@@ -6,6 +6,7 @@ from typing import Annotated
 from app.auth import get_current_user
 from app.schemas import UserInfo  # Make sure this import exists
 
+
 # Create database engine
 engine = create_engine(settings.DATABASE_URL, echo=settings.DEBUG)
 
