@@ -80,7 +80,8 @@ def on_startup():
         logger.error(f"Database initialization failed: {e}")
     
     logger.info("Database initialization completed")
-    
+
+
 
 #  api_1 -Incident data processing and store in database 
 @app.post("/incidents", 
@@ -132,11 +133,6 @@ async def receive_incidents(
         print(f"Error processing incidents: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Unable to process incident data: {str(e)}")
 
-
-
-
-
-
 #  api_2 - Get all incidents
 @app.get("/incidents", 
     summary="Get all incidents",
@@ -180,10 +176,6 @@ async def get_incidents(
     results = session.exec(query).all()
     
     return results
-
-
-
-
 
 #  api_3 - Get incident by ID
 @app.get("/incidents/{incident_id}", 

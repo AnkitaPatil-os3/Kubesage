@@ -499,7 +499,7 @@ users:
  
         {/* Stats Cards with gradients */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <motion.div whileHover={{ scale: 1.02 }}>
+          {/* <motion.div whileHover={{ scale: 1.02 }}>
             <Card className="bg-gradient-to-r from-blue-500 to-purple-600 text-white">
               <CardBody className="flex flex-row items-center gap-4">
                 <Icon icon="mdi:file-document" className="text-3xl" />
@@ -509,7 +509,7 @@ users:
                 </div>
               </CardBody>
             </Card>
-          </motion.div>
+          </motion.div> */}
  
           <motion.div whileHover={{ scale: 1.02 }}>
             <Card className="bg-gradient-to-r from-green-500 to-teal-600 text-white">
@@ -523,7 +523,7 @@ users:
             </Card>
           </motion.div>
  
-          <motion.div whileHover={{ scale: 1.02 }}>
+          {/* <motion.div whileHover={{ scale: 1.02 }}>
             <Card className="bg-gradient-to-r from-orange-500 to-red-600 text-white">
               <CardBody className="flex flex-row items-center gap-4">
                 <Icon icon="mdi:check-circle" className="text-3xl" />
@@ -533,7 +533,7 @@ users:
                 </div>
               </CardBody>
             </Card>
-          </motion.div>
+          </motion.div> */}
  
           <motion.div whileHover={{ scale: 1.02 }}>
             <Card className="bg-gradient-to-r from-purple-500 to-pink-600 text-white">
@@ -620,7 +620,7 @@ users:
                     <TableColumn>FILENAME</TableColumn>
                     <TableColumn>CONTEXT</TableColumn>
                     <TableColumn>STATUS</TableColumn>
-                    <TableColumn>UPLOAD DATE</TableColumn>
+                    {/* <TableColumn>UPLOAD DATE</TableColumn> */}
                     <TableColumn>ACTIONS</TableColumn>
                   </TableHeader>
                   <TableBody>
@@ -662,12 +662,12 @@ users:
                             {file.active ? 'Active' : 'Inactive'}
                           </Chip>
                         </TableCell>
-                        <TableCell>
+                        {/* <TableCell>
                           <div>
                             <span className="text-sm">{new Date(file.upload_date).toLocaleDateString()}</span>
                             <p className="text-xs text-foreground-500">{new Date(file.upload_date).toLocaleTimeString()}</p>
                           </div>
-                        </TableCell>
+                        </TableCell> */}
                         <TableCell>
                           <div className="flex items-center gap-2 justify-start">
                             <Button

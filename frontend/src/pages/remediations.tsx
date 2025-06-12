@@ -186,6 +186,8 @@ interface CommandExecutionHistory {
 const API_BASE_URL = 'https://10.0.32.108:8004';
 
 const RemediationPage: React.FC = () => {
+  const [analyzingIncidentId, setAnalyzingIncidentId] = useState<string | null>(null);
+
   // State management
   const [activeTab, setActiveTab] = useState('incidents');
   const [loading, setLoading] = useState(false);
@@ -338,20 +340,25 @@ const RemediationPage: React.FC = () => {
   };
 
   // API 4: Analyze Incident
-  const analyzeIncident = async (incident: Incident) => {
-    setLoading(true);
-    try {
-      const response = await axios.post(`${API_BASE_URL}/analyze-incident`, incident);
-      setIncidentSolution(response.data.solution);
-      setSelectedIncident(incident);
-      onAnalysisModalOpen();
-    } catch (error: any) {
-      console.error('Analysis failed:', error);
-      alert(`Analysis failed: ${error.response?.data?.detail || error.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // API 4: Analyze Incident
+  // API 4: Analyze Incident
+const analyzeIncident = async (incident: Incident) => {
+  setLoading(true);
+  try {
+    const response = await axios.post(`${API_BASE_URL}/analyze-incident`, incident);
+    setIncidentSolution(response.data.solution);
+    setSelectedIncident(incident); // Make sure we set the selected incident
+    onAnalysisModalOpen();
+  } catch (error: any) {
+    console.error('Analysis failed:', error);
+    alert(`Analysis failed: ${error.response?.data?.detail || error.message}`);
+  } finally {
+    setLoading(false);
+  }
+};
+
+  
+
 
   // API 5: Analyze Incident by ID  
   const analyzeIncidentById = async (incidentId: string) => {
@@ -378,15 +385,22 @@ const RemediationPage: React.FC = () => {
     }
   };
 
+  // Fix the updateExecutorStatus function
   const updateExecutorStatus = async (executorName: string, status: number) => {
     try {
-      await axios.post(`${API_BASE_URL}/executors/${executorName}/status`, status);
+      // Send status as the request body (not as JSON object)
+      await axios.post(`${API_BASE_URL}/executors/${executorName}/status`, status, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
       loadExecutors();
     } catch (error: any) {
       console.error('Failed to update executor:', error);
       alert(`Failed to update executor: ${error.response?.data?.detail || error.message}`);
     }
   };
+
 
   // API 9: Remediate (Analyze Alert)
   const analyzeAlert = async () => {
@@ -630,30 +644,34 @@ const RemediationPage: React.FC = () => {
 
       {/* Main Tabs */}
       <Tabs 
-        selectedKey={activeTab} 
-        onSelectionChange={(key) => setActiveTab(key as string)}
-        variant="bordered"
-        classNames={{
-          tabList: "gap-6 w-full relative rounded-none p-0 border-b border-divider",
-          cursor: "w-full bg-primary",
-          tab: "max-w-fit px-0 h-12",
-          tabContent: "group-data-[selected=true]:text-primary"
-        }}
-      >
+  selectedKey={activeTab} 
+  onSelectionChange={(key) => setActiveTab(key as string)}
+  variant="bordered"
+  classNames={{
+    tabList: "gap-6 w-full relative rounded-xl p-2 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/20 dark:to-purple-950/20 border-2 border-gradient-to-r from-blue-200 to-purple-200",
+    cursor: "w-full bg-gradient-to-r from-primary to-secondary shadow-lg",
+    tab: "max-w-fit px-4 h-14 rounded-lg hover:bg-white/50 transition-all duration-300",
+    tabContent: "group-data-[selected=true]:text-white font-semibold"
+  }}
+>
+
         {/* Tab 1: Incidents Management */}
         <Tab
-          key="incidents"
-          title={
-            <div className="flex items-center space-x-2">
-              <Icon icon="solar:bug-minimalistic-bold" />
-              <span>Incidents</span>
-              <Badge content={incidents.length} size="sm" color="primary" />
-            </div>
-          }
-        >
+  key="incidents"
+  title={
+    <div className="flex items-center space-x-3">
+      <div className="p-2 rounded-lg bg-gradient-to-br from-red-400 to-pink-500 text-white shadow-md">
+        <Icon icon="solar:bug-minimalistic-bold" className="text-lg" />
+      </div>
+      <span className="font-medium">Incidents</span>
+      <Badge content={incidents.length} size="sm" className="bg-gradient-to-r from-red-500 to-pink-500 text-white" />
+    </div>
+  }
+>
+
           <div className="mt-6 space-y-6">
             {/* Filters */}
-            <Card>
+            {/* <Card>
               <CardBody>
                 <div className="flex items-center gap-4 flex-wrap">
                   <Select
@@ -697,12 +715,15 @@ const RemediationPage: React.FC = () => {
                   </Button>
                 </div>
               </CardBody>
-            </Card>
+            </Card> */}
 
             {/* Incidents Table */}
-            <Card>
-              <CardHeader className="flex justify-between">
-                <h3 className="text-lg font-semibold">Kubernetes Incidents</h3>
+            <Card className="shadow-lg border-0 bg-gradient-to-br from-white to-gray-50">
+  <CardHeader className="flex justify-between bg-gradient-to-r from-red-50 to-pink-50 rounded-t-lg">
+    <h3 className="text-lg font-semibold bg-gradient-to-r from-red-600 to-pink-600 bg-clip-text text-transparent">
+      Kubernetes Incidents
+    </h3>
+
                 <div className="flex items-center gap-2">
                   <Chip size="sm" variant="flat" color="primary">
                     Total: {filteredIncidents.length}
@@ -767,18 +788,21 @@ const RemediationPage: React.FC = () => {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1">
-                            <Tooltip content="Analyze Incident">
-                              <Button
-                                isIconOnly
-                                size="sm"
-                                variant="light"
-                                color="primary"
-                                onPress={() => analyzeIncident(incident)}
-                                isLoading={loading}
-                              >
-                                <Icon icon="solar:cpu-bolt-line-duotone" />
-                              </Button>
-                            </Tooltip>
+                          <Tooltip content="Analyze Incident">
+  <Button
+    isIconOnly
+    size="sm"
+    variant="light"
+    color="primary"
+    onPress={() => analyzeIncident(incident)}
+    isLoading={loading && selectedIncident?.id === incident.id} // Only show loading for the specific incident
+  >
+    <Icon icon="solar:cpu-bolt-line-duotone" />
+  </Button>
+</Tooltip>
+
+
+
                             <Tooltip content="Get Recommendations">
                               <Button
                                 isIconOnly
@@ -790,7 +814,7 @@ const RemediationPage: React.FC = () => {
                                 <Icon icon="solar:lightbulb-bold" />
                               </Button>
                             </Tooltip>
-                            <Tooltip content="View Details">
+                            {/* <Tooltip content="View Details">
                               <Button
                                 isIconOnly
                                 size="sm"
@@ -800,7 +824,7 @@ const RemediationPage: React.FC = () => {
                               >
                                 <Icon icon="solar:eye-bold" />
                               </Button>
-                            </Tooltip>
+                            </Tooltip> */}
                             <Tooltip content="Command History">
                               <Button
                                 isIconOnly
@@ -836,14 +860,17 @@ const RemediationPage: React.FC = () => {
 
         {/* Tab 2: Alert Remediation */}
         <Tab
-          key="remediation"
-          title={
-            <div className="flex items-center space-x-2">
-              <Icon icon="solar:cpu-bolt-line-duotone" />
-              <span>Alert Remediation</span>
-            </div>
-          }
-        >
+  key="remediation"
+  title={
+    <div className="flex items-center space-x-3">
+      <div className="p-2 rounded-lg bg-gradient-to-br from-blue-400 to-cyan-500 text-white shadow-md">
+        <Icon icon="solar:cpu-bolt-line-duotone" className="text-lg" />
+      </div>
+      <span className="font-medium">Alert Remediation</span>
+    </div>
+  }
+>
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
             {/* Alert Input Form */}
             <Card className="h-fit">
@@ -930,22 +957,22 @@ const RemediationPage: React.FC = () => {
 
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
+                    {/* <div className="flex items-center gap-2">
                       <Switch
                         isSelected={autoExecute}
                         onValueChange={setAutoExecute}
                         color="warning"
                       />
                       <span className="text-sm">Auto Execute</span>
-                    </div>
-                    <div className="flex items-center gap-2">
+                    </div> */}
+                    {/* <div className="flex items-center gap-2">
                       <Switch
                         isSelected={confirmExecution}
                         onValueChange={setConfirmExecution}
                         color="success"
                       />
                       <span className="text-sm">Confirm Execution</span>
-                    </div>
+                    </div> */}
                   </div>
 
                   {autoExecute && (
@@ -962,7 +989,7 @@ const RemediationPage: React.FC = () => {
                 </div>
 
                 <div className="flex gap-2">
-                  <Button
+                  {/* <Button
                     color="primary"
                     variant="solid"
                     onPress={analyzeAlert}
@@ -971,7 +998,7 @@ const RemediationPage: React.FC = () => {
                     className="flex-1"
                   >
                     Analyze Alert
-                  </Button>
+                  </Button> */}
                   <Button
                     color="secondary"
                     variant="solid"
@@ -1041,7 +1068,7 @@ const RemediationPage: React.FC = () => {
                     <div>
                       <h4 className="font-semibold text-sm mb-2">Remediation Command</h4>
                       <Code className="w-full p-3 text-xs">
-                        kubectl {remediationSolution.command}
+                        {remediationSolution.command}
                       </Code>
                     </div>
 
@@ -1085,18 +1112,21 @@ const RemediationPage: React.FC = () => {
 
         {/* Tab 3: Execution History */}
         <Tab
-          key="history"
-          title={
-            <div className="flex items-center space-x-2">
-              <Icon icon="solar:history-bold" />
-              <span>Execution History</span>
-              <Badge content={history.length} size="sm" color="secondary" />
-            </div>
-          }
-        >
+  key="history"
+  title={
+    <div className="flex items-center space-x-3">
+      <div className="p-2 rounded-lg bg-gradient-to-br from-green-400 to-emerald-500 text-white shadow-md">
+        <Icon icon="solar:history-bold" className="text-lg" />
+      </div>
+      <span className="font-medium">Execution History</span>
+      <Badge content={history.length} size="sm" className="bg-gradient-to-r from-green-500 to-emerald-500 text-white" />
+    </div>
+  }
+>
+
           <div className="mt-6 space-y-6">
             {/* History Filters */}
-            <Card>
+            {/* <Card>
               <CardBody>
                 <div className="flex items-center gap-4 flex-wrap">
                   <Input
@@ -1125,7 +1155,7 @@ const RemediationPage: React.FC = () => {
                   </Button>
                 </div>
               </CardBody>
-            </Card>
+            </Card> */}
 
             {/* History Table */}
             <Card>
@@ -1208,7 +1238,7 @@ const RemediationPage: React.FC = () => {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1">
-                            <Tooltip content="View Details">
+                            {/* <Tooltip content="View Details">
                               <Button
                                 isIconOnly
                                 size="sm"
@@ -1217,7 +1247,7 @@ const RemediationPage: React.FC = () => {
                               >
                                 <Icon icon="solar:eye-bold" />
                               </Button>
-                            </Tooltip>
+                            </Tooltip> */}
                             {record.status === 'failed' && (
                               <Tooltip content="Retry">
                                 <Button
@@ -1243,15 +1273,18 @@ const RemediationPage: React.FC = () => {
 
         {/* Tab 4: Executors Management */}
         <Tab
-          key="executors"
-          title={
-            <div className="flex items-center space-x-2">
-              <Icon icon="solar:settings-bold" />
-              <span>Executors</span>
-              <Badge content={executors.filter(e => e.status === 0).length} size="sm" color="success" />
-            </div>
-          }
-        >
+  key="executors"
+  title={
+    <div className="flex items-center space-x-3">
+      <div className="p-2 rounded-lg bg-gradient-to-br from-purple-400 to-indigo-500 text-white shadow-md">
+        <Icon icon="solar:settings-bold" className="text-lg" />
+      </div>
+      <span className="font-medium">Executors</span>
+      <Badge content={executors.filter(e => e.status === 0).length} size="sm" className="bg-gradient-to-r from-purple-500 to-indigo-500 text-white" />
+    </div>
+  }
+>
+
           <div className="mt-6 space-y-6">
             {/* Executor Status Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1432,14 +1465,17 @@ const RemediationPage: React.FC = () => {
 
       {/* Tab 5: Statistics & Analytics */}
       <Tab
-        key="stats"
-        title={
-          <div className="flex items-center space-x-2">
-            <Icon icon="solar:chart-bold" />
-            <span>Analytics</span>
-          </div>
-        }
-      >
+  key="stats"
+  title={
+    <div className="flex items-center space-x-3">
+      <div className="p-2 rounded-lg bg-gradient-to-br from-orange-400 to-yellow-500 text-white shadow-md">
+        <Icon icon="solar:chart-bold" className="text-lg" />
+      </div>
+      <span className="font-medium">Analytics</span>
+    </div>
+  }
+>
+
         <div className="mt-6 space-y-6">
           {stats && (
             <>
@@ -1923,7 +1959,7 @@ const RemediationPage: React.FC = () => {
                 <div>
                   <h4 className="font-medium mb-2">Command to Execute</h4>
                   <Code className="w-full p-4 text-sm">
-                    kubectl {remediationSolution.command}
+                    {remediationSolution.command}
                   </Code>
                 </div>
 
