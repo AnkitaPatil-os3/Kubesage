@@ -51,7 +51,7 @@ export const LoginPage: React.FC<{ onLogin?: (username: string, password: string
     setIsLoading(true);
  
     try {
-      const response = await fetch("https://10.0.32.106:8001/auth/token", {
+      const response = await fetch("https://10.0.32.108:8001/auth/token", {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded"

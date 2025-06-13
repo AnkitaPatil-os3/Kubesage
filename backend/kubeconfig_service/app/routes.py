@@ -9,12 +9,14 @@ import tempfile
 from kubernetes import client, config
 import tempfile
 from app.database import get_session
-from app.models import Kubeconf
+from app.models import Kubeconf, ClusterOnboard
 from app.schemas import (
     KubeconfigResponse,
     KubeconfigList,
     MessageResponse,
-    ClusterNamesResponse
+    ClusterNamesResponse,
+    ClusterOnboardRequest,
+    ClusterOnboardResponse
 )
 from app.auth import get_current_user
 from app.config import settings
@@ -22,7 +24,230 @@ from app.logger import logger
 from app.queue import publish_message  # Updated to use our new queue implementation
  
 kubeconfig_router = APIRouter()
+
+# Add these imports at the top
+
+# Add this new route after your existing routes
+@kubeconfig_router.post("/onboard-cluster", response_model=ClusterOnboardResponse, status_code=201,
+                       summary="Onboard Cluster", 
+                       description="Onboards a Kubernetes cluster using token and server URL")
+async def onboard_cluster(
+    cluster_data: ClusterOnboardRequest,
+    session: Session = Depends(get_session),
+    current_user: Dict = Depends(get_current_user)
+):
+    """
+    Onboards a Kubernetes cluster using token and server URL.
+    
+    - Accepts cluster name, server URL, and token
+    - Validates cluster connectivity
+    - Creates a database record for the cluster
+    - Publishes a cluster onboarding event to the message queue
+    
+    Parameters:
+        cluster_data: The cluster onboarding data (cluster_name, server_url, token)
+    
+    Returns:
+        ClusterOnboardResponse: The created cluster record
+        
+    Raises:
+        HTTPException: 400 error if cluster connection fails
+        HTTPException: 500 error if onboarding fails
+    """
+    logger.info(f"Cluster onboarding request received for user {current_user['id']} with cluster {cluster_data.cluster_name}")
+    
+    try:
+        # Test cluster connectivity
+        from kubernetes import client, config
+        from kubernetes.client.rest import ApiException
+        import tempfile
+        import os
+        
+        # Create a temporary kubeconfig for testing
+        kubeconfig_content = {
+            "apiVersion": "v1",
+            "kind": "Config",
+            "clusters": [{
+                "name": cluster_data.cluster_name,
+                "cluster": {
+                    "server": cluster_data.server_url,
+                    "insecure-skip-tls-verify": True
+                }
+            }],
+            "users": [{
+                "name": f"{cluster_data.cluster_name}-user",
+                "user": {
+                    "token": cluster_data.token
+                }
+            }],
+            "contexts": [{
+                "name": cluster_data.cluster_name,
+                "context": {
+                    "cluster": cluster_data.cluster_name,
+                    "user": f"{cluster_data.cluster_name}-user"
+                }
+            }],
+            "current-context": cluster_data.cluster_name
+        }
+        
+        # Create temporary kubeconfig file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as temp_file:
+            yaml.dump(kubeconfig_content, temp_file)
+            temp_kubeconfig_path = temp_file.name
+        
+        try:
+            # Test connection
+            config.load_kube_config(config_file=temp_kubeconfig_path)
+            v1 = client.CoreV1Api()
+            
+            # Try to list namespaces to verify connection
+            v1.list_namespace()
+            logger.info(f"Successfully connected to cluster {cluster_data.cluster_name}")
+            
+        except ApiException as e:
+            logger.error(f"Failed to connect to cluster {cluster_data.cluster_name}: {str(e)}")
+            raise HTTPException(status_code=400, detail=f"Failed to connect to cluster: {str(e)}")
+        except Exception as e:
+            logger.error(f"Error testing cluster connection: {str(e)}")
+            raise HTTPException(status_code=400, detail=f"Error testing cluster connection: {str(e)}")
+        finally:
+            # Clean up temporary file
+            if os.path.exists(temp_kubeconfig_path):
+                os.unlink(temp_kubeconfig_path)
+        
+        # Check if cluster already exists for this user
+        existing_cluster = session.exec(
+            select(ClusterOnboard).where(
+                ClusterOnboard.cluster_name == cluster_data.cluster_name,
+                ClusterOnboard.user_id == current_user["id"]
+            )
+        ).first()
+        
+        if existing_cluster:
+            raise HTTPException(status_code=400, detail=f"Cluster '{cluster_data.cluster_name}' already exists for this user")
+        
+        # Deactivate all other clusters for this user
+        session.exec(
+            update(ClusterOnboard)
+            .where(ClusterOnboard.user_id == current_user["id"])
+            .values(active=False)
+        )
+        
+        # Create new cluster record
+        new_cluster = ClusterOnboard(
+            cluster_name=cluster_data.cluster_name,
+            server_url=cluster_data.server_url,
+            token=cluster_data.token,
+            user_id=current_user["id"],
+            active=True
+        )
+        
+        # Add to database
+        session.add(new_cluster)
+        session.commit()
+        session.refresh(new_cluster)
+        
+        logger.info(f"User {current_user['id']} onboarded cluster: {cluster_data.cluster_name}")
+        
+        # Publish cluster onboarded event
+        publish_message("kubeconfig_events", {
+            "event_type": "cluster_onboarded",
+            "cluster_id": new_cluster.id,
+            "user_id": current_user["id"],
+            "username": current_user.get("username", "unknown"),
+            "cluster_name": cluster_data.cluster_name,
+            "server_url": cluster_data.server_url,
+            "timestamp": datetime.datetime.now().isoformat()
+        })
+        
+        return new_cluster
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error onboarding cluster: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+
+
+@kubeconfig_router.get("/onboarded-clusters", response_model=List[ClusterOnboardResponse],
+                      summary="List Onboarded Clusters", 
+                      description="Returns a list of all onboarded clusters for the current user")
+async def list_onboarded_clusters(
+    session: Session = Depends(get_session),
+    current_user: Dict = Depends(get_current_user)
+):
+    """
+    Lists all onboarded clusters for the current user.
+    
+    Returns:
+        List[ClusterOnboardResponse]: List of onboarded cluster records
+    """
+    clusters = session.exec(
+        select(ClusterOnboard)
+        .where(ClusterOnboard.user_id == current_user["id"])
+        .order_by(ClusterOnboard.created_at.desc())
+    ).all()
+
+    return clusters
+
+
+@kubeconfig_router.put("/activate-cluster/{cluster_id}", 
+                      summary="Activate Onboarded Cluster", 
+                      description="Sets a specific onboarded cluster as the active one for the user")
+async def activate_onboarded_cluster(
+    cluster_id: int,
+    session: Session = Depends(get_session),
+    current_user: Dict = Depends(get_current_user)
+):
+    """
+    Sets a specific onboarded cluster as the active one for the user.
+    
+    Parameters:
+        cluster_id: The ID of the cluster to activate
+    
+    Returns:
+        JSONResponse: Success message
+        
+    Raises:
+        HTTPException: 404 error if cluster not found
+    """
+    # Find the cluster to activate
+    cluster_to_activate = session.exec(
+        select(ClusterOnboard).where(
+            ClusterOnboard.id == cluster_id,
+            ClusterOnboard.user_id == current_user["id"]
+        )
+    ).first()
+
+    if not cluster_to_activate:
+        raise HTTPException(status_code=404, detail=f"Cluster with ID '{cluster_id}' not found")
  
+    # Deactivate all clusters for this user
+    session.exec(
+        update(ClusterOnboard)
+        .where(ClusterOnboard.user_id == current_user["id"])
+        .values(active=False)
+    )
+ 
+    # Activate the selected cluster
+    cluster_to_activate.active = True
+    session.add(cluster_to_activate)
+    session.commit()
+
+    logger.info(f"User {current_user['id']} activated cluster: {cluster_to_activate.cluster_name}")
+    
+    # Publish cluster activated event
+    publish_message("kubeconfig_events", {
+        "event_type": "cluster_activated",
+        "cluster_id": cluster_to_activate.id,
+        "user_id": current_user["id"],
+        "username": current_user.get("username", "unknown"),
+        "cluster_name": cluster_to_activate.cluster_name,
+        "timestamp": datetime.datetime.now().isoformat()
+    })
+    
+    return JSONResponse(content={"message": f"Cluster '{cluster_to_activate.cluster_name}' set as active"}, status_code=200)
+
 def execute_command(command: str):
     """Execute a shell command and return the result"""
     logger.debug(f"Executing command: {command}")

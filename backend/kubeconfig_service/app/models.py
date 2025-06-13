@@ -14,3 +14,13 @@ class Kubeconf(SQLModel, table=True):
     is_operator_installed: bool = Field(default=False, index=True)
     created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
     updated_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
+
+class ClusterOnboard(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    cluster_name: str = Field(index=True)
+    server_url: str = Field()
+    token: str = Field()
+    user_id: int = Field(index=True)
+    active: bool = Field(default=False, index=True)
+    created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
+    updated_at: datetime.datetime = Field(default_factory=datetime.datetime.now)

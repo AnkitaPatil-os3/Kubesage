@@ -21,7 +21,7 @@ export default defineConfig(({ mode }) => {
           secure: false,
         },
         '/api': {
-        target: 'https://10.0.32.106:8005',
+        target: 'https://10.0.32.108:8005',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
         secure: false // If using self-signed certificates

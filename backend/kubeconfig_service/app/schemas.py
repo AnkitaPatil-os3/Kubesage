@@ -37,3 +37,22 @@ class ClusterNameResponse(BaseModel):
 class ClusterNamesResponse(BaseModel):
     cluster_names: List[ClusterNameResponse]
     errors: Optional[List[dict]] = None
+
+
+# New schemas for cluster onboarding
+class ClusterOnboardRequest(BaseModel):
+    cluster_name: str
+    server_url: str
+    token: str
+
+class ClusterOnboardResponse(BaseModel):
+    id: int
+    cluster_name: str
+    server_url: str
+    user_id: int
+    active: bool
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        orm_mode = True
