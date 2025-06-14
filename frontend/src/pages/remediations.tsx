@@ -99,6 +99,8 @@ interface RemediationSolution {
 
 interface RemediationResponse {
   incident_id: number;
+  incident_reason?: string; // Add this line
+
   solution: RemediationSolution;
   execution_status: 'generated' | 'executing' | 'completed_successfully' | 'partially_completed' | 'failed';
   execution_results: any;
@@ -126,7 +128,7 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
   const [remediationSolution, setRemediationSolution] = useState<RemediationResponse | null>(null);
   const [healthStatus, setHealthStatus] = useState<HealthStatus | null>(null);
   const [loading, setLoading] = useState(true);
-  const [generatingRemediation, setGeneratingRemediation] = useState(false);
+  const [generatingRemediation, setGeneratingRemediation] = useState<number | null>(null); // Changed from boolean to number | null
   const [executingRemediation, setExecutingRemediation] = useState(false);
   const [activeTab, setActiveTab] = useState<'incidents' | 'executors' | 'health'>('incidents');
   const [filters, setFilters] = useState({
@@ -137,7 +139,7 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
   });
   const [pagination, setPagination] = useState({
     page: 1,
-    per_page: 20,
+    per_page: 5,
     total: 0
   });
   const [expandedIncident, setExpandedIncident] = useState<number | null>(null);
@@ -148,40 +150,40 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
 
   // Fetch data functions
   const fetchIncidents = async () => {
-  try {
-    const params = new URLSearchParams({
-      page: pagination.page.toString(),
-      per_page: pagination.per_page.toString(),
-    });
+    try {
+      const params = new URLSearchParams({
+        page: pagination.page.toString(),
+        per_page: pagination.per_page.toString(),
+      });
 
-    // Add filters only if they have values
-    if (filters.type) {
-      params.append('incident_type', filters.type);
-    }
-    if (filters.namespace) {
-      params.append('namespace', filters.namespace);
-    }
-    if (filters.resolved) {
-      params.append('resolved', filters.resolved);
-    }
+      // Add filters only if they have values
+      if (filters.type) {
+        params.append('incident_type', filters.type);
+      }
+      if (filters.namespace) {
+        params.append('namespace', filters.namespace);
+      }
+      if (filters.resolved) {
+        params.append('resolved', filters.resolved);
+      }
 
-    const response = await fetch(`${API_BASE}/incidents?${params}`);
-    const data = await response.json();
-    
-    if (response.ok) {
-      setIncidents(data.incidents || []);
-      setPagination(prev => ({ ...prev, total: data.total || 0 }));
+      const response = await fetch(`${API_BASE}/incidents?${params}`);
+      const data = await response.json();
+
+      if (response.ok) {
+        setIncidents(data.incidents || []);
+        setPagination(prev => ({ ...prev, total: data.total || 0 }));
+      }
+    } catch (error) {
+      console.error('Error fetching incidents:', error);
     }
-  } catch (error) {
-    console.error('Error fetching incidents:', error);
-  }
-};
+  };
 
   const fetchExecutors = async () => {
     try {
       const response = await fetch(`${API_BASE}/executors`);
       const data = await response.json();
-      
+
       if (response.ok) {
         setExecutors(data.executors || []);
       }
@@ -205,7 +207,7 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
       const response = await fetch(`${API_BASE}/initialize`, {
         method: 'POST'
       });
-      
+
       if (response.ok) {
         await fetchExecutors();
       }
@@ -219,7 +221,7 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
       const response = await fetch(`${API_BASE}/executors/${executorId}/activate`, {
         method: 'POST'
       });
-      
+
       if (response.ok) {
         await fetchExecutors();
         await fetchHealthStatus();
@@ -230,36 +232,41 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
   };
 
   const generateRemediation = async (incidentId: number, execute: boolean = false) => {
-  setGeneratingRemediation(true);
-  try {
-    const response = await fetch(`${API_BASE}/incidents/${incidentId}/remediate?execute=${execute}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        incident_id: incidentId,
-        executor_type: "kubectl"
-      })
-    });
-    
-    const data = await response.json();
-    
-    if (response.ok) {
-      setRemediationSolution(data);
-      setShowRemediationModal(true);
-      if (execute) {
-        setExecutingRemediation(true);
+    setGeneratingRemediation(incidentId); // Set the specific incident ID
+    const incident = incidents.find(inc => inc.id === incidentId);
+    setSelectedIncident(incident || null);
+    try {
+      const response = await fetch(`${API_BASE}/incidents/${incidentId}/remediate?execute=${execute}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          incident_id: incidentId,
+          executor_type: "kubectl"
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        data.incident_reason = incident?.reason || 'Unknown Reason';
+
+        setRemediationSolution(data);
+        setShowRemediationModal(true);
+        if (execute) {
+          setExecutingRemediation(true);
+        }
+      } else {
+        console.error('Error generating remediation:', data.detail || data);
       }
-    } else {
-      console.error('Error generating remediation:', data.detail || data);
+    } catch (error) {
+      console.error('Error generating remediation:', error);
+    } finally {
+      setGeneratingRemediation(null); // Reset to null
     }
-  } catch (error) {
-    console.error('Error generating remediation:', error);
-  } finally {
-    setGeneratingRemediation(false);
-  }
-};
+  };
+
 
 
   const executeRemediationSteps = async (incidentId: number, steps: any[]) => {
@@ -274,9 +281,9 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
           executor_type: "kubectl"
         })
       });
-      
+
       const data = await response.json();
-      
+
       if (response.ok) {
         await fetchIncidents(); // Refresh incidents
       }
@@ -289,44 +296,44 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
 
   // Effects
   useEffect(() => {
-  const loadData = async () => {
-    setLoading(true);
-    await Promise.all([
-      fetchIncidents(),
-      fetchExecutors(),
-      fetchHealthStatus()
-    ]);
-    setLoading(false);
-  };
+    const loadData = async () => {
+      setLoading(true);
+      await Promise.all([
+        fetchIncidents(),
+        fetchExecutors(),
+        fetchHealthStatus()
+      ]);
+      setLoading(false);
+    };
 
-  loadData();
-}, [pagination.page, filters.type, filters.namespace, filters.resolved]);
+    loadData();
+  }, [pagination.page, filters.type, filters.namespace, filters.resolved]);
 
   // Filter incidents based on search
   const filteredIncidents = incidents.filter(incident => {
     if (filters.search) {
-    const searchLower = filters.search.toLowerCase();
-    const matchesSearch = (
-      incident.reason.toLowerCase().includes(searchLower) ||
-      incident.message.toLowerCase().includes(searchLower) ||
-      incident.involved_object_name.toLowerCase().includes(searchLower) ||
-      incident.metadata_namespace.toLowerCase().includes(searchLower) ||
-      incident.involved_object_kind.toLowerCase().includes(searchLower) ||
-      incident.source_component?.toLowerCase().includes(searchLower) ||
-      incident.reporting_component?.toLowerCase().includes(searchLower)
-    );
-    if (!matchesSearch) return false;
-  }
+      const searchLower = filters.search.toLowerCase();
+      const matchesSearch = (
+        incident.reason.toLowerCase().includes(searchLower) ||
+        incident.message.toLowerCase().includes(searchLower) ||
+        incident.involved_object_name.toLowerCase().includes(searchLower) ||
+        incident.metadata_namespace.toLowerCase().includes(searchLower) ||
+        incident.involved_object_kind.toLowerCase().includes(searchLower) ||
+        incident.source_component?.toLowerCase().includes(searchLower) ||
+        incident.reporting_component?.toLowerCase().includes(searchLower)
+      );
+      if (!matchesSearch) return false;
+    }
 
-  return true;
-});
+    return true;
+  });
 
   // Helper functions
   const getIncidentIcon = (type: string, isResolved: boolean) => {
     if (isResolved) return <CheckCircle className="w-5 h-5 text-green-500" />;
-    return type === 'Warning' ? 
-      <AlertTriangle className="w-5 h-5 text-amber-500" /> : 
-      <Info className="w-5 h-5 text-blue-500" />;
+    return type === 'Warning' ?
+      <AlertTriangle className="w-5 h-5 text-amber-500" /> :
+      <Info className="w-5 h-5 text-green-500" />;
   };
 
   const getExecutorIcon = (name: string) => {
@@ -364,6 +371,33 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
     return new Date(timestamp).toLocaleString();
   };
 
+  const [commandStatus, setCommandStatus] = useState<{ [key: string]: 'copy' | 'execute' | null }>({});
+
+  // Update the copy function
+  const copyToClipboard = (text: string, stepId: number) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCommandStatus(prev => ({ ...prev, [`${stepId}`]: 'copy' }));
+      setTimeout(() => {
+        setCommandStatus(prev => ({ ...prev, [`${stepId}`]: null }));
+      }, 2000);
+    }).catch(err => {
+      console.error('Failed to copy command: ', err);
+    });
+  };
+
+  // Update the execute function
+  const executeCommand = async (command: string, stepId: number) => {
+    try {
+      setCommandStatus(prev => ({ ...prev, [`${stepId}`]: 'execute' }));
+      console.log(`Executing command: ${command}`);
+      setTimeout(() => {
+        setCommandStatus(prev => ({ ...prev, [`${stepId}`]: null }));
+      }, 2000);
+    } catch (error) {
+      console.error('Error executing command:', error);
+    }
+  };
+
   // Animation variants
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -397,20 +431,21 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
       animate="show"
     >
       {/* Header */}
-      <motion.div variants={itemVariants} className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 rounded-2xl p-6 text-white">
+      <motion.div variants={itemVariants} className="bg-gradient-to-r  from-green-500 to-emerald-500 rounded-2xl p-6 text-white">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold mb-2">Kubernetes Remediations</h1>
-            <p className="text-blue-100">AI-powered incident resolution for {selectedCluster}</p>
+            <p className="text-blue-100">AI-powered incident resolutions </p>
+
+            {/* <p className="text-blue-100">AI-powered incident resolution for {selectedCluster}</p> */}
           </div>
           <div className="flex items-center space-x-4">
             <div className="bg-white/20 backdrop-blur-sm rounded-lg p-3">
               <Shield className="w-8 h-8" />
             </div>
             {healthStatus && (
-              <div className={`px-4 py-2 rounded-full text-sm font-medium ${
-                healthStatus.status === 'healthy' ? 'bg-green-500/20 text-green-100' : 'bg-red-500/20 text-red-100'
-              }`}>
+              <div className={`px-4 py-2 rounded-full text-sm font-medium ${healthStatus.status === 'healthy' ? 'bg-green-500/20 text-green-100' : 'bg-red-500/20 text-red-100'
+                }`}>
                 {healthStatus.status === 'healthy' ? 'System Healthy' : 'System Issues'}
               </div>
             )}
@@ -422,25 +457,23 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
       <motion.div variants={itemVariants} className="bg-white rounded-xl shadow-sm border border-gray-200">
         <div className="flex space-x-1 p-1">
           {[
-            { id: 'incidents', label: 'Incidents', icon: AlertTriangle, count: incidents.length },
+            { id: 'incidents', label: 'Incidents', icon: AlertTriangle, count: pagination.total },
             { id: 'executors', label: 'Executors', icon: Settings, count: executors.length },
             { id: 'health', label: 'Health', icon: Activity, count: null }
           ].map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center space-x-2 px-4 py-3 rounded-lg font-medium transition-all ${
-                activeTab === tab.id
-                  ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-md'
-                  : 'text-gray-600 hover:bg-gray-50'
-              }`}
+              className={`flex items-center space-x-2 px-4 py-3 rounded-lg font-medium transition-all ${activeTab === tab.id
+                ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-md'
+                : 'text-gray-600 hover:bg-gray-50'
+                }`}
             >
               <tab.icon className="w-4 h-4" />
               <span>{tab.label}</span>
               {tab.count !== null && (
-                <span className={`px-2 py-1 rounded-full text-xs ${
-                  activeTab === tab.id ? 'bg-white/20' : 'bg-gray-200 text-gray-600'
-                }`}>
+                <span className={`px-2 py-1 rounded-full text-xs ${activeTab === tab.id ? 'bg-white/20' : 'bg-gray-200 text-gray-600'
+                  }`}>
                   {tab.count}
                 </span>
               )}
@@ -453,160 +486,145 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
       {activeTab === 'incidents' && (
         <motion.div variants={itemVariants} className="space-y-6">
           {/* Filters */}
-          {/* Filters */}
-<div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-  <div className="flex items-center justify-between mb-4">
-    <h3 className="text-lg font-semibold text-gray-900">Filter Incidents</h3>
-    <button
-      onClick={clearAllFilters}
-      className="text-sm text-gray-500 hover:text-gray-700 underline"
-    >
-      Clear All Filters
-    </button>
-  </div>
-  
-  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-        <input
-          type="text"
-          placeholder="Search incidents..."
-          value={filters.search}
-          onChange={(e) => {
-            setFilters(prev => ({ ...prev, search: e.target.value }));
-            // Reset pagination when searching
-            setPagination(prev => ({ ...prev, page: 1 }));
-          }}
-          className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-        />
-        {filters.search && (
-          <button
-            onClick={() => {
-              setFilters(prev => ({ ...prev, search: '' }));
-              setPagination(prev => ({ ...prev, page: 1 }));
-            }}
-            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        )}
-      </div>
-    </div>
-    
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-2">Type</label>
-      <select
-        value={filters.type}
-        onChange={(e) => {
-          setFilters(prev => ({ ...prev, type: e.target.value }));
-          setPagination(prev => ({ ...prev, page: 1 }));
-        }}
-        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-      >
-        <option value="">All Types</option>
-        <option value="Warning">Warning</option>
-        <option value="Normal">Normal</option>
-        <option value="Error">Error</option>
-        <option value="Critical">Critical</option>
-        <option value="Info">Info</option>
-        <option value="Debug">Debug</option>
-      </select>
-    </div>
-    
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-2">Namespace</label>
-      <select
-        value={filters.namespace}
-        onChange={(e) => {
-          setFilters(prev => ({ ...prev, namespace: e.target.value }));
-          setPagination(prev => ({ ...prev, page: 1 }));
-        }}
-        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-      >
-        <option value="">All Namespaces</option>
-        {getUniqueNamespaces().map((namespace) => (
-          <option key={namespace} value={namespace}>
-            {namespace}
-          </option>
-        ))}
-      </select>
-    </div>
-    
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-      <select
-        value={filters.resolved}
-        onChange={(e) => {
-          setFilters(prev => ({ ...prev, resolved: e.target.value }));
-          setPagination(prev => ({ ...prev, page: 1 }));
-        }}
-        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-      >
-        <option value="">All Status</option>
-        <option value="false">Unresolved</option>
-        <option value="true">Resolved</option>
-      </select>
-    </div>
-  </div>
-  
-  {/* Filter Summary */}
-  {(filters.search || filters.type || filters.namespace || filters.resolved) && (
-    <div className="mt-4 pt-4 border-t border-gray-200">
-      <div className="flex items-center space-x-2 text-sm text-gray-600">
-        <span>Active filters:</span>
-        {filters.search && (
-          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-            Search: "{filters.search}"
-            <button
-              onClick={() => setFilters(prev => ({ ...prev, search: '' }))}
-              className="ml-1 text-green-600 hover:text-green-800"
-            >
-              <X className="w-3 h-3" />
-            </button>
-          </span>
-        )}
-        {filters.type && (
-          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-            Type: {filters.type}
-            <button
-              onClick={() => setFilters(prev => ({ ...prev, type: '' }))}
-              className="ml-1 text-green-600 hover:text-green-800"
-            >
-              <X className="w-3 h-3" />
-            </button>
-          </span>
-        )}
-        {filters.namespace && (
-          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-            Namespace: {filters.namespace}
-            <button
-              onClick={() => setFilters(prev => ({ ...prev, namespace: '' }))}
-              className="ml-1 text-green-600 hover:text-green-800"
-            >
-              <X className="w-3 h-3" />
-            </button>
-          </span>
-        )}
-        {filters.resolved && (
-          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-            Status: {filters.resolved === 'true' ? 'Resolved' : 'Unresolved'}
-            <button
-              onClick={() => setFilters(prev => ({ ...prev, resolved: '' }))}
-              className="ml-1 text-green-600 hover:text-green-800"
-            >
-              <X className="w-3 h-3" />
-            </button>
-          </span>
-        )}
-      </div>
-      <div className="mt-2 text-sm text-gray-500">
-        Showing {filteredIncidents.length} of {incidents.length} incidents
-      </div>
-    </div>
-  )}
-</div>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Filter Incidents</h3>
+              <button
+                onClick={clearAllFilters}
+                className="text-sm text-gray-500 hover:text-gray-700 underline"
+              >
+                Clear All Filters
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search incidents..."
+                    value={filters.search}
+                    onChange={(e) => {
+                      setFilters(prev => ({ ...prev, search: e.target.value }));
+                      // Reset pagination when searching
+                      setPagination(prev => ({ ...prev, page: 1 }));
+                    }}
+                    className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  />
+                  {filters.search && (
+                    <button
+                      onClick={() => {
+                        setFilters(prev => ({ ...prev, search: '' }));
+                        setPagination(prev => ({ ...prev, page: 1 }));
+                      }}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Type</label>
+                <select
+                  value={filters.type}
+                  onChange={(e) => {
+                    setFilters(prev => ({ ...prev, type: e.target.value }));
+                    setPagination(prev => ({ ...prev, page: 1 }));
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                >
+                  <option value="">All Types</option>
+                  <option value="Warning">Warning</option>
+                  <option value="Normal">Normal</option>
+                  <option value="Error">Error</option>
+                  <option value="Critical">Critical</option>
+                  <option value="Info">Info</option>
+                  <option value="Debug">Debug</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Namespace</label>
+                <select
+                  value={filters.namespace}
+                  onChange={(e) => {
+                    setFilters(prev => ({ ...prev, namespace: e.target.value }));
+                    setPagination(prev => ({ ...prev, page: 1 }));
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                >
+                  <option value="">All Namespaces</option>
+                  {getUniqueNamespaces().map((namespace) => (
+                    <option key={namespace} value={namespace}>
+                      {namespace}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+
+            </div>
+
+            {/* Filter Summary */}
+            {(filters.search || filters.type || filters.namespace || filters.resolved) && (
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <div className="flex items-center space-x-2 text-sm text-gray-600">
+                  <span>Active filters:</span>
+                  {filters.search && (
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      Search: "{filters.search}"
+                      <button
+                        onClick={() => setFilters(prev => ({ ...prev, search: '' }))}
+                        className="ml-1 text-green-600 hover:text-green-800"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  )}
+                  {filters.type && (
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      Type: {filters.type}
+                      <button
+                        onClick={() => setFilters(prev => ({ ...prev, type: '' }))}
+                        className="ml-1 text-green-600 hover:text-green-800"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  )}
+                  {filters.namespace && (
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      Namespace: {filters.namespace}
+                      <button
+                        onClick={() => setFilters(prev => ({ ...prev, namespace: '' }))}
+                        className="ml-1 text-green-600 hover:text-green-800"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  )}
+                  {filters.resolved && (
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      Status: {filters.resolved === 'true' ? 'Resolved' : 'Unresolved'}
+                      <button
+                        onClick={() => setFilters(prev => ({ ...prev, resolved: '' }))}
+                        className="ml-1 text-green-600 hover:text-green-800"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  )}
+                </div>
+                <div className="mt-2 text-sm text-gray-500">
+                  Showing {filteredIncidents.length} of {incidents.length} incidents
+                </div>
+              </div>
+            )}
+          </div>
 
 
           {/* Incidents List */}
@@ -630,15 +648,14 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                         <div className="flex-shrink-0">
                           {getIncidentIcon(incident.type, incident.is_resolved)}
                         </div>
-                        
+
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center space-x-3 mb-2">
                             <h3 className="text-lg font-semibold text-gray-900 truncate">
                               {incident.reason}
                             </h3>
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              incident.type === 'Warning' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
-                            }`}>
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${incident.type === 'Warning' ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-800 '
+                              }`}>
                               {incident.type}
                             </span>
                             {incident.is_resolved && (
@@ -647,9 +664,9 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                               </span>
                             )}
                           </div>
-                          
+
                           <p className="text-gray-600 mb-3 line-clamp-2">{incident.message}</p>
-                          
+
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                             <div className="flex items-center space-x-2">
                               <MapPin className="w-4 h-4 text-gray-400" />
@@ -676,7 +693,7 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                               </span>
                             </div>
                           </div>
-                          
+
                           {incident.resolution_attempts > 0 && (
                             <div className="mt-3 flex items-center space-x-2 text-sm text-amber-600">
                               <RefreshCw className="w-4 h-4" />
@@ -685,7 +702,7 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                           )}
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center space-x-2 ml-4">
                         <button
                           onClick={() => setExpandedIncident(
@@ -693,29 +710,38 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                           )}
                           className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
                         >
-                          {expandedIncident === incident.id ? 
-                            <ChevronDown className="w-5 h-5" /> : 
+                          {expandedIncident === incident.id ?
+                            <ChevronDown className="w-5 h-5" /> :
                             <ChevronRight className="w-5 h-5" />
                           }
                         </button>
-                        
+
                         {!incident.is_resolved && (
-                          <button
-                            onClick={() => generateRemediation(incident.id)}
-                            disabled={generatingRemediation}
-                            className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            {generatingRemediation ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <Zap className="w-4 h-4" />
+                          <div className="flex flex-col items-end space-y-2">
+                            <button
+                              onClick={() => generateRemediation(incident.id)}
+                              disabled={generatingRemediation !== null}
+                              className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg hover:from-green-600 hover:to-emerald-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {generatingRemediation === incident.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Zap className="w-4 h-4" />
+                              )}
+                              <span>Generate Fix</span>
+                            </button>
+                            {generatingRemediation === incident.id && (
+                              <div className="text-xs text-gray-500 animate-pulse">
+                                Analyzing... This may take 1-2 minutes
+                              </div>
                             )}
-                            <span>Generate Fix</span>
-                          </button>
+                          </div>
                         )}
+
+
                       </div>
                     </div>
-                    
+
                     {/* Expanded Details */}
                     <AnimatePresence>
                       {expandedIncident === incident.id && (
@@ -747,7 +773,7 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                                 </div>
                               </div>
                             </div>
-                            
+
                             <div>
                               <h4 className="font-medium text-gray-900 mb-3">Timestamps</h4>
                               <div className="space-y-2 text-sm">
@@ -774,7 +800,7 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                               </div>
                             </div>
                           </div>
-                          
+
                           {/* Labels and Annotations */}
                           {(incident.involved_object_labels || incident.involved_object_annotations) && (
                             <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -796,7 +822,7 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                                   </div>
                                 </div>
                               )}
-                              
+
                               {incident.involved_object_annotations && (
                                 <div>
                                   <h4 className="font-medium text-gray-900 mb-3">Annotations</h4>
@@ -885,47 +911,44 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
               <motion.div
                 key={executor.id}
                 layout
-                className={`bg-white rounded-xl shadow-sm border-2 transition-all hover:shadow-md ${
-                  executor.status === 'active' 
-                    ? 'border-green-200 bg-gradient-to-br from-green-50 to-emerald-50' 
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
+                className={`bg-white rounded-xl shadow-sm border-2 transition-all hover:shadow-md ${executor.status === 'active'
+                  ? 'border-green-200 bg-gradient-to-br from-green-50 to-emerald-50'
+                  : 'border-gray-200 hover:border-gray-300'
+                  }`}
               >
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center space-x-3">
-                      <div className={`p-3 rounded-lg ${
-                        executor.status === 'active' 
-                          ? 'bg-green-100 text-green-600' 
-                          : 'bg-gray-100 text-gray-600'
-                      }`}>
+                      <div className={`p-3 rounded-lg ${executor.status === 'active'
+                        ? 'bg-green-100 text-green-600'
+                        : 'bg-gray-100 text-gray-600'
+                        }`}>
                         {getExecutorIcon(executor.name)}
                       </div>
                       <div>
                         <h3 className="font-semibold text-gray-900 capitalize">{executor.name}</h3>
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                          executor.status === 'active' 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-gray-100 text-gray-800'
-                        }`}>
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${executor.status === 'active'
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-gray-100 text-gray-800'
+                          }`}>
                           {executor.status}
                         </span>
                       </div>
                     </div>
-                    
+
                     {executor.status !== 'active' && (
                       <button
                         onClick={() => activateExecutor(executor.id)}
-                        className="flex items-center space-x-1 px-3 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
+                        className="flex items-center space-x-1 px-3 py-1 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm"
                       >
                         <Play className="w-3 h-3" />
                         <span>Activate</span>
                       </button>
                     )}
                   </div>
-                  
+
                   <p className="text-gray-600 text-sm mb-4">{executor.description}</p>
-                  
+
                   {/* Configuration */}
                   {executor.config && (
                     <div className="space-y-2">
@@ -937,7 +960,7 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                       </div>
                     </div>
                   )}
-                  
+
                   <div className="mt-4 pt-4 border-t border-gray-200">
                     <div className="flex items-center justify-between text-xs text-gray-500">
                       <span>Updated: {formatTimestamp(executor.updated_at)}</span>
@@ -988,28 +1011,25 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                     <span>Refresh</span>
                   </button>
                 </div>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   {/* Overall Status */}
-                  <div className={`p-4 rounded-xl ${
-                    healthStatus.status === 'healthy' 
-                      ? 'bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200' 
-                      : 'bg-gradient-to-br from-red-50 to-rose-50 border border-red-200'
-                  }`}>
+                  <div className={`p-4 rounded-xl ${healthStatus.status === 'healthy'
+                    ? 'bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200'
+                    : 'bg-gradient-to-br from-red-50 to-rose-50 border border-red-200'
+                    }`}>
                     <div className="flex items-center space-x-3">
-                      <div className={`p-2 rounded-lg ${
-                        healthStatus.status === 'healthy' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
-                      }`}>
-                        {healthStatus.status === 'healthy' ? 
-                          <CheckCircle className="w-5 h-5" /> : 
+                      <div className={`p-2 rounded-lg ${healthStatus.status === 'healthy' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
+                        }`}>
+                        {healthStatus.status === 'healthy' ?
+                          <CheckCircle className="w-5 h-5" /> :
                           <AlertTriangle className="w-5 h-5" />
                         }
                       </div>
                       <div>
                         <p className="text-sm text-gray-600">System Status</p>
-                        <p className={`font-semibold capitalize ${
-                          healthStatus.status === 'healthy' ? 'text-green-800' : 'text-red-800'
-                        }`}>
+                        <p className={`font-semibold capitalize ${healthStatus.status === 'healthy' ? 'text-green-800' : 'text-red-800'
+                          }`}>
                           {healthStatus.status}
                         </p>
                       </div>
@@ -1017,22 +1037,19 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                   </div>
 
                   {/* Database Status */}
-                  <div className={`p-4 rounded-xl ${
-                    healthStatus.database === 'connected' 
-                      ? 'bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-200' 
-                      : 'bg-gradient-to-br from-red-50 to-rose-50 border border-red-200'
-                  }`}>
+                  <div className={`p-4 rounded-xl ${healthStatus.database === 'connected'
+                    ? 'bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-200'
+                    : 'bg-gradient-to-br from-red-50 to-rose-50 border border-red-200'
+                    }`}>
                     <div className="flex items-center space-x-3">
-                      <div className={`p-2 rounded-lg ${
-                        healthStatus.database === 'connected' ? 'bg-blue-100 text-blue-600' : 'bg-red-100 text-red-600'
-                      }`}>
+                      <div className={`p-2 rounded-lg ${healthStatus.database === 'connected' ? 'bg-blue-100 text-blue-600' : 'bg-red-100 text-red-600'
+                        }`}>
                         <Database className="w-5 h-5" />
                       </div>
                       <div>
                         <p className="text-sm text-gray-600">Database</p>
-                        <p className={`font-semibold capitalize ${
-                          healthStatus.database === 'connected' ? 'text-blue-800' : 'text-red-800'
-                        }`}>
+                        <p className={`font-semibold capitalize ${healthStatus.database === 'connected' ? 'text-blue-800' : 'text-red-800'
+                          }`}>
                           {healthStatus.database}
                         </p>
                       </div>
@@ -1040,22 +1057,19 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                   </div>
 
                   {/* LLM Service Status */}
-                  <div className={`p-4 rounded-xl ${
-                    healthStatus.llm_service === 'enabled' 
-                      ? 'bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-200' 
-                      : 'bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200'
-                  }`}>
+                  <div className={`p-4 rounded-xl ${healthStatus.llm_service === 'enabled'
+                    ? 'bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-200'
+                    : 'bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200'
+                    }`}>
                     <div className="flex items-center space-x-3">
-                      <div className={`p-2 rounded-lg ${
-                        healthStatus.llm_service === 'enabled' ? 'bg-purple-100 text-purple-600' : 'bg-amber-100 text-amber-600'
-                      }`}>
+                      <div className={`p-2 rounded-lg ${healthStatus.llm_service === 'enabled' ? 'bg-purple-100 text-purple-600' : 'bg-amber-100 text-amber-600'
+                        }`}>
                         <Zap className="w-5 h-5" />
                       </div>
                       <div>
                         <p className="text-sm text-gray-600">LLM Service</p>
-                        <p className={`font-semibold capitalize ${
-                          healthStatus.llm_service === 'enabled' ? 'text-purple-800' : 'text-amber-800'
-                        }`}>
+                        <p className={`font-semibold capitalize ${healthStatus.llm_service === 'enabled' ? 'text-purple-800' : 'text-amber-800'
+                          }`}>
                           {healthStatus.llm_service}
                         </p>
                       </div>
@@ -1077,7 +1091,7 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="mt-6 pt-6 border-t border-gray-200">
                   <div className="flex items-center justify-between text-sm text-gray-500">
                     <span>Last updated: {formatTimestamp(healthStatus.timestamp)}</span>
@@ -1107,11 +1121,10 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                           </div>
                           <span className="font-medium text-gray-900">{component.name}</span>
                         </div>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          component.status === 'running' ? 'bg-green-100 text-green-800' :
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${component.status === 'running' ? 'bg-green-100 text-green-800' :
                           component.status === 'disabled' ? 'bg-amber-100 text-amber-800' :
-                          'bg-red-100 text-red-800'
-                        }`}>
+                            'bg-red-100 text-red-800'
+                          }`}>
                           {component.status}
                         </span>
                       </div>
@@ -1129,7 +1142,7 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                       </div>
                       <span className="text-xl font-bold text-blue-600">{incidents.length}</span>
                     </div>
-                                        <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                    {/* <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
                       <div className="flex items-center space-x-3">
                         <CheckCircle className="w-5 h-5 text-green-600" />
                         <span className="font-medium text-gray-900">Resolved</span>
@@ -1138,7 +1151,7 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                         {incidents.filter(i => i.is_resolved).length}
                       </span>
                     </div>
-                    
+
                     <div className="flex items-center justify-between p-3 bg-amber-50 rounded-lg">
                       <div className="flex items-center space-x-3">
                         <Clock className="w-5 h-5 text-amber-600" />
@@ -1147,8 +1160,8 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                       <span className="text-xl font-bold text-amber-600">
                         {incidents.filter(i => !i.is_resolved).length}
                       </span>
-                    </div>
-                    
+                    </div> */}
+
                     <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
                       <div className="flex items-center space-x-3">
                         <Settings className="w-5 h-5 text-purple-600" />
@@ -1184,7 +1197,7 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
               onClick={(e) => e.stopPropagation()}
             >
               {/* Modal Header */}
-              <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6 text-white">
+              <div className="bg-gradient-to-r  from-green-500 to-emerald-500 p-6 text-white">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <div className="p-2 bg-white/20 rounded-lg">
@@ -1192,8 +1205,8 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                     </div>
                     <div>
                       <h2 className="text-xl font-bold">AI Remediation Solution</h2>
-                      <p className="text-blue-100">Incident #{remediationSolution.incident_id}</p>
-                    </div>
+                      <p className="text-green-100">Reason: {remediationSolution.incident_reason}</p>                  </div>
+
                   </div>
                   <button
                     onClick={() => setShowRemediationModal(false)}
@@ -1225,8 +1238,8 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                       </div>
                     </div>
                   </div>
-                  
-                  <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-4 border border-blue-200">
+
+                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 border border-green-300">
                     <p className="text-gray-700">{remediationSolution.solution.solution_summary}</p>                  </div>
                 </div>
 
@@ -1256,22 +1269,47 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                       <div key={index} className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-sm transition-shadow">
                         <div className="flex items-start space-x-4">
                           <div className="flex-shrink-0">
-                            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-full flex items-center justify-center font-semibold text-sm">
+                            <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-full flex items-center justify-center font-semibold text-sm">
                               {step.step_id}
                             </div>
                           </div>
                           <div className="flex-1">
                             <div className="flex items-center justify-between mb-2">
                               <h4 className="font-medium text-gray-900">{step.action_type}</h4>
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                step.critical ? 'text-red-600 bg-red-100' : 'text-green-600 bg-green-100'
-                              }`}>
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${step.critical ? 'text-red-600 bg-red-100' : 'text-green-600 bg-green-100'
+                                }`}>
                                 {step.critical ? 'Critical' : 'Safe'}
                               </span>
                             </div>
                             <p className="text-gray-600 text-sm mb-3">{step.description}</p>
-                            <div className="bg-gray-900 rounded-lg p-3">
-                              <code className="text-green-400 text-sm font-mono">{step.command}</code>
+                            <div className="bg-gray-900 rounded-lg p-3 relative group">
+                              <code className="text-green-400 text-sm font-mono pr-20">{step.command}</code>
+                              <div className="absolute top-2 right-2 flex space-x-2">
+                                <button
+                                  onClick={() => copyToClipboard(step.command, step.step_id)}
+                                  className="p-1.5 bg-gray-700 hover:bg-gray-600 rounded text-gray-300 hover:text-white transition-colors border border-gray-600"
+                                  title="Copy command"
+                                >
+                                  {commandStatus[`${step.step_id}`] === 'copy' ? (
+                                    <Check className="w-4 h-4 text-green-400" />
+                                  ) : (
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                    </svg>
+                                  )}
+                                </button>
+                                <button
+                                  onClick={() => executeCommand(step.command, step.step_id)}
+                                  className="p-1.5 bg-green-600 hover:bg-green-500 rounded text-white transition-colors border border-green-500"
+                                  title="Execute command"
+                                >
+                                  {commandStatus[`${step.step_id}`] === 'execute' ? (
+                                    <Check className="w-4 h-4" />
+                                  ) : (
+                                    <Terminal className="w-4 h-4" />
+                                  )}
+                                </button>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -1279,6 +1317,7 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                     ))}
                   </div>
                 </div>
+
 
                 {/* Prerequisites - Remove this section or make it conditional */}
                 {remediationSolution.solution.additional_notes && (
@@ -1295,13 +1334,12 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                 {/* Execution Status */}
                 <div className="mb-6">
                   <h3 className="text-lg font-semibold text-gray-900 mb-3">Execution Status</h3>
-                  <div className={`p-4 rounded-xl border ${
-                    remediationSolution.execution_status === 'generated' ? 'bg-blue-50 border-blue-200' :
+                  <div className={`p-4 rounded-xl border ${remediationSolution.execution_status === 'generated' ? 'bg-green-50 border-green-300  ' :
                     remediationSolution.execution_status === 'executing' ? 'bg-amber-50 border-amber-200' :
-                    remediationSolution.execution_status === 'completed_successfully' ? 'bg-green-50 border-green-200' :
-                    remediationSolution.execution_status === 'partially_completed' ? 'bg-amber-50 border-amber-200' :
-                    'bg-red-50 border-red-200'
-                  }`}>
+                      remediationSolution.execution_status === 'completed_successfully' ? 'bg-green-50 border-green-200' :
+                        remediationSolution.execution_status === 'partially_completed' ? 'bg-amber-50 border-amber-200' :
+                          'bg-red-50 border-red-200'
+                    }`}>
                     <div className="flex items-center space-x-3">
                       {remediationSolution.execution_status === 'executing' ? (
                         <Loader2 className="w-5 h-5 animate-spin text-amber-600" />
@@ -1332,7 +1370,7 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                   >
                     Close
                   </button>
-                  
+
                   {remediationSolution.execution_status === 'generated' && (
                     <>
                       <button
@@ -1347,22 +1385,7 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                         )}
                         <span>Execute Automatically</span>
                       </button>
-                      
-                      <button
-                        onClick={() => executeRemediationSteps(
-                          remediationSolution.incident_id,
-                          remediationSolution.solution.remediation_steps
-                        )}
-                        disabled={executingRemediation}
-                        className="flex items-center space-x-2 px-6 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {executingRemediation ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <Terminal className="w-4 h-4" />
-                        )}
-                        <span>Execute Manually</span>
-                      </button>
+
                     </>
                   )}
                 </div>
