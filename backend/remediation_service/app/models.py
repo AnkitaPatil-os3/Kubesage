@@ -39,7 +39,6 @@ class Incident(SQLModel, table=True):
     
     id: Optional[int] = Field(default=None, primary_key=True)
     incident_id: str = Field(unique=True, index=True)  # External incident ID
-    user_id: int = Field(index=True)  # Add user_id field
     type: IncidentType = Field(index=True)
     reason: str = Field(index=True)
     message: str

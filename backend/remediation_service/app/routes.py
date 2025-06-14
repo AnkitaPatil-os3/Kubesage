@@ -12,7 +12,6 @@ from app.schemas import (
     ExecutorCreate, ExecutorUpdate, ExecutorResponse, ExecutorList,
     RemediationRequest, RemediationResponse, RemediationSolution
 )
-from app.auth import get_current_user
 from app.config import settings
 from app.logger import logger
 from app.queue import publish_message
@@ -71,35 +70,27 @@ def parse_timestamp(timestamp_str: str) -> Optional[datetime]:
         logger.error(f"Error parsing timestamp {timestamp_str}: {str(e)}")
         return None
 
+
 # Webhook endpoint for receiving incidents
+
 @remediation_router.post("/webhook/incidents", 
                         summary="Receive Incident Webhook",
                         description="Webhook endpoint to receive Kubernetes incidents")
 async def receive_incident_webhook(
     payload: IncidentWebhookPayload,
     session: Session = Depends(get_session),
-    current_user: Dict = Depends(get_current_user)
 ):
     """
     Webhook endpoint to receive Kubernetes incidents and store important data in database.
-    
-    - Receives incident data from external systems
-    - Extracts important incident information
-    - Stores incident in database
-    - Logs incident event
-    
-    Returns:
-        JSONResponse: Confirmation of incident receipt
     """
     try:
         # Generate unique incident ID if not provided
         incident_id = payload.metadata.get("uid", str(uuid.uuid4()))
         
-        # Check if incident already exists for this user
+        # Check if incident already exists
         existing_incident = session.exec(
             select(Incident).where(
-                Incident.incident_id == incident_id,
-                Incident.user_id == current_user["id"]
+                Incident.incident_id == incident_id
             )
         ).first()
         
@@ -111,13 +102,12 @@ async def receive_incident_webhook(
             session.add(existing_incident)
             session.commit()
             
-            logger.info(f"Updated existing incident: {incident_id} for user: {current_user['id']}")
+            logger.info(f"Updated existing incident: {incident_id}")
             return JSONResponse(content={"message": "Incident updated", "incident_id": incident_id}, status_code=200)
         
         # Extract important incident data
         incident_data = IncidentCreate(
             incident_id=incident_id,
-            user_id=current_user["id"],
             type=IncidentType(payload.type) if payload.type in [t.value for t in IncidentType] else IncidentType.NORMAL,
             reason=payload.reason,
             message=payload.message,
@@ -138,31 +128,36 @@ async def receive_incident_webhook(
         # Create incident record
         incident = Incident(**incident_data.dict())
         
-        # Set labels and annotations as JSON strings
+        # Convert labels and annotations to JSON strings BEFORE saving
         if incident_data.involved_object_labels:
-            incident.set_labels_dict(_clean_dict_for_llm(incident_data.involved_object_labels))
+            incident.involved_object_labels = json.dumps(_clean_dict_for_llm(incident_data.involved_object_labels))
+        else:
+            incident.involved_object_labels = None
+            
         if incident_data.involved_object_annotations:
-            incident.set_annotations_dict(_clean_dict_for_llm(incident_data.involved_object_annotations))
+            incident.involved_object_annotations = json.dumps(_clean_dict_for_llm(incident_data.involved_object_annotations))
+        else:
+            incident.involved_object_annotations = None
         
         session.add(incident)
         session.commit()
         session.refresh(incident)
         
-        logger.info(f"Created new incident: {incident_id} for user: {current_user['id']}")
+        logger.info(f"Created new incident: {incident_id}")
         
-        # Log incident event (instead of publishing to queue)
-        logger.info(f"Incident event: incident_received - ID: {incident.id}, Type: {incident.type.value}, Reason: {incident.reason}, User: {current_user['id']}")
+        # Log incident event
+        logger.info(f"Incident event: incident_received - ID: {incident.id}, Type: {incident.type.value}, Reason: {incident.reason}")
         
         return JSONResponse(content={
             "message": "Incident received and stored",
             "incident_id": incident_id,
-            "internal_id": incident.id,
-            "user_id": current_user["id"]
+            "internal_id": incident.id
         }, status_code=201)
         
     except Exception as e:
         logger.error(f"Error processing incident webhook: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error processing incident: {str(e)}")
+
 
 # Executor management endpoints
 @remediation_router.get("/executors", response_model=ExecutorList,
@@ -170,7 +165,6 @@ async def receive_incident_webhook(
                        description="Get list of all executors and their status")
 async def list_executors(
     session: Session = Depends(get_session),
-    current_user: Dict = Depends(get_current_user)
 ):
     """List all executors and their status"""
     executors = session.exec(select(Executor)).all()
@@ -205,7 +199,6 @@ async def list_executors(
 async def create_executor(
     executor_data: ExecutorCreate,
     session: Session = Depends(get_session),
-    current_user: Dict = Depends(get_current_user)
 ):
     """Create a new executor"""
     # Check if executor already exists
@@ -237,7 +230,6 @@ async def update_executor(
     executor_id: int,
     executor_data: ExecutorUpdate,
     session: Session = Depends(get_session),
-    current_user: Dict = Depends(get_current_user)
 ):
     """Update executor status and configuration"""
     executor = session.get(Executor, executor_id)
@@ -267,7 +259,6 @@ async def update_executor(
 async def activate_executor(
     executor_id: int,
     session: Session = Depends(get_session),
-    current_user: Dict = Depends(get_current_user)
 ):
     """Activate an executor and deactivate all others"""
     executor = session.get(Executor, executor_id)
@@ -288,7 +279,10 @@ async def activate_executor(
     logger.info(f"Activated executor: {executor.name.value}")
     return JSONResponse(content={"message": f"Executor {executor.name.value} activated"}, status_code=200)
 
+
+
 # Incident management endpoints
+
 @remediation_router.get("/incidents", response_model=IncidentList,
                        summary="List Incidents",
                        description="Get list of incidents with filtering options")
@@ -299,10 +293,9 @@ async def list_incidents(
     namespace: Optional[str] = Query(None),
     resolved: Optional[bool] = Query(None),
     session: Session = Depends(get_session),
-    current_user: Dict = Depends(get_current_user)
 ):
     """List incidents with filtering and pagination"""
-    query = select(Incident).where(Incident.user_id == current_user["id"])
+    query = select(Incident)
     
     # Apply filters
     if incident_type:
@@ -313,7 +306,7 @@ async def list_incidents(
         query = query.where(Incident.is_resolved == resolved)
     
     # Get total count
-    total_query = select(Incident).where(Incident.user_id == current_user["id"])
+    total_query = select(Incident)
     if incident_type:
         total_query = total_query.where(Incident.type == incident_type)
     if namespace:
@@ -350,7 +343,6 @@ async def list_incidents(
         incident_dict = {
             "id": incident.id,
             "incident_id": incident.incident_id,
-            "user_id": incident.user_id,
             "type": incident.type,
             "reason": incident.reason,
             "message": incident.message,
@@ -382,19 +374,18 @@ async def list_incidents(
         per_page=per_page
     )
 
+
 @remediation_router.get("/incidents/{id}", response_model=IncidentResponse,
                        summary="Get Incident",
                        description="Get detailed information about a specific incident")
 async def get_incident(
     id: int,
-    session: Session = Depends(get_session),
-    current_user: Dict = Depends(get_current_user)
+    session: Session = Depends(get_session)
 ):
     """Get detailed information about a specific incident"""
     incident = session.exec(
         select(Incident).where(
-            Incident.id == id,
-            Incident.user_id == current_user["id"]
+            Incident.id == id
         )
     ).first()
     
@@ -420,7 +411,6 @@ async def get_incident(
     incident_dict = {
         "id": incident.id,
         "incident_id": incident.incident_id,
-        "user_id": incident.user_id,
         "type": incident.type,
         "reason": incident.reason,
         "message": incident.message,
@@ -446,34 +436,31 @@ async def get_incident(
     
     return IncidentResponse(**incident_dict)
 
+
+
 # Remediation endpoints
+
 @remediation_router.post("/incidents/{incident_id}/remediate",
                         summary="Generate Remediation Solution",
                         description="Generate and optionally execute remediation solution for an incident")
 async def remediate_incident(
-    incident_id: str,
+    incident_id: int,
     request: RemediationRequest,
     background_tasks: BackgroundTasks,
     execute: bool = Query(False, description="Whether to execute the remediation automatically"),
     session: Session = Depends(get_session),
-    current_user: Dict = Depends(get_current_user)
 ):
     """
-    Generate remediation solution for an incident using LLM.
+    Generate remediation solution for ANY type of incident using LLM.
     
-    - Gets incident details from database
-    - Determines active executor or uses specified executor
-    - Generates remediation solution using LLM
-    - Optionally executes the remediation steps
-    - Returns solution without saving to database (on-demand)
-    
-    Parameters:
-        incident_id: ID of the incident to remediate
-        request: Remediation request with optional executor type
-        execute: Whether to execute the remediation automatically
-    
-    Returns:
-        RemediationResponse: Generated solution and execution results
+    The LLM can handle all types of Kubernetes incidents including:
+    - Pod failures, crashes, restarts
+    - Deployment issues, scaling problems  
+    - Service connectivity issues
+    - Resource constraints
+    - Configuration errors
+    - Network issues
+    - Any other Kubernetes-related incidents
     """
     # Check if LLM is enabled
     if not settings.LLM_ENABLED:
@@ -482,38 +469,10 @@ async def remediate_incident(
             detail="LLM functionality is disabled. Please enable it in settings to use AI remediation."
         )
     
-    # Get incident by UUID string instead of integer ID
-    try:
-        # Try to convert to int first (for backward compatibility)
-        if incident_id.isdigit():
-            incident = session.exec(
-                select(Incident).where(
-                    Incident.id == int(incident_id),
-                    Incident.user_id == current_user["id"]
-                )
-            ).first()
-        else:
-            # Use as UUID string
-            incident = session.exec(
-                select(Incident).where(
-                    Incident.incident_id == incident_id,
-                    Incident.user_id == current_user["id"]
-                )
-            ).first()
-    except ValueError:
-        # If conversion fails, treat as UUID
-        incident = session.exec(
-            select(Incident).where(
-                Incident.incident_id == incident_id,
-                Incident.user_id == current_user["id"]
-            )
-        ).first()
-    
+    # Get incident
+    incident = session.get(Incident, incident_id)
     if not incident:
         raise HTTPException(status_code=404, detail="Incident not found")
-    
-    # Use incident.id (integer) for the rest of the function
-    incident_id_int = incident.id
     
     # Determine executor to use
     executor_type = request.executor_type
@@ -549,11 +508,11 @@ async def remediate_incident(
         # Generate solution
         logger.info(f"Generating remediation solution for incident {incident_id} using {executor_type.value}")
         
-        # Prepare cluster context (you can enhance this with real cluster data)
+        # Prepare cluster context
         cluster_context = {
             "executor_type": executor_type.value,
             "namespace": incident.metadata_namespace,
-            "cluster_name": "current-cluster",  # You can get this from kubeconfig service
+            "cluster_name": "current-cluster",
             "incident_count": incident.count,
             "resolution_attempts": incident.resolution_attempts
         }
@@ -578,9 +537,9 @@ async def remediate_incident(
         session.add(incident)
         session.commit()
         
-        # Prepare response
+        # Prepare response - FIX: Use incident_id parameter, not id function
         response = RemediationResponse(
-            incident_id=incident_id,
+            incident_id=incident_id,  # Use the parameter, not id()
             solution=solution,
             execution_status="generated",
             timestamp=datetime.utcnow()
@@ -590,16 +549,15 @@ async def remediate_incident(
         if execute:
             background_tasks.add_task(
                 execute_remediation_background,
-                incident_id,
+                incident_id,  # Use the parameter, not id()
                 solution,
                 executor_type,
-                executor_config,
-                current_user["id"]
+                executor_config
             )
             response.execution_status = "executing"
         
-        # Log remediation event (instead of publishing to queue)
-        logger.info(f"Remediation solution generated - Incident: {incident_id}, User: {current_user['id']}, Executor: {executor_type.value}, Confidence: {solution.confidence_score}")
+        # Log remediation event
+        logger.info(f"Remediation solution generated - Incident: {incident_id}, Executor: {executor_type.value}, Confidence: {solution.confidence_score}")
         
         logger.info(f"Generated remediation solution for incident {incident_id}")
         return response
@@ -608,12 +566,13 @@ async def remediate_incident(
         logger.error(f"Error generating remediation solution: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error generating remediation solution: {str(e)}")
 
+
+
 async def execute_remediation_background(
     incident_id: int,
     solution: RemediationSolution,
     executor_type: ExecutorType,
     executor_config: Dict,
-    user_id: int
 ):
     """Background task to execute remediation steps"""
     try:
@@ -655,21 +614,20 @@ async def execute_remediation_background(
         logger.error(f"Error in background execution for incident {incident_id}: {str(e)}")
         
         # Log execution failure event (instead of publishing to queue)
-        logger.error(f"Remediation execution failed - Incident: {incident_id}, User: {user_id}, Error: {str(e)}")
+        logger.error(f"Remediation execution failed - Incident: {incident_id}, Error: {str(e)}")
 
-@remediation_router.post("/incidents/{incident_id}/execute",
+@remediation_router.post("/incidents/{id}/execute",
                         summary="Execute Remediation Steps",
                         description="Execute specific remediation steps for an incident")
 async def execute_remediation_steps(
-    incident_id: int,
+    id: int,
     steps: List[Dict[str, Any]],
     executor_type: Optional[ExecutorType] = Query(None),
     session: Session = Depends(get_session),
-    current_user: Dict = Depends(get_current_user)
 ):
     """Execute specific remediation steps for an incident"""
     # Get incident
-    incident = session.get(Incident, incident_id)
+    incident = session.get(Incident, id)
     if not incident:
         raise HTTPException(status_code=404, detail="Incident not found")
     
@@ -716,7 +674,8 @@ async def execute_remediation_steps(
         session.commit()
         
         # Log execution event (instead of publishing to queue)
-        logger.info(f"Manual remediation execution - Incident: {incident_id}, User: {current_user['id']}, Success: {successful_steps}/{len(steps)}")
+        logger.info(f"Manual remediation execution - Incident: {incident_id}, Success: {successful_steps}/{len(steps)}")
+
         
         return JSONResponse(content={
             "message": "Remediation steps executed",
@@ -735,7 +694,6 @@ async def execute_remediation_steps(
                         description="Initialize default executors (kubectl, argocd, crossplane)")
 async def initialize_default_executors(
     session: Session = Depends(get_session),
-    current_user: Dict = Depends(get_current_user)
 ):
     """Initialize default executors with kubectl as active"""
     try:

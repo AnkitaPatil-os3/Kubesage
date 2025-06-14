@@ -45,7 +45,6 @@ class IncidentWebhookPayload(BaseModel):
 
 class IncidentCreate(BaseModel):
     incident_id: str
-    user_id: int  # Add user_id field
     type: IncidentType
     reason: str
     message: str
@@ -65,7 +64,6 @@ class IncidentCreate(BaseModel):
 class IncidentResponse(BaseModel):
     id: int
     incident_id: str
-    user_id: int  # Add user_id field
     type: IncidentType
     reason: str
     message: str

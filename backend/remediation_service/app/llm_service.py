@@ -38,6 +38,8 @@ class RemediationLLMService:
             system_prompt = self._get_system_prompt(executor_type)
             user_prompt = self._build_incident_prompt(incident, executor_type, cluster_context)
             
+            logger.info(f"Sending request to LLM with model: {self.model}")
+            
             # Call OpenAI API
             response = self.client.chat.completions.create(
                 model=self.model,
@@ -45,13 +47,31 @@ class RemediationLLMService:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
                 ],
-                temperature=0.2,  # Lower temperature for more consistent remediation
+                temperature=0.2,
                 max_tokens=3000,
                 response_format={"type": "json_object"}
             )
             
+            # Get the response content
+            response_content = response.choices[0].message.content
+            logger.info(f"LLM response content: {response_content[:200]}...")
+            
+            # Check if response is empty
+            if not response_content or response_content.strip() == "":
+                logger.error("LLM returned empty response")
+                raise ValueError("Empty response from LLM")
+            
+            # Clean the response content to fix common JSON issues
+            cleaned_content = self._clean_json_response(response_content)
+            
             # Parse the response
-            solution_data = json.loads(response.choices[0].message.content)
+            try:
+                solution_data = json.loads(cleaned_content)
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse LLM response as JSON: {e}")
+                logger.error(f"Raw response: {response_content}")
+                logger.error(f"Cleaned response: {cleaned_content}")
+                raise ValueError(f"Invalid JSON response from LLM: {e}")
             
             # Validate and structure the response
             return self._validate_remediation_response(solution_data, executor_type)
@@ -69,12 +89,83 @@ class RemediationLLMService:
                 "executor_type": executor_type.value,
                 "commands": []
             }
+
+    def _clean_json_response(self, response_content: str) -> str:
+        """Clean JSON response to fix common formatting issues"""
+        try:
+            # Fix common escape sequence issues
+            cleaned = response_content
+            
+            # Fix invalid escape sequences
+            cleaned = cleaned.replace('\\*', '*')  # Fix \* to *
+            cleaned = cleaned.replace('\\"', '"')  # Fix \" to "
+            cleaned = cleaned.replace('\\-', '-')  # Fix \- to -
+            cleaned = cleaned.replace('\\[', '[')  # Fix \[ to [
+            cleaned = cleaned.replace('\\]', ']')  # Fix \] to ]
+            cleaned = cleaned.replace('\\{', '{')  # Fix \{ to {
+            cleaned = cleaned.replace('\\}', '}')  # Fix \} to }
+            
+            # Fix double backslashes that might be needed
+            cleaned = cleaned.replace('\\\\', '\\')
+            
+            # Fix common JSON syntax issues
+            import re
+            # Remove any trailing commas before closing braces/brackets
+            cleaned = re.sub(r',(\s*[}\]])', r'\1', cleaned)
+            
+            # Fix missing commas between array elements
+            cleaned = re.sub(r'}\s*{', r'}, {', cleaned)
+            
+            # Fix missing commas between object properties
+            cleaned = re.sub(r'"\s*"', r'", "', cleaned)
+            
+            # Fix quotes inside JSON strings - escape them properly
+            # This is a more conservative approach to fix nested quotes
+            lines = cleaned.split('\n')
+            fixed_lines = []
+            for line in lines:
+                # If line contains command with nested quotes, fix them
+                if '"command":' in line and line.count('"') > 4:
+                    # Find the command value and escape internal quotes
+                    import json
+                    try:
+                        # Try to extract and fix the command part
+                        if '"command": "' in line:
+                            start = line.find('"command": "') + 12
+                            end = line.rfind('"')
+                            if start < end:
+                                command_part = line[start:end]
+                                # Escape internal quotes
+                                command_part = command_part.replace('"', '\\"')
+                                line = line[:start] + command_part + line[end:]
+                    except:
+                        pass
+                fixed_lines.append(line)
+            
+            cleaned = '\n'.join(fixed_lines)
+            
+            return cleaned
+            
+        except Exception as e:
+            logger.warning(f"Error cleaning JSON response: {e}")
+            return response_content
     
     def _get_system_prompt(self, executor_type: ExecutorType) -> str:
         """Get the system prompt for the LLM based on executor type"""
-        base_prompt = """You are an expert Kubernetes Site Reliability Engineer (SRE) and incident response specialist. Your task is to analyze Kubernetes incidents and provide detailed, actionable remediation solutions.
+        base_prompt = """You are an expert Kubernetes Site Reliability Engineer (SRE) and incident response specialist. Your task is to analyze Kubernetes incidents and provide detailed, actionable remediation solutions for ANY type of Kubernetes incident.
 
-When given a Kubernetes incident, you should:
+You can handle ALL types of incidents including:
+- Pod failures, crashes, restarts
+- Deployment issues, scaling problems
+- Service connectivity issues
+- Resource constraints (CPU, memory, storage)
+- Configuration errors
+- Network issues
+- Security incidents
+- Performance problems
+- Any other Kubernetes-related incidents
+
+When given ANY Kubernetes incident, you should:
 1. Identify the root cause of the incident
 2. Provide a clear, step-by-step remediation solution
 3. Include specific commands for the designated executor
@@ -82,16 +173,23 @@ When given a Kubernetes incident, you should:
 5. Provide a confidence score for your solution
 6. Consider the safety and impact of each remediation step
 
-Your response must be a valid JSON object with the following structure:
+CRITICAL JSON FORMATTING RULES:
+- Use simple double quotes for all strings
+- Do NOT use single quotes inside command strings
+- Use escaped quotes (\") for nested quotes in commands
+- Ensure proper comma placement between all array elements and object properties
+- Use simple command syntax without complex nested quotes
+
+Your response must be a valid JSON object with this exact structure:
 {
     "solution_summary": "Brief summary of the remediation approach",
     "detailed_solution": "Detailed explanation of the incident and remediation steps",
     "remediation_steps": [
         {
             "step_id": 1,
-            "action_type": "DIAGNOSTIC|REMEDIATION|VERIFICATION|ROLLBACK",
+            "action_type": "DIAGNOSTIC",
             "description": "What this step does and why",
-            "command": "specific command to execute",
+            "command": "kubectl get pods -n namespace",
             "expected_outcome": "What should happen after this step",
             "critical": false,
             "timeout_seconds": 300
@@ -99,15 +197,16 @@ Your response must be a valid JSON object with the following structure:
     ],
     "confidence_score": 0.85,
     "estimated_time_mins": 15,
-    "additional_notes": "Any additional considerations, warnings, or prerequisites",
-    "commands": ["list", "of", "all", "commands", "to", "execute"]
+    "additional_notes": "Any additional considerations",
+    "commands": ["kubectl get pods", "kubectl describe pod"]
 }
 
-Focus on practical, safe solutions. Always include diagnostic steps before making changes."""
+IMPORTANT: Always use simple command syntax. Avoid complex nested quotes. Use basic kubectl commands that are safe and effective."""
 
         executor_specific = {
             ExecutorType.KUBECTL: """
-You are specifically working with kubectl commands for direct Kubernetes cluster operations.
+You are working with kubectl commands for direct Kubernetes cluster operations.
+- Handle ALL types of Kubernetes incidents (pods, deployments, services, etc.)
 - Use kubectl commands for all operations
 - Include proper namespace specifications
 - Use appropriate output formats (-o json, -o yaml when needed)
@@ -115,24 +214,23 @@ You are specifically working with kubectl commands for direct Kubernetes cluster
 - Include verification steps after each major change
 - Use safe commands like 'get', 'describe', 'logs' for diagnostics
 - Be cautious with 'delete', 'scale', 'patch' operations
+- Use simple command syntax without complex quotes
+- Provide solutions for any incident type: failures, errors, warnings, scaling issues, etc.
 """,
             ExecutorType.ARGOCD: """
-You are specifically working with ArgoCD for GitOps-based remediation.
+You are working with ArgoCD for GitOps-based remediation of ANY incident type.
+- Handle application deployment issues, sync problems, configuration errors
 - Use argocd CLI commands for application management
 - Focus on application sync, rollback, and configuration issues
 - Consider Git repository state and application health
 - Include application status checks and sync operations
-- Handle ArgoCD-specific resources like Applications, Projects, Repositories
-- Consider sync policies and automated sync behavior
 """,
             ExecutorType.CROSSPLANE: """
-You are specifically working with Crossplane for infrastructure remediation.
+You are working with Crossplane for infrastructure remediation of ANY incident type.
+- Handle infrastructure provisioning issues, resource problems
 - Use kubectl commands for Crossplane custom resources
 - Focus on Compositions, CompositeResourceDefinitions, and Claims
 - Handle Provider configurations and infrastructure provisioning issues
-- Consider infrastructure dependencies and provisioning order
-- Include status checks for infrastructure resources
-- Handle Crossplane-specific resource lifecycle and conditions
 """
         }
         

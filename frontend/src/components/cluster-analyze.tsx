@@ -176,7 +176,7 @@ const SEVERITY_COLORS = {
 export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster }) => {
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [analysisData, setAnalysisData] = useState<AnalysisResponse | null>(null);
-    const [selectedNamespace, setSelectedNamespace] = useState<string>('');
+    const [selectedNamespace, setSelectedNamespace] = useState<string>('default');
     const [selectedResourceType, setSelectedResourceType] = useState<string>('pods');
     const [namespaces, setNamespaces] = useState<string[]>([]);
     const [error, setError] = useState<string | null>(null);
@@ -499,14 +499,14 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                 <CardBody>
                     <div className="space-y-6">
                         {/* Namespace Selection */}
-                        <div>
+                        <div className="max-w-xs">
                             <label className="block text-sm font-medium mb-2">Namespace</label>
                             <Select
                                 placeholder="All namespaces"
-                                selectedKeys={selectedNamespace ? [selectedNamespace] : []}
+                                selectedKeys={selectedNamespace ? [selectedNamespace] : ['default']}
                                 onSelectionChange={(keys) => {
                                     const selected = Array.from(keys)[0] as string;
-                                    setSelectedNamespace(selected || '');
+                                    setSelectedNamespace(selected || 'default');
                                 }}
                                 startContent={<Icon icon="mdi:folder-outline" />}
                             >
@@ -518,6 +518,7 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                                 ))}
                             </Select>
                         </div>
+
 
                         {/* Resource Types Selection - Beautified Cards */}
                         <div>

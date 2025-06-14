@@ -51,8 +51,20 @@ class K8sLLMService:
                 response_format={"type": "json_object"}
             )
             
+            # Check if response has content
+            if not response.choices or not response.choices[0].message.content:
+                raise ValueError("Empty response from OpenAI API")
+            
+            response_content = response.choices[0].message.content.strip()
+            if not response_content:
+                raise ValueError("Empty response content from OpenAI API")
+            
             # Parse the response
-            solution_data = json.loads(response.choices[0].message.content)
+            try:
+                solution_data = json.loads(response_content)
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse JSON response: {response_content}")
+                raise ValueError(f"Invalid JSON response from OpenAI: {str(e)}")
             
             # Validate and structure the response
             return self._validate_solution_response(solution_data)

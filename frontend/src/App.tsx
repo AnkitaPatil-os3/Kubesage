@@ -11,7 +11,7 @@ import { ClusterHealth } from "./pages/cluster-health";
 import { ChatOps } from "./pages/chat-ops";
 import { AdminDashboard } from "./pages/admin-dashboard";
 import { UploadKubeconfig } from "./pages/upload-kubeconfig";
-import remediationsPage from "./pages/remediations";
+import { Remediations as remediationsPage } from "./pages/remediations";
 import { CostAnalysis } from "./components/cost-analysis";
 import { ObservabilityDashboard } from "./components/observability-dashboard";
 import { CarbonEmissionDashboard } from "./components/Carbon-emission";
