@@ -16,7 +16,9 @@ from app.config import settings
 from app.logger import logger
 from app.queue import publish_message
 from app.llm_service import RemediationLLMService
-# from app.executors import KubectlExecutor, ArgoCDExecutor, CrossplaneExecutor
+
+# Replace the existing import section with:
+from app.executors import KubectlExecutor, ArgoCDExecutor, CrossplaneExecutor
 
 remediation_router = APIRouter()
 

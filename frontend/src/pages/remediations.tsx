@@ -489,13 +489,24 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">Filter Incidents</h3>
-              <button
-                onClick={clearAllFilters}
-                className="text-sm text-gray-500 hover:text-gray-700 underline"
-              >
-                Clear All Filters
-              </button>
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={clearAllFilters}
+                  className="text-sm text-gray-500 hover:text-green-600 "
+                >
+                  Clear All Filters
+                </button>
+                <button
+                  type="button"
+                  onClick={() => window.location.reload()}
+                  className="flex items-center space-x-2 px-3 py-2 text-gray-600 hover:text-green-600 hover:bg-gray-50 rounded-lg transition-colors"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  <span>Refresh</span>
+                </button>
+              </div>
             </div>
+
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
@@ -1140,7 +1151,7 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                         <AlertTriangle className="w-5 h-5 text-blue-600" />
                         <span className="font-medium text-gray-900">Total Incidents</span>
                       </div>
-                      <span className="text-xl font-bold text-blue-600">{incidents.length}</span>
+                      <span className="text-xl font-bold text-blue-600">{pagination.total}</span>
                     </div>
                     {/* <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
                       <div className="flex items-center space-x-3">
