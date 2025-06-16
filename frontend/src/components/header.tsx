@@ -1,4 +1,3 @@
- 
 import React from "react";
 import { useLocation } from "react-router-dom";
 import { Icon } from "@iconify/react";
@@ -12,14 +11,20 @@ import {
   Avatar
 } from "@heroui/react";
 import { motion } from "framer-motion";
- 
+
 interface HeaderProps {
   toggleChat: () => void;
+  onLogout?: () => void;
 }
- 
-export const Header: React.FC<HeaderProps> = ({ toggleChat }) => {
+
+export const Header: React.FC<HeaderProps> = ({ toggleChat, onLogout }) => {
   const location = useLocation();
   const [isSearchFocused, setIsSearchFocused] = React.useState(false);
+  
+  // Get user details from localStorage
+  const userEmail = localStorage.getItem('userEmail') || 'user@kubesage.io';
+  const userName = userEmail.split('@')[0].charAt(0).toUpperCase() + userEmail.split('@')[0].slice(1);
+  const userInitials = userName.slice(0, 2).toUpperCase();
   
   // Get page title from path
   const getPageTitle = () => {
@@ -30,10 +35,49 @@ export const Header: React.FC<HeaderProps> = ({ toggleChat }) => {
       case 'onboarding': return 'Cluster Onboarding';
       case 'chatops': return 'ChatOps Console';
       case 'admin': return 'Admin Dashboard';
+      case 'cost': return 'Cost Analysis';
+      case 'remediations': return 'Remediations';
+      case 'observability': return 'Observability';
+      case 'carbon-emission': return 'Carbon Emission';
+      case 'backup': return 'Backup & Restore';
       default: return 'Dashboard';
     }
   };
- 
+
+  const handleLogout = async () => {
+    try {
+      const accessToken = localStorage.getItem('access_token');
+      console.log('Logout request with token:', accessToken);
+      
+      // Call backend logout endpoint
+      if (accessToken) {
+        await fetch('/auth/logout', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Logout failed:', error);
+    } finally {
+      // Clear all authentication data
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      localStorage.removeItem('isAuthenticated');
+      localStorage.removeItem('userEmail');
+      
+      // Call the parent logout handler if provided
+      if (onLogout) {
+        onLogout();
+      } else {
+        // Fallback to direct redirect if no handler provided
+        window.location.href = '/login';
+      }
+    }
+  };
+
   return (
     <motion.header
       className="h-16 border-b border-divider bg-content1 backdrop-blur-md bg-opacity-80 flex items-center justify-between px-4 md:px-6"
@@ -90,12 +134,25 @@ export const Header: React.FC<HeaderProps> = ({ toggleChat }) => {
         <Dropdown>
           <DropdownTrigger>
             <Avatar
-              src="https://img.heroui.chat/image/avatar?w=200&h=200&u=admin"
+              name={userInitials}
               size="sm"
-              className="cursor-pointer"
+              className="cursor-pointer bg-primary text-white"
             />
           </DropdownTrigger>
-          <DropdownMenu aria-label="Actions">
+          <DropdownMenu aria-label="User Actions">
+            <DropdownItem key="user-info" className="h-14 gap-2" textValue="User Info">
+              <div className="flex items-center gap-2">
+                <Avatar
+                  name={userInitials}
+                  size="sm"
+                  className="bg-primary text-white"
+                />
+                <div className="flex flex-col">
+                  <span className="text-small font-semibold">{userName}</span>
+                  <span className="text-tiny text-default-400">{userEmail}</span>
+                </div>
+              </div>
+            </DropdownItem>
             <DropdownItem key="profile" startContent={<Icon icon="lucide:user" />}>
               Profile
             </DropdownItem>
@@ -113,25 +170,7 @@ export const Header: React.FC<HeaderProps> = ({ toggleChat }) => {
               className="text-danger"
               color="danger"
               startContent={<Icon icon="lucide:log-out" />}
-              onClick={async () => {
-                try {
-                  const accessToken = localStorage.getItem('access_token');
-                  console.log('Logout request with token:', accessToken);
-                  await fetch('/auth/logout', {
-                    method: 'POST',
-                    headers: {
-                      'Authorization': `Bearer ${accessToken}`,
-                      'Content-Type': 'application/json'
-                    }
-                  });
-                } catch (error) {
-                  console.error('Logout failed:', error);
-                } finally {
-                  localStorage.removeItem('access_token');
-                  localStorage.removeItem('refresh_token');
-                  window.location.href = '/login';
-                }
-              }}
+              onClick={handleLogout}
             >
               Log Out
             </DropdownItem>
@@ -141,4 +180,3 @@ export const Header: React.FC<HeaderProps> = ({ toggleChat }) => {
     </motion.header>
   );
 };
- 

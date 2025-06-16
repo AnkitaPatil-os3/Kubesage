@@ -17,7 +17,7 @@ export const CostAnalysis: React.FC<CostAnalysisProps> = ({ selectedCluster }) =
       orgId: "1",
       from: "now-1h",
       to: "now",
-      theme: "light",
+      theme: "dark",
       hideControls: 'true', // Hide controls including share button
       toolbar: 'false' // Hide toolbar
       // Hide UI elements for embedded view
@@ -51,7 +51,7 @@ export const CostAnalysis: React.FC<CostAnalysisProps> = ({ selectedCluster }) =
     <div className="space-y-6">
       <Card className="w-full">
         <CardBody className="p-0 relative">
-          <div className="relative w-full" style={{ height: "calc(100vh - 200px)" }}>
+          <div className="relative w-full" style={{ height: "calc(100vh - 120px)" }}>
             {isLoading && (
               <div className="absolute inset-0 flex items-center justify-center bg-content1 z-10">
                 <div className="flex flex-col items-center gap-4">
@@ -97,15 +97,13 @@ export const CostAnalysis: React.FC<CostAnalysisProps> = ({ selectedCluster }) =
             />
  
             {/* Overlay header to hide Grafana dashboard header */}
-            <div className="absolute top-0 left-0 right-0 z-30 bg-content1 shadow-sm">
-              <div className="justify-center py-4 px-6 border-b border-divider">
+            <div className="absolute top-0 left-0 right-0 z-30 shadow-sm w-[1080px]" style={{ backgroundColor: 'rgb(26, 28, 35)' }}>
+              <div className="justify-center py-[5px] px-6 border-b border-divider">
                 <div className="flex gap-3">
-                  <Icon icon="lucide:dollar-sign" className="text-primary text-4xl mt-1" />
+                  <Icon icon="lucide:indian-rupee" className="text-primary text-2xl mt-1" />
                   <div>
-                    <h3 className="text-xl font-semibold text-foreground">Cost Analysis</h3>
-                    <p className="text-sm text-foreground-500">
-                      OpenCost dashboard showing cluster cost breakdown and analytics
-                    </p>
+                    <h3 className="text-xl font-semibold text-white">Cost Analysis</h3>
+                  
                   </div>
                 </div>
               </div>
@@ -114,48 +112,9 @@ export const CostAnalysis: React.FC<CostAnalysisProps> = ({ selectedCluster }) =
         </CardBody>
       </Card>
  
-      {/* Additional Cost Insights Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardBody className="text-center">
-            <div className="flex flex-col items-center gap-2">
-              <Icon icon="lucide:trending-up" className="text-2xl text-success" />
-              <div>
-                <p className="text-sm text-foreground-500">Cost Trend</p>
-                <p className="text-lg font-semibold">View in Dashboard</p>
-              </div>
-            </div>
-          </CardBody>
-        </Card>
- 
-        <Card>
-          <CardBody className="text-center">
-            <div className="flex flex-col items-center gap-2">
-              <Icon icon="lucide:pie-chart" className="text-2xl text-primary" />
-              <div>
-                <p className="text-sm text-foreground-500">Resource Breakdown</p>
-                <p className="text-lg font-semibold">By Namespace</p>
-              </div>
-            </div>
-          </CardBody>
-        </Card>
- 
-        <Card>
-          <CardBody className="text-center">
-            <div className="flex flex-col items-center gap-2">
-              <Icon icon="lucide:alert-triangle" className="text-2xl text-warning" />
-              <div>
-                <p className="text-sm text-foreground-500">Cost Alerts</p>
-                <p className="text-lg font-semibold">Monitor Spend</p>
-              </div>
-            </div>
-          </CardBody>
-        </Card>
-      </div>
+      
     </div>
   );
 };
  
 export default CostAnalysis;
- 
- 

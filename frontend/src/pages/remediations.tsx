@@ -183,7 +183,7 @@ interface CommandExecutionHistory {
   error?: string;
 }
 
-const API_BASE_URL = 'https://10.0.32.108:8004';
+const API_BASE_URL = 'https://10.0.32.122:8004';
 
 const RemediationPage: React.FC = () => {
   const [analyzingIncidentId, setAnalyzingIncidentId] = useState<string | null>(null);

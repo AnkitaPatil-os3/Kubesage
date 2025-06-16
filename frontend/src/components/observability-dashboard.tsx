@@ -17,7 +17,7 @@ export const ObservabilityDashboard: React.FC<ObservabilityDashboardProps> = ({ 
             orgId: "1",
             from: "now-1h",
             to: "now",
-            theme: "light",
+            theme: "dark",
             hideControls: 'true', // Hide controls including share button
             toolbar: 'false' // Hide toolbar
             // Hide UI elements for embedded view
@@ -51,7 +51,7 @@ export const ObservabilityDashboard: React.FC<ObservabilityDashboardProps> = ({ 
         <div className="space-y-6">
             <Card className="w-full">
                 <CardBody className="p-0 relative">
-                    <div className="relative w-full" style={{ height: "calc(100vh - 200px)" }}>
+                    <div className="relative w-full" style={{ height: "calc(100vh - 120px)" }}>
                         {isLoading && (
                             <div className="absolute inset-0 flex items-center justify-center bg-content1 z-10">
                                 <div className="flex flex-col items-center gap-4">
@@ -97,15 +97,13 @@ export const ObservabilityDashboard: React.FC<ObservabilityDashboardProps> = ({ 
                         />
  
                         {/* Overlay header to hide Grafana dashboard header */}
-                        <div className="absolute top-0 left-0 right-0 z-30 bg-content1 shadow-sm">
-                            <div className="justify-center py-4 px-6 border-b border-divider">
+                        <div className="absolute top-0 left-0 right-0 z-30 w-[1080px]" style={{ backgroundColor: 'rgb(26, 28, 35)' }}>
+                            <div className="justify-center py-[5px] px-6 border-b border-divider">
                                 <div className="flex gap-3">
-                                    <Icon icon="lucide:activity" className="text-primary text-4xl mt-1" />
+                                    <Icon icon="lucide:activity" className="text-primary text-2xl mt-1" />
                                     <div>
                                         <h3 className="text-xl font-semibold text-foreground">Kubernetes Cluster Monitoring</h3>
-                                        <p className="text-sm text-foreground-500">
-                                            Real-time cluster metrics, performance analytics and resource monitoring
-                                        </p>
+                                        
                                     </div>
                                 </div>
                             </div>
@@ -114,44 +112,7 @@ export const ObservabilityDashboard: React.FC<ObservabilityDashboardProps> = ({ 
                 </CardBody>
             </Card>
  
-            {/* Additional Observability Insights Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Card>
-                    <CardBody className="text-center">
-                        <div className="flex flex-col items-center gap-2">
-                            <Icon icon="lucide:cpu" className="text-2xl text-success" />
-                            <div>
-                                <p className="text-sm text-foreground-500">Resource Usage</p>
-                                <p className="text-lg font-semibold">CPU & Memory</p>
-                            </div>
-                        </div>
-                    </CardBody>
-                </Card>
- 
-                <Card>
-                    <CardBody className="text-center">
-                        <div className="flex flex-col items-center gap-2">
-                            <Icon icon="lucide:network" className="text-2xl text-primary" />
-                            <div>
-                                <p className="text-sm text-foreground-500">Network Traffic</p>
-                                <p className="text-lg font-semibold">I/O Metrics</p>
-                            </div>
-                        </div>
-                    </CardBody>
-                </Card>
- 
-                <Card>
-                    <CardBody className="text-center">
-                        <div className="flex flex-col items-center gap-2">
-                            <Icon icon="lucide:gauge" className="text-2xl text-warning" />
-                            <div>
-                                <p className="text-sm text-foreground-500">Performance</p>
-                                <p className="text-lg font-semibold">Health Status</p>
-                            </div>
-                        </div>
-                    </CardBody>
-                </Card>
-            </div>
+            
         </div>
     );
 };
