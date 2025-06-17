@@ -80,70 +80,70 @@ interface ClusterAnalyzeProps {
 }
 
 const RESOURCE_TYPES = [
-    { 
-        key: 'pods', 
-        label: 'Pods', 
-        icon: 'mdi:cube-outline', 
+    {
+        key: 'pods',
+        label: 'Pods',
+        icon: 'mdi:cube-outline',
         description: 'Running containers and their status',
         color: 'bg-gradient-to-br from-blue-500 to-blue-600',
         lightColor: 'bg-blue-50 border-blue-200',
         textColor: 'text-blue-600',
         iconBg: 'bg-blue-100'
     },
-    { 
-        key: 'deployments', 
-        label: 'Deployments', 
-        icon: 'mdi:rocket-launch-outline', 
+    {
+        key: 'deployments',
+        label: 'Deployments',
+        icon: 'mdi:rocket-launch-outline',
         description: 'Application deployments and replicas',
         color: 'bg-gradient-to-br from-green-500 to-green-600',
         lightColor: 'bg-green-50 border-green-200',
         textColor: 'text-green-600',
         iconBg: 'bg-green-100'
     },
-    { 
-        key: 'services', 
-        label: 'Services', 
-        icon: 'mdi:network-outline', 
+    {
+        key: 'services',
+        label: 'Services',
+        icon: 'mdi:network-outline',
         description: 'Network services and endpoints',
         color: 'bg-gradient-to-br from-purple-500 to-purple-600',
         lightColor: 'bg-purple-50 border-purple-200',
         textColor: 'text-purple-600',
         iconBg: 'bg-purple-100'
     },
-    { 
-        key: 'secrets', 
-        label: 'Secrets', 
-        icon: 'mdi:key-outline', 
+    {
+        key: 'secrets',
+        label: 'Secrets',
+        icon: 'mdi:key-outline',
         description: 'Sensitive configuration data',
         color: 'bg-gradient-to-br from-red-500 to-red-600',
         lightColor: 'bg-red-50 border-red-200',
         textColor: 'text-red-600',
         iconBg: 'bg-red-100'
     },
-    { 
-        key: 'storageclasses', 
-        label: 'Storage Classes', 
-        icon: 'mdi:database-outline', 
+    {
+        key: 'storageclasses',
+        label: 'Storage Classes',
+        icon: 'mdi:database-outline',
         description: 'Storage provisioning classes',
         color: 'bg-gradient-to-br from-orange-500 to-orange-600',
         lightColor: 'bg-orange-50 border-orange-200',
         textColor: 'text-orange-600',
         iconBg: 'bg-orange-100'
     },
-    { 
-        key: 'ingress', 
-        label: 'Ingress', 
-        icon: 'mdi:web', 
+    {
+        key: 'ingress',
+        label: 'Ingress',
+        icon: 'mdi:web',
         description: 'External access and routing',
         color: 'bg-gradient-to-br from-teal-500 to-teal-600',
         lightColor: 'bg-teal-50 border-teal-200',
         textColor: 'text-teal-600',
         iconBg: 'bg-teal-100'
     },
-    { 
-        key: 'pvc', 
-        label: 'Persistent Volume Claims', 
-        icon: 'mdi:harddisk', 
+    {
+        key: 'pvc',
+        label: 'Persistent Volume Claims',
+        icon: 'mdi:harddisk',
         description: 'Storage volume requests',
         color: 'bg-gradient-to-br from-indigo-500 to-indigo-600',
         lightColor: 'bg-indigo-50 border-indigo-200',
@@ -286,9 +286,9 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
     // Group problems by resource type
     const groupProblemsByResourceType = () => {
         if (!analysisData) return {};
-        
+
         const grouped: { [key: string]: ProblemWithSolution[] } = {};
-        
+
         analysisData.problems_with_solutions.forEach(item => {
             const resourceType = item.problem.kind;
             if (!grouped[resourceType]) {
@@ -296,7 +296,7 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
             }
             grouped[resourceType].push(item);
         });
-        
+
         return grouped;
     };
 
@@ -349,7 +349,14 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                                         {Math.round(solution.confidence_score * 100)}%
                                     </Chip>
                                 </Tooltip>
-                                <Tooltip content={`Estimated time: ${solution.estimated_time_mins} minutes`}>
+                                <Tooltip
+                                    content={`Estimated time: ${solution.estimated_time_mins} minutes`}
+                                    placement="top"
+                                    className="text-center"
+                                    classNames={{
+                                        content: "text-center"
+                                    }}
+                                >
                                     <Chip size="sm" variant="flat">
                                         <Icon icon="mdi:clock-outline" className="mr-1" />
                                         {solution.estimated_time_mins}m
@@ -409,12 +416,10 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                                             <Card key={stepIndex} className="bg-content2">
                                                 <CardBody className="p-3">
                                                     <div className="flex items-start gap-3">
-                                                        <Badge
-                                                            content={step.step_id}
-                                                            color="primary"
-                                                            shape="circle"
-                                                            className="flex-shrink-0 mt-1"
-                                                        />
+                                                        <div className="flex-shrink-0 w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-sm font-medium mt-0">
+    {step.step_id}
+</div>
+
                                                         <div className="flex-1">
                                                             <div className="flex items-center gap-2 mb-2">
                                                                 <Icon
@@ -448,8 +453,7 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                                                     </div>
                                                 </CardBody>
                                             </Card>
-                                        ))}
-                                    </div>
+                                        ))}                                    </div>
                                 </div>
                             )}
 
@@ -489,18 +493,18 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
             </div>
 
             {/* Configuration Panel */}
-            <Card>
-                <CardHeader>
-                    <h2 className="text-lg font-semibold flex items-center gap-2">
+            <Card className="dark:bg-gray-800 dark:border-gray-700">
+                <CardHeader className="dark:bg-gray-800">
+                    <h2 className="text-lg font-semibold flex items-center gap-2 dark:text-gray-100">
                         <Icon icon="mdi:cog-outline" />
                         Analysis Configuration
                     </h2>
                 </CardHeader>
-                <CardBody>
+                <CardBody className="dark:bg-gray-800">
                     <div className="space-y-6">
                         {/* Namespace Selection */}
                         <div className="max-w-xs">
-                            <label className="block text-sm font-medium mb-2">Namespace</label>
+                            <label className="block text-sm font-medium mb-2 dark:text-gray-300">Namespace</label>
                             <Select
                                 placeholder="All namespaces"
                                 selectedKeys={selectedNamespace ? [selectedNamespace] : ['default']}
@@ -522,7 +526,7 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
 
                         {/* Resource Types Selection - Beautified Cards */}
                         <div>
-                            <label className="block text-sm font-medium mb-4">Resource Type</label>
+                            <label className="block text-sm font-medium mb-4 dark:text-gray-300">Resource Type</label>
                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
                                 {RESOURCE_TYPES.map((type) => (
                                     <motion.div
@@ -534,106 +538,110 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                                         <Card
                                             isPressable
                                             isHoverable
-                                            className={`cursor-pointer transition-all duration-300 h-28 w-full overflow-hidden ${
-                                                selectedResourceType === type.key
-                                                    ? `border-2 ${type.lightColor} shadow-lg transform scale-105`
-                                                    : 'hover:border-default-300 hover:shadow-md'
-                                            }`}
+                                            className={`cursor-pointer transition-all duration-300 h-28 w-full overflow-hidden dark:bg-gray-800 dark:border-gray-600 ${selectedResourceType === type.key
+                                                ? `border-2 ${type.lightColor} shadow-lg transform scale-105 dark:shadow-gray-900/50`
+                                                : 'hover:border-default-300 hover:shadow-md dark:hover:border-gray-500'
+                                                }`}
                                             onPress={() => setSelectedResourceType(type.key)}
                                         >
+
                                             {/* Background Gradient for Selected Card */}
                                             {selectedResourceType === type.key && (
-                                                <div className={`absolute inset-0 ${type.color} opacity-10`} />
+                                                <div className={`absolute inset-0 ${type.color} opacity-10 dark:opacity-20`} />
                                             )}
-                                            
+
+
                                             {/* Hover Glow Effect - moved to top level */}
-                                            <div className={`absolute inset-0 rounded-lg opacity-0 group-hover:opacity-20 transition-opacity duration-300 ${type.color} z-0`} />
-                                            
-                                            <CardBody className="p-3 relative z-10">
+                                            <div className={`absolute inset-0 rounded-lg opacity-0 group-hover:opacity-20 transition-opacity duration-300 ${type.color} z-0 dark:group-hover:opacity-30`} />
+
+                                            <CardBody className="p-3 relative z-10 dark:bg-transparent">
                                                 <div className="flex flex-col items-center justify-center text-center h-full space-y-2">
                                                     {/* Icon Container */}
-                                                    <div className={`relative p-2.5 rounded-xl transition-all duration-300 ${
-                                                        selectedResourceType === type.key
-                                                            ? `${type.color} text-white shadow-lg`
-                                                            : `${type.iconBg} ${type.textColor}`
-                                                    }`}>
-                                                        <Icon 
-                                                            icon={type.icon} 
+                                                    <div className={`relative p-2.5 rounded-xl transition-all duration-300 ${selectedResourceType === type.key
+                                                        ? `${type.color} text-white shadow-lg dark:shadow-gray-900/50`
+                                                        : `${type.iconBg} ${type.textColor} dark:bg-gray-700 dark:text-gray-300`
+                                                        }`}>
+
+                                                        <Icon
+                                                            icon={type.icon}
                                                             className="text-xl"
                                                         />
-                                                        
+
                                                         {/* Pulse Animation for Selected */}
                                                         {selectedResourceType === type.key && (
-                                                            <div className={`absolute inset-0 ${type.color} rounded-xl animate-ping opacity-20`} />
+                                                            <div className={`absolute inset-0 ${type.color} rounded-xl animate-ping opacity-20 dark:opacity-30`} />
                                                         )}
+
                                                     </div>
-                                                    
+
                                                     {/* Label */}
                                                     <div className="flex-1 flex flex-col justify-center">
-                                                        <h3 className={`font-bold text-xs leading-tight transition-colors duration-300 ${
-                                                            selectedResourceType === type.key
-                                                                ? type.textColor
-                                                                : 'text-default-700'
-                                                        }`}>
+                                                        <h3 className={`font-bold text-xs leading-tight transition-colors duration-300 ${selectedResourceType === type.key
+                                                            ? type.textColor
+                                                            : 'text-default-700 dark:text-gray-300'
+                                                            }`}>
+
                                                             {type.label}
                                                         </h3>
                                                     </div>
-                                                    
+
                                                     {/* Selection Indicator */}
                                                     {selectedResourceType === type.key && (
-                                                        <motion.div 
+                                                        <motion.div
                                                             initial={{ scale: 0, opacity: 0 }}
                                                             animate={{ scale: 1, opacity: 1 }}
                                                             className="absolute top-2 right-2"
                                                         >
                                                             <div className={`${type.color} rounded-full p-1 shadow-lg`}>
-                                                                <Icon 
-                                                                    icon="mdi:check" 
+                                                                <Icon
+                                                                    icon="mdi:check"
                                                                     className="text-white text-xs"
                                                                 />
                                                             </div>
                                                         </motion.div>
                                                     )}
-                                                    
+
                                                     {/* Hover Glow Effect */}
-                                                    
-                                                    <div className={`absolute inset-0 rounded-lg opacity-0 hover:opacity-20 transition-opacity duration-300 ${type.color}`} />
+
+                                                    <div className={`absolute inset-0 rounded-lg opacity-0 hover:opacity-20 transition-opacity duration-300 ${type.color} dark:hover:opacity-30`} />
                                                 </div>
                                             </CardBody>
                                         </Card>
                                     </motion.div>
                                 ))}
                             </div>
-                            
+
                             {/* Enhanced Selected Resource Description */}
-                            <motion.div 
+                            <motion.div
                                 key={selectedResourceType}
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 className="mt-4"
                             >
-                                <Card className={`${RESOURCE_TYPES.find(type => type.key === selectedResourceType)?.lightColor} border-2`}>
-                                    <CardBody className="p-4">
+                                <Card className={`${RESOURCE_TYPES.find(type => type.key === selectedResourceType)?.lightColor} border-2 dark:bg-gray-800 dark:border-gray-600`}>
+                                    <CardBody className="p-4 dark:bg-gray-800">
                                         <div className="flex items-center gap-3">
-                                            <div className={`p-2 rounded-lg ${RESOURCE_TYPES.find(type => type.key === selectedResourceType)?.color} text-white`}>
-                                                <Icon 
-                                                    icon={RESOURCE_TYPES.find(type => type.key === selectedResourceType)?.icon || 'mdi:cube-outline'} 
+                                            <div className={`p-2 rounded-lg ${RESOURCE_TYPES.find(type => type.key === selectedResourceType)?.color} text-white dark:shadow-gray-900/50`}>
+                                                <Icon
+                                                    icon={RESOURCE_TYPES.find(type => type.key === selectedResourceType)?.icon || 'mdi:cube-outline'}
                                                     className="text-lg"
                                                 />
                                             </div>
                                             <div className="flex-1">
-                                                <h4 className={`font-bold text-sm ${RESOURCE_TYPES.find(type => type.key === selectedResourceType)?.textColor}`}>
+                                                <h4 className={`font-bold text-sm ${RESOURCE_TYPES.find(type => type.key === selectedResourceType)?.textColor} dark:text-gray-200`}>
+
                                                     {RESOURCE_TYPES.find(type => type.key === selectedResourceType)?.label}
                                                 </h4>
-                                                <p className="text-xs text-default-600 mt-1">
+                                                <p className="text-xs text-default-600 mt-1 dark:text-gray-400">
                                                     {RESOURCE_TYPES.find(type => type.key === selectedResourceType)?.description}
                                                 </p>
                                             </div>
-                                            <Chip 
-                                                size="sm" 
-                                                variant="flat" 
-                                                className={`${RESOURCE_TYPES.find(type => type.key === selectedResourceType)?.textColor} bg-white/50`}
+                                            <Chip
+                                                size="sm"
+                                                variant="flat"
+                                                className={`${RESOURCE_TYPES.find(type => type.key === selectedResourceType)?.textColor} bg-white/50 dark:bg-gray-700/50 dark:text-gray-200`}
                                             >
+
                                                 Selected
                                             </Chip>
                                         </div>
@@ -643,12 +651,12 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                         </div>
                     </div>
 
-                    <div className="flex justify-between items-center mt-6">
-                        <div className="text-sm text-default-500">
-                            Selected: <span className="font-medium text-primary">
+                    <div className="flex justify-between items-center mt-6 dark:border-gray-600">
+                        <div className="text-sm text-default-500 dark:text-gray-400">
+                            Selected: <span className="font-medium text-primary dark:text-green-400">
                                 {RESOURCE_TYPES.find(type => type.key === selectedResourceType)?.label}
                             </span>
-                            {selectedNamespace && ` in namespace: ${selectedNamespace}`}
+                            {selectedNamespace && <span className="dark:text-gray-400"> in namespace: {selectedNamespace}</span>}
                         </div>
                         <Button
                             color="primary"
@@ -665,20 +673,22 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
 
             {/* Loading State */}
             {isAnalyzing && (
-                <Card>
-                    <CardBody className="text-center py-8">
+                <Card className="dark:bg-gray-800 dark:border-gray-700">
+                    <CardBody className="text-center py-8 dark:bg-gray-800">
                         <Spinner size="lg" color="primary" className="mb-4" />
-                        <h3 className="text-lg font-semibold mb-2">Analyzing Cluster</h3>
-                        <p className="text-default-500 mb-4">
+                        <h3 className="text-lg font-semibold mb-2 dark:text-gray-100">Analyzing Cluster</h3>
+                        <p className="text-default-500 mb-4 dark:text-gray-400">
                             Scanning {RESOURCE_TYPES.find(type => type.key === selectedResourceType)?.label} and generating AI solutions...
                         </p>
-                        <div className="bg-warning-50 border border-warning-200 rounded-lg p-4 mb-4 max-w-md mx-auto">
+                        <div className="bg-warning-50 border border-warning-200 rounded-lg p-4 mb-4 max-w-md mx-auto dark:bg-yellow-900/20 dark:border-yellow-700">
+
                             <div className="flex items-center gap-2 mb-2">
                                 <Icon icon="mdi:clock-outline" className="text-warning-600" />
-                                <span className="text-sm font-medium text-warning-800">Estimated Time</span>
+                                <span className="text-sm font-medium text-warning-800 dark:text-yellow-300">Estimated Time</span>
                             </div>
-                            <p className="text-sm text-warning-700">
-                                This process will take approximately <strong>2-3 minutes</strong> to analyze cluster issues and generate AI-powered solutions.
+                            <p className="text-sm text-warning-700 dark:text-yellow-200">
+                                This process will take approximately <strong className="dark:text-yellow-100">2-3 minutes</strong> to analyze cluster issues and generate AI-powered solutions.
+
                             </p>
                         </div>
                         <Progress
@@ -687,7 +697,7 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                             color="primary"
                             className="max-w-md mx-auto"
                         />
-                        <p className="text-xs text-default-400 mt-3">
+                        <p className="text-xs text-default-400 mt-3 dark:text-gray-500">
                             Please wait while we examine your cluster resources...
                         </p>
                     </CardBody>
@@ -696,27 +706,30 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
 
             {/* Error State */}
             {error && !isAnalyzing && (
-                <Alert 
+                <Alert
                     color={error.includes('healthy') ? 'success' : 'danger'}
                     variant="flat"
+                    className="dark:bg-gray-800 dark:border-gray-600"
                     startContent={
-                        <Icon 
-                            icon={error.includes('healthy') ? 'mdi:check-circle' : 'mdi:alert-circle'} 
+                        <Icon
+                            icon={error.includes('healthy') ? 'mdi:check-circle' : 'mdi:alert-circle'}
+                            className="dark:text-current"
                         />
                     }
                 >
-                    {error}
+                    <span className="dark:text-gray-100">{error}</span>
                 </Alert>
+
             )}
 
             {/* Analysis Results */}
             {analysisData && analysisData.total_problems > 0 && (
                 <div className="space-y-4">
                     {/* Summary Card */}
-                    <Card>
-                        <CardHeader>
+                    <Card className="dark:bg-gray-800 dark:border-gray-700">
+                        <CardHeader className="dark:bg-gray-800">
                             <div className="flex items-center justify-between w-full">
-                                <h2 className="text-lg font-semibold flex items-center gap-2">
+                                <h2 className="text-lg font-semibold flex items-center gap-2 dark:text-gray-100">
                                     <Icon icon="mdi:chart-line" />
                                     Analysis Summary
                                 </h2>
@@ -726,45 +739,47 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                                         variant="flat"
                                         onPress={() => setShowAllProblems(!showAllProblems)}
                                         startContent={<Icon icon={showAllProblems ? 'mdi:view-sequential' : 'mdi:view-grid'} />}
+                                        className="dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
                                     >
+
                                         {showAllProblems ? 'One by One' : 'Show All'}
                                     </Button>
                                 </div>
                             </div>
                         </CardHeader>
-                        <CardBody>
+                        <CardBody className="dark:bg-gray-800">
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                 <div className="text-center">
-                                    <div className="text-2xl font-bold text-danger">
+                                    <div className="text-2xl font-bold text-danger dark:text-red-400">
                                         {analysisData.total_problems}
                                     </div>
                                     <div className="text-sm text-default-500">Total Issues</div>
                                 </div>
                                 <div className="text-center">
-                                    <div className="text-2xl font-bold text-primary">
+                                    <div className="text-2xl font-bold text-primary dark:text-blue-400">
                                         {analysisData.analyzed_resource_types.length}
                                     </div>
-                                    <div className="text-sm text-default-500">Resource Types</div>
+                                    <div className="text-sm text-default-500 dark:text-gray-400">Resource Types</div>
                                 </div>
                                 <div className="text-center">
-                                    <div className="text-2xl font-bold text-success">
+                                    <div className="text-2xl font-bold text-success dark:text-green-400">
                                         {Math.round(
                                             analysisData.problems_with_solutions.reduce(
                                                 (acc, item) => acc + item.solution.confidence_score, 0
                                             ) / analysisData.problems_with_solutions.length * 100
                                         )}%
                                     </div>
-                                    <div className="text-sm text-default-500">Avg Confidence</div>
+                                    <div className="text-sm text-default-500 dark:text-gray-400">Avg Confidence</div>
                                 </div>
                                 <div className="text-center">
-                                    <div className="text-2xl font-bold text-warning">
+                                    <div className="text-2xl font-bold text-warning dark:text-yellow-400">
                                         {Math.round(
                                             analysisData.problems_with_solutions.reduce(
                                                 (acc, item) => acc + item.solution.estimated_time_mins, 0
                                             ) / analysisData.problems_with_solutions.length
                                         )}m
                                     </div>
-                                    <div className="text-sm text-default-500">Avg Fix Time</div>
+                                    <div className="text-sm text-default-500 dark:text-gray-400">Avg Fix Time</div>
                                 </div>
                             </div>
                         </CardBody>
@@ -781,7 +796,7 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                                 exit={{ opacity: 0 }}
                                 className="space-y-4"
                             >
-                                {analysisData.problems_with_solutions.map((item, index) => 
+                                {analysisData.problems_with_solutions.map((item, index) =>
                                     renderProblemCard(item, index)
                                 )}
                             </motion.div>
@@ -796,19 +811,21 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                                 {(() => {
                                     const groupedProblems = groupProblemsByResourceType();
                                     const resourceTypes = Object.keys(groupedProblems);
-                                    
+
                                     if (resourceTypes.length === 0) return null;
-                                    
+
                                     const currentResourceType = resourceTypes[currentResourceIndex];
                                     const currentResourceProblems = groupedProblems[currentResourceType];
-                                    
+
                                     return (
                                         <>
                                             {/* Resource Type Navigation */}
-                                            <Card className="mb-4">
-                                                <CardHeader>
+                                            <Card className="mb-4 dark:bg-gray-800 dark:border-gray-700">
+                                                <CardHeader className="dark:bg-gray-800">
                                                     <div className="flex items-center justify-between w-full">
-                                                        <h3 className="text-lg font-semibold flex items-center gap-2">
+                                                        <h3 className="text-lg font-semibold flex items-center gap-2 dark:text-gray-100">
+
+
                                                             <Icon icon={getSeverityIcon(currentResourceType)} />
                                                             {currentResourceType} Issues
                                                         </h3>
@@ -825,7 +842,9 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                                                                     setCurrentProblemIndex(0);
                                                                 }}
                                                                 startContent={<Icon icon="mdi:chevron-left" />}
+                                                                className="dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 dark:disabled:bg-gray-800 dark:disabled:text-gray-500"
                                                             >
+
                                                                 Previous Resource
                                                             </Button>
                                                             <Button
@@ -837,32 +856,35 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                                                                     setCurrentProblemIndex(0);
                                                                 }}
                                                                 endContent={<Icon icon="mdi:chevron-right" />}
+                                                                className="dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 dark:disabled:bg-gray-800 dark:disabled:text-gray-500"
                                                             >
+
                                                                 Next Resource
                                                             </Button>
                                                         </div>
                                                     </div>
                                                 </CardHeader>
-                                                <CardBody>
+                                                <CardBody className="dark:bg-gray-800">
                                                     <div className="flex items-center justify-between">
-                                                        <div className="text-sm text-default-500">
+                                                        <div className="text-sm text-default-500 dark:text-gray-400">
                                                             Resource {currentResourceIndex + 1} of {resourceTypes.length}: {currentResourceType}
                                                         </div>
                                                         <Progress
                                                             value={(currentResourceIndex + 1) / resourceTypes.length * 100}
                                                             color="primary"
-                                                            className="max-w-xs"
+                                                            className="max-w-xs dark:bg-gray-700"
                                                         />
+
                                                     </div>
                                                 </CardBody>
                                             </Card>
 
                                             {/* Problem Navigation within Resource Type */}
                                             {currentResourceProblems.length > 1 && (
-                                                <Card className="mb-4">
-                                                    <CardHeader>
+                                                <Card className="mb-4 dark:bg-gray-800 dark:border-gray-700">
+                                                    <CardHeader className="dark:bg-gray-800">
                                                         <div className="flex items-center justify-between w-full">
-                                                            <h4 className="text-md font-semibold">
+                                                            <h4 className="text-md font-semibold dark:text-gray-100">
                                                                 Problem {currentProblemIndex + 1} of {currentResourceProblems.length}
                                                             </h4>
                                                             <div className="flex items-center gap-2">
@@ -872,7 +894,9 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                                                                     isDisabled={currentProblemIndex === 0}
                                                                     onPress={() => setCurrentProblemIndex(currentProblemIndex - 1)}
                                                                     startContent={<Icon icon="mdi:chevron-left" />}
+                                                                    className="dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 dark:disabled:bg-gray-800 dark:disabled:text-gray-500"
                                                                 >
+
                                                                     Previous
                                                                 </Button>
                                                                 <Button
@@ -881,18 +905,22 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                                                                     isDisabled={currentProblemIndex === currentResourceProblems.length - 1}
                                                                     onPress={() => setCurrentProblemIndex(currentProblemIndex + 1)}
                                                                     endContent={<Icon icon="mdi:chevron-right" />}
+                                                                    className="dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 dark:disabled:bg-gray-800 dark:disabled:text-gray-500"
                                                                 >
-                                                                    Next
+                                                                    Next Problem
                                                                 </Button>
+
+
                                                             </div>
                                                         </div>
                                                     </CardHeader>
-                                                    <CardBody>
+                                                    <CardBody className="dark:bg-gray-800">
                                                         <Progress
                                                             value={(currentProblemIndex + 1) / currentResourceProblems.length * 100}
                                                             color="secondary"
-                                                            className="mb-2"
+                                                            className="mb-2 dark:bg-gray-700"
                                                         />
+
                                                     </CardBody>
                                                 </Card>
                                             )}
@@ -912,43 +940,48 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
             )}
 
             {/* Command Modal */}
-            <Modal 
-                isOpen={isCommandModalOpen} 
+            <Modal
+                isOpen={isCommandModalOpen}
                 onClose={onCommandModalClose}
                 size="2xl"
                 scrollBehavior="inside"
+                className="dark:bg-gray-900"
+
             >
-                <ModalContent>
-                    <ModalHeader>
+                <ModalContent className="dark:bg-gray-800 dark:border-gray-700">
+                    <ModalHeader className="dark:bg-gray-800 dark:text-gray-100">
                         <div className="flex items-center gap-2">
                             <Icon icon="mdi:console" />
                             Command Details
                         </div>
                     </ModalHeader>
-                    <ModalBody>
+                    <ModalBody className="dark:bg-gray-800">
                         <div className="space-y-4">
                             <div>
-                                <h4 className="font-semibold mb-2">Command:</h4>
-                                <Code className="w-full p-3 text-sm">
+                                <h4 className="font-semibold mb-2 dark:text-gray-100">Command:</h4>
+                                <Code className="w-full p-3 text-sm dark:bg-gray-900 dark:text-green-400">
                                     {selectedCommand}
                                 </Code>
                             </div>
-                            <Alert color="warning" variant="flat">
-                                <Icon icon="mdi:alert-triangle" className="mr-2" />
-                                Always review commands before executing them in your cluster.
+                            <Alert color="warning" variant="flat" className="dark:bg-yellow-900/20 dark:border-yellow-700">
+                                <Icon icon="mdi:alert-triangle" className="mr-2 dark:text-yellow-300" />
+                                <span className="dark:text-yellow-200">Always review commands before executing them in your cluster.</span>
                             </Alert>
+
                         </div>
                     </ModalBody>
-                    <ModalFooter>
+                    <ModalFooter className="dark:bg-gray-800">
                         <Button
                             color="primary"
                             variant="flat"
                             onPress={() => copyToClipboard(selectedCommand)}
                             startContent={<Icon icon="mdi:content-copy" />}
+                            className="dark:bg-blue-700 dark:text-blue-200 dark:hover:bg-blue-600"
                         >
+
                             Copy Command
                         </Button>
-                        <Button color="primary" onPress={onCommandModalClose}>
+                        <Button color="primary" onPress={onCommandModalClose} className="dark:bg-blue-600 dark:hover:bg-blue-700">
                             Close
                         </Button>
                     </ModalFooter>

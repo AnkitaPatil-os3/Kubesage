@@ -431,20 +431,20 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
       animate="show"
     >
       {/* Header */}
-      <motion.div variants={itemVariants} className="bg-gradient-to-r  from-green-500 to-emerald-500 rounded-2xl p-6 text-white">
+      <motion.div variants={itemVariants} className="bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl p-6 text-white dark:from-green-600 dark:to-emerald-600">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold mb-2">Kubernetes Remediations</h1>
-            <p className="text-blue-100">AI-powered incident resolutions </p>
+            <p className="text-blue-100 dark:text-green-100">AI-powered incident resolutions </p>
 
             {/* <p className="text-blue-100">AI-powered incident resolution for {selectedCluster}</p> */}
           </div>
           <div className="flex items-center space-x-4">
-            <div className="bg-white/20 backdrop-blur-sm rounded-lg p-3">
+            <div className="bg-white/20 backdrop-blur-sm rounded-lg p-3 dark:bg-black/20">
               <Shield className="w-8 h-8" />
             </div>
             {healthStatus && (
-              <div className={`px-4 py-2 rounded-full text-sm font-medium ${healthStatus.status === 'healthy' ? 'bg-green-500/20 text-green-100' : 'bg-red-500/20 text-red-100'
+              <div className={`px-4 py-2 rounded-full text-sm font-medium ${healthStatus.status === 'healthy' ? 'bg-green-500/20 text-green-100  dark:bg-green-400/30 dark:text-green-200 ' : 'bg-red-500/20 text-red-100 dark:bg-red-400/30 dark:text-red-200'
                 }`}>
                 {healthStatus.status === 'healthy' ? 'System Healthy' : 'System Issues'}
               </div>
@@ -454,7 +454,7 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
       </motion.div>
 
       {/* Navigation Tabs */}
-      <motion.div variants={itemVariants} className="bg-white rounded-xl shadow-sm border border-gray-200">
+      <motion.div variants={itemVariants} className="bg-white rounded-xl shadow-sm border border-gray-200 dark:bg-gray-800 dark:border-gray-700">
         <div className="flex space-x-1 p-1">
           {[
             { id: 'incidents', label: 'Incidents', icon: AlertTriangle, count: pagination.total },
@@ -465,14 +465,14 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
               className={`flex items-center space-x-2 px-4 py-3 rounded-lg font-medium transition-all ${activeTab === tab.id
-                ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-md'
-                : 'text-gray-600 hover:bg-gray-50'
+                ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-md dark:from-green-600 dark:to-emerald-600'
+                : 'text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700'
                 }`}
             >
               <tab.icon className="w-4 h-4" />
               <span>{tab.label}</span>
               {tab.count !== null && (
-                <span className={`px-2 py-1 rounded-full text-xs ${activeTab === tab.id ? 'bg-white/20' : 'bg-gray-200 text-gray-600'
+                <span className={`px-2 py-1 rounded-full text-xs ${activeTab === tab.id ? 'bg-white/20 dark:bg-black/20' : 'bg-gray-200 text-gray-600 dark:bg-gray-600 dark:text-gray-300'
                   }`}>
                   {tab.count}
                 </span>
@@ -486,33 +486,37 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
       {activeTab === 'incidents' && (
         <motion.div variants={itemVariants} className="space-y-6">
           {/* Filters */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 dark:bg-gray-800 dark:border-gray-700">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Filter Incidents</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Filter Incidents</h3>
               <div className="flex items-center space-x-3">
                 <button
                   onClick={clearAllFilters}
-                  className="text-sm text-gray-500 hover:text-green-600 "
+                  className="text-sm text-gray-500 hover:text-green-600 dark:text-gray-400 dark:hover:text-green-400 "
                 >
                   Clear All Filters
                 </button>
                 <button
                   type="button"
                   onClick={() => window.location.reload()}
-                  className="flex items-center space-x-2 px-3 py-2 text-gray-600 hover:text-green-600 hover:bg-gray-50 rounded-lg transition-colors"
+                  className="flex items-center space-x-2 px-3 py-2 text-gray-600 hover:text-green-600 hover:bg-gray-50 rounded-lg transition-all duration-300 dark:text-gray-300 dark:hover:text-green-400 dark:hover:bg-gray-700 transform hover:scale-105 active:scale-95 group hover:shadow-md"
                 >
-                  <RefreshCw className="w-4 h-4" />
-                  <span>Refresh</span>
+                  <RefreshCw className="w-4 h-4 group-hover:rotate-180 transition-transform duration-500 ease-in-out" />
+                  <span className="relative overflow-hidden">
+                    Refresh
+                    <span className="absolute inset-0 bg-gradient-to-r from-transparent via-green-400/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-out"></span>
+                  </span>
                 </button>
+
               </div>
             </div>
 
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2 dark:text-gray-300">Search</label>
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
                   <input
                     type="text"
                     placeholder="Search incidents..."
@@ -522,7 +526,7 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                       // Reset pagination when searching
                       setPagination(prev => ({ ...prev, page: 1 }));
                     }}
-                    className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 dark:placeholder-gray-400"
                   />
                   {filters.search && (
                     <button
@@ -530,7 +534,7 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                         setFilters(prev => ({ ...prev, search: '' }));
                         setPagination(prev => ({ ...prev, page: 1 }));
                       }}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -539,14 +543,14 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Type</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2 dark:text-gray-300">Type</label>
                 <select
                   value={filters.type}
                   onChange={(e) => {
                     setFilters(prev => ({ ...prev, type: e.target.value }));
                     setPagination(prev => ({ ...prev, page: 1 }));
                   }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                 >
                   <option value="">All Types</option>
                   <option value="Warning">Warning</option>
@@ -559,14 +563,14 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Namespace</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2 dark:text-gray-300">Namespace</label>
                 <select
                   value={filters.namespace}
                   onChange={(e) => {
                     setFilters(prev => ({ ...prev, namespace: e.target.value }));
                     setPagination(prev => ({ ...prev, page: 1 }));
                   }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                 >
                   <option value="">All Namespaces</option>
                   {getUniqueNamespaces().map((namespace) => (
@@ -582,33 +586,36 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
 
             {/* Filter Summary */}
             {(filters.search || filters.type || filters.namespace || filters.resolved) && (
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <div className="flex items-center space-x-2 text-sm text-gray-600">
+              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">
+                <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-300">
                   <span>Active filters:</span>
                   {filters.search && (
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-200">
+
                       Search: "{filters.search}"
                       <button
                         onClick={() => setFilters(prev => ({ ...prev, search: '' }))}
-                        className="ml-1 text-green-600 hover:text-green-800"
+                        className="ml-1 text-green-600 hover:text-green-800 dark:text-green-300 dark:hover:text-green-100"
                       >
                         <X className="w-3 h-3" />
                       </button>
                     </span>
                   )}
                   {filters.type && (
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-200">
+
                       Type: {filters.type}
                       <button
                         onClick={() => setFilters(prev => ({ ...prev, type: '' }))}
-                        className="ml-1 text-green-600 hover:text-green-800"
+                        className="ml-1 text-green-600 hover:text-green-800 dark:text-green-300 dark:hover:text-green-100"
                       >
                         <X className="w-3 h-3" />
                       </button>
                     </span>
                   )}
                   {filters.namespace && (
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-200">
+
                       Namespace: {filters.namespace}
                       <button
                         onClick={() => setFilters(prev => ({ ...prev, namespace: '' }))}
@@ -619,18 +626,19 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                     </span>
                   )}
                   {filters.resolved && (
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-200">
+
                       Status: {filters.resolved === 'true' ? 'Resolved' : 'Unresolved'}
                       <button
                         onClick={() => setFilters(prev => ({ ...prev, resolved: '' }))}
-                        className="ml-1 text-green-600 hover:text-green-800"
+                        className="ml-1 text-green-600 hover:text-green-800 dark:text-green-300 dark:hover:text-green-100"
                       >
                         <X className="w-3 h-3" />
                       </button>
                     </span>
                   )}
                 </div>
-                <div className="mt-2 text-sm text-gray-500">
+                <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                   Showing {filteredIncidents.length} of {incidents.length} incidents
                 </div>
               </div>
@@ -641,17 +649,17 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
           {/* Incidents List */}
           <div className="space-y-4">
             {filteredIncidents.length === 0 ? (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-                <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No incidents found</h3>
-                <p className="text-gray-500">Try adjusting your filters or check back later.</p>
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center dark:bg-gray-800 dark:border-gray-700">
+                <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4 dark:text-gray-500" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2 dark:text-gray-100">No incidents found</h3>
+                <p className="text-gray-500  dark:text-gray-400">Try adjusting your filters or check back later.</p>
               </div>
             ) : (
               filteredIncidents.map((incident) => (
                 <motion.div
                   key={incident.id}
                   layout
-                  className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow"
+                  className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow dark:bg-gray-800 dark:border-gray-700"
                 >
                   <div className="p-6">
                     <div className="flex items-start justify-between">
@@ -662,11 +670,12 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
 
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center space-x-3 mb-2">
-                            <h3 className="text-lg font-semibold text-gray-900 truncate">
+                            <h3 className="text-lg font-semibold text-gray-900 truncate dark:text-gray-100">
                               {incident.reason}
                             </h3>
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${incident.type === 'Warning' ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-800 '
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${incident.type === 'Warning' ? 'bg-amber-100 text-amber-800 dark:bg-amber-800 dark:text-amber-200' : 'bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-200'
                               }`}>
+
                               {incident.type}
                             </span>
                             {incident.is_resolved && (
@@ -676,30 +685,30 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                             )}
                           </div>
 
-                          <p className="text-gray-600 mb-3 line-clamp-2">{incident.message}</p>
+                          <p className="text-gray-600 mb-3 line-clamp-2 dark:text-gray-300">{incident.message}</p>
 
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                             <div className="flex items-center space-x-2">
-                              <MapPin className="w-4 h-4 text-gray-400" />
-                              <span className="text-gray-600">
+                              <MapPin className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                              <span className="text-gray-600 dark:text-gray-300">
                                 {incident.metadata_namespace || 'default'}
                               </span>
                             </div>
                             <div className="flex items-center space-x-2">
-                              <Server className="w-4 h-4 text-gray-400" />
-                              <span className="text-gray-600">
+                              <Server className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                              <span className="text-gray-600 dark:text-gray-300">
                                 {incident.involved_object_kind}
                               </span>
                             </div>
                             <div className="flex items-center space-x-2">
-                              <Tag className="w-4 h-4 text-gray-400" />
-                              <span className="text-gray-600">
+                              <Tag className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                              <span className="text-gray-600 dark:text-gray-300">
                                 {incident.involved_object_name}
                               </span>
                             </div>
                             <div className="flex items-center space-x-2">
-                              <Hash className="w-4 h-4 text-gray-400" />
-                              <span className="text-gray-600">
+                              <Hash className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                              <span className="text-gray-600 dark:text-gray-300">
                                 Count: {incident.count}
                               </span>
                             </div>
@@ -719,7 +728,7 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                           onClick={() => setExpandedIncident(
                             expandedIncident === incident.id ? null : incident.id
                           )}
-                          className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                          className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors dark:bg-gray-800 "
                         >
                           {expandedIncident === incident.id ?
                             <ChevronDown className="w-5 h-5" /> :
@@ -732,7 +741,7 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                             <button
                               onClick={() => generateRemediation(incident.id)}
                               disabled={generatingRemediation !== null}
-                              className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg hover:from-green-600 hover:to-emerald-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg hover:from-green-600 hover:to-emerald-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed dark:from-green-600 dark:to-emerald-600 dark:hover:from-green-700 dark:hover:to-emerald-700"
                             >
                               {generatingRemediation === incident.id ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -742,7 +751,7 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                               <span>Generate Fix</span>
                             </button>
                             {generatingRemediation === incident.id && (
-                              <div className="text-xs text-gray-500 animate-pulse">
+                              <div className="text-xs text-gray-500 animate-pulse dark:text-gray-400">
                                 Analyzing... This may take 1-2 minutes
                               </div>
                             )}
@@ -760,53 +769,53 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                           initial={{ opacity: 0, height: 0 }}
                           animate={{ opacity: 1, height: 'auto' }}
                           exit={{ opacity: 0, height: 0 }}
-                          className="mt-6 pt-6 border-t border-gray-200"
+                          className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-600"
                         >
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
-                              <h4 className="font-medium text-gray-900 mb-3">Incident Details</h4>
+                              <h4 className="font-medium text-gray-900 mb-3 dark:text-gray-100">Incident Details</h4>
                               <div className="space-y-2 text-sm">
                                 <div className="flex justify-between">
-                                  <span className="text-gray-500">Incident ID:</span>
-                                  <span className="font-mono text-gray-900">{incident.incident_id}</span>
+                                  <span className="text-gray-500 dark:text-gray-400">Incident ID:</span>
+                                  <span className="font-mono text-gray-900 dark:text-gray-100">{incident.incident_id}</span>
                                 </div>
                                 <div className="flex justify-between">
-                                  <span className="text-gray-500">Source Component:</span>
-                                  <span className="text-gray-900">{incident.source_component || 'N/A'}</span>
+                                  <span className="text-gray-500 text-gray-500 dark:text-gray-400">Source Component:</span>
+                                  <span className="text-gray-900 dark:text-gray-100">{incident.source_component || 'N/A'}</span>
                                 </div>
                                 <div className="flex justify-between">
-                                  <span className="text-gray-500">Source Host:</span>
-                                  <span className="text-gray-900">{incident.source_host || 'N/A'}</span>
+                                  <span className="text-gray-500 text-gray-500 dark:text-gray-400">Source Host:</span>
+                                  <span className="text-gray-900 dark:text-gray-100">{incident.source_host || 'N/A'}</span>
                                 </div>
                                 <div className="flex justify-between">
-                                  <span className="text-gray-500">Reporting Component:</span>
-                                  <span className="text-gray-900">{incident.reporting_component || 'N/A'}</span>
+                                  <span className="text-gray-500 dark:text-gray-400">Reporting Component:</span>
+                                  <span className="text-gray-900 dark:text-gray-100">{incident.reporting_component || 'N/A'}</span>
                                 </div>
                               </div>
                             </div>
 
                             <div>
-                              <h4 className="font-medium text-gray-900 mb-3">Timestamps</h4>
+                              <h4 className="font-medium text-gray-900 mb-3 dark:text-gray-100">Timestamps</h4>
                               <div className="space-y-2 text-sm">
                                 <div className="flex justify-between">
-                                  <span className="text-gray-500">First Seen:</span>
-                                  <span className="text-gray-900">
+                                  <span className="text-gray-500 dark:text-gray-400">First Seen:</span>
+                                  <span className="text-gray-900 dark:text-gray-100">
                                     {incident.first_timestamp ? formatTimestamp(incident.first_timestamp) : 'N/A'}
                                   </span>
                                 </div>
                                 <div className="flex justify-between">
-                                  <span className="text-gray-500">Last Seen:</span>
-                                  <span className="text-gray-900">
+                                  <span className="text-gray-500 dark:text-gray-400">Last Seen:</span>
+                                  <span className="text-gray-900 dark:text-gray-100">
                                     {incident.last_timestamp ? formatTimestamp(incident.last_timestamp) : 'N/A'}
                                   </span>
                                 </div>
                                 <div className="flex justify-between">
-                                  <span className="text-gray-500">Created:</span>
-                                  <span className="text-gray-900">{formatTimestamp(incident.created_at)}</span>
+                                  <span className="text-gray-500 dark:text-gray-400">Created:</span>
+                                  <span className="text-gray-900 dark:text-gray-100">{formatTimestamp(incident.created_at)}</span>
                                 </div>
                                 <div className="flex justify-between">
-                                  <span className="text-gray-500">Updated:</span>
-                                  <span className="text-gray-900">{formatTimestamp(incident.updated_at)}</span>
+                                  <span className="text-gray-500 dark:text-gray-400">Updated:</span>
+                                  <span className="text-gray-900 dark:text-gray-100">{formatTimestamp(incident.updated_at)}</span>
                                 </div>
                               </div>
                             </div>
@@ -817,15 +826,15 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                             <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                               {incident.involved_object_labels && (
                                 <div>
-                                  <h4 className="font-medium text-gray-900 mb-3">Labels</h4>
+                                  <h4 className="font-medium text-gray-900 mb-3 dark:text-gray-100">Labels</h4>
                                   <div className="space-y-1">
                                     {Object.entries(incident.involved_object_labels).map(([key, value]) => (
                                       <div key={key} className="flex items-center space-x-2 text-sm">
-                                        <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded font-mono">
+                                        <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded font-mono dark:bg-gray-800 dark:text-yellow-300">
                                           {key}
                                         </span>
-                                        <span className="text-gray-600">=</span>
-                                        <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded font-mono">
+                                        <span className="text-gray-600 dark:bg-gray-800 dark:text-yellow-300">=</span>
+                                        <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded font-mono dark:bg-gray-800 dark:text-yellow-300">
                                           {value}
                                         </span>
                                       </div>
@@ -836,14 +845,14 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
 
                               {incident.involved_object_annotations && (
                                 <div>
-                                  <h4 className="font-medium text-gray-900 mb-3">Annotations</h4>
+                                  <h4 className="font-medium text-gray-900 mb-3 dark:text-gray-100">Annotations</h4>
                                   <div className="space-y-1">
                                     {Object.entries(incident.involved_object_annotations).slice(0, 3).map(([key, value]) => (
                                       <div key={key} className="text-sm">
-                                        <div className="font-mono text-purple-800 bg-purple-100 px-2 py-1 rounded mb-1">
+                                        <div className="font-mono text-purple-800 bg-purple-100 px-2 py-1 rounded mb-1 dark:bg-gray-800 dark:text-yellow-300">
                                           {key}
                                         </div>
-                                        <div className="text-gray-600 pl-2 truncate">
+                                        <div className="text-gray-600 pl-2 truncate dark:text-gray-300">
                                           {typeof value === 'string' ? value : JSON.stringify(value)}
                                         </div>
                                       </div>
@@ -864,9 +873,10 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
 
           {/* Pagination */}
           {pagination.total > pagination.per_page && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 dark:bg-gray-800 dark:border-gray-700">
+
               <div className="flex items-center justify-between">
-                <div className="text-sm text-gray-600">
+                <div className="text-sm text-gray-600 dark:text-gray-300">
                   Showing {((pagination.page - 1) * pagination.per_page) + 1} to{' '}
                   {Math.min(pagination.page * pagination.per_page, pagination.total)} of{' '}
                   {pagination.total} incidents
@@ -875,17 +885,18 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                   <button
                     onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
                     disabled={pagination.page <= 1}
-                    className="px-3 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                    className="px-3 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700 dark:text-gray-300"
                   >
                     Previous
                   </button>
-                  <span className="px-3 py-2 bg-blue-50 text-blue-600 rounded-lg font-medium">
+                  <span className="px-3 py-2 bg-blue-50 text-blue-600 rounded-lg font-medium dark:bg-gray-800">
                     {pagination.page}
                   </span>
                   <button
                     onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
                     disabled={pagination.page * pagination.per_page >= pagination.total}
-                    className="px-3 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                    className="px-3 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700 dark:text-gray-300"
+
                   >
                     Next
                   </button>
@@ -900,48 +911,55 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
       {activeTab === 'executors' && (
         <motion.div variants={itemVariants} className="space-y-6">
           {/* Executors Header */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 dark:bg-gray-800 dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-2">Remediation Executors</h2>
-                <p className="text-gray-600">Manage and configure remediation execution engines</p>
+                <h2 className="text-xl font-semibold text-gray-900 mb-2 dark:text-gray-300">Remediation Executors</h2>
+                <p className="text-gray-600 dark:text-gray-500">Manage and configure remediation execution engines</p>
               </div>
               <button
                 onClick={initializeExecutors}
-                className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg hover:from-green-600 hover:to-emerald-600 transition-all"
+                className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg hover:from-green-600 hover:to-emerald-600 transition-all transform hover:scale-105 hover:shadow-lg active:scale-95 group"
               >
-                <Settings className="w-4 h-4" />
-                <span>Initialize Executors</span>
+                <Settings className="w-4 h-4 group-hover:rotate-180 transition-transform duration-300" />
+                <span className="relative">
+                  Initialize Executors
+                  <span className="absolute rounded opacity-0 group-hover:opacity-100 group-hover:animate-pulse transition-opacity duration-300"></span>
+                </span>
               </button>
+
             </div>
           </div>
 
           {/* Executors Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 ">
             {executors.map((executor) => (
               <motion.div
                 key={executor.id}
                 layout
-                className={`bg-white rounded-xl shadow-sm border-2 transition-all hover:shadow-md ${executor.status === 'active'
-                  ? 'border-green-200 bg-gradient-to-br from-green-50 to-emerald-50'
-                  : 'border-gray-200 hover:border-gray-300'
+                className={`bg-white rounded-xl shadow-sm border-2 transition-all hover:shadow-md dark:bg-gray-800 ${executor.status === 'active'
+                  ? 'border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 dark:border-green-600 dark:from-green-900/30 dark:to-emerald-900/30'
+                  : 'border-gray-200 hover:border-gray-300 dark:border-gray-600 dark:hover:border-gray-500'
                   }`}
+
               >
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-4">
+                <div className="p-6 ">
+                  <div className="flex items-center justify-between mb-4 ">
                     <div className="flex items-center space-x-3">
                       <div className={`p-3 rounded-lg ${executor.status === 'active'
-                        ? 'bg-green-100 text-green-600'
-                        : 'bg-gray-100 text-gray-600'
+                        ? 'bg-green-100 text-green-600 dark:bg-green-800/50 dark:text-green-400'
+                        : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
                         }`}>
+
                         {getExecutorIcon(executor.name)}
                       </div>
                       <div>
-                        <h3 className="font-semibold text-gray-900 capitalize">{executor.name}</h3>
+                        <h3 className="font-semibold text-gray-900 capitalize dark:text-gray-100">{executor.name}</h3>
                         <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${executor.status === 'active'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-gray-100 text-gray-800'
+                          ? 'bg-green-100 text-green-800 dark:bg-green-800/50 dark:text-green-200'
+                          : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
                           }`}>
+
                           {executor.status}
                         </span>
                       </div>
@@ -950,7 +968,8 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                     {executor.status !== 'active' && (
                       <button
                         onClick={() => activateExecutor(executor.id)}
-                        className="flex items-center space-x-1 px-3 py-1 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm"
+                        className="flex items-center space-x-1 px-3 py-1 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm dark:bg-green-600 dark:hover:bg-green-700"
+
                       >
                         <Play className="w-3 h-3" />
                         <span>Activate</span>
@@ -958,26 +977,26 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                     )}
                   </div>
 
-                  <p className="text-gray-600 text-sm mb-4">{executor.description}</p>
+                  <p className="text-gray-600 text-sm mb-4 dark:text-gray-300">{executor.description}</p>
 
                   {/* Configuration */}
                   {executor.config && (
                     <div className="space-y-2">
-                      <h4 className="text-sm font-medium text-gray-900">Configuration</h4>
-                      <div className="bg-gray-50 rounded-lg p-3">
-                        <pre className="text-xs text-gray-600 overflow-x-auto">
+                      <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">Configuration</h4>
+                      <div className="bg-gray-50 rounded-lg p-3  dark:bg-gray-800 dark:border-gray-700 ">
+                        <pre className="text-xs text-black-600 overflow-x-auto ">
                           {JSON.stringify(executor.config, null, 2)}
                         </pre>
                       </div>
                     </div>
                   )}
 
-                  <div className="mt-4 pt-4 border-t border-gray-200">
-                    <div className="flex items-center justify-between text-xs text-gray-500">
+                  <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">
+                    <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                       <span>Updated: {formatTimestamp(executor.updated_at)}</span>
                       {executor.status === 'active' && (
-                        <div className="flex items-center space-x-1 text-green-600">
-                          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                        <div className="flex items-center space-x-1 text-green-600 dark:text-green-400">
+                          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse dark:bg-green-400"></div>
                           <span>Active</span>
                         </div>
                       )}
@@ -989,13 +1008,14 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
           </div>
 
           {executors.length === 0 && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-              <Settings className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No executors configured</h3>
-              <p className="text-gray-500 mb-4">Initialize default executors to get started with remediation.</p>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center dark:bg-gray-800 dark:border-gray-700">
+              <Settings className="w-12 h-12 text-gray-400 mx-auto mb-4 dark:text-gray-500" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2 dark:text-gray-100">No executors configured</h3>
+              <p className="text-gray-500 mb-4 dark:text-gray-400">Initialize default executors to get started with remediation.</p>
               <button
                 onClick={initializeExecutors}
-                className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all mx-auto"
+                className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all mx-auto dark:from-blue-600 dark:to-purple-600 dark:hover:from-blue-700 dark:hover:to-purple-700"
+
               >
                 <Settings className="w-4 h-4" />
                 <span>Initialize Executors</span>
@@ -1011,36 +1031,47 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
           {healthStatus && (
             <>
               {/* System Status Overview */}
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 dark:bg-gray-800 dark:border-gray-700">
+
                 <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-semibold text-gray-900">System Health</h2>
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">System Health</h2>
                   <button
                     onClick={fetchHealthStatus}
-                    className="flex items-center space-x-2 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded-lg transition-colors"
+                    className="flex items-center space-x-2 px-3 py-2 text-gray-600 hover:text-green-600 hover:bg-gray-50 rounded-lg transition-all duration-300 dark:text-gray-300 dark:hover:text-green-400 dark:hover:bg-gray-700 transform hover:scale-105 active:scale-95 group hover:shadow-md"
                   >
-                    <RefreshCw className="w-4 h-4" />
-                    <span>Refresh</span>
+                    <RefreshCw className="w-4 h-4 dark:hover:text-green-400 dark:hover:bg-gray-700 dark:text-gray-300 group-hover:rotate-180 transition-transform duration-500 ease-in-out" />
+                    <span className="relative overflow-hidden">
+                      Refresh
+                      <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-out"></span>
+                    </span>
                   </button>
                 </div>
+
+
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   {/* Overall Status */}
                   <div className={`p-4 rounded-xl ${healthStatus.status === 'healthy'
-                    ? 'bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200'
-                    : 'bg-gradient-to-br from-red-50 to-rose-50 border border-red-200'
+                    ? 'bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 dark:from-green-900/30 dark:to-emerald-900/30 dark:border-green-700'
+                    : 'bg-gradient-to-br from-red-50 to-rose-50 border border-red-200 dark:from-red-900/30 dark:to-rose-900/30 dark:border-red-700'
                     }`}>
+
                     <div className="flex items-center space-x-3">
-                      <div className={`p-2 rounded-lg ${healthStatus.status === 'healthy' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
+                      <div className={`p-4 rounded-xl ${healthStatus.status === 'healthy'
+                        ? 'bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 dark:from-green-900/30 dark:to-emerald-900/30 dark:border-green-700'
+                        : 'bg-gradient-to-br from-red-50 to-rose-50 border border-red-200 dark:from-red-900/30 dark:to-rose-900/30 dark:border-red-700'
                         }`}>
+
                         {healthStatus.status === 'healthy' ?
                           <CheckCircle className="w-5 h-5" /> :
                           <AlertTriangle className="w-5 h-5" />
                         }
                       </div>
                       <div>
-                        <p className="text-sm text-gray-600">System Status</p>
-                        <p className={`font-semibold capitalize ${healthStatus.status === 'healthy' ? 'text-green-800' : 'text-red-800'
+                        <p className="text-sm text-gray-600 dark:text-gray-300">System Status</p>
+                        <p className={`font-semibold capitalize ${healthStatus.status === 'healthy' ? 'text-green-800 dark:text-green-300' : 'text-red-800 dark:text-red-300'
                           }`}>
+
                           {healthStatus.status}
                         </p>
                       </div>
@@ -1049,18 +1080,21 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
 
                   {/* Database Status */}
                   <div className={`p-4 rounded-xl ${healthStatus.database === 'connected'
-                    ? 'bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-200'
-                    : 'bg-gradient-to-br from-red-50 to-rose-50 border border-red-200'
+                    ? 'bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-200 dark:from-blue-900/30 dark:to-cyan-900/30 dark:border-blue-700'
+                    : 'bg-gradient-to-br from-red-50 to-rose-50 border border-red-200 dark:from-red-900/30 dark:to-rose-900/30 dark:border-red-700'
                     }`}>
+
                     <div className="flex items-center space-x-3">
-                      <div className={`p-2 rounded-lg ${healthStatus.database === 'connected' ? 'bg-blue-100 text-blue-600' : 'bg-red-100 text-red-600'
+                      <div className={`p-2 rounded-lg ${healthStatus.database === 'connected' ? 'bg-blue-100 text-blue-600 dark:bg-blue-800/50 dark:text-blue-400' : 'bg-red-100 text-red-600 dark:bg-red-800/50 dark:text-red-400'
                         }`}>
+
                         <Database className="w-5 h-5" />
                       </div>
                       <div>
-                        <p className="text-sm text-gray-600">Database</p>
-                        <p className={`font-semibold capitalize ${healthStatus.database === 'connected' ? 'text-blue-800' : 'text-red-800'
+                        <p className="text-sm text-gray-600 dark:text-gray-300">Database</p>
+                        <p className={`font-semibold capitalize ${healthStatus.database === 'connected' ? 'text-blue-800 dark:text-blue-300' : 'text-red-800 dark:text-red-300'
                           }`}>
+
                           {healthStatus.database}
                         </p>
                       </div>
@@ -1069,18 +1103,21 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
 
                   {/* LLM Service Status */}
                   <div className={`p-4 rounded-xl ${healthStatus.llm_service === 'enabled'
-                    ? 'bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-200'
-                    : 'bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200'
+                    ? 'bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-200 dark:from-purple-900/30 dark:to-indigo-900/30 dark:border-purple-700'
+                    : 'bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 dark:from-amber-900/30 dark:to-orange-900/30 dark:border-amber-700'
                     }`}>
+
                     <div className="flex items-center space-x-3">
-                      <div className={`p-2 rounded-lg ${healthStatus.llm_service === 'enabled' ? 'bg-purple-100 text-purple-600' : 'bg-amber-100 text-amber-600'
+                      <div className={`p-2 rounded-lg ${healthStatus.llm_service === 'enabled' ? 'bg-purple-100 text-purple-600 dark:bg-purple-800/50 dark:text-purple-400' : 'bg-amber-100 text-amber-600 dark:bg-amber-800/50 dark:text-amber-400'
                         }`}>
+
                         <Zap className="w-5 h-5" />
                       </div>
                       <div>
-                        <p className="text-sm text-gray-600">LLM Service</p>
-                        <p className={`font-semibold capitalize ${healthStatus.llm_service === 'enabled' ? 'text-purple-800' : 'text-amber-800'
+                        <p className="text-sm text-gray-600 dark:text-gray-300">LLM Service</p>
+                        <p className={`font-semibold capitalize ${healthStatus.llm_service === 'enabled' ? 'text-purple-800 dark:text-purple-300' : 'text-amber-800 dark:text-amber-300'
                           }`}>
+
                           {healthStatus.llm_service}
                         </p>
                       </div>
@@ -1088,14 +1125,15 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                   </div>
 
                   {/* Active Executor */}
-                  <div className="p-4 rounded-xl bg-gradient-to-br from-gray-50 to-slate-50 border border-gray-200">
+                  <div className="p-4 rounded-xl bg-gradient-to-br from-gray-50 to-slate-50 border border-gray-200 dark:from-gray-800/50 dark:to-slate-800/50 dark:border-gray-600">
+
                     <div className="flex items-center space-x-3">
-                      <div className="p-2 rounded-lg bg-gray-100 text-gray-600">
+                      <div className="p-2 rounded-lg bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
                         <Target className="w-5 h-5" />
                       </div>
                       <div>
-                        <p className="text-sm text-gray-600">Active Executor</p>
-                        <p className="font-semibold text-gray-800 capitalize">
+                        <p className="text-sm text-gray-600 dark:text-gray-300">Active Executor</p>
+                        <p className="font-semibold text-gray-800 capitalize dark:text-gray-200">
                           {healthStatus.active_executor || 'None'}
                         </p>
                       </div>
@@ -1103,11 +1141,11 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                   </div>
                 </div>
 
-                <div className="mt-6 pt-6 border-t border-gray-200">
-                  <div className="flex items-center justify-between text-sm text-gray-500">
+                <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-600">
+                  <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
                     <span>Last updated: {formatTimestamp(healthStatus.timestamp)}</span>
                     <div className="flex items-center space-x-2">
-                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse dark:bg-green-400"></div>
                       <span>Live monitoring</span>
                     </div>
                   </div>
@@ -1116,8 +1154,8 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
 
               {/* System Metrics */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Service Components</h3>
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 dark:bg-gray-800 dark:border-gray-700">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 dark:text-gray-300">Service Components</h3>
                   <div className="space-y-4">
                     {[
                       { name: 'Remediation Service', status: 'running', icon: Shield, color: 'green' },
@@ -1125,12 +1163,13 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                       { name: 'LLM Integration', status: healthStatus.llm_service === 'enabled' ? 'running' : 'disabled', icon: Zap, color: healthStatus.llm_service === 'enabled' ? 'purple' : 'amber' },
                       { name: 'Database Connection', status: healthStatus.database === 'connected' ? 'running' : 'error', icon: Database, color: healthStatus.database === 'connected' ? 'blue' : 'red' }
                     ].map((component) => (
-                      <div key={component.name} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div key={component.name} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg dark:bg-gray-700">
+
                         <div className="flex items-center space-x-3">
                           <div className={`p-2 rounded-lg bg-${component.color}-100 text-${component.color}-600`}>
                             <component.icon className="w-4 h-4" />
                           </div>
-                          <span className="font-medium text-gray-900">{component.name}</span>
+                          <span className="font-medium text-gray-900 dark:text-gray-100">{component.name}</span>
                         </div>
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${component.status === 'running' ? 'bg-green-100 text-green-800' :
                           component.status === 'disabled' ? 'bg-amber-100 text-amber-800' :
@@ -1143,15 +1182,16 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                   </div>
                 </div>
 
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Stats</h3>
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 dark:bg-gray-800 dark:border-gray-700">
+
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 dark:text-gray-100">Quick Stats</h3>
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                    <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg dark:bg-blue-900/30">
                       <div className="flex items-center space-x-3">
                         <AlertTriangle className="w-5 h-5 text-blue-600" />
-                        <span className="font-medium text-gray-900">Total Incidents</span>
+                        <span className="font-medium text-gray-900 dark:text-gray-100">Total Incidents</span>
                       </div>
-                      <span className="text-xl font-bold text-blue-600">{pagination.total}</span>
+                      <span className="text-xl font-bold text-blue-600 dark:text-blue-400">{pagination.total}</span>
                     </div>
                     {/* <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
                       <div className="flex items-center space-x-3">
@@ -1173,12 +1213,12 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                       </span>
                     </div> */}
 
-                    <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
+                    <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg dark:bg-purple-900/30">
                       <div className="flex items-center space-x-3">
                         <Settings className="w-5 h-5 text-purple-600" />
-                        <span className="font-medium text-gray-900">Active Executors</span>
+                        <span className="font-medium text-gray-900 dark:text-gray-100">Active Executors</span>
                       </div>
-                      <span className="text-xl font-bold text-purple-600">
+                      <span className="text-xl font-bold text-purple-600 dark:text-purple-400">
                         {executors.filter(e => e.status === 'active').length}
                       </span>
                     </div>
@@ -1197,14 +1237,14 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 dark:bg-black dark:bg-opacity-70"
             onClick={() => setShowRemediationModal(false)}
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden"
+              className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden dark:bg-gray-800"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Modal Header */}
@@ -1233,7 +1273,7 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                 {/* Solution Overview */}
                 <div className="mb-6">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900">Solution Overview</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Solution Overview</h3>
                     <div className="flex items-center space-x-4">
                       <div className="flex items-center space-x-2">
                         <TrendingUp className="w-4 h-4 text-green-600" />
