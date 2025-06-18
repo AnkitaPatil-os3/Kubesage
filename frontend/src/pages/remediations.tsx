@@ -122,6 +122,11 @@ interface RemediationsProps {
 
 export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) => {
   // State
+
+  const [executionResults, setExecutionResults] = useState<any[]>([]);
+const [showExecutionModal, setShowExecutionModal] = useState(false);
+
+
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [executors, setExecutors] = useState<Executor[]>([]);
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
@@ -232,7 +237,7 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
   };
 
   const generateRemediation = async (incidentId: number, execute: boolean = false) => {
-    setGeneratingRemediation(incidentId); // Set the specific incident ID
+    setGeneratingRemediation(incidentId);
     const incident = incidents.find(inc => inc.id === incidentId);
     setSelectedIncident(incident || null);
     try {
@@ -251,9 +256,20 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
 
       if (response.ok) {
         data.incident_reason = incident?.reason || 'Unknown Reason';
-
         setRemediationSolution(data);
         setShowRemediationModal(true);
+
+        // Auto-execute if kubectl commands are present
+        const hasKubectlCommands = data.solution.remediation_steps?.some(step =>
+          step.command && step.command.startsWith('kubectl')
+        );
+
+        if (hasKubectlCommands) {
+          setTimeout(() => {
+            executeRemediationSteps(incidentId, data.solution.remediation_steps);
+          }, 1000);
+        }
+
         if (execute) {
           setExecutingRemediation(true);
         }
@@ -263,7 +279,7 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
     } catch (error) {
       console.error('Error generating remediation:', error);
     } finally {
-      setGeneratingRemediation(null); // Reset to null
+      setGeneratingRemediation(null);
     }
   };
 
@@ -278,13 +294,15 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          executor_type: "kubectl"
+          remediation_steps: steps
         })
       });
 
       const data = await response.json();
 
       if (response.ok) {
+        setExecutionResults(data.results || []);
+        setShowExecutionModal(true);
         await fetchIncidents(); // Refresh incidents
       }
     } catch (error) {
@@ -293,6 +311,7 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
       setExecutingRemediation(false);
     }
   };
+
 
   // Effects
   useEffect(() => {
@@ -425,7 +444,7 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
 
   return (
     <motion.div
-      className="space-y-6"
+      className="space-y-6 dark:bg-gray-900 min-h-screen"
       variants={containerVariants}
       initial="hidden"
       animate="show"
@@ -1269,7 +1288,7 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
               </div>
 
               {/* Modal Content */}
-              <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+              <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)] dark:bg-gray-800">
                 {/* Solution Overview */}
                 <div className="mb-6">
                   <div className="flex items-center justify-between mb-4">
@@ -1290,20 +1309,22 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                     </div>
                   </div>
 
-                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 border border-green-300">
-                    <p className="text-gray-700">{remediationSolution.solution.solution_summary}</p>                  </div>
+                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 border border-green-300 dark:from-green-900/30 dark:to-emerald-900/30 dark:border-green-600">
+
+                    <p className="text-gray-700 dark:text-gray-200">{remediationSolution.solution.solution_summary}</p>
+                  </div>
                 </div>
 
                 {/* Prerequisites */}
                 {remediationSolution.solution.prerequisites && remediationSolution.solution.prerequisites.length > 0 && (
                   <div className="mb-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Prerequisites</h3>
-                    <div className="bg-amber-50 rounded-xl p-4 border border-amber-200">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3 dark:text-gray-100">Prerequisites</h3>
+                    <div className="bg-amber-50 rounded-xl p-4 border border-amber-200 dark:bg-amber-900/30 dark:border-amber-600">
                       <ul className="space-y-2">
                         {remediationSolution.solution.prerequisites.map((prereq, index) => (
                           <li key={index} className="flex items-start space-x-2">
                             <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
-                            <span className="text-amber-800">{prereq}</span>
+                            <span className="text-amber-800 dark:text-amber-200">{prereq}</span>
                           </li>
                         ))}
                       </ul>
@@ -1314,10 +1335,10 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
 
                 {/* Remediation Steps */}
                 <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Remediation Steps</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 dark:text-gray-100">Remediation Steps</h3>
                   <div className="space-y-4">
                     {remediationSolution.solution.remediation_steps.map((step, index) => (
-                      <div key={index} className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-sm transition-shadow">
+                      <div key={index} className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-sm transition-shadow dark:bg-gray-700 dark:border-gray-600">
                         <div className="flex items-start space-x-4">
                           <div className="flex-shrink-0">
                             <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-full flex items-center justify-center font-semibold text-sm">
@@ -1326,20 +1347,20 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                           </div>
                           <div className="flex-1">
                             <div className="flex items-center justify-between mb-2">
-                              <h4 className="font-medium text-gray-900">{step.action_type}</h4>
+                              <h4 className="font-medium text-gray-900 dark:text-gray-100">{step.action_type}</h4>
                               <span className={`px-2 py-1 rounded-full text-xs font-medium ${step.critical ? 'text-red-600 bg-red-100' : 'text-green-600 bg-green-100'
                                 }`}>
                                 {step.critical ? 'Critical' : 'Safe'}
                               </span>
                             </div>
-                            <p className="text-gray-600 text-sm mb-3">{step.description}</p>
-                            <div className="bg-gray-900 rounded-lg p-3 relative group">
+                            <p className="text-gray-600 text-sm mb-3 dark:text-gray-300">{step.description}</p>
+                            <div className="bg-gray-900 rounded-lg p-3 relative group dark:bg-gray-800">
                               <code className="text-green-400 text-sm font-mono pr-20">{step.command}</code>
                               <div className="absolute top-2 right-2 flex space-x-2">
                                 <button
                                   onClick={() => copyToClipboard(step.command, step.step_id)}
-                                  className="p-1.5 bg-gray-700 hover:bg-gray-600 rounded text-gray-300 hover:text-white transition-colors border border-gray-600"
-                                  title="Copy command"
+                                  className="p-1.5 bg-gray-700 hover:bg-gray-600 rounded text-gray-300 hover:text-white transition-colors border border-gray-600 dark:bg-gray-600 dark:hover:bg-gray-500 dark:border-gray-500"
+
                                 >
                                   {commandStatus[`${step.step_id}`] === 'copy' ? (
                                     <Check className="w-4 h-4 text-green-400" />
@@ -1351,8 +1372,8 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                                 </button>
                                 <button
                                   onClick={() => executeCommand(step.command, step.step_id)}
-                                  className="p-1.5 bg-green-600 hover:bg-green-500 rounded text-white transition-colors border border-green-500"
-                                  title="Execute command"
+                                  className="p-1.5 bg-green-600 hover:bg-green-500 rounded text-white transition-colors border border-green-500 dark:bg-green-700 dark:hover:bg-green-600 dark:border-green-600"
+
                                 >
                                   {commandStatus[`${step.step_id}`] === 'execute' ? (
                                     <Check className="w-4 h-4" />
@@ -1373,9 +1394,9 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                 {/* Prerequisites - Remove this section or make it conditional */}
                 {remediationSolution.solution.additional_notes && (
                   <div className="mb-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Additional Notes</h3>
-                    <div className="bg-amber-50 rounded-xl p-4 border border-amber-200">
-                      <p className="text-amber-800">{remediationSolution.solution.additional_notes}</p>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3 dark:text-gray-100">Additional Notes</h3>
+                    <div className="bg-amber-50 rounded-xl p-4 border border-amber-200 dark:bg-amber-900/30 dark:border-amber-600">
+                      <p className="text-amber-800 dark:text-amber-200">{remediationSolution.solution.additional_notes}</p>
                     </div>
                   </div>
                 )}
@@ -1384,14 +1405,15 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
 
                 {/* Execution Status */}
                 <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Execution Status</h3>
-                  <div className={`p-4 rounded-xl border ${remediationSolution.execution_status === 'generated' ? 'bg-green-50 border-green-300  ' :
-                    remediationSolution.execution_status === 'executing' ? 'bg-amber-50 border-amber-200' :
-                      remediationSolution.execution_status === 'completed_successfully' ? 'bg-green-50 border-green-200' :
-                        remediationSolution.execution_status === 'partially_completed' ? 'bg-amber-50 border-amber-200' :
-                          'bg-red-50 border-red-200'
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3 dark:text-gray-100">Execution Status</h3>
+                  <div className={`p-4 rounded-xl border ${remediationSolution.execution_status === 'generated' ? 'bg-green-50 border-green-300 dark:bg-green-900/30 dark:border-green-600' :
+                    remediationSolution.execution_status === 'executing' ? 'bg-amber-50 border-amber-200 dark:bg-amber-900/30 dark:border-amber-600' :
+                      remediationSolution.execution_status === 'completed_successfully' ? 'bg-green-50 border-green-200 dark:bg-green-900/30 dark:border-green-600' :
+                        remediationSolution.execution_status === 'partially_completed' ? 'bg-amber-50 border-amber-200 dark:bg-amber-900/30 dark:border-amber-600' :
+                          'bg-red-50 border-red-200 dark:bg-red-900/30 dark:border-red-600'
                     }`}>
-                    <div className="flex items-center space-x-3">
+
+                    <div className="flex items-center space-x-3 ">
                       {remediationSolution.execution_status === 'executing' ? (
                         <Loader2 className="w-5 h-5 animate-spin text-amber-600" />
                       ) : remediationSolution.execution_status === 'completed_successfully' ? (
@@ -1405,7 +1427,7 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                         <p className="font-medium text-gray-900 capitalize">
                           {remediationSolution.execution_status.replace('_', ' ')}
                         </p>
-                        <p className="text-sm text-gray-600">
+                        <p className="text-sm text-gray-600 dark:text-gray-300">
                           Generated at {formatTimestamp(remediationSolution.timestamp)}
                         </p>
                       </div>
@@ -1414,10 +1436,11 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex items-center justify-end space-x-4 pt-6 border-t border-gray-200">
+                <div className="flex items-center justify-end space-x-4 pt-6 border-t border-gray-200 dark:border-gray-600">
                   <button
                     onClick={() => setShowRemediationModal(false)}
-                    className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors dark:text-gray-100 dark:bg-gray-800 dark:border-gray-600 dark:hover:bg-gray-700"
+
                   >
                     Close
                   </button>
@@ -1427,7 +1450,8 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                       <button
                         onClick={() => generateRemediation(remediationSolution.incident_id, true)}
                         disabled={executingRemediation}
-                        className="flex items-center space-x-2 px-6 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg hover:from-green-600 hover:to-emerald-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex items-center space-x-2 px-6 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg hover:from-green-600 hover:to-emerald-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed dark:from-green-600 dark:to-emerald-600 dark:hover:from-green-700 dark:hover:to-emerald-700"
+
                       >
                         {executingRemediation ? (
                           <Loader2 className="w-4 h-4 animate-spin" />
@@ -1440,6 +1464,101 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                     </>
                   )}
                 </div>
+                {/* Execution Results Modal */}
+                <AnimatePresence>
+                  {showExecutionModal && executionResults.length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+                      onClick={() => setShowExecutionModal(false)}
+                    >
+                      <motion.div
+                        initial={{ scale: 0.95, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0.95, opacity: 0 }}
+                        className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {/* Modal Header */}
+                        <div className="bg-gradient-to-r from-green-600 to-emerald-600 p-6 text-white">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                              <div className="p-2 bg-white/20 rounded-lg">
+                                <Terminal className="w-6 h-6" />
+                              </div>
+                              <div>
+                                <h2 className="text-xl font-bold">Execution Results</h2>
+                                <p className="text-green-100">Command execution output</p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => setShowExecutionModal(false)}
+                              className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                            >
+                              <X className="w-5 h-5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Modal Content */}
+                        <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)] dark:bg-gray-800">
+                          <div className="space-y-6">
+                            {executionResults.map((result, index) => (
+                              <div key={index} className="bg-gray-50 dark:bg-gray-700 rounded-xl p-4 border border-gray-200 dark:border-gray-600">
+                                <div className="flex items-center justify-between mb-3">
+                                  <h3 className="font-semibold text-gray-900 dark:text-white">Step {result.step_id}</h3>
+                                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${result.success
+                                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                      : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                                    }`}>
+                                    {result.success ? 'Success' : 'Failed'}
+                                  </span>
+                                </div>
+
+                                <p className="text-gray-600 dark:text-gray-300 text-sm mb-3">{result.description}</p>
+
+                                {/* Command */}
+                                <div className="mb-4">
+                                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Command:</h4>
+                                  <div className="bg-gray-900 dark:bg-gray-800 rounded-lg p-3">
+                                    <code className="text-green-400 text-sm font-mono">{result.command}</code>
+                                  </div>
+                                </div>
+
+                                {/* Output */}
+                                {result.output && (
+                                  <div className="mb-4">
+                                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Output:</h4>
+                                    <div className="bg-gray-100 dark:bg-gray-600 rounded-lg p-3 max-h-40 overflow-y-auto">
+                                      <pre className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap">{result.output}</pre>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Error */}
+                                {result.error && (
+                                  <div className="mb-4">
+                                    <h4 className="text-sm font-medium text-red-700 dark:text-red-300 mb-2">Error:</h4>
+                                    <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-3 max-h-40 overflow-y-auto">
+                                      <pre className="text-sm text-red-800 dark:text-red-200 whitespace-pre-wrap">{result.error}</pre>
+                                    </div>
+                                  </div>
+                                )}
+
+                                <div className="text-xs text-gray-500 dark:text-gray-400">
+                                  Return Code: {result.return_code}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </motion.div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
               </div>
             </motion.div>
           </motion.div>

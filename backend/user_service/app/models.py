@@ -23,3 +23,14 @@ class UserToken(SQLModel, table=True):
     is_revoked: bool = Field(default=False)
     created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
     
+
+class ApiKey(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    key_name: str = Field(index=True)  # Human-readable name for the API key
+    api_key: str = Field(unique=True, index=True)  # The actual API key
+    user_id: int = Field(foreign_key="user.id", index=True)
+    is_active: bool = Field(default=True)
+    expires_at: Optional[datetime.datetime] = None  # Optional expiration
+    last_used_at: Optional[datetime.datetime] = None
+    created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
+    updated_at: datetime.datetime = Field(default_factory=datetime.datetime.now)

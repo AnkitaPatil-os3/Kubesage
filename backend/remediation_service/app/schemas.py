@@ -3,6 +3,23 @@ from typing import Optional, Dict, Any, List
 from datetime import datetime
 from app.models import ExecutorType, ExecutorStatus, IncidentType
 
+
+
+
+
+
+class WebhookUserResponse(BaseModel):
+    id: int
+    user_id: int
+    username: str
+    email: Optional[str] = None
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
+
 # Executor Schemas
 class ExecutorBase(BaseModel):
     name: ExecutorType
@@ -29,6 +46,7 @@ class ExecutorResponse(ExecutorBase):
 # Incident Schemas
 class IncidentWebhookPayload(BaseModel):
     """Schema for incoming incident webhook data"""
+    api_key: str = Field(..., description="API key for authentication")
     metadata: Dict[str, Any]
     reason: str
     message: str
@@ -83,6 +101,8 @@ class IncidentResponse(BaseModel):
     resolution_attempts: int
     last_resolution_attempt: Optional[datetime] = None
     executor_id: Optional[int] = None
+    webhook_user_id: Optional[int] = None
+    webhook_user: Optional[WebhookUserResponse] = None
     created_at: datetime
     updated_at: datetime
     

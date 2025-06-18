@@ -16,7 +16,8 @@ from app.config import settings
 from app.logger import logger
 from app.queue import publish_message
 from app.llm_service import RemediationLLMService
-
+from app.api_auth import authenticate_api_key_from_body
+from app.models import WebhookUser 
 # Replace the existing import section with:
 from app.executors import KubectlExecutor, ArgoCDExecutor, CrossplaneExecutor
 
@@ -80,12 +81,16 @@ def parse_timestamp(timestamp_str: str) -> Optional[datetime]:
                         description="Webhook endpoint to receive Kubernetes incidents")
 async def receive_incident_webhook(
     payload: IncidentWebhookPayload,
-    session: Session = Depends(get_session),
-):
+    session: Session = Depends(get_session)):
     """
     Webhook endpoint to receive Kubernetes incidents and store important data in database.
+    Requires valid API key in request body.
     """
     try:
+        # Authenticate using API key from request body
+        webhook_user = await authenticate_api_key_from_body(payload.api_key, session)
+        
+        logger.info(f"Webhook called by user: {webhook_user.username} (ID: {webhook_user.user_id})")
         # Generate unique incident ID if not provided
         incident_id = payload.metadata.get("uid", str(uuid.uuid4()))
         
@@ -129,6 +134,9 @@ async def receive_incident_webhook(
         
         # Create incident record
         incident = Incident(**incident_data.dict())
+        
+        # Link incident to webhook user
+        incident.webhook_user_id = webhook_user.id
         
         # Convert labels and annotations to JSON strings BEFORE saving
         if incident_data.involved_object_labels:
@@ -623,7 +631,7 @@ async def execute_remediation_background(
                         description="Execute specific remediation steps for an incident")
 async def execute_remediation_steps(
     id: int,
-    steps: List[Dict[str, Any]],
+    request: Dict[str, Any],
     executor_type: Optional[ExecutorType] = Query(None),
     session: Session = Depends(get_session),
 ):
@@ -633,34 +641,71 @@ async def execute_remediation_steps(
     if not incident:
         raise HTTPException(status_code=404, detail="Incident not found")
     
-    # Determine executor
-    if not executor_type:
-        active_executor = session.exec(
-            select(Executor).where(Executor.status == ExecutorStatus.ACTIVE)
-        ).first()
-        
-        if not active_executor:
-            raise HTTPException(status_code=400, detail="No active executor found")
-        
-        executor_type = active_executor.name
-        executor_config = json.loads(active_executor.config) if active_executor.config else {}
-    else:
-        executor = session.exec(
-            select(Executor).where(Executor.name == executor_type)
-        ).first()
-        
-        if not executor or executor.status != ExecutorStatus.ACTIVE:
-            raise HTTPException(status_code=400, detail=f"Executor {executor_type.value} not found or not active")
-        
-        executor_config = json.loads(executor.config) if executor.config else {}
+    # Extract steps from request
+    steps = request.get("remediation_steps", [])
+    if not steps:
+        raise HTTPException(status_code=400, detail="No remediation steps provided")
+    
+    # Validate kubectl commands
+    kubectl_commands = []
+    for step in steps:
+        command = step.get("command", "")
+        if command.startswith("kubectl"):
+            kubectl_commands.append({
+                "step_id": step.get("step_id"),
+                "command": command,
+                "description": step.get("description", ""),
+                "action_type": step.get("action_type", "")
+            })
+    
+    if not kubectl_commands:
+        raise HTTPException(status_code=400, detail="No kubectl commands found in remediation steps")
     
     try:
-        # Get executor instance
-        executor = get_executor_instance(executor_type, executor_config)
+        # Execute kubectl commands
+        execution_results = []
         
-        # Execute steps
-        logger.info(f"Executing {len(steps)} remediation steps for incident {incident_id}")
-        execution_results = await executor.execute_remediation_steps(steps)
+        for cmd_info in kubectl_commands:
+            try:
+                # Execute command
+                import subprocess
+                result = subprocess.run(
+                    cmd_info["command"].split(),
+                    capture_output=True,
+                    text=True,
+                    timeout=300
+                )
+                
+                execution_results.append({
+                    "step_id": cmd_info["step_id"],
+                    "command": cmd_info["command"],
+                    "description": cmd_info["description"],
+                    "success": result.returncode == 0,
+                    "output": result.stdout,
+                    "error": result.stderr,
+                    "return_code": result.returncode
+                })
+                
+            except subprocess.TimeoutExpired:
+                execution_results.append({
+                    "step_id": cmd_info["step_id"],
+                    "command": cmd_info["command"],
+                    "description": cmd_info["description"],
+                    "success": False,
+                    "output": "",
+                    "error": "Command timed out after 300 seconds",
+                    "return_code": -1
+                })
+            except Exception as e:
+                execution_results.append({
+                    "step_id": cmd_info["step_id"],
+                    "command": cmd_info["command"],
+                    "description": cmd_info["description"],
+                    "success": False,
+                    "output": "",
+                    "error": str(e),
+                    "return_code": -1
+                })
         
         # Update incident
         incident.resolution_attempts += 1
@@ -669,26 +714,24 @@ async def execute_remediation_steps(
         
         # Check if all steps were successful
         successful_steps = sum(1 for result in execution_results if result.get("success", False))
-        if successful_steps == len(steps):
+        if successful_steps == len(kubectl_commands):
             incident.is_resolved = True
         
         session.add(incident)
         session.commit()
         
-        # Log execution event (instead of publishing to queue)
-        logger.info(f"Manual remediation execution - Incident: {incident_id}, Success: {successful_steps}/{len(steps)}")
-
-        
         return JSONResponse(content={
             "message": "Remediation steps executed",
             "results": execution_results,
             "successful_steps": successful_steps,
-            "total_steps": len(steps)
+            "total_steps": len(kubectl_commands)
         }, status_code=200)
         
     except Exception as e:
         logger.error(f"Error executing remediation steps: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error executing remediation steps: {str(e)}")
+
+
 
 # Initialize default executors
 @remediation_router.post("/initialize",

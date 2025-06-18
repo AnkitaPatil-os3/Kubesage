@@ -18,6 +18,7 @@ class IncidentType(str, Enum):
     WARNING = "Warning"
     ERROR = "Error"
 
+
 # Make sure your Executor model has proper constraints
 class Executor(SQLModel, table=True):
     __tablename__ = "executors"
@@ -32,6 +33,24 @@ class Executor(SQLModel, table=True):
     
     # Relationships
     incidents: list["Incident"] = Relationship(back_populates="executor")
+
+
+
+class WebhookUser(SQLModel, table=True):
+    __tablename__ = "webhook_users"
+    
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(unique=True, index=True)  # User ID from user service
+    username: str = Field(index=True)
+    email: Optional[str] = None
+    api_key_hash: str = Field(index=True)  # Store hash of API key for security
+    is_active: bool = Field(default=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    # Relationships
+    incidents: list["Incident"] = Relationship(back_populates="webhook_user")
+
 
 
 class Incident(SQLModel, table=True):
@@ -61,12 +80,16 @@ class Incident(SQLModel, table=True):
     resolution_attempts: int = Field(default=0)
     last_resolution_attempt: Optional[datetime] = Field(default=None)
     
+    # ADD THIS LINE - Fix the foreign key reference
+    webhook_user_id: Optional[int] = Field(default=None, foreign_key="webhook_users.id")
+    
     # Timestamps
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     
     # Relationships
     executor: Optional[Executor] = Relationship(back_populates="incidents")
+    webhook_user: Optional[WebhookUser] = Relationship(back_populates="incidents")
     
     def get_labels_dict(self) -> Dict[str, Any]:
         """Convert labels JSON string to dictionary"""

@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware  # Import CORSMiddleware
-from app.routes import auth_router, user_router
+from app.routes import auth_router, user_router, api_key_router
 from app.database import create_db_and_tables
 from app.consumer import start_consumers
 from app.logger import logger
@@ -35,7 +35,9 @@ def health_check():
 # Include routers
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
 app.include_router(user_router, prefix="/users", tags=["users"])
+app.include_router(api_key_router, prefix="/api-keys", tags=["api-keys"])  
+
 
 if __name__ == "__main__":
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True , ssl_keyfile="key.pem", ssl_certfile="cert.pem")
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8001, reload=True , ssl_keyfile="key.pem", ssl_certfile="cert.pem")
 
