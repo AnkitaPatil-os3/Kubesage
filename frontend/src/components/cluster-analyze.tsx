@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { RefreshCw } from 'lucide-react'; 
 import {
     Card,
     CardBody,
@@ -184,9 +185,96 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
     const [currentProblemIndex, setCurrentProblemIndex] = useState(0);
     const [showAllProblems, setShowAllProblems] = useState(false);
     const [currentResourceIndex, setCurrentResourceIndex] = useState(0);
-
+    // Add these state variables at the top of your component
+    const [editingCommands, setEditingCommands] = useState<Record<number, boolean>>({});
+    const [editedCommands, setEditedCommands] = useState<Record<number, string>>({});
     const { isOpen: isCommandModalOpen, onOpen: onCommandModalOpen, onClose: onCommandModalClose } = useDisclosure();
     const [selectedCommand, setSelectedCommand] = useState<string>('');
+    // Add these state variables at the top of your component
+    const [commandOutputs, setCommandOutputs] = useState<Record<number, any>>({});
+    // Add these functions
+    const toggleEditCommand = (stepId: number, originalCommand: string) => {
+        setEditingCommands(prev => ({
+            ...prev,
+            [stepId]: !prev[stepId]
+        }));
+
+        // Initialize edited command with original if not already set
+        if (!editedCommands[stepId]) {
+            setEditedCommands(prev => ({
+                ...prev,
+                [stepId]: originalCommand
+            }));
+        }
+    };
+
+    const handleCommandChange = (stepId: number, newCommand: string) => {
+        setEditedCommands(prev => ({
+            ...prev,
+            [stepId]: newCommand
+        }));
+    };
+
+    const saveEditedCommand = (stepId: number) => {
+        setEditingCommands(prev => ({
+            ...prev,
+            [stepId]: false
+        }));
+    };
+
+
+    // Add this function
+    const executeCommand = async (command: string, stepId: number) => {
+        try {
+            const response = await fetch('https://10.0.32.103:8002/kubeconfig/execute-kubectl', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+                },
+                body: JSON.stringify({
+                    command: command
+                })
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+
+                setCommandOutputs(prev => ({
+                    ...prev,
+                    [stepId]: {
+                        success: result.success !== false,
+                        output: result.output || result.stdout || '',
+                        error: result.error || result.stderr || null,
+                        executed_at: new Date().toISOString()
+                    }
+                }));
+            } else {
+                const errorData = await response.json();
+                setCommandOutputs(prev => ({
+                    ...prev,
+                    [stepId]: {
+                        success: false,
+                        output: errorData.output || '',
+                        error: errorData.error || errorData.detail || 'Command execution failed',
+                        executed_at: new Date().toISOString()
+                    }
+                }));
+            }
+        } catch (error) {
+            setCommandOutputs(prev => ({
+                ...prev,
+                [stepId]: {
+                    success: false,
+                    output: '',
+                    error: `Network error: ${error}`,
+                    executed_at: new Date().toISOString()
+                }
+            }));
+        }
+    };
+
+
 
     // Fetch namespaces on component mount
     useEffect(() => {
@@ -417,8 +505,8 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                                                 <CardBody className="p-3">
                                                     <div className="flex items-start gap-3">
                                                         <div className="flex-shrink-0 w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-sm font-medium mt-0">
-    {step.step_id}
-</div>
+                                                            {step.step_id}
+                                                        </div>
 
                                                         <div className="flex-1">
                                                             <div className="flex items-center gap-2 mb-2">
@@ -432,28 +520,114 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                                                             </div>
                                                             <p className="text-sm mb-2">{step.description}</p>
 
-                                                            {step.command && (
-                                                                <div className="mb-2">
-                                                                    <Snippet
-                                                                        symbol=""
-                                                                        variant="flat"
-                                                                        color="primary"
-                                                                        className="w-full"
-                                                                        onCopy={() => copyToClipboard(step.command!)}
-                                                                    >
-                                                                        {step.command}
-                                                                    </Snippet>
-                                                                </div>
-                                                            )}
-
                                                             <div className="text-xs text-default-500">
                                                                 <strong>Expected outcome:</strong> {step.expected_outcome}
                                                             </div>
+                                                            {step.command && (
+                                                                <div className="mb-2">
+                                                                    <div className="flex items-center gap-2 mb-2">
+                                                                        {editingCommands[step.step_id] ? (
+                                                                            // Edit mode
+                                                                            <div className="flex-1 flex items-center gap-2">
+                                                                                <input
+                                                                                    type="text"
+                                                                                    value={editedCommands[step.step_id] || step.command}
+                                                                                    onChange={(e) => handleCommandChange(step.step_id, e.target.value)}
+                                                                                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm font-mono bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                                                                                    autoFocus
+                                                                                />
+                                                                                <button
+                                                                                    onClick={() => saveEditedCommand(step.step_id)}
+                                                                                    className="p-2 bg-blue-600 hover:bg-blue-500 rounded text-white transition-colors"
+                                                                                    title="Save Command"
+                                                                                >
+                                                                                    <Icon icon="mdi:check" className="w-4 h-4" />
+                                                                                </button>
+                                                                                <button
+                                                                                    onClick={() => toggleEditCommand(step.step_id, step.command!)}
+                                                                                    className="p-2 bg-gray-600 hover:bg-gray-500 rounded text-white transition-colors"
+                                                                                    title="Cancel Edit"
+                                                                                >
+                                                                                    <Icon icon="mdi:close" className="w-4 h-4" />
+                                                                                </button>
+                                                                            </div>
+                                                                        ) : (
+                                                                            // View mode
+                                                                            <>
+                                                                                <Snippet
+                                                                                    symbol=""
+                                                                                    variant="flat"
+                                                                                    color="primary"
+                                                                                    className="flex-1"
+                                                                                    onCopy={() => copyToClipboard(editedCommands[step.step_id] || step.command!)}
+                                                                                >
+                                                                                    {editedCommands[step.step_id] || step.command}
+                                                                                </Snippet>
+                                                                                <button
+                                                                                    onClick={() => toggleEditCommand(step.step_id, step.command!)}
+                                                                                    className="p-2 bg-blue-600 hover:bg-blue-500 rounded text-white transition-colors"
+                                                                                    title="Edit Command"
+                                                                                >
+                                                                                    <Icon icon="mdi:pencil" className="w-4 h-4" />
+                                                                                </button>
+                                                                                <button
+                                                                                    onClick={() => executeCommand(editedCommands[step.step_id] || step.command!, step.step_id)}
+                                                                                    className="p-2 bg-green-600 hover:bg-green-500 rounded text-white transition-colors"
+                                                                                    title="Execute Command"
+                                                                                >
+                                                                                    <Icon icon="mdi:play" className="w-4 h-4" />
+                                                                                </button>
+                                                                            </>
+                                                                        )}
+                                                                    </div>
+
+                                                                    {/* Command Output Display */}
+                                                                    {commandOutputs[step.step_id] && (
+                                                                        <div className="mt-2 bg-gray-50 rounded-lg p-3 dark:bg-gray-800">
+                                                                            <div className="flex items-center justify-between mb-2">
+                                                                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                                                    Output
+                                                                                </span>
+                                                                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${commandOutputs[step.step_id].success
+                                                                                    ? 'bg-green-100 text-green-800'
+                                                                                    : 'bg-red-100 text-red-800'
+                                                                                    }`}>
+                                                                                    {commandOutputs[step.step_id].success ? 'Success' : 'Failed'}
+                                                                                </span>
+                                                                            </div>
+
+                                                                            {/* Always show output if it exists */}
+                                                                            {(commandOutputs[step.step_id].output || commandOutputs[step.step_id].error) && (
+                                                                                <pre className={`p-2 rounded text-xs overflow-x-auto max-h-32 ${commandOutputs[step.step_id].success
+                                                                                    ? 'bg-gray-900 text-green-400'
+                                                                                    : 'bg-red-100 text-red-800'
+                                                                                    }`}>
+                                                                                    {commandOutputs[step.step_id].output || commandOutputs[step.step_id].error || 'No output'}
+                                                                                </pre>
+                                                                            )}
+
+                                                                            {/* Show error separately if both output and error exist */}
+                                                                            {commandOutputs[step.step_id].output && commandOutputs[step.step_id].error && (
+                                                                                <div className="mt-2">
+                                                                                    <div className="text-xs text-red-600 mb-1">Error:</div>
+                                                                                    <pre className="bg-red-100 text-red-800 p-2 rounded text-xs overflow-x-auto max-h-32">
+                                                                                        {commandOutputs[step.step_id].error}
+                                                                                    </pre>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    )}
+
+                                                                </div>
+
+                                                            )}
+
                                                         </div>
                                                     </div>
                                                 </CardBody>
                                             </Card>
-                                        ))}                                    </div>
+                                        ))}
+                                    </div>
                                 </div>
                             )}
 
@@ -494,12 +668,30 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
 
             {/* Configuration Panel */}
             <Card className="dark:bg-gray-800 dark:border-gray-700">
-                <CardHeader className="dark:bg-gray-800">
-                    <h2 className="text-lg font-semibold flex items-center gap-2 dark:text-gray-100">
-                        <Icon icon="mdi:cog-outline" />
-                        Analysis Configuration
-                    </h2>
+                                <CardHeader className="dark:bg-gray-800">
+                    <div className="flex justify-between items-center w-full">
+                        <div>
+                            <h2 className="text-lg font-semibold flex items-center gap-2 dark:text-gray-100">
+                                <Icon icon="mdi:cog-outline" />
+                                Analysis Configuration
+                            </h2>
+                        </div>
+                        
+                        {/* Add Refresh Button in right corner */}
+                        <button
+                            type="button"
+                            onClick={() => window.location.reload()}
+                            className="flex items-center space-x-2 px-3 py-2 text-gray-600 hover:text-green-600 hover:bg-gray-50 rounded-lg transition-all duration-300 dark:text-gray-300 dark:hover:text-green-400 dark:hover:bg-gray-700 transform hover:scale-105 active:scale-95 group hover:shadow-md"
+                        >
+                            <RefreshCw className="w-4 h-4 group-hover:rotate-180 transition-transform duration-500 ease-in-out" />
+                            <span className="relative overflow-hidden">
+                                Refresh
+                                <span className="absolute inset-0 bg-gradient-to-r from-transparent via-green-400/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-out"></span>
+                            </span>
+                        </button>
+                    </div>
                 </CardHeader>
+
                 <CardBody className="dark:bg-gray-800">
                     <div className="space-y-6">
                         {/* Namespace Selection */}
@@ -651,13 +843,18 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                         </div>
                     </div>
 
-                    <div className="flex justify-between items-center mt-6 dark:border-gray-600">
-                        <div className="text-sm text-default-500 dark:text-gray-400">
-                            Selected: <span className="font-medium text-primary dark:text-green-400">
-                                {RESOURCE_TYPES.find(type => type.key === selectedResourceType)?.label}
-                            </span>
-                            {selectedNamespace && <span className="dark:text-gray-400"> in namespace: {selectedNamespace}</span>}
+                                        <div className="flex justify-between items-center mt-6 dark:border-gray-600">
+                        <div className="flex items-center space-x-4">
+                            <div className="text-sm text-default-500 dark:text-gray-400">
+                                Selected: <span className="font-medium text-primary dark:text-green-400">
+                                    {RESOURCE_TYPES.find(type => type.key === selectedResourceType)?.label}
+                                </span>
+                                {selectedNamespace && <span className="dark:text-gray-400"> in namespace: {selectedNamespace}</span>}
+                            </div>
+                            
+                           
                         </div>
+                        
                         <Button
                             color="primary"
                             onPress={performAnalysis}
@@ -668,6 +865,7 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                             {isAnalyzing ? 'Analyzing...' : 'Start Analysis'}
                         </Button>
                     </div>
+
                 </CardBody>
             </Card>
 

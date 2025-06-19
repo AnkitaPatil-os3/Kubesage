@@ -39,15 +39,15 @@ class K8sLLMService:
             system_prompt = self._get_system_prompt()
             user_prompt = self._build_user_prompt(error_text, kind, name, namespace, context)
             
-            # Call OpenAI API
+            # Call OpenAI API with optimized settings
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
                 ],
-                temperature=0.3,
-                max_tokens=2000,
+                temperature=0.1,  # Lower for faster, more consistent responses
+                max_tokens=1200,  # Reduced from 2000 for faster response
                 response_format={"type": "json_object"}
             )
             
@@ -58,6 +58,9 @@ class K8sLLMService:
             response_content = response.choices[0].message.content.strip()
             if not response_content:
                 raise ValueError("Empty response content from OpenAI API")
+            
+            # Clean response content to remove invalid characters
+            response_content = self._clean_json_response(response_content)
             
             # Parse the response
             try:
@@ -83,35 +86,27 @@ class K8sLLMService:
     
     def _get_system_prompt(self) -> str:
         """Get the system prompt for the LLM"""
-        return """You are an expert Kubernetes administrator and troubleshooter. Your task is to analyze Kubernetes problems and provide detailed, actionable solutions.
+        return """You are a Kubernetes expert. Analyze problems and provide JSON solutions.
 
-When given a Kubernetes error, you should:
-1. Identify the root cause of the problem
-2. Provide a clear, step-by-step solution
-3. Include specific kubectl commands where applicable
-4. Estimate the time needed to resolve the issue
-5. Provide a confidence score for your solution
-
-Your response must be a valid JSON object with the following structure:
+Response format:
 {
-    "solution_summary": "Brief summary of the solution approach",
-    "detailed_solution": "Detailed explanation of the problem and solution",
+    "solution_summary": "Brief solution summary",
+    "detailed_solution": "Detailed explanation",
     "remediation_steps": [
         {
             "step_id": 1,
-            "action_type": "KUBECTL_DESCRIBE|KUBECTL_GET_LOGS|KUBECTL_APPLY|KUBECTL_DELETE|KUBECTL_SCALE|KUBECTL_PATCH|MANUAL_CHECK|CONFIGURATION_CHANGE",
-            "description": "What this step does and why",
-            "command": "kubectl command (if applicable)",
-            "expected_outcome": "What should happen after this step"
+            "action_type": "KUBECTL_GET_LOGS|KUBECTL_APPLY|KUBECTL_DELETE|MANUAL_CHECK",
+            "description": "Step description",
+            "command": "kubectl command",
+            "expected_outcome": "Expected result"
         }
     ],
     "confidence_score": 0.85,
     "estimated_time_mins": 15,
-    "additional_notes": "Any additional considerations or warnings"
+    "additional_notes": "Additional info"
 }
 
-Focus on practical, safe solutions. Always suggest diagnostic steps before making changes."""
-
+Keep responses concise and focused. Use only valid JSON characters."""
     def _build_user_prompt(
         self,
         error_text: str,
@@ -163,3 +158,51 @@ Focus on practical, safe solutions. Always suggest diagnostic steps before makin
             solution_data["estimated_time_mins"] = 30
             
         return solution_data
+
+    def _clean_json_response(self, response_content: str) -> str:
+        """Clean JSON response to remove invalid control characters"""
+        import re
+        
+        # Remove invalid control characters that break JSON parsing
+        response_content = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', response_content)
+        
+        # Fix common JSON issues
+        response_content = response_content.replace('\n', ' ')
+        response_content = response_content.replace('\t', ' ')
+        response_content = re.sub(r'\s+', ' ', response_content)  # Multiple spaces to single
+        
+        # Ensure proper JSON structure
+        if not response_content.startswith('{'):
+            start_idx = response_content.find('{')
+            if start_idx != -1:
+                response_content = response_content[start_idx:]
+        
+        if not response_content.endswith('}'):
+            end_idx = response_content.rfind('}')
+            if end_idx != -1:
+                response_content = response_content[:end_idx + 1]
+        
+        return response_content
+
+    def _fix_json_issues(self, content: str) -> str:
+        """Additional JSON fixes for common issues"""
+        import re
+        
+        # Fix specific kubectl command issues
+        fixes = [
+            # Fix complex JSONPath expressions
+            (r'kubectl logs \$\(kubectl get pods[^)]+\)', 'kubectl logs -l app=crashloop-deployment --tail=50'),
+            # Fix malformed JSONPath
+            (r'\{range \.items\[[^\]]+\][^}]*\}', '$(kubectl get pods -o name | head -1)'),
+            # Fix wildcard issues
+            (r'crashloop-deployment-\*[^"]*', 'crashloop-deployment'),
+            # Fix escape sequences
+            (r'\\([^"\\\/bfnrt])', r'\1'),
+            # Fix trailing commas
+            (r',(\s*[}\]])', r'\1'),
+        ]
+        
+        for pattern, replacement in fixes:
+            content = re.sub(pattern, replacement, content)
+        
+        return content

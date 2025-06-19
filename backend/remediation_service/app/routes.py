@@ -21,7 +21,7 @@ from app.models import WebhookUser
 # Replace the existing import section with:
 from app.executors import KubectlExecutor, ArgoCDExecutor, CrossplaneExecutor
 from app.api_auth import authenticate_api_key_from_header
-
+import os
 
 
 remediation_router = APIRouter()
@@ -652,34 +652,63 @@ async def execute_remediation_steps(
     if not steps:
         raise HTTPException(status_code=400, detail="No remediation steps provided")
     
-    # Validate kubectl commands
-    kubectl_commands = []
+    # Process all types of commands (not just kubectl)
+    commands = []
     for step in steps:
         command = step.get("command", "")
-        if command.startswith("kubectl"):
-            kubectl_commands.append({
+        if command:  # Accept any command, not just kubectl
+            commands.append({
                 "step_id": step.get("step_id"),
                 "command": command,
                 "description": step.get("description", ""),
                 "action_type": step.get("action_type", "")
             })
     
-    if not kubectl_commands:
-        raise HTTPException(status_code=400, detail="No kubectl commands found in remediation steps")
+    if not commands:
+        raise HTTPException(status_code=400, detail="No commands found in remediation steps")
     
     try:
-        # Execute kubectl commands
+        # Execute all types of commands
         execution_results = []
         
-        for cmd_info in kubectl_commands:
+        for cmd_info in commands:
             try:
-                # Execute command
+                # Execute command using shell to support pipes, grep, jq, etc.
                 import subprocess
+                import shlex
+                
+                # Handle jq commands with proper shell escaping
+                command = cmd_info["command"]
+                
+                # Better jq command handling
+                if 'jq' in command:
+                    # Common jq fixes
+                    fixes = [
+                        ('+ .', '+ "." + '),
+                        ('"kubectl logs ". + .metadata.name + " -n', '"kubectl logs " + .metadata.name + " -n'),
+                        ('". + .', '" + .'),
+                        ('+ " -n', '" + " -n')
+                    ]
+                    
+                    for old, new in fixes:
+                        command = command.replace(old, new)
+                    
+                    # Ensure proper quoting for jq expressions
+                    if not command.count("'") % 2 == 0:
+                        # Fix unmatched quotes
+                        parts = command.split("jq")
+                        if len(parts) > 1:
+                            jq_part = parts[1].strip()
+                            if jq_part.startswith("'") and not jq_part.endswith("'"):
+                                command = command + "'"
+                
                 result = subprocess.run(
-                    cmd_info["command"].split(),
+                    command,  # Execute as shell command
+                    shell=True,  # Enable shell features like pipes, grep, jq, &&
                     capture_output=True,
                     text=True,
-                    timeout=300
+                    timeout=300,
+                    env=dict(os.environ, LC_ALL='C')  # Set proper locale for jq
                 )
                 
                 execution_results.append({
@@ -720,7 +749,7 @@ async def execute_remediation_steps(
         
         # Check if all steps were successful
         successful_steps = sum(1 for result in execution_results if result.get("success", False))
-        if successful_steps == len(kubectl_commands):
+        if successful_steps == len(commands):
             incident.is_resolved = True
         
         session.add(incident)
@@ -730,7 +759,7 @@ async def execute_remediation_steps(
             "message": "Remediation steps executed",
             "results": execution_results,
             "successful_steps": successful_steps,
-            "total_steps": len(kubectl_commands)
+            "total_steps": len(commands)
         }, status_code=200)
         
     except Exception as e:

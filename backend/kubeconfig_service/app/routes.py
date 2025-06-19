@@ -1986,3 +1986,98 @@ async def analyze_k8s_with_solutions(
         raise HTTPException(status_code=500, detail=f"Error analyzing Kubernetes resources with solutions: {str(e)}")
 
 
+# execte kubectl commans 
+
+@kubeconfig_router.post("/execute-kubectl",
+                       summary="Execute Kubectl Command", 
+                       description="Execute any kubectl command on the active cluster")
+async def execute_kubectl_command(
+    command_data: dict,
+    session: Session = Depends(get_session),
+    current_user: Dict = Depends(get_current_user)
+):
+    """
+    Execute any kubectl command on the active Kubernetes cluster.
+    
+    - Gets the active kubeconfig
+    - Executes the provided kubectl command
+    - Returns command output and status
+    
+    Parameters:
+        command_data: Dictionary containing the command to execute
+    
+    Returns:
+        JSONResponse: Command execution results
+    """
+    active_kubeconf = get_active_kubeconfig(session, current_user["id"])
+    kubeconfig_path = active_kubeconf.path
+
+    if not os.path.exists(kubeconfig_path):
+        raise HTTPException(status_code=404, detail="Active kubeconfig file not found on disk")
+
+    command = command_data.get("command", "")
+    if not command:
+        raise HTTPException(status_code=400, detail="Command is required")
+
+    # Add kubeconfig to the command if not already present and if it's a kubectl command
+    if command.strip().startswith("kubectl") and "--kubeconfig" not in command:
+        command = command.replace("kubectl", f"kubectl --kubeconfig {kubeconfig_path}", 1)
+
+    try:
+        # Use subprocess with shell=True to support all shell features
+        import subprocess
+        
+        result = subprocess.run(
+            command,
+            shell=True,  # Enable shell features like pipes, grep, jq, &&, ||, etc.
+            capture_output=True,
+            text=True,
+            timeout=300,
+            env=dict(os.environ, KUBECONFIG=kubeconfig_path)  # Set KUBECONFIG env var
+        )
+        
+        # Determine success based on return code
+        success = result.returncode == 0
+        
+        # Get output and error
+        output = result.stdout.strip() if result.stdout else ""
+        error = result.stderr.strip() if result.stderr else None
+        
+        # If no stdout but has stderr, use stderr as output (some commands output to stderr)
+        if not output and error and success:
+            output = error
+            error = None
+        
+        # Ensure we have meaningful output
+        if not output and not error:
+            if success:
+                output = "Command executed successfully (no output)"
+            else:
+                output = "Command failed"
+                error = "No error details available"
+            
+        return JSONResponse(content={
+            "success": success,
+            "output": output,
+            "error": error,
+            "command": command,
+            "return_code": result.returncode
+        }, status_code=200)
+        
+    except subprocess.TimeoutExpired:
+        return JSONResponse(content={
+            "success": False,
+            "output": "",
+            "error": "Command timed out after 300 seconds",
+            "command": command,
+            "return_code": -1
+        }, status_code=200)
+    except Exception as e:
+        return JSONResponse(content={
+            "success": False,
+            "output": "",
+            "error": str(e),
+            "command": command,
+            "return_code": -1
+        }, status_code=200)
+          

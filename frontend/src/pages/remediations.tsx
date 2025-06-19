@@ -145,7 +145,7 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
   const [generatingRemediation, setGeneratingRemediation] = useState<number | null>(null); // Changed from boolean to number | null
   const [executingRemediation, setExecutingRemediation] = useState(false);
   const [activeTab, setActiveTab] = useState<'incidents' | 'executors' | 'health'>('incidents');
-  const [hasExecuted, setHasExecuted] = useState(false);
+  // const [hasExecuted, setHasExecuted] = useState(false);
 
   const [filters, setFilters] = useState({
     type: '',
@@ -272,7 +272,9 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
         },
         body: JSON.stringify({
           incident_id: incidentId
-        })
+        }),
+        // Add timeout and signal handling
+        signal: AbortSignal.timeout(120000) // 2 minutes timeout
       });
 
       if (response.ok) {
@@ -292,18 +294,28 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
           setShowSolutionModal(true); // CHANGE: Use setShowSolutionModal instead of setShowRemediationModal
         }
       } else {
-        console.error('Failed to process remediation');
+        const errorText = await response.text();
+        console.error('Failed to process remediation:', errorText);
+        showToast(`Failed to generate remediation: ${response.status}`, 'error');
       }
     } catch (error) {
       console.error('Error:', error);
+      if (error.name === 'TimeoutError') {
+        showToast('Request timed out. The AI service may be slow. Please try again.', 'error');
+      } else if (error.name === 'AbortError') {
+        showToast('Request was cancelled due to timeout.', 'error');
+      } else {
+        showToast('Network error. Please check your connection and try again.', 'error');
+      }
     } finally {
       setGeneratingRemediation(null); // Reset to null
     }
   };
 
+
   const executeRemediationSteps = async (incidentId: number) => {
     setExecutingRemediation(true);
-    setHasExecuted(true); // ADD THIS LINE
+    // setHasExecuted(true); // ADD THIS LINE
     try {
       const response = await fetch(`https://10.0.32.103:8004/remediation/incidents/${incidentId}/execute`, {
         method: 'POST',
@@ -1447,8 +1459,12 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                                 </span>
                               </div>
                               <p className="text-gray-600 text-sm mb-3 dark:text-gray-300">{step.description}</p>
-                              <div className="bg-gray-900 rounded-lg p-3 relative group dark:bg-gray-800">
-                                <code className="text-green-400 text-sm font-mono pr-20">{step.command}</code>
+                                                           <div className="bg-gray-900 rounded-lg p-3 relative group dark:bg-gray-800">
+                                <div className="pr-20"> {/* Add padding for buttons */}
+                                  <pre className="text-green-400 text-sm font-mono whitespace-pre-wrap break-words overflow-x-auto max-w-full">
+                                    {step.command}
+                                  </pre>
+                                </div>
                                 <div className="absolute top-2 right-2 flex space-x-2">
                                   <button
                                     onClick={() => copyToClipboard(step.command, step.step_id)}
@@ -1458,7 +1474,7 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                                       <CheckCircle className="w-4 h-4 text-green-400" />
                                     ) : (
                                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                                       </svg>
                                     )}
                                   </button>
@@ -1474,6 +1490,7 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                                   </button>
                                 </div>
                               </div>
+
 
                               {/* Command Output Section */}
                               {commandOutputs[`${step.step_id}`] && (
@@ -1610,7 +1627,7 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                 <div className="flex space-x-3">
                   <button
                     onClick={() => executeRemediationSteps(remediationSolution.incident_id)}
-                    disabled={executingRemediation || hasExecuted} // CHANGE: Add hasExecuted condition
+                    disabled={executingRemediation}  // Remove hasExecuted condition
                     className="flex items-center space-x-2 px-6 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg hover:from-green-600 hover:to-emerald-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed dark:from-green-600 dark:to-emerald-600 dark:hover:from-green-700 dark:hover:to-emerald-700"
                   >
                     {executingRemediation ? (
@@ -1618,7 +1635,7 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                     ) : (
                       <Play className="w-4 h-4" />
                     )}
-                    <span>{hasExecuted ? "Executed" : "Execute Automatically"}</span> {/* CHANGE: Show different text */}
+                    <span>Execute Automatically</span>  {/* Always show same text */}
                   </button>
                 </div>
               </div>
