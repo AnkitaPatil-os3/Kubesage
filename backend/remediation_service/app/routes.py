@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks , Header , Request
 from fastapi.responses import JSONResponse
 from sqlmodel import Session, select, update
 from typing import Any,List, Dict, Optional
@@ -20,6 +20,9 @@ from app.api_auth import authenticate_api_key_from_body
 from app.models import WebhookUser 
 # Replace the existing import section with:
 from app.executors import KubectlExecutor, ArgoCDExecutor, CrossplaneExecutor
+from app.api_auth import authenticate_api_key_from_header
+
+
 
 remediation_router = APIRouter()
 
@@ -81,14 +84,17 @@ def parse_timestamp(timestamp_str: str) -> Optional[datetime]:
                         description="Webhook endpoint to receive Kubernetes incidents")
 async def receive_incident_webhook(
     payload: IncidentWebhookPayload,
-    session: Session = Depends(get_session)):
+    session: Session = Depends(get_session),
+    x_api_key: Optional[str] = Header(None, alias="X-API-Key")):
     """
     Webhook endpoint to receive Kubernetes incidents and store important data in database.
-    Requires valid API key in request body.
+    Requires valid API key in X-API-Key header.
     """
+    print("Incoming payload:", payload)
     try:
-        # Authenticate using API key from request body
-        webhook_user = await authenticate_api_key_from_body(payload.api_key, session)
+        # Authenticate using API key from request header
+        webhook_user = await authenticate_api_key_from_header(x_api_key, session)
+        print("Authenticated user:", webhook_user)
         
         logger.info(f"Webhook called by user: {webhook_user.username} (ID: {webhook_user.user_id})")
         # Generate unique incident ID if not provided

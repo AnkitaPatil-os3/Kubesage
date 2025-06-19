@@ -1,4 +1,4 @@
-from fastapi import HTTPException, status
+from fastapi import HTTPException, status, Header
 from sqlmodel import Session, select
 from typing import Optional
 import requests
@@ -91,7 +91,29 @@ async def get_or_create_webhook_user(user_data: dict, api_key: str, session: Ses
     
     return webhook_user
 
-# REMOVE THE HEADER-BASED FUNCTIONS - WE DON'T NEED THEM ANYMORE
+# NEW: Header-based authentication function
+async def authenticate_api_key_from_header(
+    x_api_key: Optional[str] = Header(None, alias="X-API-Key"),
+    session: Session = None
+) -> WebhookUser:
+    """
+    Authenticate API key from request header and return webhook user.
+    """
+    if not x_api_key or not x_api_key.strip():
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="API key is required in X-API-Key header"
+        )
+    
+    # Verify API key with user service
+    user_data = await verify_api_key_with_user_service(x_api_key.strip())
+    
+    # Get or create webhook user in local database
+    webhook_user = await get_or_create_webhook_user(user_data, x_api_key, session)
+    
+    return webhook_user
+
+# Keep the existing body-based function for backward compatibility if needed
 async def authenticate_api_key_from_body(api_key: str, session: Session) -> WebhookUser:
     """
     Authenticate API key from request body and return webhook user.

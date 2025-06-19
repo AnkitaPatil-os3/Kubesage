@@ -61,34 +61,89 @@ class KubectlExecutor(BaseExecutor):
                     "command": command
                 }
             
-            # Add kubeconfig if not present
-            if '--kubeconfig' not in command and self.kubeconfig_path:
-                command += f" --kubeconfig {self.kubeconfig_path}"
-            
-            # Add namespace if not present and not a cluster-wide command
-            if '-n ' not in command and '--namespace' not in command and '--all-namespaces' not in command:
-                if any(cmd in command for cmd in ['get', 'describe', 'logs', 'delete', 'create', 'apply']):
-                    command += f" -n {self.namespace}"
-            
-            logger.info(f"Executing kubectl command: {command}")
-            
-            # Execute command asynchronously
-            process = await asyncio.create_subprocess_shell(
-                command,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            )
-            
-            stdout, stderr = await process.communicate()
-            
-            result = {
-                "success": process.returncode == 0,
-                "command": command,
-                "return_code": process.returncode,
-                "stdout": stdout.decode('utf-8') if stdout else "",
-                "stderr": stderr.decode('utf-8') if stderr else ""
-            }
-            
+            # CHANGE: Handle compound commands with && operator
+            if '&&' in command:
+                # Split commands by && and execute them sequentially
+                commands = [cmd.strip() for cmd in command.split('&&')]
+                all_stdout = []
+                all_stderr = []
+                
+                for cmd in commands:
+                    # Add kubeconfig if not present
+                    if '--kubeconfig' not in cmd and self.kubeconfig_path:
+                        cmd += f" --kubeconfig {self.kubeconfig_path}"
+                    
+                    # Add namespace if not present and not a cluster-wide command
+                    if '-n ' not in cmd and '--namespace' not in cmd and '--all-namespaces' not in cmd:
+                        if any(subcmd in cmd for subcmd in ['get', 'describe', 'logs', 'delete', 'create', 'apply']):
+                            cmd += f" -n {self.namespace}"
+                    
+                    logger.info(f"Executing kubectl command: {cmd}")
+                    
+                    # Execute individual command
+                    process = await asyncio.create_subprocess_shell(
+                        cmd,
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.PIPE
+                    )
+                    
+                    stdout, stderr = await process.communicate()
+                    
+                    # If any command fails, return failure
+                    if process.returncode != 0:
+                        return {
+                            "success": False,
+                            "command": command,
+                            "return_code": process.returncode,
+                            "stdout": "\n".join(all_stdout) + stdout.decode('utf-8') if stdout else "\n".join(all_stdout),
+                            "stderr": "\n".join(all_stderr) + stderr.decode('utf-8') if stderr else "\n".join(all_stderr)
+                        }
+                    
+                    # Collect outputs
+                    if stdout:
+                        all_stdout.append(stdout.decode('utf-8'))
+                    if stderr:
+                        all_stderr.append(stderr.decode('utf-8'))
+                
+                # All commands succeeded
+                result = {
+                    "success": True,
+                    "command": command,
+                    "return_code": 0,
+                    "stdout": "\n".join(all_stdout),
+                    "stderr": "\n".join(all_stderr)
+                }
+                
+            else:
+                # EXISTING LOGIC: Single command execution
+                # Add kubeconfig if not present
+                if '--kubeconfig' not in command and self.kubeconfig_path:
+                    command += f" --kubeconfig {self.kubeconfig_path}"
+                
+                # Add namespace if not present and not a cluster-wide command
+                if '-n ' not in command and '--namespace' not in command and '--all-namespaces' not in command:
+                    if any(cmd in command for cmd in ['get', 'describe', 'logs', 'delete', 'create', 'apply']):
+                        command += f" -n {self.namespace}"
+                
+                logger.info(f"Executing kubectl command: {command}")
+                
+                # Execute command asynchronously
+                process = await asyncio.create_subprocess_shell(
+                    command,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE
+                )
+                
+                stdout, stderr = await process.communicate()
+                
+                result = {
+                    "success": process.returncode == 0,
+                    "command": command,
+                    "return_code": process.returncode,
+                    "stdout": stdout.decode('utf-8') if stdout else "",
+                    "stderr": stderr.decode('utf-8') if stderr else ""
+                }
+
             # Try to parse JSON output if possible
             if result["success"] and result["stdout"]:
                 try:
@@ -96,7 +151,7 @@ class KubectlExecutor(BaseExecutor):
                         result["json_output"] = json.loads(result["stdout"])
                 except json.JSONDecodeError:
                     pass
-            
+
             return result
             
         except Exception as e:
@@ -106,7 +161,9 @@ class KubectlExecutor(BaseExecutor):
                 "error": str(e),
                 "command": command
             }
-    
+
+
+
     async def execute_remediation_steps(self, steps: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Execute a list of remediation steps"""
         results = []

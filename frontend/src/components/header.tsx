@@ -219,7 +219,7 @@ export const Header: React.FC<HeaderProps> = ({ toggleChat }) => {
                 startContent={<Icon icon="lucide:key" />}
                 onClick={handleApiKeyManagement}
               >
-                API Keys
+                Webhook API Keys
               </DropdownItem>
               <DropdownItem key="help" startContent={<Icon icon="lucide:help-circle" />}>
                 Help & Documentation
@@ -265,7 +265,7 @@ export const Header: React.FC<HeaderProps> = ({ toggleChat }) => {
               <ModalHeader className="flex flex-col gap-1">
                 <div className="flex items-center gap-2">
                   <Icon icon="lucide:key" className="text-xl" />
-                  API Key Management
+                  Webhook API Key Management
                 </div>
               </ModalHeader>
               <ModalBody>
@@ -274,7 +274,7 @@ export const Header: React.FC<HeaderProps> = ({ toggleChat }) => {
                     <h4 className="text-lg font-semibold">Create New API Key</h4>
                     <Input
                       label="Key Name"
-                      placeholder="Enter API key name"
+                      placeholder="Enter Webhook API key name"
                       value={newKeyName}
                       onChange={(e) => setNewKeyName(e.target.value)}
                     />
@@ -302,7 +302,7 @@ export const Header: React.FC<HeaderProps> = ({ toggleChat }) => {
                     <CardBody>
                       <div className="flex items-center gap-2 mb-2">
                         <Icon icon="lucide:check-circle" className="text-success" />
-                        <span className="font-semibold text-success">API Key Created!</span>
+                        <span className="font-semibold text-success">Webhook API Key Created!</span>
                       </div>
                       <p className="text-sm text-warning mb-2">
                         ⚠️ Copy this key now - it won't be shown again!

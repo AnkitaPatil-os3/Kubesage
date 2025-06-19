@@ -46,7 +46,6 @@ class ExecutorResponse(ExecutorBase):
 # Incident Schemas
 class IncidentWebhookPayload(BaseModel):
     """Schema for incoming incident webhook data"""
-    api_key: str = Field(..., description="API key for authentication")
     metadata: Dict[str, Any]
     reason: str
     message: str

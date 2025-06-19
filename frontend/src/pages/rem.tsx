@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  // Add this line
   AlertTriangle,
   CheckCircle,
-  BoltIcon,
   Clock,
   Play,
   RefreshCw,
@@ -39,11 +37,7 @@ import {
   Info,
   Loader2,
   X,
-  Check,
-  Lightbulb,
-  FileText,
-
-
+  Check
 } from 'lucide-react';
 
 // Types
@@ -128,14 +122,6 @@ interface RemediationsProps {
 
 export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) => {
   // State
-  const [executionModal, setExecutionModal] = useState(false);
-  const [executionResults, setExecutionResults] = useState<any>(null);
-  const [showSolutionModal, setShowSolutionModal] = useState(false);
-  // Add this line with other state variables near the top of the component
-  const [commandOutputs, setCommandOutputs] = useState<Record<string, any>>({});
-
-
-
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [executors, setExecutors] = useState<Executor[]>([]);
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
@@ -145,8 +131,6 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
   const [generatingRemediation, setGeneratingRemediation] = useState<number | null>(null); // Changed from boolean to number | null
   const [executingRemediation, setExecutingRemediation] = useState(false);
   const [activeTab, setActiveTab] = useState<'incidents' | 'executors' | 'health'>('incidents');
-  const [hasExecuted, setHasExecuted] = useState(false);
-
   const [filters, setFilters] = useState({
     type: '',
     namespace: '',
@@ -247,87 +231,64 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
     }
   };
 
-  // MODIFY the generateRemediation function (replace the existing one)
-  const generateRemediation = async (incidentId: number, executeDirectly: boolean = false) => {
-    setGeneratingRemediation(incidentId); // Set to specific incident ID
+  const generateRemediation = async (incidentId: number, execute: boolean = false) => {
+    setGeneratingRemediation(incidentId); // Set the specific incident ID
+    const incident = incidents.find(inc => inc.id === incidentId);
+    setSelectedIncident(incident || null);
     try {
-      let endpoint;
-      let method;
-
-      if (executeDirectly) {
-        // Direct execution - single API call
-        endpoint = `https://10.0.32.103:8004/remediation/incidents/${incidentId}/remediate?execute=true`;
-        method = 'POST';
-      } else {
-        // Just generate solution
-        endpoint = `https://10.0.32.103:8004/remediation/incidents/${incidentId}/remediate`;
-        method = 'POST';
-      }
-
-      const response = await fetch(endpoint, {
-        method: method,
+      const response = await fetch(`${API_BASE}/incidents/${incidentId}/remediate?execute=${execute}`, {
+        method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          incident_id: incidentId
+          incident_id: incidentId,
+          executor_type: "kubectl"
         })
       });
 
+      const data = await response.json();
+
       if (response.ok) {
-        const result = await response.json();
+        data.incident_reason = incident?.reason || 'Unknown Reason';
 
-        // Add incident reason to the response
-        const incident = incidents.find(inc => inc.id === incidentId);
-        result.incident_reason = incident?.reason || 'Unknown Reason';
-
-        if (executeDirectly) {
-          // Show execution results in modal
-          setExecutionResults(result);
-          setExecutionModal(true);
-        } else {
-          // Just show the solution
-          setRemediationSolution(result);
-          setShowSolutionModal(true); // CHANGE: Use setShowSolutionModal instead of setShowRemediationModal
+        setRemediationSolution(data);
+        setShowRemediationModal(true);
+        if (execute) {
+          setExecutingRemediation(true);
         }
       } else {
-        console.error('Failed to process remediation');
+        console.error('Error generating remediation:', data.detail || data);
       }
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error generating remediation:', error);
     } finally {
       setGeneratingRemediation(null); // Reset to null
     }
   };
 
-  const executeRemediationSteps = async (incidentId: number) => {
+
+
+  const executeRemediationSteps = async (incidentId: number, steps: any[]) => {
     setExecutingRemediation(true);
-    setHasExecuted(true); // ADD THIS LINE
     try {
-      const response = await fetch(`https://10.0.32.103:8004/remediation/incidents/${incidentId}/execute`, {
+      const response = await fetch(`${API_BASE}/incidents/${incidentId}/execute`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          remediation_steps: remediationSolution.solution.remediation_steps
+          executor_type: "kubectl"
         })
       });
 
+      const data = await response.json();
+
       if (response.ok) {
-        const result = await response.json();
-        setRemediationSolution(prev => ({
-          ...prev,
-          execution_results: result.results
-        }));
-      } else {
-        const errorText = await response.text();
-        console.error('Failed to execute remediation steps:', errorText);
+        await fetchIncidents(); // Refresh incidents
       }
     } catch (error) {
-      console.error('Error executing steps:', error);
+      console.error('Error executing remediation:', error);
     } finally {
       setExecutingRemediation(false);
     }
@@ -410,106 +371,32 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
     return new Date(timestamp).toLocaleString();
   };
 
-  const [commandStatus, setCommandStatus] = useState<Record<string, string>>({});
-
-  // Add this function near the top with other utility functions
-  const showToast = (message: string, type: 'success' | 'error' | 'warning' = 'success') => {
-    // Simple toast implementation - you can replace with a proper toast library
-    const toast = document.createElement('div');
-    toast.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${type === 'success' ? 'bg-green-500' :
-      type === 'error' ? 'bg-red-500' : 'bg-yellow-500'
-      } text-white`;
-    toast.textContent = message;
-    document.body.appendChild(toast);
-    setTimeout(() => {
-      if (document.body.contains(toast)) {
-        document.body.removeChild(toast);
-      }
-    }, 3000);
-  };
+  const [commandStatus, setCommandStatus] = useState<{ [key: string]: 'copy' | 'execute' | null }>({});
 
   // Update the copy function
-  const copyToClipboard = async (command: string, stepId: number) => {
-    try {
-      await navigator.clipboard.writeText(command);
+  const copyToClipboard = (text: string, stepId: number) => {
+    navigator.clipboard.writeText(text).then(() => {
       setCommandStatus(prev => ({ ...prev, [`${stepId}`]: 'copy' }));
-      showToast('Command copied to clipboard', 'success');
-
-      // Reset status after 2 seconds
       setTimeout(() => {
-        setCommandStatus(prev => ({ ...prev, [`${stepId}`]: '' }));
+        setCommandStatus(prev => ({ ...prev, [`${stepId}`]: null }));
       }, 2000);
-    } catch (error) {
-      showToast('Failed to copy command', 'error');
-    }
+    }).catch(err => {
+      console.error('Failed to copy command: ', err);
+    });
   };
 
+  // Update the execute function
   const executeCommand = async (command: string, stepId: number) => {
     try {
       setCommandStatus(prev => ({ ...prev, [`${stepId}`]: 'execute' }));
-
-      // Find the incident ID from the current remediation solution
-      const incidentId = remediationSolution?.incident_id;
-      if (!incidentId) {
-        throw new Error('No incident ID found');
-      }
-
-      // Execute the command via the correct API endpoint
-      const response = await fetch(`${API_BASE}/incidents/${incidentId}/execute`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-        },
-        body: JSON.stringify({
-          remediation_steps: [{
-            step_id: stepId,
-            action_type: "REMEDIATION",
-            description: `Execute command: ${command}`,
-            command: command,
-            expected_outcome: "Command executed successfully",
-            critical: false,
-            timeout_seconds: 300
-          }]
-        })
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-
-        // Store the command output
-        setCommandOutputs(prev => ({
-          ...prev,
-          [`${stepId}`]: {
-            success: result.successful_steps > 0,
-            output: result.results?.[0]?.output || 'Command executed successfully',
-            error: result.results?.[0]?.error || null,
-            executed_at: new Date().toISOString()
-          }
-        }));
-
-        showToast(
-          result.successful_steps > 0 ? 'Command executed successfully' : 'Command execution failed',
-          result.successful_steps > 0 ? 'success' : 'error'
-        );
-      } else {
-        const errorData = await response.json();
-        console.error('API Error:', errorData);
-        throw new Error(errorData.detail || 'Failed to execute command');
-      }
-
-      // Reset status after 2 seconds
+      console.log(`Executing command: ${command}`);
       setTimeout(() => {
-        setCommandStatus(prev => ({ ...prev, [`${stepId}`]: '' }));
+        setCommandStatus(prev => ({ ...prev, [`${stepId}`]: null }));
       }, 2000);
     } catch (error) {
-      console.error('Execute command error:', error);
-      showToast('Failed to execute command', 'error');
-      setCommandStatus(prev => ({ ...prev, [`${stepId}`]: '' }));
+      console.error('Error executing command:', error);
     }
   };
-
-
 
   // Animation variants
   const containerVariants = {
@@ -538,7 +425,7 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
 
   return (
     <motion.div
-      className="space-y-6 dark:bg-gray-900 min-h-screen"
+      className="space-y-6"
       variants={containerVariants}
       initial="hidden"
       animate="show"
@@ -1343,16 +1230,15 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
         </motion.div>
       )}
 
-
       {/* Remediation Solution Modal */}
       <AnimatePresence>
-        {showSolutionModal && remediationSolution && ( // CHANGE: Use showSolutionModal instead of showRemediationModal
+        {showRemediationModal && remediationSolution && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 dark:bg-black dark:bg-opacity-70"
-            onClick={() => setShowSolutionModal(false)} // CHANGE: Use setShowSolutionModal
+            onClick={() => setShowRemediationModal(false)}
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
@@ -1366,267 +1252,204 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <div className="p-2 bg-white/20 rounded-lg">
-                      <BoltIcon className="w-6 h-6" />
+                      <Zap className="w-6 h-6" />
                     </div>
                     <div>
                       <h2 className="text-xl font-bold">AI Remediation Solution</h2>
-                      <p className="text-green-100">Reason: {remediationSolution.incident_reason}</p>
-                    </div>
+                      <p className="text-green-100">Reason: {remediationSolution.incident_reason}</p>                  </div>
+
                   </div>
                   <button
-                    onClick={() => setShowSolutionModal(false)}
+                    onClick={() => setShowRemediationModal(false)}
                     className="p-2 hover:bg-white/20 rounded-lg transition-colors"
                   >
                     <X className="w-5 h-5" />
                   </button>
                 </div>
-
               </div>
 
-
-              {/* Modal Body */}
-              <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
-                <div className="space-y-6">
-                  {/* Confidence and Metadata */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="bg-green-50 p-4 rounded-lg text-center dark:bg-green-900/20">
-                      <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                        {Math.round(remediationSolution.solution.confidence_score * 100)}%
+              {/* Modal Content */}
+              <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)] dark:bg-gray-800">
+                {/* Solution Overview */}
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Solution Overview</h3>
+                    <div className="flex items-center space-x-4">
+                      <div className="flex items-center space-x-2">
+                        <TrendingUp className="w-4 h-4 text-green-600" />
+                        <span className="text-sm font-medium text-green-600">
+                          {Math.round(remediationSolution.solution.confidence_score * 100)}% Confidence
+                        </span>
                       </div>
-                      <div className="text-green-700 text-sm dark:text-green-300">Confidence</div>
-                    </div>
-                    <div className="bg-blue-50 p-4 rounded-lg text-center dark:bg-blue-900/20">
-                      <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                        {remediationSolution.solution.estimated_time_mins}m
+                      <div className="flex items-center space-x-2">
+                        <Clock className="w-4 h-4 text-blue-600" />
+                        <span className="text-sm font-medium text-blue-600">
+                          {remediationSolution.solution.estimated_time_mins} mins
+                        </span>
                       </div>
-                      <div className="text-blue-700 text-sm dark:text-blue-300">Est. Time</div>
-                    </div>
-                    <div className="bg-purple-50 p-4 rounded-lg text-center dark:bg-purple-900/20">
-                      <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                        {remediationSolution.solution.executor_type}
-                      </div>
-                      <div className="text-purple-700 text-sm dark:text-purple-300">Executor</div>
                     </div>
                   </div>
-                  {/* Solution Summary */}
-                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-200 dark:from-blue-900/20 dark:to-indigo-900/20 dark:border-blue-700">
-                    <h3 className="font-semibold text-blue-900 mb-2 flex items-center dark:text-blue-100">
-                      <Lightbulb className="w-5 h-5 mr-2" />
-                      Solution Summary
-                    </h3>
-                    <p className="text-blue-800 dark:text-blue-200">{remediationSolution.solution.solution_summary}</p>
-                  </div>
 
-                  {/* Detailed Solution */}
-                  <div className="bg-gray-50 p-4 rounded-xl dark:bg-gray-700">
-                    <h3 className="font-semibold text-gray-900 mb-2 flex items-center dark:text-gray-100">
-                      <FileText className="w-5 h-5 mr-2" />
-                      Detailed Analysis
-                    </h3>
-                    <p className="text-gray-700 whitespace-pre-wrap dark:text-gray-300">{remediationSolution.solution.detailed_solution}</p>
-                  </div>
+                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 border border-green-300 dark:from-green-900/30 dark:to-emerald-900/30 dark:border-green-600">
 
-                  {/* Remediation Steps */}
+                    <p className="text-gray-700 dark:text-gray-200">{remediationSolution.solution.solution_summary}</p>
+                  </div>
+                </div>
+
+                {/* Prerequisites */}
+                {remediationSolution.solution.prerequisites && remediationSolution.solution.prerequisites.length > 0 && (
                   <div className="mb-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4 dark:text-gray-100">Remediation Steps</h3>
-                    <div className="space-y-4">
-                      {remediationSolution.solution.remediation_steps.map((step, index) => (
-                        <div key={index} className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-sm transition-shadow dark:bg-gray-700 dark:border-gray-600">
-                          <div className="flex items-start space-x-4">
-                            <div className="flex-shrink-0">
-                              <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-full flex items-center justify-center font-semibold text-sm">
-                                {step.step_id}
-                              </div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3 dark:text-gray-100">Prerequisites</h3>
+                    <div className="bg-amber-50 rounded-xl p-4 border border-amber-200 dark:bg-amber-900/30 dark:border-amber-600">
+                      <ul className="space-y-2">
+                        {remediationSolution.solution.prerequisites.map((prereq, index) => (
+                          <li key={index} className="flex items-start space-x-2">
+                            <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                            <span className="text-amber-800 dark:text-amber-200">{prereq}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                )}
+
+
+                {/* Remediation Steps */}
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 dark:text-gray-100">Remediation Steps</h3>
+                  <div className="space-y-4">
+                    {remediationSolution.solution.remediation_steps.map((step, index) => (
+                      <div key={index} className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-sm transition-shadow dark:bg-gray-700 dark:border-gray-600">
+                        <div className="flex items-start space-x-4">
+                          <div className="flex-shrink-0">
+                            <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-full flex items-center justify-center font-semibold text-sm">
+                              {step.step_id}
                             </div>
-                            <div className="flex-1">
-                              <div className="flex items-center justify-between mb-2">
-                                <h4 className="font-medium text-gray-900 dark:text-gray-100">{step.action_type}</h4>
-                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${step.critical ? 'text-red-600 bg-red-100' : 'text-green-600 bg-green-100'
-                                  }`}>
-                                  {step.critical ? 'Critical' : 'Safe'}
-                                </span>
-                              </div>
-                              <p className="text-gray-600 text-sm mb-3 dark:text-gray-300">{step.description}</p>
-                              <div className="bg-gray-900 rounded-lg p-3 relative group dark:bg-gray-800">
-                                <code className="text-green-400 text-sm font-mono pr-20">{step.command}</code>
-                                <div className="absolute top-2 right-2 flex space-x-2">
-                                  <button
-                                    onClick={() => copyToClipboard(step.command, step.step_id)}
-                                    className="p-1.5 bg-gray-700 hover:bg-gray-600 rounded text-gray-300 hover:text-white transition-colors border border-gray-600 dark:bg-gray-600 dark:hover:bg-gray-500 dark:border-gray-500"
-                                  >
-                                    {commandStatus[`${step.step_id}`] === 'copy' ? (
-                                      <CheckCircle className="w-4 h-4 text-green-400" />
-                                    ) : (
-                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                                      </svg>
-                                    )}
-                                  </button>
-                                  <button
-                                    onClick={() => executeCommand(step.command, step.step_id)}
-                                    className="p-1.5 bg-green-600 hover:bg-green-500 rounded text-white transition-colors border border-green-500 dark:bg-green-700 dark:hover:bg-green-600 dark:border-green-600"
-                                  >
-                                    {commandStatus[`${step.step_id}`] === 'execute' ? (
-                                      <Loader2 className="w-4 h-4 animate-spin" />
-                                    ) : (
-                                      <Terminal className="w-4 h-4" />
-                                    )}
-                                  </button>
-                                </div>
-                              </div>
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between mb-2">
+                              <h4 className="font-medium text-gray-900 dark:text-gray-100">{step.action_type}</h4>
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${step.critical ? 'text-red-600 bg-red-100' : 'text-green-600 bg-green-100'
+                                }`}>
+                                {step.critical ? 'Critical' : 'Safe'}
+                              </span>
+                            </div>
+                            <p className="text-gray-600 text-sm mb-3 dark:text-gray-300">{step.description}</p>
+                            <div className="bg-gray-900 rounded-lg p-3 relative group dark:bg-gray-800">
+                              <code className="text-green-400 text-sm font-mono pr-20">{step.command}</code>
+                              <div className="absolute top-2 right-2 flex space-x-2">
+                                <button
+                                  onClick={() => copyToClipboard(step.command, step.step_id)}
+                                  className="p-1.5 bg-gray-700 hover:bg-gray-600 rounded text-gray-300 hover:text-white transition-colors border border-gray-600 dark:bg-gray-600 dark:hover:bg-gray-500 dark:border-gray-500"
 
-                              {/* Command Output Section */}
-                              {commandOutputs[`${step.step_id}`] && (
-                                <div className="mt-3 bg-gray-50 rounded-lg p-3 dark:bg-gray-700">
-                                  <div className="flex items-center justify-between mb-2">
-                                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                      Command Output
-                                    </span>
-                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${commandOutputs[`${step.step_id}`].success
-                                      ? 'bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-200'
-                                      : 'bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-200'
-                                      }`}>
-                                      {commandOutputs[`${step.step_id}`].success ? 'Success' : 'Failed'}
-                                    </span>
-                                  </div>
-
-                                  {/* Output */}
-                                  {commandOutputs[`${step.step_id}`].output && (
-                                    <div className="mb-2">
-                                      <div className="text-xs text-gray-600 mb-1 dark:text-gray-400">Output:</div>
-                                      <pre className="bg-gray-900 text-green-400 p-2 rounded text-xs overflow-x-auto max-h-32 dark:bg-gray-800">
-                                        {commandOutputs[`${step.step_id}`].output}
-                                      </pre>
-                                    </div>
+                                >
+                                  {commandStatus[`${step.step_id}`] === 'copy' ? (
+                                    <Check className="w-4 h-4 text-green-400" />
+                                  ) : (
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                    </svg>
                                   )}
+                                </button>
+                                <button
+                                  onClick={() => executeCommand(step.command, step.step_id)}
+                                  className="p-1.5 bg-green-600 hover:bg-green-500 rounded text-white transition-colors border border-green-500 dark:bg-green-700 dark:hover:bg-green-600 dark:border-green-600"
 
-                                  {/* Error */}
-                                  {commandOutputs[`${step.step_id}`].error && (
-                                    <div className="mb-2">
-                                      <div className="text-xs text-red-600 mb-1 dark:text-red-400">Error:</div>
-                                      <pre className="bg-red-100 text-red-800 p-2 rounded text-xs overflow-x-auto max-h-32 dark:bg-red-900/30 dark:text-red-300">
-                                        {commandOutputs[`${step.step_id}`].error}
-                                      </pre>
-                                    </div>
+                                >
+                                  {commandStatus[`${step.step_id}`] === 'execute' ? (
+                                    <Check className="w-4 h-4" />
+                                  ) : (
+                                    <Terminal className="w-4 h-4" />
                                   )}
-
-                                  <div className="text-xs text-gray-500 dark:text-gray-400">
-                                    Executed at: {new Date(commandOutputs[`${step.step_id}`].executed_at).toLocaleString()}
-                                  </div>
-                                </div>
-                              )}
-
+                                </button>
+                              </div>
                             </div>
                           </div>
                         </div>
-                      ))}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+
+                {/* Prerequisites - Remove this section or make it conditional */}
+                {remediationSolution.solution.additional_notes && (
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3 dark:text-gray-100">Additional Notes</h3>
+                    <div className="bg-amber-50 rounded-xl p-4 border border-amber-200 dark:bg-amber-900/30 dark:border-amber-600">
+                      <p className="text-amber-800 dark:text-amber-200">{remediationSolution.solution.additional_notes}</p>
                     </div>
                   </div>
+                )}
 
 
 
+                {/* Execution Status */}
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3 dark:text-gray-100">Execution Status</h3>
+                  <div className={`p-4 rounded-xl border ${remediationSolution.execution_status === 'generated' ? 'bg-green-50 border-green-300 dark:bg-green-900/30 dark:border-green-600' :
+                    remediationSolution.execution_status === 'executing' ? 'bg-amber-50 border-amber-200 dark:bg-amber-900/30 dark:border-amber-600' :
+                      remediationSolution.execution_status === 'completed_successfully' ? 'bg-green-50 border-green-200 dark:bg-green-900/30 dark:border-green-600' :
+                        remediationSolution.execution_status === 'partially_completed' ? 'bg-amber-50 border-amber-200 dark:bg-amber-900/30 dark:border-amber-600' :
+                          'bg-red-50 border-red-200 dark:bg-red-900/30 dark:border-red-600'
+                    }`}>
 
-                  {/* Additional Notes */}
-                  {remediationSolution.solution.additional_notes && (
-                    <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-700">
-                      <h3 className="font-semibold text-yellow-900 mb-2 flex items-center dark:text-yellow-100">
-                        <AlertTriangle className="w-5 h-5 mr-2" />
-                        Important Notes
-                      </h3>
-                      <p className="text-yellow-800 dark:text-yellow-200">{remediationSolution.solution.additional_notes}</p>
-                    </div>
-                  )}
-                  {/* Execution Results - ADD THIS SECTION */}
-                  {remediationSolution.execution_results && (
-                    <div className="bg-gray-50 p-4 rounded-xl dark:bg-gray-700">
-                      <h3 className="font-semibold text-gray-900 mb-4 flex items-center dark:text-gray-100">
-                        <Settings className="w-5 h-5 mr-2" />
-                        Execution Results
-                      </h3>
-                      <div className="space-y-3">
-                        {remediationSolution.execution_results.map((result: any, index: number) => (
-                          <div key={index} className={`p-3 rounded-lg border-l-4 ${result.success
-                            ? 'border-green-500 bg-green-50 dark:bg-green-900/20 dark:border-green-400'
-                            : 'border-red-500 bg-red-50 dark:bg-red-900/20 dark:border-red-400'
-                            }`}>
-                            <div className="flex items-center space-x-2 mb-2">
-                              {result.success ? (
-                                <div className="w-5 h-5 bg-green-500 text-white rounded-full flex items-center justify-center text-xs font-medium dark:bg-green-400">
-                                  ✓
-                                </div>
-                              ) : (
-                                <div className="w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs font-medium dark:bg-red-400">
-                                  ✗
-                                </div>
-                              )}
-                              <span className="font-medium text-sm text-gray-900 dark:text-gray-100">
-                                Step {index + 1}: {result.description || result.command}
-                              </span>
-                            </div>
-
-                            {/* Command */}
-                            <div className="mb-2">
-                              <div className="text-xs text-gray-600 mb-1 dark:text-gray-400">Command:</div>
-                              <div className="bg-gray-900 text-green-400 p-2 rounded font-mono text-xs overflow-x-auto dark:bg-gray-800">
-                                {result.command}
-                              </div>
-                            </div>
-
-                            {/* Output */}
-                            {result.output && (
-                              <div className="mb-2">
-                                <div className="text-xs text-gray-600 mb-1 dark:text-gray-400">Output:</div>
-                                <pre className="bg-gray-100 text-gray-800 p-2 rounded text-xs overflow-x-auto whitespace-pre-wrap dark:bg-gray-600 dark:text-gray-200">
-                                  {result.output}
-                                </pre>
-                              </div>
-                            )}
-
-                            {/* Error */}
-                            {result.error && (
-                              <div>
-                                <div className="text-xs text-red-600 mb-1 dark:text-red-400">Error:</div>
-                                <pre className="bg-red-100 text-red-800 p-2 rounded text-xs overflow-x-auto whitespace-pre-wrap dark:bg-red-900/30 dark:text-red-300">
-                                  {result.error}
-                                </pre>
-                              </div>
-                            )}
-                          </div>
-                        ))}
+                    <div className="flex items-center space-x-3 ">
+                      {remediationSolution.execution_status === 'executing' ? (
+                        <Loader2 className="w-5 h-5 animate-spin text-amber-600" />
+                      ) : remediationSolution.execution_status === 'completed_successfully' ? (
+                        <CheckCircle className="w-5 h-5 text-green-600" />
+                      ) : remediationSolution.execution_status === 'generated' ? (
+                        <Eye className="w-5 h-5 text-blue-600" />
+                      ) : (
+                        <AlertTriangle className="w-5 h-5 text-red-600" />
+                      )}
+                      <div>
+                        <p className="font-medium text-gray-900 capitalize">
+                          {remediationSolution.execution_status.replace('_', ' ')}
+                        </p>
+                        <p className="text-sm text-gray-600 dark:text-gray-300">
+                          Generated at {formatTimestamp(remediationSolution.timestamp)}
+                        </p>
                       </div>
                     </div>
-                  )}
+                  </div>
                 </div>
-              </div>
 
-              {/* Modal Footer */}
-              <div className="bg-gray-50 px-6 py-4 flex justify-between items-center dark:bg-gray-700">
-                <button
-                  onClick={() => setShowSolutionModal(false)} // CHANGE: Use setShowSolutionModal
-                  className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors dark:text-gray-400 dark:hover:text-gray-200"
-                >
-                  Close
-                </button>
-                <div className="flex space-x-3">
+                {/* Action Buttons */}
+                <div className="flex items-center justify-end space-x-4 pt-6 border-t border-gray-200 dark:border-gray-600">
                   <button
-                    onClick={() => executeRemediationSteps(remediationSolution.incident_id)}
-                    disabled={executingRemediation || hasExecuted} // CHANGE: Add hasExecuted condition
-                    className="flex items-center space-x-2 px-6 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg hover:from-green-600 hover:to-emerald-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed dark:from-green-600 dark:to-emerald-600 dark:hover:from-green-700 dark:hover:to-emerald-700"
+                    onClick={() => setShowRemediationModal(false)}
+                    className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors dark:text-gray-100 dark:bg-gray-800 dark:border-gray-600 dark:hover:bg-gray-700"
+
                   >
-                    {executingRemediation ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Play className="w-4 h-4" />
-                    )}
-                    <span>{hasExecuted ? "Executed" : "Execute Automatically"}</span> {/* CHANGE: Show different text */}
+                    Close
                   </button>
+
+                  {remediationSolution.execution_status === 'generated' && (
+                    <>
+                      <button
+                        onClick={() => generateRemediation(remediationSolution.incident_id, true)}
+                        disabled={executingRemediation}
+                        className="flex items-center space-x-2 px-6 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg hover:from-green-600 hover:to-emerald-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed dark:from-green-600 dark:to-emerald-600 dark:hover:from-green-700 dark:hover:to-emerald-700"
+
+                      >
+                        {executingRemediation ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Play className="w-4 h-4" />
+                        )}
+                        <span>Execute Automatically</span>
+                      </button>
+
+                    </>
+                  )}
                 </div>
               </div>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
-
     </motion.div>
   );
 };
