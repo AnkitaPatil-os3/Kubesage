@@ -90,13 +90,16 @@ async def receive_incident_webhook(
     Webhook endpoint to receive Kubernetes incidents and store important data in database.
     Requires valid API key in X-API-Key header.
     """
-    print("Incoming payload:", payload)
+    print("---------------------- Incoming payload ------------------", payload)
+    print("----------------------------- x_api_key -----------------:", x_api_key)
+    print("----------------------------- session -----------------:", session)
+
     try:
         # Authenticate using API key from request header
         webhook_user = await authenticate_api_key_from_header(x_api_key, session)
-        print("Authenticated user:", webhook_user)
         
         logger.info(f"Webhook called by user: {webhook_user.username} (ID: {webhook_user.user_id})")
+        
         # Generate unique incident ID if not provided
         incident_id = payload.metadata.get("uid", str(uuid.uuid4()))
         
@@ -138,8 +141,12 @@ async def receive_incident_webhook(
             involved_object_annotations=payload.involvedObject.get("annotations", {})
         )
         
-        # Create incident record
-        incident = Incident(**incident_data.dict())
+        # Create incident record - EXCLUDE user_id from dict()
+        incident_dict = incident_data.dict()
+        # Remove any user_id if it exists
+        incident_dict.pop('user_id', None)
+        
+        incident = Incident(**incident_dict)
         
         # Link incident to webhook user
         incident.webhook_user_id = webhook_user.id
@@ -160,9 +167,6 @@ async def receive_incident_webhook(
         session.refresh(incident)
         
         logger.info(f"Created new incident: {incident_id}")
-        
-        # Log incident event
-        logger.info(f"Incident event: incident_received - ID: {incident.id}, Type: {incident.type.value}, Reason: {incident.reason}")
         
         return JSONResponse(content={
             "message": "Incident received and stored",
@@ -295,10 +299,9 @@ async def activate_executor(
     logger.info(f"Activated executor: {executor.name.value}")
     return JSONResponse(content={"message": f"Executor {executor.name.value} activated"}, status_code=200)
 
-
+from .auth import get_current_user
 
 # Incident management endpoints
-
 @remediation_router.get("/incidents", response_model=IncidentList,
                        summary="List Incidents",
                        description="Get list of incidents with filtering options")
@@ -309,11 +312,17 @@ async def list_incidents(
     namespace: Optional[str] = Query(None),
     resolved: Optional[bool] = Query(None),
     session: Session = Depends(get_session),
+    current_user: Dict = Depends(get_current_user)
 ):
-    """List incidents with filtering and pagination"""
-    query = select(Incident)
+    """List incidents with filtering and pagination for authenticated user"""
     
-    # Apply filters
+    # Get user ID from current_user
+    user_id = current_user["id"]
+    
+    # Base query - join with webhook_users to filter by current user
+    query = select(Incident).join(WebhookUser).where(WebhookUser.user_id == user_id)
+    
+    # Apply additional filters
     if incident_type:
         query = query.where(Incident.type == incident_type)
     if namespace:
@@ -321,8 +330,8 @@ async def list_incidents(
     if resolved is not None:
         query = query.where(Incident.is_resolved == resolved)
     
-    # Get total count
-    total_query = select(Incident)
+    # Count query with same filters
+    total_query = select(Incident).join(WebhookUser).where(WebhookUser.user_id == user_id)
     if incident_type:
         total_query = total_query.where(Incident.type == incident_type)
     if namespace:
@@ -372,11 +381,12 @@ async def list_incidents(
             "count": incident.count,
             "first_timestamp": incident.first_timestamp,
             "last_timestamp": incident.last_timestamp,
-            "involved_object_labels": labels,  # Parsed JSON or None
-            "involved_object_annotations": annotations,  # Parsed JSON or None
+            "involved_object_labels": labels,
+            "involved_object_annotations": annotations,
             "is_resolved": incident.is_resolved,
             "resolution_attempts": incident.resolution_attempts,
             "last_resolution_attempt": incident.last_resolution_attempt,
+            "webhook_user_id": incident.webhook_user_id,
             "executor_id": incident.executor_id,
             "created_at": incident.created_at,
             "updated_at": incident.updated_at
@@ -396,12 +406,19 @@ async def list_incidents(
                        description="Get detailed information about a specific incident")
 async def get_incident(
     id: int,
-    session: Session = Depends(get_session)
-):
-    """Get detailed information about a specific incident"""
+    session: Session = Depends(get_session),
+    current_user: Dict = Depends(get_current_user)):
+
+    """Get detailed information about a specific incident for authenticated user"""
+
+    # CHANGED: Get user_id from current_user
+    user_id = current_user["id"]
+    
+    # CHANGED: Get incident with webhook_user filter based on current_user
     incident = session.exec(
-        select(Incident).where(
-            Incident.id == id
+        select(Incident).join(WebhookUser).where(
+            Incident.id == id,
+            WebhookUser.user_id == user_id
         )
     ).first()
     
@@ -445,6 +462,7 @@ async def get_incident(
         "is_resolved": incident.is_resolved,
         "resolution_attempts": incident.resolution_attempts,
         "last_resolution_attempt": incident.last_resolution_attempt,
+        "webhook_user_id": incident.webhook_user_id,
         "executor_id": incident.executor_id,
         "created_at": incident.created_at,
         "updated_at": incident.updated_at
@@ -453,6 +471,112 @@ async def get_incident(
     return IncidentResponse(**incident_dict)
 
 
+
+async def execute_remediation_background(
+    incident_id: str,
+    executor_type: ExecutorType,
+    kubeconfig_path: str,
+    namespace: str,
+    user_id: str
+) -> Dict[str, Any]:
+    """Execute remediation completely in background without blocking other requests"""
+    
+    try:
+        logger.info(f"Starting background remediation for user {user_id}, incident: {incident_id}")
+        
+        # Create new database session for this background task
+        with Session(engine) as session:
+            # Get incident from database
+            incident = session.get(Incident, incident_id)
+            if not incident:
+                raise Exception(f"Incident {incident_id} not found")
+            
+            # Initialize LLM service
+            llm_service = RemediationLLMService()
+            
+            # Generate remediation solution (truly async now)
+            cluster_context = {
+                "kubeconfig_path": kubeconfig_path,
+                "namespace": namespace,
+                "cluster_type": "kubernetes"
+            }
+            
+            solution = await llm_service.generate_remediation_solution(
+                incident=incident,
+                executor_type=executor_type,
+                cluster_context=cluster_context,
+                user_id=user_id
+            )
+            
+            # Get executor configuration
+            executor_config = {
+                'kubeconfig_path': kubeconfig_path,
+                'namespace': namespace
+            }
+            
+            # Get executor instance
+            executor = get_executor_instance(executor_type, executor_config)
+            
+            # Execute remediation steps
+            execution_results = []
+            if solution.get("remediation_steps"):
+                logger.info(f"Executing {len(solution['remediation_steps'])} remediation steps for user {user_id}")
+                execution_results = await executor.execute_remediation_steps(
+                    solution["remediation_steps"], 
+                    user_id=user_id
+                )
+            
+            # Update incident status in database
+            incident.resolution_attempts += 1
+            incident.last_resolution_attempt = datetime.utcnow()
+            incident.executor_id = session.exec(
+                select(Executor.id).where(Executor.name == executor_type)
+            ).first()
+            incident.updated_at = datetime.utcnow()
+            
+            # Check if remediation was successful
+            successful_steps = sum(1 for result in execution_results if result.get("success", False))
+            total_steps = len(execution_results)
+            
+            if successful_steps == total_steps and total_steps > 0:
+                incident.is_resolved = True
+            
+            session.add(incident)
+            session.commit()
+            
+            logger.info(f"Background remediation completed for user {user_id}: {successful_steps}/{total_steps} steps successful")
+            
+            return {
+                "incident_id": incident_id,
+                "user_id": user_id,
+                "executor_type": executor_type.value,
+                "solution": solution,
+                "execution_results": execution_results,
+                "summary": {
+                    "total_steps": total_steps,
+                    "successful_steps": successful_steps,
+                    "success_rate": (successful_steps / total_steps * 100) if total_steps > 0 else 0,
+                    "overall_success": successful_steps == total_steps and total_steps > 0
+                },
+                "timestamp": datetime.utcnow().isoformat()
+            }
+            
+    except Exception as e:
+        logger.error(f"Background remediation failed for user {user_id}: {str(e)}")
+        
+        # Update incident status to failed in separate session
+        try:
+            with Session(engine) as session:
+                incident = session.get(Incident, incident_id)
+                if incident:
+                    incident.resolution_attempts += 1
+                    incident.last_resolution_attempt = datetime.utcnow()
+                    incident.updated_at = datetime.utcnow()
+                    session.add(incident)
+                    session.commit()
+        except Exception as db_error:
+            logger.error(f"Failed to update incident status for user {user_id}: {str(db_error)}")
+        
 
 # Remediation endpoints
 
@@ -465,6 +589,7 @@ async def remediate_incident(
     background_tasks: BackgroundTasks,
     execute: bool = Query(False, description="Whether to execute the remediation automatically"),
     session: Session = Depends(get_session),
+    current_user: Dict = Depends(get_current_user) 
 ):
     """
     Generate remediation solution for ANY type of incident using LLM.
@@ -485,8 +610,17 @@ async def remediate_incident(
             detail="LLM functionality is disabled. Please enable it in settings to use AI remediation."
         )
     
-    # Get incident
-    incident = session.get(Incident, incident_id)
+    # CHANGED: Get user_id from current_user
+    user_id = current_user["id"]
+    
+    # CHANGED: Get incident with webhook_user filter based on current_user
+    incident = session.exec(
+        select(Incident).join(WebhookUser).where(
+            Incident.id == incident_id,
+            WebhookUser.user_id == user_id
+        )
+    ).first()
+    
     if not incident:
         raise HTTPException(status_code=404, detail="Incident not found")
     
@@ -632,6 +766,7 @@ async def execute_remediation_background(
         # Log execution failure event (instead of publishing to queue)
         logger.error(f"Remediation execution failed - Incident: {incident_id}, Error: {str(e)}")
 
+
 @remediation_router.post("/incidents/{id}/execute",
                         summary="Execute Remediation Steps",
                         description="Execute specific remediation steps for an incident")
@@ -640,10 +775,21 @@ async def execute_remediation_steps(
     request: Dict[str, Any],
     executor_type: Optional[ExecutorType] = Query(None),
     session: Session = Depends(get_session),
-):
+    current_user: Dict = Depends(get_current_user)):
+
     """Execute specific remediation steps for an incident"""
-    # Get incident
-    incident = session.get(Incident, id)
+
+     # CHANGED: Get user_id from current_user
+    user_id = current_user["id"]
+    
+    # CHANGED: Get incident with webhook_user filter based on current_user
+    incident = session.exec(
+        select(Incident).join(WebhookUser).where(
+            Incident.id == id,
+            WebhookUser.user_id == user_id
+        )
+    ).first()
+    
     if not incident:
         raise HTTPException(status_code=404, detail="Incident not found")
     

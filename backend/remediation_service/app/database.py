@@ -4,7 +4,7 @@ from app.config import settings
 engine = create_engine(settings.DATABASE_URL)
 
 # Make sure your create_db_and_tables function includes the new model
-from app.models import WebhookUser  # ADD THIS IMPORT
+# from app.models import WebhookUser  # ADD THIS IMPORT
 
 def create_db_and_tables():
     """Create database tables - REMOVE DROP_ALL"""

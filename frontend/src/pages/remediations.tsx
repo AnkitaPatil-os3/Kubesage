@@ -165,35 +165,41 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
   const API_BASE = 'https://10.0.32.103:8004/remediation';
 
   // Fetch data functions
-  const fetchIncidents = async () => {
-    try {
-      const params = new URLSearchParams({
-        page: pagination.page.toString(),
-        per_page: pagination.per_page.toString(),
-      });
+const fetchIncidents = async () => {
+  try {
+    const params = new URLSearchParams({
+      page: pagination.page.toString(),
+      per_page: pagination.per_page.toString(),
+    });
 
-      // Add filters only if they have values
-      if (filters.type) {
-        params.append('incident_type', filters.type);
-      }
-      if (filters.namespace) {
-        params.append('namespace', filters.namespace);
-      }
-      if (filters.resolved) {
-        params.append('resolved', filters.resolved);
-      }
-
-      const response = await fetch(`${API_BASE}/incidents?${params}`);
-      const data = await response.json();
-
-      if (response.ok) {
-        setIncidents(data.incidents || []);
-        setPagination(prev => ({ ...prev, total: data.total || 0 }));
-      }
-    } catch (error) {
-      console.error('Error fetching incidents:', error);
+    // Add filters only if they have values
+    if (filters.type) {
+      params.append('incident_type', filters.type);
     }
-  };
+    if (filters.namespace) {
+      params.append('namespace', filters.namespace);
+    }
+    if (filters.resolved) {
+      params.append('resolved', filters.resolved);
+    }
+
+    const response = await fetch(`${API_BASE}/incidents?${params}`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+        'X-API-Key': localStorage.getItem('access_token') // ADD THIS LINE
+      }
+    });
+    const data = await response.json();
+
+    if (response.ok) {
+      setIncidents(data.incidents || []);
+      setPagination(prev => ({ ...prev, total: data.total || 0 }));
+    }
+  } catch (error) {
+    console.error('Error fetching incidents:', error);
+  }
+};
+
 
   const fetchExecutors = async () => {
     try {

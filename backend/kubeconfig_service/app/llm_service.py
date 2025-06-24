@@ -1,6 +1,8 @@
 import os
 import json
 import logging
+import asyncio
+from functools import partial
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 from openai import OpenAI
@@ -20,35 +22,40 @@ class K8sLLMService:
             
         self.client = OpenAI(
             api_key=settings.OPENAI_API_KEY,
-            base_url=settings.OPENAI_BASE_URL
+            base_url=settings.OPENAI_BASE_URL,
+            timeout=600.0  # 10 minutes timeout for the client
         )
         self.model = settings.OPENAI_MODEL
         
-    def generate_solution(
+    def _generate_solution_sync(
         self,
         error_text: str,
         kind: Optional[str] = None,
         name: Optional[str] = None,
         namespace: Optional[str] = None,
-        context: Optional[Dict[str, Any]] = None
+        context: Optional[Dict[str, Any]] = None,
+        user_id: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Generate a solution for a Kubernetes problem using LLM"""
+        """Synchronous solution generation - will be run in executor"""
         
         try:
+            logger.info(f"Generating solution for user {user_id}, resource: {kind}/{name}")
+            
             # Prepare the prompt
             system_prompt = self._get_system_prompt()
             user_prompt = self._build_user_prompt(error_text, kind, name, namespace, context)
             
-            # Call OpenAI API with optimized settings
+            # Call OpenAI API with 10-minute timeout
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
                 ],
-                temperature=0.1,  # Lower for faster, more consistent responses
-                max_tokens=1200,  # Reduced from 2000 for faster response
-                response_format={"type": "json_object"}
+                temperature=0.1,
+                max_tokens=1200,  # Increased back for better solutions
+                response_format={"type": "json_object"},
+                timeout=600  # 10 minutes (600 seconds) timeout
             )
             
             # Check if response has content
@@ -66,14 +73,15 @@ class K8sLLMService:
             try:
                 solution_data = json.loads(response_content)
             except json.JSONDecodeError as e:
-                logger.error(f"Failed to parse JSON response: {response_content}")
+                logger.error(f"Failed to parse JSON response for user {user_id}: {response_content}")
                 raise ValueError(f"Invalid JSON response from OpenAI: {str(e)}")
             
             # Validate and structure the response
+            logger.info(f"Solution generated successfully for user {user_id}")
             return self._validate_solution_response(solution_data)
             
         except Exception as e:
-            logger.error(f"Error generating solution: {str(e)}")
+            logger.error(f"Error generating solution for user {user_id}: {str(e)}")
             # Return a fallback solution structure
             return {
                 "solution_summary": f"Error generating solution: {str(e)}",
@@ -82,6 +90,55 @@ class K8sLLMService:
                 "confidence_score": 0.0,
                 "estimated_time_mins": 30,
                 "additional_notes": f"Error details: {str(e)}"
+            }
+    
+    async def generate_solution(
+        self,
+        error_text: str,
+        kind: Optional[str] = None,
+        name: Optional[str] = None,
+        namespace: Optional[str] = None,
+        context: Optional[Dict[str, Any]] = None,
+        user_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Generate a solution for a Kubernetes problem using LLM (async)"""
+        
+        loop = asyncio.get_event_loop()
+        
+        # Use asyncio.wait_for with 10-minute timeout
+        try:
+            return await asyncio.wait_for(
+                loop.run_in_executor(
+                    None,
+                    partial(
+                        self._generate_solution_sync,
+                        error_text,
+                        kind,
+                        name,
+                        namespace,
+                        context,
+                        user_id
+                    )
+                ),
+                timeout=600  # 10 minutes timeout
+            )
+        except asyncio.TimeoutError:
+            logger.error(f"LLM request timed out after 10 minutes for user {user_id}")
+            return {
+                "solution_summary": "Request timed out after 10 minutes",
+                "detailed_solution": "The LLM request took too long to complete. This might be due to high server load or complex analysis requirements.",
+                "remediation_steps": [
+                    {
+                        "step_id": 1,
+                        "action_type": "MANUAL_CHECK",
+                        "description": "Try the analysis again or contact support",
+                        "command": f"kubectl describe {kind.lower()} {name} -n {namespace}" if namespace else f"kubectl describe {kind.lower()} {name}",
+                        "expected_outcome": "Get detailed information about the resource"
+                    }
+                ],
+                "confidence_score": 0.0,
+                "estimated_time_mins": 30,
+                "additional_notes": "LLM request timed out after 10 minutes. Please try again."
             }
     
     def _get_system_prompt(self) -> str:
@@ -107,6 +164,7 @@ Response format:
 }
 
 Keep responses concise and focused. Use only valid JSON characters."""
+
     def _build_user_prompt(
         self,
         error_text: str,

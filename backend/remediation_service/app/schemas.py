@@ -100,7 +100,7 @@ class IncidentResponse(BaseModel):
     resolution_attempts: int
     last_resolution_attempt: Optional[datetime] = None
     executor_id: Optional[int] = None
-    webhook_user_id: Optional[int] = None
+    webhook_user_id: Optional[int] = None  # Keep this field
     webhook_user: Optional[WebhookUserResponse] = None
     created_at: datetime
     updated_at: datetime

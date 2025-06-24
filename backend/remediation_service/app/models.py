@@ -57,7 +57,7 @@ class Incident(SQLModel, table=True):
     __tablename__ = "incidents"
     
     id: Optional[int] = Field(default=None, primary_key=True)
-    incident_id: str = Field(unique=True, index=True)  # External incident ID
+    incident_id: str = Field(unique=True, index=True)
     type: IncidentType = Field(index=True)
     reason: str = Field(index=True)
     message: str
@@ -71,8 +71,8 @@ class Incident(SQLModel, table=True):
     count: Optional[int] = Field(default=1)
     first_timestamp: Optional[datetime] = Field(default=None)
     last_timestamp: Optional[datetime] = Field(default=None)
-    involved_object_labels: Optional[str] = Field(default=None)  # JSON string
-    involved_object_annotations: Optional[str] = Field(default=None)  # JSON string
+    involved_object_labels: Optional[str] = Field(default=None)
+    involved_object_annotations: Optional[str] = Field(default=None)
     
     # Remediation tracking
     executor_id: Optional[int] = Field(default=None, foreign_key="executors.id")
@@ -80,7 +80,7 @@ class Incident(SQLModel, table=True):
     resolution_attempts: int = Field(default=0)
     last_resolution_attempt: Optional[datetime] = Field(default=None)
     
-    # ADD THIS LINE - Fix the foreign key reference
+    # Only webhook_user_id - NO user_id field
     webhook_user_id: Optional[int] = Field(default=None, foreign_key="webhook_users.id")
     
     # Timestamps
