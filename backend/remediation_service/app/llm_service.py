@@ -3,7 +3,7 @@ import json
 import logging
 from typing import Optional, List, Dict, Any
 from datetime import datetime
-from openai import OpenAI
+from openai import AsyncOpenAI
 from app.config import settings
 from app.models import ExecutorType, Incident
 
@@ -19,13 +19,13 @@ class RemediationLLMService:
         if not settings.OPENAI_API_KEY:
             raise ValueError("OpenAI API key not configured")
             
-        self.client = OpenAI(
+        self.client = AsyncOpenAI(
             api_key=settings.OPENAI_API_KEY,
             base_url=settings.OPENAI_BASE_URL
         )
         self.model = settings.OPENAI_MODEL
         
-    def generate_remediation_solution(
+    async def generate_remediation_solution(
         self,
         incident: Incident,
         executor_type: ExecutorType,
@@ -40,8 +40,8 @@ class RemediationLLMService:
             
             logger.info(f"Sending request to LLM with model: {self.model}")
             
-            # Call OpenAI API
-            response = self.client.chat.completions.create(
+            # Call OpenAI API asynchronously
+            response = await self.client.chat.completions.create(
                 model=self.model,
                 messages=[
                     {"role": "system", "content": system_prompt},

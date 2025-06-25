@@ -164,7 +164,7 @@ class KubectlExecutor(BaseExecutor):
 
 
 
-    async def execute_remediation_steps(self, steps: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    async def execute_remediation_steps(self, steps: List[Dict[str, Any]], user_id: str = None) -> List[Dict[str, Any]]:
         """Execute a list of remediation steps"""
         results = []
         
@@ -174,7 +174,7 @@ class KubectlExecutor(BaseExecutor):
                 command = step.get('command', '')
                 description = step.get('description', '')
                 
-                logger.info(f"Executing step {step_id}: {description}")
+                logger.info(f"Executing step {step_id} for user {user_id}: {description}")
                 
                 if not command:
                     results.append({
@@ -185,7 +185,7 @@ class KubectlExecutor(BaseExecutor):
                     })
                     continue
                 
-                # Execute the command
+                # Execute the command asynchronously
                 result = await self.execute_command(command)
                 result.update({
                     "step_id": step_id,
@@ -197,11 +197,11 @@ class KubectlExecutor(BaseExecutor):
                 
                 # If step failed and it's critical, stop execution
                 if not result["success"] and step.get('critical', False):
-                    logger.error(f"Critical step {step_id} failed, stopping execution")
+                    logger.error(f"Critical step {step_id} failed for user {user_id}, stopping execution")
                     break
                     
             except Exception as e:
-                logger.error(f"Error executing step {i + 1}: {str(e)}")
+                logger.error(f"Error executing step {i + 1} for user {user_id}: {str(e)}")
                 results.append({
                     "step_id": step.get('step_id', i + 1),
                     "success": False,

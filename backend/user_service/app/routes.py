@@ -530,7 +530,7 @@ async def delete_user(
     
     return None
 
-
+# -------------- api key ------------------
 
 @api_key_router.post("/", response_model=ApiKeyResponse, status_code=status.HTTP_201_CREATED,
                     summary="Create API Key", description="Creates a new API key for the current user")

@@ -23,7 +23,6 @@ from app.executors import KubectlExecutor, ArgoCDExecutor, CrossplaneExecutor
 from app.api_auth import authenticate_api_key_from_header
 import os
 
-
 remediation_router = APIRouter()
 
 # Executor instances cache
@@ -696,29 +695,16 @@ async def remediate_incident(
     session: Session = Depends(get_session),
     current_user: Dict = Depends(get_current_user) 
 ):
-    """
-    Generate remediation solution for ANY type of incident using LLM.
+    """Generate remediation solution for ANY type of incident using LLM."""
     
-    The LLM can handle all types of Kubernetes incidents including:
-    - Pod failures, crashes, restarts
-    - Deployment issues, scaling problems  
-    - Service connectivity issues
-    - Resource constraints
-    - Configuration errors
-    - Network issues
-    - Any other Kubernetes-related incidents
-    """
-    # Check if LLM is enabled
     if not settings.LLM_ENABLED:
         raise HTTPException(
             status_code=400,
             detail="LLM functionality is disabled. Please enable it in settings to use AI remediation."
         )
     
-    # CHANGED: Get user_id from current_user
     user_id = current_user["id"]
     
-    # CHANGED: Get incident with webhook_user filter based on current_user
     incident = session.exec(
         select(Incident).join(WebhookUser).where(
             Incident.id == incident_id,
@@ -732,7 +718,6 @@ async def remediate_incident(
     # Determine executor to use
     executor_type = request.executor_type
     if not executor_type:
-        # Get active executor
         active_executor = session.exec(
             select(Executor).where(Executor.status == ExecutorStatus.ACTIVE)
         ).first()
@@ -743,7 +728,6 @@ async def remediate_incident(
         executor_type = active_executor.name
         executor_config = json.loads(active_executor.config) if active_executor.config else {}
     else:
-        # Get specified executor
         executor = session.exec(
             select(Executor).where(Executor.name == executor_type)
         ).first()
@@ -760,10 +744,8 @@ async def remediate_incident(
         # Initialize LLM service
         llm_service = RemediationLLMService()
         
-        # Generate solution
         logger.info(f"Generating remediation solution for incident {incident_id} using {executor_type.value}")
         
-        # Prepare cluster context
         cluster_context = {
             "executor_type": executor_type.value,
             "namespace": incident.metadata_namespace,
@@ -772,13 +754,13 @@ async def remediate_incident(
             "resolution_attempts": incident.resolution_attempts
         }
         
-        solution_data = llm_service.generate_remediation_solution(
+        # Add await here since the method is now async
+        solution_data = await llm_service.generate_remediation_solution(
             incident=incident,
             executor_type=executor_type,
             cluster_context=cluster_context
         )
         
-        # Create solution object
         solution = RemediationSolution(**solution_data)
         
         # Update incident tracking
@@ -792,9 +774,8 @@ async def remediate_incident(
         session.add(incident)
         session.commit()
         
-        # Prepare response - FIX: Use incident_id parameter, not id function
         response = RemediationResponse(
-            incident_id=incident_id,  # Use the parameter, not id()
+            incident_id=incident_id,
             solution=solution,
             execution_status="generated",
             timestamp=datetime.utcnow()
@@ -804,17 +785,15 @@ async def remediate_incident(
         if execute:
             background_tasks.add_task(
                 execute_remediation_background,
-                incident_id,  # Use the parameter, not id()
+                incident_id,
                 solution,
                 executor_type,
                 executor_config
             )
             response.execution_status = "executing"
         
-        # Log remediation event
         logger.info(f"Remediation solution generated - Incident: {incident_id}, Executor: {executor_type.value}, Confidence: {solution.confidence_score}")
         
-        logger.info(f"Generated remediation solution for incident {incident_id}")
         return response
         
     except Exception as e:
