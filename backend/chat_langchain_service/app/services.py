@@ -394,6 +394,7 @@ class AnalyticsService:
             
             logger.info(f"📊 Generated usage stats: {stats}")
             return stats
+     
             
         except Exception as e:
             logger.error(f"❌ Error getting usage stats: {e}")

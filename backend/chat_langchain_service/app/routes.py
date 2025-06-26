@@ -434,6 +434,7 @@ async def clear_session_messages(
     current_user: Dict[str, Any] = Depends(get_current_active_user),
     session: Session = Depends(get_session)
 ):
+    
     """Clear all messages in a session."""
     try:
         user_id = current_user["id"]

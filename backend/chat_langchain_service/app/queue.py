@@ -10,6 +10,7 @@ from typing import Any, Dict, Callable, Optional
 connection = None
 channel = None
 
+
 def establish_connection():
     """Establish a new connection to RabbitMQ with retry logic"""
     global connection, channel

@@ -26,53 +26,29 @@ class Settings(BaseSettings):
     LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "mistral")  # mistral, openai, ollama
     
     # Mistral Configuration
-    MISTRAL_API_KEY: str = os.getenv("MISTRAL_API_KEY", "dq4yY78RkujcBjUMjgTwXRmAbE4zrt4h")
-    MISTRAL_MODEL: str = os.getenv("MISTRAL_MODEL", "codestral-latest")
-    MISTRAL_BASE_URL: str = os.getenv("MISTRAL_BASE_URL", "https://codestral.mistral.ai/v1/")
+  
     
     # OpenAI Configuration
-    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
-    OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
-    OPENAI_BASE_URL: str = os.getenv("OPENAI_BASE_URL", "")
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY")
+    OPENAI_MODEL: str = os.getenv("OPENAI_MODEL")
+    OPENAI_BASE_URL: str = os.getenv("OPENAI_BASE_URL")
     
+
     # Ollama Configuration
-    OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-    OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "llama2")
+    
     
     def get_llm_config(self) -> Dict[str, Any]:
-        """Get LLM configuration based on provider."""
-        if self.LLM_PROVIDER.lower() == "mistral":
-            return {
-                "provider": "mistral",
-                "api_key": self.MISTRAL_API_KEY,
-                "model": self.MISTRAL_MODEL,
-                "base_url": self.MISTRAL_BASE_URL
-            }
-        elif self.LLM_PROVIDER.lower() == "openai":
-            return {
+        """Get LLM configuration based on provider."""  
+        # Default to Mistral
+        return {
                 "provider": "openai",
                 "api_key": self.OPENAI_API_KEY,
                 "model": self.OPENAI_MODEL,
                 "base_url": self.OPENAI_BASE_URL
-            }
-        elif self.LLM_PROVIDER.lower() == "ollama":
-            return {
-                "provider": "ollama",
-                "api_key": "",
-                "model": self.OLLAMA_MODEL,
-                "base_url": self.OLLAMA_BASE_URL
-            }
-        else:
-            # Default to Mistral
-            return {
-                "provider": "mistral",
-                "api_key": self.MISTRAL_API_KEY,
-                "model": self.MISTRAL_MODEL,
-                "base_url": self.MISTRAL_BASE_URL
-            }
+        }
     
     # Kubernetes Configuration
-    KUBECONFIG_PATH: str = os.getenv("KUBECONFIG_PATH", "/home/aastha/rancher.yaml")
+    KUBECONFIG_PATH: str = os.getenv("KUBECONFIG_PATH", "~/rancher.yaml")
     KUBECTL_TIMEOUT: int = int(os.getenv("KUBECTL_TIMEOUT", "60"))
     
     def get_kubeconfig_path(self) -> str:

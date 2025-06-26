@@ -43,6 +43,7 @@ async def get_current_user_from_token(token: str = Depends(oauth2_scheme)) -> Di
         logger.error(f"Error in authentication: {str(e)}")
         raise credentials_exception
 
+
 # Simplified version for development if user service is not available yet
 async def get_current_user_from_token_dev(token: str = Depends(oauth2_scheme)) -> Dict:
     """

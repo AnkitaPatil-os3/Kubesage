@@ -7,7 +7,7 @@ import json
 import sys
 
 # Configuration
-BASE_URL = "https://10.0.32.123:7004/api/v1"
+BASE_URL = "https://10.0.32.122:7004/api/v1"
 TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIzMiIsImV4cCI6MTc0OTY0NzMyNX0.AFPNZ1sDGVMP_mieBTzF7Ptp9FEh7vKHsjojDACYNZc"
 
 headers = {

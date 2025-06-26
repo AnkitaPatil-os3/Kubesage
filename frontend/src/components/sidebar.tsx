@@ -1,9 +1,15 @@
 import React from "react";
 import { Link, useHistory } from "react-router-dom";
 import { Icon } from "@iconify/react";
-import { Button, Tooltip, Switch, Divider } from "@heroui/react";
+import {
+  Button,
+  Tooltip,
+  Switch,
+  Divider
+} from "@heroui/react";
 import { motion, AnimatePresence } from "framer-motion";
- 
+import { navCategories } from "../config/navConfig";
+
 interface SidebarProps {
   selectedCluster: string;
   setSelectedCluster: (cluster: string) => void;
@@ -12,7 +18,7 @@ interface SidebarProps {
   toggleTheme: () => void;
   currentTheme: string;
 }
- 
+
 export const Sidebar: React.FC<SidebarProps> = ({
   selectedCluster,
   setSelectedCluster,
@@ -22,118 +28,50 @@ export const Sidebar: React.FC<SidebarProps> = ({
   currentTheme
 }) => {
   const [isCollapsed, setIsCollapsed] = React.useState(false);
-  const [expandedCategory, setExpandedCategory] = React.useState<string | null>("clusters");
+  const [expandedCategories, setExpandedCategories] = React.useState<{ [key: string]: boolean }>({
+    clusters: true,
+  });
   const history = useHistory();
-  
-  // Get user details from localStorage
-  const userEmail = localStorage.getItem('userEmail') || 'user@kubesage.io';
-  const userName = userEmail.split('@')[0].charAt(0).toUpperCase() + userEmail.split('@')[0].slice(1);
+
+  const userEmail = localStorage.getItem("userEmail") || "user@kubesage.io";
+  const userName = userEmail.split("@")[0].charAt(0).toUpperCase() + userEmail.split("@")[0].slice(1);
   const userInitials = userName.slice(0, 2).toUpperCase();
-  
-  const clusters = [
-    { id: "production", name: "Production", icon: "lucide:server" },
-    { id: "staging", name: "Staging", icon: "lucide:server" },
-    { id: "development", name: "Development", icon: "lucide:server" },
-  ];
- 
-  const navCategories = [
-    {
-      id: "overview",
-      name: "OVERVIEW",
-      icon: "lucide:layout-dashboard",
-      items: [
-        { id: "dashboard", name: "Dashboard", icon: "lucide:layout-dashboard", path: "/dashboard/overview" },
-        { id: "clusters", name: "Clusters", icon: "lucide:database", path: "/dashboard/upload" },
-        { id: "applications", name: "Applications", icon: "lucide:box", path: "/dashboard/upload" },
-        { id: "workloads", name: "Workloads", icon: "lucide:layers", path: "/dashboard/upload" },
-        { id: "analyze", name: "Cluster Analysis", icon: "mdi:magnify-scan", path: "/dashboard/analyze" },
-      ]
-    },
-   
-    {
-      id: "ai_features",
-      name: "AI FEATURES",
-      icon: "lucide:cpu",
-      items: [
-        { id: "insights", name: "AI Insights", icon: "lucide:lightbulb", path: "/dashboard/insights" },
-        { id: "chatops", name: "ChatOps", icon: "lucide:message-square", path: "/dashboard/chatops" },
-        { id: "remediations", name: "Remediations", icon: "lucide:trending-up", path: "/dashboard/remediations" },
-        { id: "anomalies", name: "Anomalies", icon: "lucide:alert-triangle", path: "/dashboard/anomalies" },
-      ]
-    },
-    {
-      id: "management",
-      name: "MANAGEMENT",
-      icon: "lucide:settings-2",
-      items: [
-        { id: "observability", name: "Observability", icon: "lucide:activity", path: "/dashboard/observability" },
-        { id: "carbon-emission", name: "GreenOps", icon: "mdi:leaf", path: "/dashboard/carbon-emission" },
-        { id: "cost", name: "FinOps", icon: "mdi:currency-inr", path: "/dashboard/cost" },
-        { id: "security", name: "SecOps", icon: "lucide:shield", path: "/dashboard/security" },
-        { id: "backup", name: "Backup & Restore", icon: "mdi:backup-restore", path: "/dashboard/backup" },
-      ]
-    },
-    {
-      id: "security",
-      name: "SECURITY",
-      icon: "lucide:shield",
-      items: [
-        { id: "security", name: "Security Scanner", icon: "lucide:shield", path: "/dashboard/security" },
-        { id: "secrets", name: "Secrets", icon: "lucide:key", path: "/dashboard/secrets" },
-        { id: "compliance", name: "Compliance", icon: "lucide:key", path: "/dashboard/compliance" },
-      ]
-    },
-    {
-      id: "settings",
-      name: "SETTINGS",
-      icon: "lucide:settings",
-      items: [
-        { id: "settings", name: "Settings", icon: "lucide:settings", path: "/dashboard/settings" },
-        { id: "users", name: "Users & RBAC", icon: "lucide:users", path: "/dashboard/users" },
-        { id: "integrations", name: "Integrations", icon: "lucide:plug", path: "/dashboard/integrations" },
-        { id: "help", name: "Help", icon: "lucide:help-circle", path: "/dashboard/help" },
-      ]
-    },
-  ];
-  
 
   const handleLogout = async () => {
     try {
-      const accessToken = localStorage.getItem('access_token');
-      console.log('Logout request with token:', accessToken);
-      
-      // Call backend logout endpoint
+      const accessToken = localStorage.getItem("access_token");
       if (accessToken) {
-        await fetch('/auth/logout', {
-          method: 'POST',
+        await fetch("/auth/logout", {
+          method: "POST",
           headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
-          }
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
         });
       }
     } catch (error) {
-      console.error('Logout failed:', error);
+      console.error("Logout failed:", error);
     } finally {
-      // Clear all authentication data
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
-      localStorage.removeItem('isAuthenticated');
-      localStorage.removeItem('userEmail');
-      
-      // Call the parent logout handler
+      localStorage.removeItem("access_token");
+      localStorage.removeItem('username');
+      localStorage.removeItem("refresh_token");
+      localStorage.removeItem("isAuthenticated");
+      localStorage.removeItem("userEmail");
       onLogout();
     }
   };
- 
-  const toggleCategory = (categoryId: string) => {
-    setExpandedCategory(categoryId);
-  };
- 
+
   const toggleCollapse = () => {
     setIsCollapsed(!isCollapsed);
   };
- 
+
+  const toggleCategory = (categoryId: string) => {
+    setExpandedCategories((prev) => ({
+      ...prev,
+      [categoryId]: !prev[categoryId],
+    }));
+  };
+
   return (
     <motion.aside
       className={`flex flex-col bg-content1 border-r border-divider transition-all duration-300 ${
@@ -143,196 +81,181 @@ export const Sidebar: React.FC<SidebarProps> = ({
       animate={{ x: 0, opacity: 1 }}
       transition={{ duration: 0.3 }}
     >
+      {/* Header */}
       <div className="p-4 flex items-center justify-between border-b border-divider">
-        {!isCollapsed && (
+        {!isCollapsed ? (
           <div className="flex items-center gap-2">
-            <motion.div
-              className="bg-primary rounded-md p-1 flex-shrink-0"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
+            <div className="bg-primary rounded-md p-1">
               <Icon icon="lucide:layers" className="text-white text-xl" />
-            </motion.div>
+            </div>
             <h1 className="text-xl font-semibold truncate">KubeSage</h1>
           </div>
-        )}
-        
-        {isCollapsed && (
-          <motion.div
-            className="bg-primary rounded-md p-1 mx-auto"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
+        ) : (
+          <div className="bg-primary rounded-md p-1 mx-auto">
             <Icon icon="lucide:layers" className="text-white text-xl" />
-          </motion.div>
+          </div>
         )}
-        
-        <Button
-          isIconOnly
-          variant="ghost"
-          size="sm"
-          onPress={toggleCollapse}
-        >
+
+        <Button isIconOnly variant="ghost" size="sm" onPress={toggleCollapse}>
           <Icon icon={isCollapsed ? "lucide:chevron-right" : "lucide:chevron-left"} />
         </Button>
       </div>
-      
+
+      {/* Navigation */}
       <div className="flex-1 overflow-y-auto scrollbar-hide py-2">
         {navCategories.map((category) => (
           <div key={category.id} className="mb-3">
+            {/* Category Header */}
             {!isCollapsed ? (
-              <>
-                <div
-                  className={`px-4 py-2 flex items-center justify-between cursor-pointer transition-colors ${
-                    expandedCategory === category.id ? "bg-content2" : "hover:bg-content2"
-                  }`}
-                  onClick={() => toggleCategory(category.id)}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Icon
-                        icon={category.icon}
-                        className={expandedCategory === category.id ? "text-primary" : "text-foreground-500"}
-                      />
-                      <span className={`text-xs font-medium ${
-                        expandedCategory === category.id ? "text-primary font-semibold" : "text-foreground-500"
-                      }`}>
-                        {category.name}
-                      </span>
-                    </div>
-                  </div>
-                  
-                  <div className="pl-4 pr-2 space-y-1 py-1">
-                    {category.items.map((item) => (
-                      <Button
-                        key={item.id}
-                        variant={currentPage === item.id ? "flat" : "ghost"}
-                        color={currentPage === item.id ? "primary" : "default"}
-                        className="w-full justify-start"
-                        startContent={<Icon icon={item.icon} />}
-                        onPress={() => history.push(item.path)}
-                        size="sm"
-                      >
-                        {item.name}
-                      </Button>
-                    ))}
-                  </div>
-                </>
-              ) : (
-                <div className="py-1">
-                  <Tooltip content={category.name} placement="right">
-                    <div className="flex justify-center mb-1">
-                      <Button
-                        isIconOnly
-                        variant={expandedCategory === category.id ? "flat" : "ghost"}
-                        color={expandedCategory === category.id ? "primary" : "default"}
-                        onPress={() => toggleCategory(category.id)}
-                        size="sm"
-                      >
-                        <Icon icon={category.icon} />
-                      </Button>
-                    </div>
-                  </Tooltip>
-                  
-                  <div className="space-y-1 flex flex-col items-center">
-                    {category.items.map((item) => (
-                      <Tooltip key={item.id} content={item.name} placement="right">
-                        <Button
-                          isIconOnly
-                          variant={currentPage === item.id ? "flat" : "ghost"}
-                          color={currentPage === item.id ? "primary" : "default"}
-                          size="sm"
-                          onPress={() => history.push(item.path)}
-                        >
-                          <Icon icon={item.icon} />
-                        </Button>
-                      </Tooltip>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-        
-        <div className={`p-4 border-t border-divider ${isCollapsed ? "flex flex-col items-center" : ""}`}>
-          {!isCollapsed ? (
-            <>
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-sm">Theme</span>
+              <div
+                className={`px-4 py-2 flex items-center justify-between cursor-pointer transition-colors ${
+                  expandedCategories[category.id] ? "bg-content2" : "hover:bg-content2"
+                }`}
+                onClick={() => toggleCategory(category.id)}
+              >
                 <div className="flex items-center gap-2">
-                  <Icon icon="lucide:sun" className={`text-sm ${currentTheme === 'light' ? 'text-primary' : 'text-foreground-400'}`} />
-                  <Switch
-                    size="sm"
-                    isSelected={currentTheme === 'dark'}
-                    onValueChange={toggleTheme}
-                    color="primary"
-                  />
-                  <Icon icon="lucide:moon" className={`text-sm ${currentTheme === 'dark' ? 'text-primary' : 'text-foreground-400'}`} />
+                  <Icon icon={category.icon} className={expandedCategories[category.id] ? "text-primary" : "text-foreground-500"} />
+                  <span
+                    className={`text-xs font-medium ${
+                      expandedCategories[category.id] ? "text-primary font-semibold" : "text-foreground-500"
+                    }`}
+                  >
+                    {category.name}
+                  </span>
                 </div>
+                <Icon
+                  icon={expandedCategories[category.id] ? "lucide:chevron-down" : "lucide:chevron-right"}
+                  className="text-sm text-foreground-400"
+                />
               </div>
-              
-              <Divider className="my-3" />
-              
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-medium">
-                    {userInitials}
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">{userName}</p>
-                    <p className="text-xs text-foreground-500">{userEmail}</p>
-                  </div>
-                </div>
-                <Tooltip content="Logout">
+            ) : (
+              <Tooltip content={category.name} placement="right">
+                <div className="flex justify-center">
                   <Button
                     isIconOnly
-                    variant="ghost"
-                    color="danger"
+                    variant={expandedCategories[category.id] ? "flat" : "ghost"}
+                    color={expandedCategories[category.id] ? "primary" : "default"}
+                    onPress={() => toggleCategory(category.id)}
                     size="sm"
-                    onPress={handleLogout}
                   >
-                    <Icon icon="lucide:log-out" />
+                    <Icon icon={category.icon} />
                   </Button>
-                </Tooltip>
-              </div>
-            </>
-          ) : (
-            <>
-              <Tooltip content="Toggle Theme" placement="right">
-                <Button
-                  isIconOnly
-                  variant="ghost"
-                  size="sm"
-                  onPress={toggleTheme}
-                  className="mb-3"
-                >
-                  <Icon icon={currentTheme === 'light' ? "lucide:sun" : "lucide:moon"} />
-                </Button>
-              </Tooltip>
-              
-              <Divider className="my-3 w-full" />
-              
-              <Tooltip content={`${userName} (${userEmail})`} placement="right">
-                <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-medium mb-3">
-                  {userInitials}
                 </div>
               </Tooltip>
-              
-              <Tooltip content="Logout" placement="right">
-                <Button
-                  isIconOnly
-                  variant="ghost"
-                  color="danger"
-                  size="sm"
-                  onPress={handleLogout}
+            )}
+
+            {/* Sub-menu */}
+            <AnimatePresence>
+              {expandedCategories[category.id] && !isCollapsed && (
+                <motion.div
+                  className="pl-4 pr-2 space-y-1 py-1"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2 }}
                 >
+                  {category.items.map((item) => (
+                    <Button
+                      key={item.id}
+                      variant={currentPage === item.id ? "flat" : "ghost"}
+                      color={currentPage === item.id ? "primary" : "default"}
+                      className="w-full justify-start"
+                      startContent={<Icon icon={item.icon} />}
+                      onPress={() => history.push(item.path)}
+                      size="sm"
+                    >
+                      {item.name}
+                    </Button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Collapsed: Only Icons + Tooltips */}
+            {isCollapsed && (
+              <div className="space-y-1 flex flex-col items-center mt-1">
+                {expandedCategories[category.id] &&
+                  category.items.map((item) => (
+                    <Tooltip key={item.id} content={item.name} placement="right">
+                      <Button
+                        isIconOnly
+                        variant={currentPage === item.id ? "flat" : "ghost"}
+                        color={currentPage === item.id ? "primary" : "default"}
+                        size="sm"
+                        onPress={() => history.push(item.path)}
+                      >
+                        <Icon icon={item.icon} />
+                      </Button>
+                    </Tooltip>
+                  ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Footer */}
+      <div className={`p-4 border-t border-divider ${isCollapsed ? "flex flex-col items-center" : ""}`}>
+        {!isCollapsed ? (
+          <>
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-sm">Theme</span>
+              <div className="flex items-center gap-2">
+                <Icon
+                  icon="lucide:sun"
+                  className={`text-sm ${currentTheme === "light" ? "text-primary" : "text-foreground-400"}`}
+                />
+                <Switch
+                  size="sm"
+                  isSelected={currentTheme === "dark"}
+                  onValueChange={toggleTheme}
+                  color="primary"
+                />
+                <Icon
+                  icon="lucide:moon"
+                  className={`text-sm ${currentTheme === "dark" ? "text-primary" : "text-foreground-400"}`}
+                />
+              </div>
+            </div>
+            <Divider className="my-3" />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-medium">
+                  {userInitials}
+                </div>
+                <div>
+                  <p className="text-sm font-medium">{userName}</p>
+                  <p className="text-xs text-foreground-500">{userEmail}</p>
+                </div>
+              </div>
+              <Tooltip content="Logout">
+                <Button isIconOnly variant="ghost" color="danger" size="sm" onPress={handleLogout}>
                   <Icon icon="lucide:log-out" />
                 </Button>
               </Tooltip>
-            </>
-          )}
-        </div>
-      </motion.aside>
-    );
-  };
-  
+            </div>
+          </>
+        ) : (
+          <>
+            <Tooltip content="Toggle Theme" placement="right">
+              <Button isIconOnly variant="ghost" size="sm" onPress={toggleTheme} className="mb-3">
+                <Icon icon={currentTheme === "light" ? "lucide:sun" : "lucide:moon"} />
+              </Button>
+            </Tooltip>
+            <Divider className="my-3 w-full" />
+            <Tooltip content={`${userName} (${userEmail})`} placement="right">
+              <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-medium mb-3">
+                {userInitials}
+              </div>
+            </Tooltip>
+            <Tooltip content="Logout" placement="right">
+              <Button isIconOnly variant="ghost" color="danger" size="sm" onPress={handleLogout}>
+                <Icon icon="lucide:log-out" />
+              </Button>
+            </Tooltip>
+          </>
+        )}
+      </div>
+    </motion.aside>
+  );
+};

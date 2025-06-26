@@ -22,6 +22,7 @@ class User(SQLModel, table=True):
     # Relationships
     chat_sessions: List["ChatSession"] = Relationship(back_populates="user")
 
+
 class ChatSession(SQLModel, table=True):
     """Chat session model for managing conversation contexts."""
     __tablename__ = "chat_sessions"

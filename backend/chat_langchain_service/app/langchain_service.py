@@ -113,6 +113,7 @@ def collect_all_k8s_errors() -> Dict[str, Any]:
         }
     }
     
+    
     try:
         # Get all namespaces
         namespaces = v1.list_namespace()

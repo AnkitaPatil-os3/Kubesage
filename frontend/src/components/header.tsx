@@ -1,16 +1,17 @@
 import React from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useHistory } from "react-router-dom";
 import { Icon } from "@iconify/react";
 import {
   Button,
+  Input,
   Dropdown,
   DropdownTrigger,
   DropdownMenu,
   DropdownItem,
-  Input,
   Avatar
 } from "@heroui/react";
 import { motion } from "framer-motion";
+import { navCategories } from "../config/navConfig"; // Shared sidebar config
 
 interface HeaderProps {
   toggleChat: () => void;
@@ -19,61 +20,87 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ toggleChat, onLogout }) => {
   const location = useLocation();
-  const [isSearchFocused, setIsSearchFocused] = React.useState(false);
-  
-  // Get user details from localStorage
-  const userEmail = localStorage.getItem('userEmail') || 'user@kubesage.io';
-  const userName = userEmail.split('@')[0].charAt(0).toUpperCase() + userEmail.split('@')[0].slice(1);
+  const history = useHistory();
+
+  const [searchQuery, setSearchQuery] = React.useState("");
+  const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
+
+  // User info
+  const userEmail = localStorage.getItem("userEmail") || "user@kubesage.io";
+  const userName =
+    userEmail.split("@")[0].charAt(0).toUpperCase() +
+    userEmail.split("@")[0].slice(1);
   const userInitials = userName.slice(0, 2).toUpperCase();
-  
-  // Get page title from path
+
+  // Searchable sidebar items
+  const sidebarItems = navCategories.flatMap((cat) =>
+    cat.items.map((item) => ({
+      ...item,
+      category: cat.name,
+    }))
+  );
+
+  const filteredItems = searchQuery.trim()
+    ? sidebarItems.filter((item) =>
+        item.name.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : [];
+
+  const handleItemSelect = (path: string) => {
+    setSearchQuery("");
+    setIsDropdownOpen(false);
+    history.push(path);
+  };
+
+  // Page title logic
   const getPageTitle = () => {
-    const path = location.pathname.split('/').pop() || 'overview';
-    switch(path) {
-      case 'overview': return 'Dashboard';
-      case 'upload': return 'Cluster Overview';
-      case 'onboarding': return 'Cluster Onboarding';
-      case 'chatops': return 'ChatOps Console';
-      case 'admin': return 'Admin Dashboard';
-      case 'cost': return 'Cost Analysis';
-      case 'remediations': return 'Remediations';
-      case 'observability': return 'Observability';
-      case 'carbon-emission': return 'Carbon Emission';
-      case 'backup': return 'Backup & Restore';
-      default: return 'Dashboard';
+    const path = location.pathname.split("/").pop() || "overview";
+    switch (path) {
+      case "overview":
+        return "Dashboard";
+      case "upload":
+        return "Cluster Overview";
+      case "onboarding":
+        return "Cluster Onboarding";
+      case "chatops":
+        return "ChatOps Console";
+      case "admin":
+        return "Admin Dashboard";
+      case "cost":
+        return "Cost Analysis";
+      case "remediations":
+        return "Remediations";
+      case "observability":
+        return "Observability";
+      case "carbon-emission":
+        return "Carbon Emission";
+      case "backup":
+        return "Backup & Restore";
+      default:
+        return "Dashboard";
     }
   };
 
   const handleLogout = async () => {
     try {
-      const accessToken = localStorage.getItem('access_token');
-      console.log('Logout request with token:', accessToken);
-      
-      // Call backend logout endpoint
+      const accessToken = localStorage.getItem("access_token");
       if (accessToken) {
-        await fetch('/auth/logout', {
-          method: 'POST',
+        await fetch("/auth/logout", {
+          method: "POST",
           headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
-          }
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
         });
       }
     } catch (error) {
-      console.error('Logout failed:', error);
+      console.error("Logout failed:", error);
     } finally {
-      // Clear all authentication data
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
-      localStorage.removeItem('isAuthenticated');
-      localStorage.removeItem('userEmail');
-      
-      // Call the parent logout handler if provided
+      localStorage.clear();
       if (onLogout) {
         onLogout();
       } else {
-        // Fallback to direct redirect if no handler provided
-        window.location.href = '/login';
+        window.location.href = "/login";
       }
     }
   };
@@ -90,7 +117,7 @@ export const Header: React.FC<HeaderProps> = ({ toggleChat, onLogout }) => {
           <Icon icon="lucide:menu" className="text-xl" />
         </Button>
       </div>
-      
+
       <div className="hidden md:block">
         <motion.h1
           className="text-xl font-semibold"
@@ -102,18 +129,44 @@ export const Header: React.FC<HeaderProps> = ({ toggleChat, onLogout }) => {
           {getPageTitle()}
         </motion.h1>
       </div>
-      
-      <div className="hidden md:flex flex-1 max-w-md mx-6">
-        <Input
-          placeholder="Search resources..."
-          startContent={<Icon icon="lucide:search" className="text-foreground-400" />}
-          size="sm"
-          className={`transition-all duration-300 ${isSearchFocused ? 'shadow-md' : ''}`}
-          onFocus={() => setIsSearchFocused(true)}
-          onBlur={() => setIsSearchFocused(false)}
-        />
-      </div>
-      
+
+      <div className="flex flex-1 max-w-md mx-6 relative">
+  <Input
+    placeholder="Search resources..."
+    size="sm"
+    value={searchQuery}
+    onChange={(e) => {
+      setSearchQuery(e.target.value);
+      setIsDropdownOpen(true);
+    }}
+    onFocus={() => setIsDropdownOpen(true)}
+    onBlur={() => setTimeout(() => setIsDropdownOpen(false), 200)}
+    className="transition-all duration-300"
+    startContent={<Icon icon="lucide:search" className="text-foreground-400" />}
+  />
+
+  {/* Custom Dropdown */}
+  {isDropdownOpen && filteredItems.length > 0 && (
+    <div className="absolute top-full left-0 mt-1 w-full bg-white dark:bg-content2 border border-divider rounded-md shadow-md z-50">
+      {filteredItems.map(item => (
+        <div
+          key={item.id}
+          className="flex items-start gap-2 px-3 py-2 hover:bg-content3 cursor-pointer"
+          onMouseDown={() => handleItemSelect(item.path)} // use onMouseDown to avoid blur
+        >
+          <Icon icon={item.icon} className="text-primary mt-1" />
+          <div>
+            <div className="text-sm font-medium">{item.name}</div>
+            <div className="text-xs text-default-500">{item.category}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )}
+</div>
+
+
+
       <div className="flex items-center gap-2">
         <Button
           color="primary"
@@ -124,13 +177,13 @@ export const Header: React.FC<HeaderProps> = ({ toggleChat, onLogout }) => {
         >
           AI Assistant
         </Button>
-        
+
         <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
           <Button isIconOnly variant="ghost" aria-label="Notifications">
             <Icon icon="lucide:bell" className="text-xl" />
           </Button>
         </motion.div>
-        
+
         <Dropdown>
           <DropdownTrigger>
             <Avatar

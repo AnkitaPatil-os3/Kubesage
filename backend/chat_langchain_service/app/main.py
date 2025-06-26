@@ -88,6 +88,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     """Global exception handler."""
     logger.error(f"💥 Unhandled exception in {request.method} {request.url.path}: {str(exc)}")
     
+    
     return JSONResponse(
         status_code=500,
         content={

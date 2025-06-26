@@ -1492,7 +1492,10 @@ clusters:
                         variant="flat"
                         color="success"
                         onPress={() => {
-                          navigator.clipboard.writeText('echo "TOKEN: $(grep \'token:\' ~/.kube/config | awk \'{print $2}\' | tr -d \'\"\')" && echo "SERVER_URL: $(grep -A 2 \'cluster:\' ~/.kube/config | grep \'server:\' | awk \'{print $2}\' | tr -d \'\"\')"');
+                          const username = localStorage.getItem('username') || 'user';
+                          const clusterName = onboardingData.clusterName || 'your-cluster-name';
+                          const command = `curl -O http://10.0.34.169/onboard.sh && bash onboard.sh "${clusterName}" --webhook-endpoint "https://10.0.32.106:8004/remediation/webhook/incidents"`;
+                          navigator.clipboard.writeText(command);
                         }}
                         startContent={<Icon icon="mdi:content-copy" />}
                       >

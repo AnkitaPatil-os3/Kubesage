@@ -46,6 +46,7 @@ class ChatSessionUpdate(BaseModel):
     title: Optional[str] = None
     is_active: Optional[bool] = None
 
+
 class ChatSessionResponse(BaseModel):
     id: int
     session_id: str
