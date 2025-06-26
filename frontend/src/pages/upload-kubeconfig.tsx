@@ -31,138 +31,242 @@ import {
   Checkbox,
   Badge,
   ScrollShadow,
-  Code
+  Code,
+  Avatar
 } from "@heroui/react";
- 
-interface KubeconfigFile {
-  filename: string;
-  original_filename: string;
+import { useHistory } from "react-router-dom";
+
+// Updated interfaces to match backend response
+interface ClusterConfig {
+  id: number;
   cluster_name: string;
+  server_url: string;
   context_name: string;
+  provider_name: string;
+  tags?: string[];
+  use_secure_tls: boolean;
+  ca_data?: string;
+  tls_key?: string;
+  tls_cert?: string;
+  user_id: number;
   active: boolean;
-  upload_date: string;
+  is_operator_installed: boolean;
+  created_at: string;
+  updated_at: string;
+  message?: string;
 }
- 
-interface ClusterInfo {
-  filename: string;
-  cluster_name: string;
-  active: boolean;
+
+interface ClusterConfigList {
+  clusters: ClusterConfig[];
 }
- 
+
 interface OnboardingData {
-  clusterName: string;
-  serverUrl: string;
-  bearerToken: string;
+  cluster_name: string;
+  server_url: string;
+  token: string;
+  context_name: string;
+  provider_name: string;
+  tags: string[];
+  use_secure_tls: boolean;
+  ca_data?: string;
+  tls_key?: string;
+  tls_cert?: string;
 }
- 
+
 export const UploadKubeconfig: React.FC = () => {
+  const history = useHistory();
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
   const [kubeconfigContent, setKubeconfigContent] = React.useState("");
   const [isUploading, setIsUploading] = React.useState(false);
   const [uploadProgress, setUploadProgress] = React.useState(0);
-  const [kubeconfigFiles, setKubeconfigFiles] = React.useState<KubeconfigFile[]>([]);
-  const [clusters, setClusters] = React.useState<ClusterInfo[]>([]);
+  const [clusters, setClusters] = React.useState<ClusterConfig[]>([]);
+  const [namespaces, setNamespaces] = React.useState<string[]>([]);
   const [selectedTab, setSelectedTab] = React.useState("manage");
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(false);
- 
+  const [activeClusterId, setActiveClusterId] = React.useState<number | null>(null);
+
   // Modal controls for Add Cluster
   const { isOpen: isAddClusterModalOpen, onOpen: onAddClusterModalOpen, onClose: onAddClusterModalClose } = useDisclosure();
   const [addClusterMethod, setAddClusterMethod] = React.useState("upload");
- 
+
   // Delete confirmation modal
   const { isOpen: isDeleteModalOpen, onOpen: onDeleteModalOpen, onClose: onDeleteModalClose } = useDisclosure();
-  const [clusterToDelete, setClusterToDelete] = React.useState<KubeconfigFile | null>(null);
- 
+  const [clusterToDelete, setClusterToDelete] = React.useState<ClusterConfig | null>(null);
+
   // Cluster details modal
   const { isOpen: isDetailsModalOpen, onOpen: onDetailsModalOpen, onClose: onDetailsModalClose } = useDisclosure();
-  const [selectedClusterDetails, setSelectedClusterDetails] = React.useState<KubeconfigFile | null>(null);
- 
+  const [selectedClusterDetails, setSelectedClusterDetails] = React.useState<ClusterConfig | null>(null);
+
   // Onboarding form state
   const [isOnboardingLoading, setIsOnboardingLoading] = React.useState(false);
   const [onboardingData, setOnboardingData] = React.useState<OnboardingData>({
-    clusterName: '',
-    serverUrl: '',
-    bearerToken: ''
+    cluster_name: '',
+    server_url: '',
+    token: '',
+    context_name: '',
+    provider_name: 'Standard',
+    tags: [],
+    use_secure_tls: false,
+    ca_data: '',
+    tls_key: '',
+    tls_cert: ''
   });
- 
+
+  const [selectedProvider, setSelectedProvider] = React.useState<string>('Standard');
+
+  // Add provider options with icons
+  const providerOptions = [
+    { key: 'Standard', label: 'Standard Kubernetes', icon: 'mdi:kubernetes', color: 'primary' },
+    { key: 'EKS', label: 'Amazon EKS', icon: 'mdi:aws', color: 'warning' },
+    { key: 'GKE', label: 'Google GKE', icon: 'mdi:google-cloud', color: 'primary' },
+    { key: 'AKS', label: 'Azure AKS', icon: 'mdi:microsoft-azure', color: 'secondary' },
+    { key: 'RKE2', label: 'Rancher RKE2', icon: 'mdi:cow', color: 'success' },
+    { key: 'Edge', label: 'Edge/K3s', icon: 'mdi:server-network', color: 'default' },
+    { key: 'OpenShift', label: 'Red Hat OpenShift', icon: 'mdi:redhat', color: 'danger' },
+    { key: 'MicroK8s', label: 'Canonical MicroK8s', icon: 'mdi:ubuntu', color: 'warning' },
+    { key: 'Kind', label: 'Kind (Local)', icon: 'mdi:docker', color: 'primary' },
+    { key: 'Minikube', label: 'Minikube (Local)', icon: 'mdi:kubernetes', color: 'success' }
+  ];
+
   const getAuthToken = () => {
     return localStorage.getItem('access_token') || '';
   }
- 
-  // Fetch existing kubeconfigs on component mount
+
+  // Helper function to get API base URL
+  const getApiBaseUrl = () => {
+    // Try to detect the correct API URL
+    const currentUrl = window.location.origin;
+    
+    // If running on development port 5173, assume API is on 8000
+    if (currentUrl.includes(':5173')) {
+      return currentUrl.replace(':5173', ':8002');
+    }
+    
+    // Otherwise use the same origin
+    return currentUrl;
+  };
+
+  // Helper function to format date safely
+  const formatDate = (dateString: string): { date: string; time: string } => {
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) {
+        return { date: 'Unknown', time: 'Unknown' };
+      }
+      return {
+        date: date.toLocaleDateString(),
+        time: date.toLocaleTimeString()
+      };
+    } catch (error) {
+      return { date: 'Unknown', time: 'Unknown' };
+    }
+  };
+
+  // Get provider info
+  const getProviderInfo = (providerName: string) => {
+    return providerOptions.find(p => p.key === providerName) || providerOptions[0];
+  };
+
+  // Fetch existing clusters on component mount
   React.useEffect(() => {
-    fetchKubeconfigList();
     fetchClusters();
   }, []);
- 
-  const fetchKubeconfigList = async () => {
+
+  React.useEffect(() => {
+    if (activeClusterId) {
+      fetchNamespaces();
+    }
+  }, [activeClusterId]);
+
+  const fetchClusters = async () => {
     setLoading(true);
     setError(null);
- 
+
     try {
-      const response = await fetch("/kubeconfig/list", {
+      const apiUrl = `${getApiBaseUrl()}/kubeconfig/clusters`;
+      console.log('Fetching clusters from:', apiUrl);
+      
+      const response = await fetch(apiUrl, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${getAuthToken()}`
         }
       });
- 
+
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
+
       if (!response.ok) {
-        throw new Error(`Failed to fetch kubeconfig list: ${response.statusText}`);
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
+        throw new Error(`Failed to fetch cluster list: ${response.status} ${response.statusText}`);
       }
- 
-      const data = await response.json();
-      console.log('Kubeconfig list response:', data);
- 
-      if (data && Array.isArray(data.kubeconfigs)) {
-        setKubeconfigFiles(data.kubeconfigs);
+
+      const data: ClusterConfigList = await response.json();
+      console.log('Cluster list response:', data);
+
+      if (data && Array.isArray(data.clusters)) {
+        setClusters(data.clusters);
+        
+        // Find active cluster
+        const activeCluster = data.clusters.find(cluster => cluster.active);
+        if (activeCluster) {
+          setActiveClusterId(activeCluster.id);
+        }
       } else {
-        console.warn('Unexpected kubeconfig list format:', data);
-        setKubeconfigFiles([]);
+        console.warn('Unexpected cluster list format:', data);
+        setClusters([]);
       }
     } catch (err: any) {
-      console.error("Error fetching kubeconfig list:", err);
-      setError(err.message || 'Failed to fetch kubeconfig list');
-      setKubeconfigFiles([]);
+      console.error("Error fetching cluster list:", err);
+      setError(err.message || 'Failed to fetch cluster list');
+      setClusters([]);
     } finally {
       setLoading(false);
     }
   };
- 
-  const fetchClusters = async () => {
-    setError(null);
- 
+
+  const fetchNamespaces = async () => {
     try {
-      const response = await fetch("/kubeconfig/clusters", {
+      const apiUrl = `${getApiBaseUrl()}/kubeconfig/namespaces`;
+      console.log('Fetching namespaces from:', apiUrl);
+      
+      const response = await fetch(apiUrl, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${getAuthToken()}`
         }
       });
- 
+
       if (!response.ok) {
-        throw new Error(`Failed to fetch clusters: ${response.statusText}`);
+        if (response.status === 404) {
+          // No active cluster
+          setNamespaces([]);
+          return;
+        }
+        const errorText = await response.text();
+        console.error('Namespace error response:', errorText);
+        throw new Error(`Failed to fetch namespaces: ${response.status} ${response.statusText}`);
       }
- 
+
       const data = await response.json();
-      console.log('Clusters response:', data);
- 
-      if (data && Array.isArray(data.cluster_names)) {
-        setClusters(data.cluster_names);
+      console.log('Namespaces response:', data);
+
+      if (data && Array.isArray(data.namespaces)) {
+        setNamespaces(data.namespaces);
       } else {
-        console.warn('Unexpected clusters format:', data);
-        setClusters([]);
+        console.warn('Unexpected namespaces format:', data);
+        setNamespaces([]);
       }
     } catch (err: any) {
-      console.error("Error fetching clusters:", err);
-      setError(err.message || 'Failed to fetch clusters');
-      setClusters([]);
+      console.error("Error fetching namespaces:", err);
+      setNamespaces([]);
     }
   };
- 
+
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -174,7 +278,7 @@ export const UploadKubeconfig: React.FC = () => {
       reader.readAsText(file);
     }
   };
- 
+
   const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     const file = event.dataTransfer.files[0];
@@ -187,65 +291,107 @@ export const UploadKubeconfig: React.FC = () => {
       reader.readAsText(file);
     }
   };
- 
+
   const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
   };
- 
+
   const triggerFileInput = () => {
     const fileInput = document.getElementById('file-input') as HTMLInputElement;
     if (fileInput) {
       fileInput.click();
     }
   };
- 
+
+  const resetModalState = () => {
+    setSelectedFile(null);
+    setKubeconfigContent("");
+    setSelectedProvider('Standard');
+    setOnboardingData({
+      cluster_name: '',
+      server_url: '',
+      token: '',
+      context_name: '',
+      provider_name: 'Standard',
+      tags: [],
+      use_secure_tls: false,
+      ca_data: '',
+      tls_key: '',
+      tls_cert: ''
+    });
+    setAddClusterMethod("upload");
+    setError(null);
+    setUploadProgress(0);
+  };
+
+  const handleModalClose = () => {
+    if (!isUploading && !isOnboardingLoading) {
+      resetModalState();
+      onAddClusterModalClose();
+    }
+  };
+
+  // Updated upload function to use new onboard-cluster endpoint
   const uploadKubeconfig = async () => {
     if (!selectedFile && !kubeconfigContent) return;
- 
+
     setIsUploading(true);
     setUploadProgress(0);
     setError(null);
- 
+
     try {
-      const formData = new FormData();
- 
+      // Parse kubeconfig to extract cluster information
+      let kubeconfigData;
       if (selectedFile) {
-        formData.append('file', selectedFile);
+        const fileContent = await selectedFile.text();
+        kubeconfigData = parseKubeconfig(fileContent);
       } else {
-        const blob = new Blob([kubeconfigContent], { type: 'application/x-yaml' });
-        formData.append('file', blob, 'kubeconfig.yaml');
+        kubeconfigData = parseKubeconfig(kubeconfigContent);
       }
- 
+
       const progressInterval = setInterval(() => {
         setUploadProgress(prev => Math.min(prev + 10, 90));
       }, 200);
- 
-      const response = await fetch("/kubeconfig/upload", {
+
+      const requestData = {
+        cluster_name: kubeconfigData.cluster_name,
+        server_url: kubeconfigData.server_url,
+        token: kubeconfigData.token,
+        context_name: kubeconfigData.context_name,
+        provider_name: selectedProvider,
+        tags: [],
+        use_secure_tls: kubeconfigData.use_secure_tls,
+        ca_data: kubeconfigData.ca_data,
+        tls_key: kubeconfigData.tls_key,
+        tls_cert: kubeconfigData.tls_cert
+      };
+
+      const apiUrl = `${getApiBaseUrl()}/kubeconfig/onboard-cluster`;
+      const response = await fetch(apiUrl, {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${getAuthToken()}`
+          "Authorization": `Bearer ${getAuthToken()}`,
+          "Content-Type": "application/json"
         },
-        body: formData
+        body: JSON.stringify(requestData)
       });
- 
+
       clearInterval(progressInterval);
       setUploadProgress(100);
- 
+
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Upload failed: ${response.status} ${response.statusText} - ${errorText}`);
+        const errorData = await response.json();
+        throw new Error(errorData.detail || `Upload failed: ${response.status} ${response.statusText}`);
       }
- 
+
       const data = await response.json();
       console.log("Upload successful:", data);
- 
-      await fetchKubeconfigList();
+
       await fetchClusters();
- 
-      setSelectedFile(null);
-      setKubeconfigContent("");
+
+      resetModalState();
       onAddClusterModalClose();
- 
+
     } catch (err: any) {
       console.error("Upload error:", err);
       setError(err.message || 'Upload failed');
@@ -254,1348 +400,1233 @@ export const UploadKubeconfig: React.FC = () => {
       setTimeout(() => setUploadProgress(0), 1000);
     }
   };
- 
-  const activateKubeconfig = async (filename: string) => {
+
+  // Helper function to parse kubeconfig
+  const parseKubeconfig = (content: string) => {
     try {
-      const response = await fetch(`/kubeconfig/activate/${filename}`, {
-        method: "PUT",
-        headers: {
-          "Authorization": `Bearer ${getAuthToken()}`
-        }
-      });
- 
-      if (response.ok) {
-        await fetchKubeconfigList();
-        await fetchClusters();
-      }
+      const yaml = require('js-yaml');
+      const config = yaml.load(content);
+      
+      const cluster = config.clusters?.[0]?.cluster || {};
+      const user = config.users?.[0]?.user || {};
+      const context = config.contexts?.[0] || {};
+      
+      return {
+        cluster_name: config.clusters?.[0]?.name || 'unknown-cluster',
+        server_url: cluster.server || '',
+        token: user.token || '',
+        context_name: context.name || 'default',
+        use_secure_tls: !cluster['insecure-skip-tls-verify'],
+        ca_data: cluster['certificate-authority-data'],
+        tls_cert: user['client-certificate-data'],
+        tls_key: user['client-key-data']
+      };
     } catch (error) {
-      console.error("Failed to activate kubeconfig:", error);
+      console.error('Error parsing kubeconfig:', error);
+      throw new Error('Invalid kubeconfig format');
     }
   };
- 
-  const openDeleteModal = (file: KubeconfigFile) => {
-    setClusterToDelete(file);
-    onDeleteModalOpen();
-  };
- 
-  const openDetailsModal = (file: KubeconfigFile) => {
-    setSelectedClusterDetails(file);
-    onDetailsModalOpen();
-  };
- 
-  const confirmDelete = async () => {
-    if (!clusterToDelete) return;
- 
+
+  const activateCluster = async (clusterId: number) => {
     try {
-      setError(null);
-      console.log("Attempting to remove:", clusterToDelete.filename);
- 
-      const response = await fetch(`/kubeconfig/remove?filename=${encodeURIComponent(clusterToDelete.filename)}`, {
-        method: "DELETE",
-        headers: {
-          "Authorization": `Bearer ${getAuthToken()}`
-        }
-      });
- 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Remove failed:", errorText);
-        throw new Error(`Failed to remove kubeconfig: ${response.status} ${response.statusText}`);
-      }
- 
-      const result = await response.json();
-      console.log("Remove successful:", result);
- 
-      await fetchKubeconfigList();
-      await fetchClusters();
- 
-      onDeleteModalClose();
-      setClusterToDelete(null);
- 
-    } catch (error: any) {
-      console.error("Failed to remove kubeconfig:", error);
-      setError(error.message || 'Failed to remove kubeconfig');
-    }
-  };
- 
-  const handleOnboardingSubmit = async () => {
-    setIsOnboardingLoading(true);
-    setError(null);
- 
-    try {
-      // Generate kubeconfig YAML from the provided credentials
-      const kubeconfigYaml = `apiVersion: v1
-kind: Config
-clusters:
-- cluster:
-    server: ${onboardingData.serverUrl}
-    insecure-skip-tls-verify: true
-  name: ${onboardingData.clusterName}
-contexts:
-- context:
-    cluster: ${onboardingData.clusterName}
-    user: ${onboardingData.clusterName}-user
-  name: ${onboardingData.clusterName}
-current-context: ${onboardingData.clusterName}
-users:
-- name: ${onboardingData.clusterName}-user
-  user:
-    token: ${onboardingData.bearerToken}`;
- 
-      const formData = new FormData();
-      const blob = new Blob([kubeconfigYaml], { type: 'application/x-yaml' });
-      formData.append('file', blob, `${onboardingData.clusterName}-kubeconfig.yaml`);
- 
-      const response = await fetch("/kubeconfig/upload", {
+      setLoading(true);
+      const apiUrl = `${getApiBaseUrl()}/kubeconfig/select-cluster-and-get-namespaces/${clusterId}`;
+      
+      const response = await fetch(apiUrl, {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${getAuthToken()}`
-        },
-        body: formData
+          "Authorization": `Bearer ${getAuthToken()}`,
+          "Content-Type": "application/json"
+        }
       });
- 
+
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Failed to add cluster: ${response.status} ${response.statusText} - ${errorText}`);
+        console.error('Activation error response:', errorText);
+        throw new Error(`Failed to activate cluster: ${response.status} ${response.statusText}`);
       }
- 
+
       const data = await response.json();
-      console.log("Cluster added successfully:", data);
- 
-      await fetchKubeconfigList();
-      await fetchClusters();
- 
-      // Reset form
-      setOnboardingData({
-        clusterName: '',
-        serverUrl: '',
-        bearerToken: ''
+      
+      if (data.success && data.cluster_activated) {
+        setActiveClusterId(clusterId);
+        
+        if (data.namespaces_retrieved && data.namespaces) {
+          setNamespaces(data.namespaces);
+        } else {
+          setNamespaces([]);
+          console.warn('Cluster activated but namespaces not available:', data.error);
+        }
+        
+        // Refresh cluster list to update active status
+        await fetchClusters();
+        
+        console.log(`Switched to cluster: ${data.cluster_info.cluster_name}`);
+      } else {
+        throw new Error(data.message || 'Failed to activate cluster');
+      }
+    } catch (error: any) {
+      console.error("Failed to activate cluster:", error);
+      setError(error.message || 'Failed to activate cluster');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openDeleteModal = (cluster: ClusterConfig) => {
+    setClusterToDelete(cluster);
+    onDeleteModalOpen();
+  };
+
+  const openDetailsModal = (cluster: ClusterConfig) => {
+    setSelectedClusterDetails(cluster);
+    onDetailsModalOpen();
+  };
+
+  const deleteCluster = async () => {
+    if (!clusterToDelete) return;
+
+    try {
+      setLoading(true);
+      const apiUrl = `${getApiBaseUrl()}/cluster/remove-cluster/${clusterToDelete.id}`;
+      
+      const response = await fetch(apiUrl, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${getAuthToken()}`,
+          "Content-Type": "application/json"
+        }
       });
- 
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Delete error response:', errorText);
+        throw new Error(`Failed to delete cluster: ${response.status} ${response.statusText}`);
+      }
+
+      await fetchClusters();
+      onDeleteModalClose();
+      setClusterToDelete(null);
+    } catch (error: any) {
+      console.error("Failed to delete cluster:", error);
+      setError(error.message || 'Failed to delete cluster');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle manual cluster onboarding
+  const handleManualOnboarding = async () => {
+    if (!onboardingData.cluster_name || !onboardingData.server_url || !onboardingData.token) {
+      setError('Please fill in all required fields');
+      return;
+    }
+
+    setIsOnboardingLoading(true);
+    setError(null);
+
+    try {
+      const requestData = {
+        ...onboardingData,
+        provider_name: selectedProvider,
+        tags: onboardingData.tags || []
+      };
+
+      const apiUrl = `${getApiBaseUrl()}/cluster/onboard-cluster`;
+      const response = await fetch(apiUrl, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${getAuthToken()}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(requestData)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || `Onboarding failed: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log("Onboarding successful:", data);
+
+      await fetchClusters();
+
+      resetModalState();
       onAddClusterModalClose();
- 
+
     } catch (err: any) {
-      console.error("Add cluster error:", err);
-      setError(err.message || 'Failed to add cluster');
+      console.error("Onboarding error:", err);
+      setError(err.message || 'Onboarding failed');
     } finally {
       setIsOnboardingLoading(false);
     }
   };
- 
-  const { isOpen: isCommandsModalOpen, onOpen: onCommandsModalOpen, onClose: onCommandsModalClose } = useDisclosure();
- 
-  const renderOnboardingContent = () => {
-    return (
-      <div className="space-y-6">
-        <div className="text-center">
-          {/* <h3 className="text-2xl font-bold text-gray-800 mb-2">Add Cluster with Credentials</h3> */}
-          <p className="text-gray-600">Enter your cluster details to connect</p>
+
+  const handleTagsChange = (tagsString: string) => {
+    const tags = tagsString.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
+    setOnboardingData(prev => ({ ...prev, tags }));
+  };
+
+  const renderClusterTable = () => {
+    if (loading) {
+      return (
+        <div className="flex justify-center items-center py-12">
+          <div className="text-center">
+            <Spinner size="lg" color="primary" />
+            <p className="mt-4 text-gray-500">Loading clusters...</p>
+          </div>
         </div>
-        
-        <div className="space-y-4">
-          <Input
-            label="Cluster Name"
-            placeholder="e.g., production-cluster"
-            value={onboardingData.clusterName}
-            onValueChange={(value) => setOnboardingData(prev => ({ ...prev, clusterName: value }))}
-            startContent={<Icon icon="lucide:tag" className="text-foreground-400" />}
-            variant="bordered"
-            size="lg"
-            isRequired
-          />
-          
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-medium">Server URL *</label>
-              <Button
-                size="sm"
-                variant="light"
-                color="primary"
-                className="text-xs h-6 min-w-0 px-2"
-                onPress={onCommandsModalOpen}
-              >
-                How to get?
-              </Button>
+      );
+    }
+
+    if (clusters.length === 0) {
+      return (
+        <div className="text-center py-16">
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl p-8 max-w-md mx-auto">
+            <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+              <Icon icon="mdi:kubernetes" className="text-3xl text-white" />
             </div>
-            <Input
-              placeholder="e.g., https://kubernetes.example.com:6443"
-              value={onboardingData.serverUrl}
-              onValueChange={(value) => setOnboardingData(prev => ({ ...prev, serverUrl: value }))}
-              startContent={<Icon icon="lucide:server" className="text-foreground-400" />}
-              variant="bordered"
+            <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">
+              No Clusters Found
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              Get started by adding your first Kubernetes cluster
+            </p>
+            <Button
+              color="primary"
               size="lg"
-              isRequired
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-medium">Bearer Token *</label>
-              <Button
-                size="sm"
-                variant="light"
-                color="primary"
-                className="text-xs h-6 min-w-0 px-2"
-                onPress={onCommandsModalOpen}
-              >
-                How to get?
-              </Button>
-            </div>
-            <Textarea
-              placeholder="Enter your bearer token here..."
-              value={onboardingData.bearerToken}
-              onValueChange={(value) => setOnboardingData(prev => ({ ...prev, bearerToken: value }))}
-              minRows={4}
-              variant="bordered"
-              classNames={{
-                input: "font-mono text-sm"
-              }}
-              isRequired
-            />
+              startContent={<Icon icon="mdi:plus" />}
+              onPress={onAddClusterModalOpen}
+              className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg hover:shadow-xl transition-all duration-300"
+            >
+              Add Your First Cluster
+            </Button>
           </div>
         </div>
-  
-       
+      );
+    }
+
+    return (
+      <div className="space-y-4">
+        {clusters.map((cluster) => {
+          const { date, time } = formatDate(cluster.created_at);
+          const providerInfo = getProviderInfo(cluster.provider_name);
+          
+          return (
+            <motion.div
+              key={cluster.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Card className={`hover:shadow-lg transition-all duration-300 ${
+                cluster.active 
+                  ? 'ring-2 ring-blue-500 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20' 
+                  : 'hover:ring-1 hover:ring-gray-200'
+              }`}>
+                <CardBody className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <Avatar
+                        icon={<Icon icon={providerInfo.icon} className="text-2xl" />}
+                        className={`bg-gradient-to-br ${
+                          providerInfo.color === 'primary' ? 'from-blue-500 to-indigo-600' :
+                          providerInfo.color === 'warning' ? 'from-orange-500 to-yellow-600' :
+                          providerInfo.color === 'success' ? 'from-green-500 to-emerald-600' :
+                          providerInfo.color === 'danger' ? 'from-red-500 to-pink-600' :
+                          providerInfo.color === 'secondary' ? 'from-purple-500 to-violet-600' :
+                          'from-gray-500 to-slate-600'
+                        } text-white`}
+                        size="lg"
+                      />
+                      
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-1">
+                          <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
+                            {cluster.cluster_name}
+                          </h3>
+                          {cluster.active && (
+                            <Badge 
+                              color="success" 
+                              variant="flat" 
+                              className="bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 border border-green-200"
+                            >
+                              <Icon icon="mdi:check-circle" className="mr-1" />
+                              Active
+                            </Badge>
+                          )}
+                          {cluster.is_operator_installed && (
+                            <Badge 
+                              color="primary" 
+                              variant="flat"
+                              className="bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-800 border border-blue-200"
+                            >
+                              <Icon icon="mdi:robot" className="mr-1" />
+                              Operator
+                            </Badge>
+                          )}
+                        </div>
+                        
+                        <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+                          <div className="flex items-center gap-1">
+                            <Icon icon="mdi:server" className="text-gray-400" />
+                            <span>{cluster.context_name}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Icon icon="mdi:shield-check" className="text-gray-400" />
+                            <span>{cluster.use_secure_tls ? 'Secure' : 'Insecure'}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Icon icon="mdi:calendar" className="text-gray-400" />
+                            <span>{date}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Chip
+                        size="sm"
+                        variant="flat"
+                        className={`${
+                          providerInfo.color === 'primary' ? 'bg-blue-100 text-blue-800' :
+                          providerInfo.color === 'warning' ? 'bg-orange-100 text-orange-800' :
+                          providerInfo.color === 'success' ? 'bg-green-100 text-green-800' :
+                          providerInfo.color === 'danger' ? 'bg-red-100 text-red-800' :
+                          providerInfo.color === 'secondary' ? 'bg-purple-100 text-purple-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}
+                      >
+                        <Icon icon={providerInfo.icon} className="mr-1" />
+                        {cluster.provider_name}
+                      </Chip>
+
+                      <div className="flex items-center gap-1">
+                        {!cluster.active && (
+                          <Button
+                            size="sm"
+                            color="primary"
+                            variant="flat"
+                            onPress={() => activateCluster(cluster.id)}
+                            isLoading={loading}
+                            className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700"
+                          >
+                            <Icon icon="mdi:play" className="mr-1" />
+                            Activate
+                          </Button>
+                        )}
+                        
+                        <Button
+                          size="sm"
+                          variant="light"
+                          isIconOnly
+                          onPress={() => openDetailsModal(cluster)}
+                          className="hover:bg-gray-100 dark:hover:bg-gray-800"
+                        >
+                          <Icon icon="mdi:eye" />
+                        </Button>
+                        
+                        <Button
+                          size="sm"
+                          color="danger"
+                          variant="light"
+                          isIconOnly
+                          onPress={() => openDeleteModal(cluster)}
+                          className="hover:bg-red-50 dark:hover:bg-red-900/20"
+                        >
+                          <Icon icon="mdi:delete" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </CardBody>
+              </Card>
+            </motion.div>
+          );
+        })}
       </div>
     );
   };
- 
-  // Calculate stats
-  const totalKubeconfigs = kubeconfigFiles.length;
-  const activeKubeconfigs = kubeconfigFiles.filter(f => f.active).length;
-  const totalClusters = clusters.length;
-  const activeClusters = clusters.filter(c => c.active).length;
- 
-  return (
-    <div className="container mx-auto px-4 py-8">
-      {/* Header with gradient background */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-8"
-      >
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h1 className="text-4xl font-bold flex items-center gap-3">
-              KubeSage Cluster Management
-            </h1>
-            <p className="text-gray-600 mt-2">
-              Manage your Kubernetes clusters and configurations with AI-powered insights
+
+  const renderNamespacesList = () => {
+    if (!activeClusterId) {
+      return (
+        <div className="text-center py-16">
+          <div className="bg-gradient-to-br from-purple-50 to-pink-100 dark:from-purple-900/20 dark:to-pink-900/20 rounded-2xl p-8 max-w-md mx-auto">
+            <div className="bg-gradient-to-br from-purple-500 to-pink-600 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+              <Icon icon="mdi:namespace" className="text-3xl text-white" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">
+              No Active Cluster
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400">
+              Activate a cluster to view its namespaces
             </p>
           </div>
-          <div className="flex gap-2">
+        </div>
+      );
+    }
+
+    if (namespaces.length === 0) {
+      return (
+        <div className="text-center py-16">
+          <div className="bg-gradient-to-br from-yellow-50 to-orange-100 dark:from-yellow-900/20 dark:to-orange-900/20 rounded-2xl p-8 max-w-md mx-auto">
+            <div className="bg-gradient-to-br from-yellow-500 to-orange-600 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+              <Icon icon="mdi:namespace-outline" className="text-3xl text-white" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">
+              No Namespaces Found
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
+              The active cluster may not have any namespaces or connection failed
+              </p>
+            <Button
+              size="sm"
+              variant="flat"
+              startContent={<Icon icon="mdi:refresh" />}
+              onPress={fetchNamespaces}
+              className="bg-gradient-to-r from-yellow-500 to-orange-600 text-white"
+            >
+              Retry Connection
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {namespaces.map((namespace, index) => (
+          <motion.div
+            key={namespace}
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.3, delay: index * 0.05 }}
+          >
+            <Card className="hover:shadow-lg transition-all duration-300 hover:scale-105 bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 border border-gray-200 dark:border-gray-700">
+              <CardBody className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg p-2">
+                    <Icon icon="mdi:namespace" className="text-xl text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-gray-800 dark:text-white">{namespace}</p>
+                    <p className="text-xs text-gray-500">Namespace</p>
+                  </div>
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                </div>
+              </CardBody>
+            </Card>
+          </motion.div>
+        ))}
+      </div>
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-blue-900">
+      <div className="container mx-auto px-4 py-8">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          {/* Header Section */}
+          <div className="flex justify-between items-center mb-8">
+            <div>
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                Kubernetes Clusters
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400 mt-2 text-lg">
+                Manage your Kubernetes cluster configurations and namespaces
+              </p>
+            </div>
             <Button
               color="primary"
-              variant="shadow"
               size="lg"
+              startContent={<Icon icon="mdi:plus" className="text-xl" />}
               onPress={onAddClusterModalOpen}
-              startContent={<Icon icon="mdi:plus-circle" />}
+              className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
             >
               Add Cluster
             </Button>
- 
           </div>
-        </div>
- 
-        {/* Stats Cards with gradients */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          {/* <motion.div whileHover={{ scale: 1.02 }}>
-            <Card className="bg-gradient-to-r from-blue-500 to-purple-600 text-white">
-              <CardBody className="flex flex-row items-center gap-4">
-                <Icon icon="mdi:file-document" className="text-3xl" />
-                <div>
-                  <p className="text-sm opacity-80">Total Kubeconfigs</p>
-                  <p className="text-2xl font-bold">{totalKubeconfigs}</p>
+
+          {/* Error Alert */}
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="mb-6"
+            >
+              <Card className="border-l-4 border-l-red-500 bg-gradient-to-r from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20">
+                <CardBody>
+                  <div className="flex items-center gap-3">
+                    <div className="bg-red-500 rounded-full p-1">
+                      <Icon icon="mdi:alert-circle" className="text-white text-lg" />
+                    </div>
+                    <p className="text-red-700 dark:text-red-300 flex-1">{error}</p>
+                    <Button
+                      size="sm"
+                      variant="light"
+                      isIconOnly
+                      onPress={() => setError(null)}
+                      className="hover:bg-red-100 dark:hover:bg-red-800/20"
+                    >
+                      <Icon icon="mdi:close" />
+                    </Button>
+                  </div>
+                </CardBody>
+              </Card>
+            </motion.div>
+          )}
+
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <Card className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
+              <CardBody className="p-6">
+                <div className="flex items-center gap-4">
+                  <div className="bg-white/20 rounded-lg p-3">
+                    <Icon icon="mdi:kubernetes" className="text-2xl" />
+                  </div>
+                  <div>
+                    <p className="text-blue-100">Total Clusters</p>
+                    <p className="text-2xl font-bold">{clusters.length}</p>
+                  </div>
                 </div>
               </CardBody>
             </Card>
-          </motion.div> */}
- 
-          <motion.div whileHover={{ scale: 1.02 }}>
-            <Card className="bg-gradient-to-r from-green-500 to-teal-600 text-white">
-              <CardBody className="flex flex-row items-center gap-4">
-                <Icon icon="mdi:server" className="text-3xl" />
-                <div>
-                  <p className="text-sm opacity-80">Active Clusters</p>
-                  <p className="text-2xl font-bold">{activeClusters}</p>
+
+            <Card className="bg-gradient-to-br from-green-500 to-emerald-600 text-white">
+              <CardBody className="p-6">
+                <div className="flex items-center gap-4">
+                  <div className="bg-white/20 rounded-lg p-3">
+                    <Icon icon="mdi:check-circle" className="text-2xl" />
+                  </div>
+                  <div>
+                    <p className="text-green-100">Active Clusters</p>
+                    <p className="text-2xl font-bold">{clusters.filter(c => c.active).length}</p>
+                  </div>
                 </div>
               </CardBody>
             </Card>
-          </motion.div>
- 
-          {/* <motion.div whileHover={{ scale: 1.02 }}>
-            <Card className="bg-gradient-to-r from-orange-500 to-red-600 text-white">
-              <CardBody className="flex flex-row items-center gap-4">
-                <Icon icon="mdi:check-circle" className="text-3xl" />
-                <div>
-                  <p className="text-sm opacity-80">Active Configs</p>
-                  <p className="text-2xl font-bold">{activeKubeconfigs}</p>
+
+            <Card className="bg-gradient-to-br from-purple-500 to-pink-600 text-white">
+              <CardBody className="p-6">
+                <div className="flex items-center gap-4">
+                  <div className="bg-white/20 rounded-lg p-3">
+                    <Icon icon="mdi:namespace" className="text-2xl" />
+                  </div>
+                  <div>
+                    <p className="text-purple-100">Namespaces</p>
+                    <p className="text-2xl font-bold">{namespaces.length}</p>
+                  </div>
                 </div>
               </CardBody>
             </Card>
-          </motion.div> */}
- 
-          <motion.div whileHover={{ scale: 1.02 }}>
-            <Card className="bg-gradient-to-r from-purple-500 to-pink-600 text-white">
-              <CardBody className="flex flex-row items-center gap-4">
-                <Icon icon="mdi:cloud" className="text-3xl" />
-                <div>
-                  <p className="text-sm opacity-80">Total Clusters</p>
-                  <p className="text-2xl font-bold">{totalClusters}</p>
-                </div>
-              </CardBody>
-            </Card>
-          </motion.div>
-        </div>
-      </motion.div>
- 
-      {/* Error Display */}
-      {error && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-6"
-        >
-          <Card className="bg-red-50 border-red-200">
-            <CardBody className="flex flex-row items-center gap-3">
-              <Icon icon="mdi:alert-circle" className="text-red-500 text-xl flex-shrink-0" />
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-red-800">Error</p>
-                <p className="text-xs text-red-700">{error}</p>
-              </div>
-              <Button
-                size="sm"
-                variant="light"
-                isIconOnly
-                onPress={() => setError(null)}
+          </div>
+
+          {/* Main Content Tabs */}
+          <Card className="shadow-xl bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm">
+            <CardBody className="p-0">
+              <Tabs
+                selectedKey={selectedTab}
+                onSelectionChange={(key) => setSelectedTab(key as string)}
+                className="w-full"
+                classNames={{
+                  tabList: "bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 rounded-t-lg",
+                  tab: "text-gray-600 dark:text-gray-400 data-[selected=true]:text-blue-600 dark:data-[selected=true]:text-blue-400",
+                  tabContent: "group-data-[selected=true]:text-blue-600 dark:group-data-[selected=true]:text-blue-400 font-semibold",
+                  panel: "p-6"
+                }}
               >
-                <Icon icon="mdi:close" className="text-red-500" />
-              </Button>
+                <Tab 
+                  key="manage" 
+                  title={
+                    <div className="flex items-center gap-2">
+                      <Icon icon="mdi:kubernetes" className="text-lg" />
+                      <span>Clusters ({clusters.length})</span>
+                    </div>
+                  }
+                >
+                  {renderClusterTable()}
+                </Tab>
+
+                <Tab 
+                  key="namespaces" 
+                  title={
+                    <div className="flex items-center gap-2">
+                      <Icon icon="mdi:namespace" className="text-lg" />
+                      <span>Namespaces ({namespaces.length})</span>
+                    </div>
+                  }
+                >
+                  <div className="space-y-6">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <h3 className="text-xl font-semibold text-gray-800 dark:text-white">
+                          {activeClusterId ? 
+                            `Namespaces - ${clusters.find(c => c.id === activeClusterId)?.cluster_name}` : 
+                            'Namespaces'
+                          }
+                        </h3>
+                        <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">
+                          {activeClusterId ? 
+                            `${namespaces.length} namespaces found in active cluster` :
+                            'Select an active cluster to view namespaces'
+                          }
+                        </p>
+                      </div>
+                      {activeClusterId && (
+                        <Button
+                          size="sm"
+                          variant="flat"
+                          startContent={<Icon icon="mdi:refresh" />}
+                          onPress={fetchNamespaces}
+                          className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white"
+                        >
+                          Refresh
+                        </Button>
+                      )}
+                    </div>
+                    {renderNamespacesList()}
+                  </div>
+                </Tab>
+              </Tabs>
             </CardBody>
           </Card>
-        </motion.div>
-      )}
- 
-      {/* Main Content */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-      >
-        <Card>
-          <CardBody>
-            {/* Clusters Table with All Details */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold flex items-center gap-2">
-                    <Icon icon="mdi:view-dashboard" />
-                    Cluster Overview
-                  </h3>
-                  <p className="text-sm text-foreground-500">Complete information about your clusters</p>
-                </div>
-                <Button
-                  color="primary"
-                  variant="flat"
-                  size="sm"
-                  onPress={fetchKubeconfigList}
-                  isLoading={loading}
-                  startContent={<Icon icon="mdi:refresh" />}
-                >
-                  Refresh
-                </Button>
-              </div>
- 
-              {loading ? (
-                <div className="flex justify-center py-8">
-                  <div className="text-center">
-                    <Spinner size="lg" color="primary" />
-                    <p className="mt-4 text-lg">Loading cluster information...</p>
+
+          {/* Add Cluster Modal */}
+          <Modal
+            isOpen={isAddClusterModalOpen}
+            onClose={handleModalClose}
+            size="3xl"
+            scrollBehavior="inside"
+            isDismissable={!isUploading && !isOnboardingLoading}
+            hideCloseButton={isUploading || isOnboardingLoading}
+            classNames={{
+              backdrop: "bg-gradient-to-t from-zinc-900 to-zinc-900/10 backdrop-opacity-20",
+              base: "border-[#292f46] bg-gradient-to-br from-white to-gray-50 dark:from-gray-900 dark:to-gray-800",
+              header: "border-b-[1px] border-[#292f46]",
+              body: "py-6",
+              closeButton: "hover:bg-white/5 active:bg-white/10",
+            }}
+          >
+            <ModalContent>
+              <ModalHeader className="flex flex-col gap-1">
+                <div className="flex items-center gap-3">
+                  <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg p-2">
+                    <Icon icon="mdi:kubernetes" className="text-2xl text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-800 dark:text-white">Add Kubernetes Cluster</h2>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Connect your cluster using kubeconfig or manual configuration</p>
                   </div>
                 </div>
-              ) : (
-                <Table aria-label="Clusters table with full details">
-                  <TableHeader>
-                    <TableColumn>CLUSTER NAME</TableColumn>
-                    <TableColumn>FILENAME</TableColumn>
-                    <TableColumn>CONTEXT</TableColumn>
-                    <TableColumn>STATUS</TableColumn>
-                    {/* <TableColumn>UPLOAD DATE</TableColumn> */}
-                    <TableColumn>ACTIONS</TableColumn>
-                  </TableHeader>
-                  <TableBody>
-                    {kubeconfigFiles.map((file, index) => (
-                      <TableRow key={index}>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Icon icon="mdi:kubernetes" className="text-blue-500" />
-                            <div>
-                              <span className="font-medium">{file.cluster_name}</span>
-                              <p className="text-xs text-foreground-500">Cluster</p>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Icon icon="mdi:file-document" className="text-foreground-400" />
-                            <div>
-                              <span className="font-mono text-sm">{file.original_filename}</span>
-                              <p className="text-xs text-foreground-500">Config File</p>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Code className="text-sm">{file.context_name}</Code>
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            color={file.active ? 'success' : 'default'}
-                            variant="flat"
-                            size="sm"
-                            startContent={
-                              <Icon
-                                icon={file.active ? "mdi:check-circle" : "mdi:circle-outline"}
-                                className="text-xs"
-                              />
-                            }
-                          >
-                            {file.active ? 'Active' : 'Inactive'}
-                          </Chip>
-                        </TableCell>
-                        {/* <TableCell>
-                          <div>
-                            <span className="text-sm">{new Date(file.upload_date).toLocaleDateString()}</span>
-                            <p className="text-xs text-foreground-500">{new Date(file.upload_date).toLocaleTimeString()}</p>
-                          </div>
-                        </TableCell> */}
-                        <TableCell>
-                          <div className="flex items-center gap-2 justify-start">
-                            <Button
-                              size="sm"
-                              variant="flat"
-                              color={file.active ? 'default' : 'success'}
-                              onPress={() => activateKubeconfig(file.filename)}
-                              isDisabled={file.active}
-                              className="min-w-[80px]"
-                            >
-                              {file.active ? 'Active' : 'Activate'}
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="flat"
-                              color="primary"
-                              onPress={() => openDetailsModal(file)}
-                              startContent={<Icon icon="mdi:eye" />}
-                            >
-                              Details
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="flat"
-                              color="secondary"
-                              isDisabled={!file.active}
-                              startContent={<Icon icon="mdi:monitor" />}
-                            >
-                              Monitor
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="flat"
-                              color="danger"
-                              onPress={() => openDeleteModal(file)}
-                              startContent={<Icon icon="mdi:delete" />}
-                            >
-                              Delete
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </div>
-          </CardBody>
-        </Card>
-      </motion.div>
- 
-      {/* Add Cluster Modal - Colorful Style */}
-      <Modal
-        isOpen={isAddClusterModalOpen}
-        onClose={onAddClusterModalClose}
-        size="5xl"
-        scrollBehavior="inside"
-        classNames={{
-          backdrop: "bg-gradient-to-t from-zinc-900 to-zinc-900/10 backdrop-opacity-20"
-        }}
-      >
-        <ModalContent>
-          <ModalHeader className="flex flex-col gap-1 bg-gradient-to-r from-blue-500 to-purple-600 text-white">
-            <div className="flex items-center gap-3">
-              <Icon icon="mdi:plus-circle" className="text-2xl" />
-              <span className="text-xl font-bold">Add New Cluster</span>
-            </div>
-            <p className="text-sm opacity-90 font-normal">
-              Choose how you want to add your cluster to KubeSage
-            </p>
-          </ModalHeader>
-          <ModalBody className="p-6">
-            <Tabs
-              aria-label="Add cluster options"
-              selectedKey={addClusterMethod}
-              onSelectionChange={setAddClusterMethod as any}
-              variant="underlined"
-              color="primary"
-              classNames={{
-                tabList: "gap-6 w-full relative rounded-none p-0 border-b border-divider",
-                cursor: "w-full bg-gradient-to-r from-blue-500 to-purple-600",
-                tab: "max-w-fit px-0 h-12",
-              }}
-            >
-              <Tab
-                key="upload"
-                title={
-                  <div className="flex items-center gap-2">
-                    <Icon icon="mdi:upload" />
-                    <span>Upload Kubeconfig</span>
-                  </div>
-                }
-              >
-                <motion.div
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  className="mt-6 space-y-6"
+              </ModalHeader>
+              <ModalBody>
+                <Tabs
+                  selectedKey={addClusterMethod}
+                  onSelectionChange={(key) => setAddClusterMethod(key as string)}
+                  className="mb-6"
+                  classNames={{
+                    tabList: "bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 rounded-lg p-1",
+                    tab: "data-[selected=true]:bg-white dark:data-[selected=true]:bg-gray-600 data-[selected=true]:shadow-md",
+                    tabContent: "group-data-[selected=true]:text-blue-600 dark:group-data-[selected=true]:text-blue-400 font-medium"
+                  }}
                 >
-                  {/* Upload Instructions */}
-                  <Card className="bg-gradient-to-r from-blue-100 to-purple-100 border-l-4 border-blue-500">
-                    <CardBody>
-                      <div className="flex items-start gap-4">
-                        <Icon icon="mdi:information" className="text-2xl text-blue-500 mt-1" />
-                        <div>
-                          <h4 className="font-semibold text-blue-800">Upload Instructions</h4>
-                          <p className="text-blue-700 mt-1">
-                            Upload your existing kubeconfig file or paste the YAML content directly.
-                            We'll automatically detect cluster information and configure access.
-                          </p>
+                  <Tab key="upload" title={
+                    <div className="flex items-center gap-2">
+                      <Icon icon="mdi:upload" />
+                      <span>Upload Kubeconfig</span>
+                    </div>
+                  }>
+                    <div className="space-y-6">
+                      <div
+                        className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-12 text-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all duration-300"
+                        onDrop={handleDrop}
+                        onDragOver={handleDragOver}
+                        onClick={triggerFileInput}
+                      >
+                        <input
+                          id="file-input"
+                          type="file"
+                          accept=".yaml,.yml"
+                          onChange={handleFileSelect}
+                          className="hidden"
+                        />
+                        <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                          <Icon icon="mdi:cloud-upload" className="text-3xl text-white" />
                         </div>
+                        <p className="text-xl font-semibold text-gray-800 dark:text-white mb-2">
+                          {selectedFile ? selectedFile.name : "Drop your kubeconfig file here"}
+                        </p>
+                        <p className="text-gray-500">
+                          or click to browse files (.yaml, .yml)
+                        </p>
                       </div>
-                    </CardBody>
-                  </Card>
- 
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* File Upload Section */}
-                    <Card className="border-2 border-dashed border-primary-200 hover:border-primary-400 transition-colors">
-                      <CardHeader className="bg-gradient-to-r from-green-50 to-blue-50">
-                        <h3 className="text-lg font-semibold flex items-center gap-2">
-                          <Icon icon="mdi:file-upload" className="text-green-600" />
-                          Upload Kubeconfig File
-                        </h3>
-                      </CardHeader>
-                      <CardBody className="space-y-4">
-                        <div
-                          className="p-8 border-2 border-dashed border-content3 rounded-lg text-center hover:border-primary transition-colors cursor-pointer bg-gradient-to-br from-gray-50 to-gray-100"
-                          onDrop={handleDrop}
-                          onDragOver={handleDragOver}
-                          onClick={triggerFileInput}
-                        >
-                          <input
-                            id="file-input"
-                            type="file"
-                            accept=".yaml,.yml,.config"
-                            onChange={handleFileSelect}
-                            className="hidden"
-                            style={{ display: 'none' }}
+
+                      {kubeconfigContent && (
+                        <div className="space-y-2">
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Kubeconfig Content Preview:
+                          </label>
+                          <Textarea
+                            value={kubeconfigContent}
+                            onChange={(e) => setKubeconfigContent(e.target.value)}
+                            placeholder="Paste your kubeconfig content here..."
+                            minRows={8}
+                            maxRows={12}
+                            className="font-mono text-sm"
+                            classNames={{
+                              input: "bg-gray-50 dark:bg-gray-800"
+                            }}
                           />
-                          <div className="flex flex-col items-center gap-3">
-                            <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                              <Icon icon="mdi:cloud-upload" className="text-3xl text-white" />
-                            </div>
-                            <h4 className="font-medium text-lg">
-                              {selectedFile ? selectedFile.name : "Drop kubeconfig file here"}
-                            </h4>
-                            <p className="text-sm text-foreground-500">
-                              {selectedFile ? "File selected successfully" : "or click to browse files"}
-                            </p>
-                            {!selectedFile && (
-                              <Button
-                                variant="shadow"
-                                color="primary"
-                                size="lg"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  triggerFileInput();
-                                }}
-                                startContent={<Icon icon="mdi:folder-open" />}
-                              >
-                                Browse Files
-                              </Button>
-                            )}
-                          </div>
                         </div>
- 
-                        {selectedFile && (
-                          <motion.div
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="flex items-center justify-between p-4 bg-gradient-to-r from-green-100 to-emerald-100 text-green-700 rounded-lg border border-green-200"
-                          >
-                            <div className="flex items-center gap-3">
-                              <Icon icon="mdi:check-circle" className="text-xl" />
-                              <div>
-                                <span className="font-medium">{selectedFile.name}</span>
-                                <p className="text-xs text-green-600">Ready to upload</p>
-                              </div>
+                      )}
+
+                      <Select
+                        label="Provider"
+                        placeholder="Select cluster provider"
+                        selectedKeys={[selectedProvider]}
+                        onSelectionChange={(keys) => {
+                          const selected = Array.from(keys)[0] as string;
+                          setSelectedProvider(selected);
+                        }}
+                        classNames={{
+                          trigger: "bg-gray-50 dark:bg-gray-800"
+                        }}
+                      >
+                        {providerOptions.map((provider) => (
+                          <SelectItem key={provider.key} value={provider.key}>
+                                                        <div className="flex items-center gap-2">
+                              <Icon icon={provider.icon} />
+                              <span>{provider.label}</span>
                             </div>
-                            <Button
-                              size="sm"
-                              variant="light"
-                              color="danger"
-                              onPress={() => {
-                                setSelectedFile(null);
-                                setKubeconfigContent("");
-                              }}
-                              startContent={<Icon icon="mdi:close" />}
-                            >
-                              Remove
-                            </Button>
-                          </motion.div>
-                        )}
-                      </CardBody>
-                    </Card>
- 
-                    {/* Manual Input Section */}
-                    <Card className="border-2 border-dashed border-secondary-200 hover:border-secondary-400 transition-colors">
-                      <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50">
-                        <h3 className="text-lg font-semibold flex items-center gap-2">
-                          <Icon icon="mdi:code-braces" className="text-purple-600" />
-                          Paste Kubeconfig Content
-                        </h3>
-                      </CardHeader>
-                      <CardBody>
-                        <Textarea
-                          label="Kubeconfig YAML"
-                          placeholder="apiVersion: v1
-kind: Config
-clusters:
-- cluster:
-    certificate-authority-data: ...
-    server: https://..."
-                          value={kubeconfigContent}
-                          onValueChange={setKubeconfigContent}
-                          minRows={10}
-                          maxRows={15}
+                          </SelectItem>
+                        ))}
+                      </Select>
+
+                      {isUploading && (
+                        <div className="space-y-3">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-600 dark:text-gray-400">Uploading cluster configuration...</span>
+                            <span className="font-semibold text-blue-600">{uploadProgress}%</span>
+                          </div>
+                          <Progress 
+                            value={uploadProgress} 
+                            color="primary" 
+                            className="w-full"
+                            classNames={{
+                              track: "drop-shadow-md border border-default",
+                              indicator: "bg-gradient-to-r from-blue-500 to-indigo-600",
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </Tab>
+
+                  <Tab key="manual" title={
+                    <div className="flex items-center gap-2">
+                      <Icon icon="mdi:cog" />
+                      <span>Manual Configuration</span>
+                    </div>
+                  }>
+                    <ScrollShadow className="max-h-96">
+                      <div className="space-y-6 pr-2">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <Input
+                            label="Cluster Name"
+                            placeholder="Enter cluster name"
+                            value={onboardingData.cluster_name}
+                            onChange={(e) => setOnboardingData(prev => ({ ...prev, cluster_name: e.target.value }))}
+                            isRequired
+                            startContent={<Icon icon="mdi:kubernetes" className="text-gray-400" />}
+                            classNames={{
+                              input: "bg-gray-50 dark:bg-gray-800"
+                            }}
+                          />
+
+                          <Input
+                            label="Context Name"
+                            placeholder="Enter context name (optional)"
+                            value={onboardingData.context_name}
+                            onChange={(e) => setOnboardingData(prev => ({ ...prev, context_name: e.target.value }))}
+                            startContent={<Icon icon="mdi:server" className="text-gray-400" />}
+                            classNames={{
+                              input: "bg-gray-50 dark:bg-gray-800"
+                            }}
+                          />
+                        </div>
+
+                        <Input
+                          label="Server URL"
+                          placeholder="https://kubernetes.example.com:6443"
+                          value={onboardingData.server_url}
+                          onChange={(e) => setOnboardingData(prev => ({ ...prev, server_url: e.target.value }))}
+                          isRequired
+                          startContent={<Icon icon="mdi:web" className="text-gray-400" />}
                           classNames={{
-                            input: "font-mono text-sm",
-                            inputWrapper: "bg-gradient-to-br from-gray-50 to-gray-100"
+                            input: "bg-gray-50 dark:bg-gray-800"
                           }}
                         />
-                      </CardBody>
-                    </Card>
-                  </div>
- 
-                  {/* Upload Progress */}
-                  {isUploading && (
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                    >
-                      <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border border-primary">
-                        <CardBody>
-                          <div className="space-y-3">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                                  <Icon icon="mdi:upload" className="text-white" />
+
+                        <Textarea
+                          label="Bearer Token"
+                          placeholder="Enter your bearer token"
+                          value={onboardingData.token}
+                          onChange={(e) => setOnboardingData(prev => ({ ...prev, token: e.target.value }))}
+                          minRows={3}
+                          isRequired
+                          startContent={<Icon icon="mdi:key" className="text-gray-400" />}
+                          classNames={{
+                            input: "bg-gray-50 dark:bg-gray-800 font-mono"
+                          }}
+                        />
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <Select
+                            label="Provider"
+                            placeholder="Select cluster provider"
+                            selectedKeys={[selectedProvider]}
+                            onSelectionChange={(keys) => {
+                              const selected = Array.from(keys)[0] as string;
+                              setSelectedProvider(selected);
+                              setOnboardingData(prev => ({ ...prev, provider_name: selected }));
+                            }}
+                            classNames={{
+                              trigger: "bg-gray-50 dark:bg-gray-800"
+                            }}
+                          >
+                            {providerOptions.map((provider) => (
+                              <SelectItem key={provider.key} value={provider.key}>
+                                <div className="flex items-center gap-2">
+                                  <Icon icon={provider.icon} />
+                                  <span>{provider.label}</span>
                                 </div>
-                                <span className="font-medium">Uploading kubeconfig...</span>
-                              </div>
-                              <span className="text-sm text-foreground-500 font-mono">{uploadProgress}%</span>
+                              </SelectItem>
+                            ))}
+                          </Select>
+
+                          <Input
+                            label="Tags"
+                            placeholder="Enter tags separated by commas"
+                            value={onboardingData.tags.join(', ')}
+                            onChange={(e) => handleTagsChange(e.target.value)}
+                            startContent={<Icon icon="mdi:tag" className="text-gray-400" />}
+                            classNames={{
+                              input: "bg-gray-50 dark:bg-gray-800"
+                            }}
+                          />
+                        </div>
+
+                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg p-4">
+                          <Checkbox
+                            isSelected={onboardingData.use_secure_tls}
+                            onValueChange={(checked) => setOnboardingData(prev => ({ ...prev, use_secure_tls: checked }))}
+                            classNames={{
+                              label: "text-gray-700 dark:text-gray-300 font-medium"
+                            }}
+                          >
+                            <div className="flex items-center gap-2">
+                              <Icon icon="mdi:shield-check" />
+                              <span>Use Secure TLS</span>
                             </div>
-                            <Progress
-                              value={uploadProgress}
-                              color="primary"
+                          </Checkbox>
+                          <p className="text-xs text-gray-500 mt-1 ml-6">
+                            Enable this for production clusters with proper TLS certificates
+                          </p>
+                        </div>
+
+                        {onboardingData.use_secure_tls && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="space-y-4 pl-6 border-l-2 border-blue-500 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/10 dark:to-indigo-900/10 rounded-r-lg p-4"
+                          >
+                            <div className="flex items-center gap-2 mb-4">
+                              <Icon icon="mdi:certificate" className="text-blue-600" />
+                              <h4 className="font-semibold text-gray-800 dark:text-white">TLS Certificate Configuration</h4>
+                            </div>
+
+                            <Textarea
+                              label="CA Certificate Data (Base64)"
+                              placeholder="Enter CA certificate data"
+                              value={onboardingData.ca_data || ''}
+                              onChange={(e) => setOnboardingData(prev => ({ ...prev, ca_data: e.target.value }))}
+                              minRows={3}
                               classNames={{
-                                indicator: "bg-gradient-to-r from-blue-500 to-purple-600"
+                                input: "bg-white dark:bg-gray-800 font-mono text-xs"
                               }}
                             />
+
+                            <Textarea
+                              label="Client Certificate Data (Base64)"
+                              placeholder="Enter client certificate data"
+                              value={onboardingData.tls_cert || ''}
+                              onChange={(e) => setOnboardingData(prev => ({ ...prev, tls_cert: e.target.value }))}
+                              minRows={3}
+                              classNames={{
+                                input: "bg-white dark:bg-gray-800 font-mono text-xs"
+                              }}
+                            />
+
+                            <Textarea
+                              label="Client Key Data (Base64)"
+                              placeholder="Enter client key data"
+                              value={onboardingData.tls_key || ''}
+                              onChange={(e) => setOnboardingData(prev => ({ ...prev, tls_key: e.target.value }))}
+                              minRows={3}
+                              classNames={{
+                                input: "bg-white dark:bg-gray-800 font-mono text-xs"
+                              }}
+                            />
+                          </motion.div>
+                        )}
+                      </div>
+                    </ScrollShadow>
+                  </Tab>
+                </Tabs>
+
+                {error && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                  >
+                    <Card className="border-l-4 border-l-red-500 bg-gradient-to-r from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20">
+                      <CardBody className="p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="bg-red-500 rounded-full p-1">
+                            <Icon icon="mdi:alert-circle" className="text-white text-lg" />
+                          </div>
+                          <p className="text-red-700 dark:text-red-300 text-sm flex-1">{error}</p>
+                        </div>
+                      </CardBody>
+                    </Card>
+                  </motion.div>
+                )}
+              </ModalBody>
+              <ModalFooter className="border-t border-gray-200 dark:border-gray-700">
+                <Button
+                  variant="light"
+                  onPress={handleModalClose}
+                  isDisabled={isUploading || isOnboardingLoading}
+                  className="hover:bg-gray-100 dark:hover:bg-gray-800"
+                >
+                  Cancel
+                </Button>
+                {addClusterMethod === "upload" ? (
+                  <Button
+                    color="primary"
+                    onPress={uploadKubeconfig}
+                    isLoading={isUploading}
+                    isDisabled={!selectedFile && !kubeconfigContent}
+                    className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg hover:shadow-xl"
+                  >
+                    {isUploading ? (
+                      <div className="flex items-center gap-2">
+                        <Spinner size="sm" color="white" />
+                        <span>Uploading...</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <Icon icon="mdi:upload" />
+                        <span>Upload Cluster</span>
+                      </div>
+                    )}
+                  </Button>
+                ) : (
+                  <Button
+                    color="primary"
+                    onPress={handleManualOnboarding}
+                    isLoading={isOnboardingLoading}
+                    isDisabled={!onboardingData.cluster_name || !onboardingData.server_url || !onboardingData.token}
+                    className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg hover:shadow-xl"
+                  >
+                    {isOnboardingLoading ? (
+                      <div className="flex items-center gap-2">
+                        <Spinner size="sm" color="white" />
+                        <span>Adding...</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <Icon icon="mdi:plus" />
+                        <span>Add Cluster</span>
+                      </div>
+                    )}
+                  </Button>
+                )}
+              </ModalFooter>
+            </ModalContent>
+          </Modal>
+
+          {/* Delete Confirmation Modal */}
+          <Modal 
+            isOpen={isDeleteModalOpen} 
+            onClose={onDeleteModalClose}
+            classNames={{
+              backdrop: "bg-gradient-to-t from-zinc-900 to-zinc-900/10 backdrop-opacity-20",
+              base: "border-[#292f46] bg-gradient-to-br from-white to-gray-50 dark:from-gray-900 dark:to-gray-800",
+            }}
+          >
+            <ModalContent>
+              <ModalHeader>
+                <div className="flex items-center gap-3">
+                  <div className="bg-gradient-to-br from-red-500 to-pink-600 rounded-lg p-2">
+                    <Icon icon="mdi:alert-circle" className="text-2xl text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-800 dark:text-white">Confirm Deletion</h2>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">This action cannot be undone</p>
+                  </div>
+                </div>
+              </ModalHeader>
+              <ModalBody>
+                <div className="bg-gradient-to-r from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20 rounded-lg p-4">
+                  <p className="text-gray-800 dark:text-white">
+                    Are you sure you want to delete the cluster{" "}
+                    <strong className="text-red-600 dark:text-red-400">{clusterToDelete?.cluster_name}</strong>?
+                  </p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                    The cluster configuration will be permanently removed from your account.
+                  </p>
+                </div>
+              </ModalBody>
+              <ModalFooter>
+                <Button 
+                  variant="light" 
+                  onPress={onDeleteModalClose}
+                  className="hover:bg-gray-100 dark:hover:bg-gray-800"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  color="danger"
+                  onPress={deleteCluster}
+                  isLoading={loading}
+                  className="bg-gradient-to-r from-red-500 to-pink-600 text-white shadow-lg hover:shadow-xl"
+                >
+                  {loading ? (
+                    <div className="flex items-center gap-2">
+                      <Spinner size="sm" color="white" />
+                      <span>Deleting...</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Icon icon="mdi:delete" />
+                      <span>Delete Cluster</span>
+                    </div>
+                  )}
+                </Button>
+              </ModalFooter>
+            </ModalContent>
+          </Modal>
+
+          {/* Cluster Details Modal */}
+          <Modal 
+            isOpen={isDetailsModalOpen} 
+            onClose={onDetailsModalClose} 
+            size="3xl"
+            classNames={{
+              backdrop: "bg-gradient-to-t from-zinc-900 to-zinc-900/10 backdrop-opacity-20",
+              base: "border-[#292f46] bg-gradient-to-br from-white to-gray-50 dark:from-gray-900 dark:to-gray-800",
+            }}
+          >
+            <ModalContent>
+              <ModalHeader>
+              <div className="flex items-center gap-3">
+                  <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg p-2">
+                    <Icon icon="mdi:information" className="text-2xl text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-800 dark:text-white">Cluster Details</h2>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">View cluster configuration and status</p>
+                  </div>
+                </div>
+              </ModalHeader>
+              <ModalBody>
+                {selectedClusterDetails && (
+                  <div className="space-y-6">
+                    {/* Cluster Header */}
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg p-6">
+                      <div className="flex items-center gap-4">
+                        <Avatar
+                          icon={<Icon icon={getProviderInfo(selectedClusterDetails.provider_name).icon} className="text-2xl" />}
+                          className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white"
+                          size="lg"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <h3 className="text-2xl font-bold text-gray-800 dark:text-white">
+                              {selectedClusterDetails.cluster_name}
+                            </h3>
+                            {selectedClusterDetails.active && (
+                              <Badge color="success" variant="flat" className="bg-green-100 text-green-800">
+                                <Icon icon="mdi:check-circle" className="mr-1" />
+                                Active
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+                            <Chip size="sm" variant="flat" color="primary">
+                              <Icon icon={getProviderInfo(selectedClusterDetails.provider_name).icon} className="mr-1" />
+                              {selectedClusterDetails.provider_name}
+                            </Chip>
+                            <div className="flex items-center gap-1">
+                              <Icon icon="mdi:calendar" />
+                              <span>Created {formatDate(selectedClusterDetails.created_at).date}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Configuration Details */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <Card className="bg-gradient-to-br from-gray-50 to-white dark:from-gray-800 dark:to-gray-700">
+                        <CardHeader className="pb-2">
+                          <div className="flex items-center gap-2">
+                            <Icon icon="mdi:server" className="text-blue-600" />
+                            <h4 className="font-semibold text-gray-800 dark:text-white">Connection</h4>
+                          </div>
+                        </CardHeader>
+                        <CardBody className="pt-0 space-y-3">
+                          <div>
+                            <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Server URL</label>
+                            <Code className="text-xs mt-1 w-full">{selectedClusterDetails.server_url}</Code>
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Context</label>
+                            <p className="text-sm text-gray-800 dark:text-white mt-1">{selectedClusterDetails.context_name}</p>
                           </div>
                         </CardBody>
                       </Card>
-                    </motion.div>
-                  )}
-                </motion.div>
-              </Tab>
- 
-              <Tab
-                key="onboarding"
-                title={
-                  <div className="flex items-center gap-2">
-                    <Icon icon="mdi:rocket-launch" />
-                    <span>Onboard Cluster</span>
-                  </div>
-                }
-              >
-                <motion.div
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  className="mt-6"
-                >
-                  <Card>
-                    <CardBody className="p-6">
-                      {renderOnboardingContent()}
-                    </CardBody>
-                  </Card>
-                </motion.div>
-              </Tab>
-            </Tabs>
-          </ModalBody>
-          <ModalFooter className="bg-gradient-to-r from-gray-50 to-gray-100">
-            <Button
-              color="danger"
-              variant="light"
-              onPress={onAddClusterModalClose}
-              isDisabled={isUploading || isOnboardingLoading}
-              startContent={<Icon icon="mdi:close" />}
-            >
-              Cancel
-            </Button>
- 
-            {addClusterMethod === "upload" ? (
-              <Button
-                color="primary"
-                variant="shadow"
-                onPress={uploadKubeconfig}
-                isLoading={isUploading}
-                isDisabled={!selectedFile && !kubeconfigContent.trim()}
-                endContent={<Icon icon="mdi:upload" />}
-                className="bg-gradient-to-r from-blue-500 to-purple-600"
-              >
-                Upload Kubeconfig
-              </Button>
-            ) : (
-              <Button
-                color="primary"
-                variant="shadow"
-                onPress={handleOnboardingSubmit}
-                isLoading={isOnboardingLoading}
-                isDisabled={!onboardingData.clusterName || !onboardingData.serverUrl || !onboardingData.bearerToken}
-                endContent={<Icon icon="mdi:check" />}
-                className="bg-gradient-to-r from-orange-500 to-red-500"
-              >
-                Add Cluster
-              </Button>
-            )}
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
- 
-      {/* Cluster Details Modal - Colorful Style */}
-      <Modal
-        isOpen={isDetailsModalOpen}
-        onClose={onDetailsModalClose}
-        size="3xl"
-        scrollBehavior="inside"
-        classNames={{
-          backdrop: "bg-gradient-to-t from-zinc-900 to-zinc-900/10 backdrop-opacity-20"
-        }}
-      >
-        <ModalContent>
-          <ModalHeader className="bg-gradient-to-r from-green-500 to-teal-600 text-white">
-            <div className="flex items-center gap-3">
-              <Icon icon="mdi:information-outline" className="text-2xl" />
-              <span className="text-xl font-bold">Cluster Details</span>
-            </div>
-          </ModalHeader>
-          <ModalBody className="p-6">
-            {selectedClusterDetails && (
-              <div className="space-y-6">
-                {/* Cluster Summary */}
-                <Card className="bg-gradient-to-r from-green-100 to-teal-100 border-l-4 border-green-500">
-                  <CardBody>
-                    <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-teal-600 rounded-full flex items-center justify-center">
-                        <Icon icon="mdi:kubernetes" className="text-2xl text-white" />
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="font-bold text-green-800 text-lg">{selectedClusterDetails.cluster_name}</h4>
-                        <p className="text-green-700 mt-1">
-                          Kubernetes Cluster Configuration
-                        </p>
-                        <div className="flex items-center gap-2 mt-2">
-                          <Chip
-                            color={selectedClusterDetails.active ? 'success' : 'default'}
-                            variant="flat"
-                            size="sm"
-                            startContent={<Icon icon={selectedClusterDetails.active ? "mdi:check-circle" : "mdi:circle-outline"} />}
-                          >
-                            {selectedClusterDetails.active ? 'Active' : 'Inactive'}
-                          </Chip>
-                        </div>
-                      </div>
+
+                      <Card className="bg-gradient-to-br from-gray-50 to-white dark:from-gray-800 dark:to-gray-700">
+                        <CardHeader className="pb-2">
+                          <div className="flex items-center gap-2">
+                            <Icon icon="mdi:shield-check" className="text-green-600" />
+                            <h4 className="font-semibold text-gray-800 dark:text-white">Security</h4>
+                          </div>
+                        </CardHeader>
+                        <CardBody className="pt-0 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">TLS Security</span>
+                            <Chip 
+                              size="sm" 
+                              variant="flat" 
+                              color={selectedClusterDetails.use_secure_tls ? 'success' : 'warning'}
+                              className={selectedClusterDetails.use_secure_tls ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}
+                            >
+                              {selectedClusterDetails.use_secure_tls ? 'Secure' : 'Insecure'}
+                            </Chip>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">Operator Installed</span>
+                            <Chip 
+                              size="sm" 
+                              variant="flat" 
+                              color={selectedClusterDetails.is_operator_installed ? 'success' : 'default'}
+                              className={selectedClusterDetails.is_operator_installed ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}
+                            >
+                              {selectedClusterDetails.is_operator_installed ? 'Yes' : 'No'}
+                            </Chip>
+                          </div>
+                        </CardBody>
+                      </Card>
                     </div>
-                  </CardBody>
-                </Card>
- 
-                {/* Detailed Information */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Card className="bg-gradient-to-br from-blue-50 to-blue-100">
-                    <CardHeader className="pb-2">
-                      <h4 className="font-semibold text-blue-800 flex items-center gap-2">
-                        <Icon icon="mdi:file-document" />
-                        Configuration File
-                      </h4>
-                    </CardHeader>
-                    <CardBody className="pt-0">
-                      <div className="space-y-2">
-                        <div>
-                          <p className="text-xs text-blue-600 font-medium">Original Filename</p>
-                          <Code className="text-sm">{selectedClusterDetails.original_filename}</Code>
-                        </div>
-                        <div>
-                          <p className="text-xs text-blue-600 font-medium">Internal Filename</p>
-                          <Code className="text-sm">{selectedClusterDetails.filename}</Code>
-                        </div>
-                      </div>
-                    </CardBody>
-                  </Card>
- 
-                  <Card className="bg-gradient-to-br from-purple-50 to-purple-100">
-                    <CardHeader className="pb-2">
-                      <h4 className="font-semibold text-purple-800 flex items-center gap-2">
-                        <Icon icon="mdi:cog" />
-                        Context Information
-                      </h4>
-                    </CardHeader>
-                    <CardBody className="pt-0">
-                      <div className="space-y-2">
-                        <div>
-                          <p className="text-xs text-purple-600 font-medium">Context Name</p>
-                          <Code className="text-sm">{selectedClusterDetails.context_name}</Code>
-                        </div>
-                        <div>
-                          <p className="text-xs text-purple-600 font-medium">Cluster Name</p>
-                          <Code className="text-sm">{selectedClusterDetails.cluster_name}</Code>
-                        </div>
-                      </div>
-                    </CardBody>
-                  </Card>
- 
-                  <Card className="bg-gradient-to-br from-orange-50 to-orange-100">
-                    <CardHeader className="pb-2">
-                      <h4 className="font-semibold text-orange-800 flex items-center gap-2">
-                        <Icon icon="mdi:calendar" />
-                        Timeline
-                      </h4>
-                    </CardHeader>
-                    <CardBody className="pt-0">
-                      <div className="space-y-2">
-                        <div>
-                          <p className="text-xs text-orange-600 font-medium">Upload Date</p>
-                          <p className="text-sm">{new Date(selectedClusterDetails.upload_date).toLocaleDateString()}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-orange-600 font-medium">Upload Time</p>
-                          <p className="text-sm">{new Date(selectedClusterDetails.upload_date).toLocaleTimeString()}</p>
-                        </div>
-                      </div>
-                    </CardBody>
-                  </Card>
- 
-                  <Card className="bg-gradient-to-br from-teal-50 to-teal-100">
-                    <CardHeader className="pb-2">
-                      <h4 className="font-semibold text-teal-800 flex items-center gap-2">
-                        <Icon icon="mdi:shield-check" />
-                        Status & Health
-                      </h4>
-                    </CardHeader>
-                    <CardBody className="pt-0">
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-teal-600 font-medium">Connection Status</span>
-                          <Chip size="sm" color={selectedClusterDetails.active ? 'success' : 'default'} variant="flat">
-                            {selectedClusterDetails.active ? 'Connected' : 'Disconnected'}
-                          </Chip>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-teal-600 font-medium">Configuration Valid</span>
-                          <Chip size="sm" color="success" variant="flat">
-                            <Icon icon="mdi:check" className="mr-1" />
-                            Valid
-                          </Chip>
-                        </div>
-                      </div>
-                    </CardBody>
-                  </Card>
-                </div>
- 
-                {/* Actions Section */}
-                <Card className="bg-gradient-to-r from-gray-50 to-gray-100">
-                  <CardHeader>
-                    <h4 className="font-semibold flex items-center gap-2">
-                      <Icon icon="mdi:lightning-bolt" />
-                      Quick Actions
-                    </h4>
-                  </CardHeader>
-                  <CardBody>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <Button
-                        color={selectedClusterDetails.active ? 'default' : 'success'}
-                        variant="flat"
-                        onPress={() => {
-                          activateKubeconfig(selectedClusterDetails.filename);
-                          onDetailsModalClose();
-                        }}
-                        isDisabled={selectedClusterDetails.active}
-                        startContent={<Icon icon="mdi:power" />}
-                      >
-                        {selectedClusterDetails.active ? 'Already Active' : 'Activate Cluster'}
-                      </Button>
-                      <Button
-                        color="secondary"
-                        variant="flat"
-                        isDisabled={!selectedClusterDetails.active}
-                        startContent={<Icon icon="mdi:monitor" />}
-                      >
-                        Monitor Cluster
-                      </Button>
-                      <Button
-                        color="primary"
-                        variant="flat"
-                        isDisabled={!selectedClusterDetails.active}
-                        startContent={<Icon icon="mdi:console" />}
-                      >
-                        Open Terminal
-                      </Button>
-                    </div>
-                  </CardBody>
-                </Card>
- 
-                {/* Warning Section */}
-                <Card className="bg-gradient-to-r from-yellow-50 to-orange-50 border-l-4 border-yellow-500">
-                  <CardBody>
-                    <div className="flex items-start gap-3">
-                      <Icon icon="mdi:information" className="text-yellow-600 text-xl mt-0.5" />
-                      <div>
-                        <h4 className="font-semibold text-yellow-800">Important Information</h4>
-                        <ul className="text-sm text-yellow-700 mt-2 space-y-1">
-                          <li>• Only one cluster can be active at a time</li>
-                          <li>• Activating this cluster will deactivate others</li>
-                          <li>• Ensure you have proper access permissions</li>
-                          <li>• Monitor cluster health regularly</li>
-                        </ul>
-                      </div>
-                    </div>
-                  </CardBody>
-                </Card>
-              </div>
-            )}
-          </ModalBody>
-          <ModalFooter className="bg-gradient-to-r from-gray-50 to-gray-100">
-            <Button
-              color="danger"
-              variant="light"
-              onPress={onDetailsModalClose}
-              startContent={<Icon icon="mdi:close" />}
-            >
-              Close
-            </Button>
-            <Button
-              color="primary"
-              variant="shadow"
-              onPress={() => {
-                if (selectedClusterDetails) {
-                  onDetailsModalClose();
-                  openDeleteModal(selectedClusterDetails);
-                }
-              }}
-              startContent={<Icon icon="mdi:cog" />}
-              className="bg-gradient-to-r from-green-500 to-teal-600"
-            >
-              Manage Cluster
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-       
-      {/* Delete Confirmation Modal - Colorful Style */}
-      <Modal
-        isOpen={isDeleteModalOpen}
-        onClose={onDeleteModalClose}
-        size="2xl"
-        classNames={{
-          backdrop: "bg-gradient-to-t from-zinc-900 to-zinc-900/10 backdrop-opacity-20"
-        }}
-      >
-        <ModalContent>
-          <ModalHeader className="bg-gradient-to-r from-red-500 to-pink-600 text-white">
-            <div className="flex items-center gap-3">
-              <Icon icon="mdi:alert-circle" className="text-2xl" />
-              <span className="text-xl font-bold">Confirm Deletion</span>
-            </div>
-          </ModalHeader>
-          <ModalBody className="p-6">
-            <div className="space-y-6">
-              {/* Warning Header */}
-              <Card className="bg-gradient-to-r from-red-100 to-pink-100 border-l-4 border-red-500">
-                <CardBody>
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 bg-gradient-to-r from-red-500 to-pink-600 rounded-full flex items-center justify-center">
-                      <Icon icon="mdi:alert-triangle" className="text-2xl text-white" />
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-red-800">Permanent Deletion Warning</h4>
-                      <p className="text-red-700 mt-1">
-                        You are about to permanently delete this cluster configuration. This action cannot be undone.
-                      </p>
-                    </div>
-                  </div>
-                </CardBody>
-              </Card>
- 
-              {/* Cluster Information */}
-              {clusterToDelete && (
-                <Card className="bg-gradient-to-br from-gray-50 to-gray-100">
-                  <CardHeader className="bg-gradient-to-r from-blue-50 to-purple-50">
-                    <h4 className="font-semibold flex items-center gap-2">
-                      <Icon icon="mdi:kubernetes" className="text-blue-600" />
-                      Cluster to be Deleted
-                    </h4>
-                  </CardHeader>
-                  <CardBody>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-xs font-semibold text-gray-600 mb-1">Cluster Name</p>
-                        <div className="flex items-center gap-2">
-                          <Icon icon="mdi:server" className="text-primary" />
-                          <span className="font-medium">{clusterToDelete.cluster_name}</span>
-                        </div>
-                      </div>
-                      <div>
-                        <p className="text-xs font-semibold text-gray-600 mb-1">Configuration File</p>
-                        <div className="flex items-center gap-2">
-                          <Icon icon="mdi:file-document" className="text-secondary" />
-                          <Code className="text-sm">{clusterToDelete.original_filename}</Code>
-                        </div>
-                      </div>
-                      <div>
-                        <p className="text-xs font-semibold text-gray-600 mb-1">Context</p>
-                        <Code className="text-sm">{clusterToDelete.context_name}</Code>
-                      </div>
-                      <div>
-                        <p className="text-xs font-semibold text-gray-600 mb-1">Upload Date</p>
-                        <div className="flex items-center gap-2">
-                          <Icon icon="mdi:calendar" className="text-warning" />
-                          <span className="text-sm">{new Date(clusterToDelete.upload_date).toLocaleDateString()}</span>
-                        </div>
-                      </div>
-                    </div>
- 
-                    {clusterToDelete.active && (
-                      <div className="mt-4 p-3 bg-gradient-to-r from-orange-100 to-red-100 rounded-lg border border-orange-200">
-                        <div className="flex items-center gap-2">
-                          <Icon icon="mdi:alert" className="text-orange-600" />
-                          <span className="text-sm font-medium text-orange-800">
-                            This is your currently active cluster!
-                          </span>
-                        </div>
-                      </div>
+
+                    {/* Tags */}
+                    {selectedClusterDetails.tags && selectedClusterDetails.tags.length > 0 && (
+                      <Card className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20">
+                        <CardHeader className="pb-2">
+                          <div className="flex items-center gap-2">
+                            <Icon icon="mdi:tag" className="text-purple-600" />
+                            <h4 className="font-semibold text-gray-800 dark:text-white">Tags</h4>
+                          </div>
+                        </CardHeader>
+                        <CardBody className="pt-0">
+                          <div className="flex flex-wrap gap-2">
+                            {selectedClusterDetails.tags.map((tag, index) => (
+                              <Chip 
+                                key={index} 
+                                size="sm" 
+                                variant="flat"
+                                className="bg-purple-100 text-purple-800"
+                              >
+                                {tag}
+                              </Chip>
+                            ))}
+                          </div>
+                        </CardBody>
+                      </Card>
                     )}
-                  </CardBody>
-                </Card>
-              )}
- 
-              {/* Consequences */}
-              <Card className="bg-gradient-to-r from-yellow-50 to-orange-50 border-l-4 border-yellow-500">
-                <CardBody>
-                  <div className="flex items-start gap-3">
-                    <Icon icon="mdi:information" className="text-yellow-600 text-xl mt-0.5" />
-                    <div>
-                      <h4 className="font-semibold text-yellow-800 mb-2">What will happen:</h4>
-                      <ul className="text-sm text-yellow-700 space-y-1">
-                        <li className="flex items-center gap-2">
-                          <Icon icon="mdi:close-circle" className="text-red-500" />
-                          The cluster configuration will be permanently removed
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <Icon icon="mdi:close-circle" className="text-red-500" />
-                          You will lose access to this cluster through KubeSage
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <Icon icon="mdi:close-circle" className="text-red-500" />
-                          All monitoring and management features will be disabled
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <Icon icon="mdi:information" className="text-blue-500" />
-                          The actual Kubernetes cluster will remain unaffected
-                        </li>
-                      </ul>
+
+                    <Divider />
+
+                    {/* Quick Actions */}
+                    <div className="bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-700 rounded-lg p-6">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <h4 className="font-semibold text-gray-800 dark:text-white mb-1">Quick Actions</h4>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Manage this cluster</p>
+                        </div>
+                        <div className="flex gap-3">
+                          {!selectedClusterDetails.active && (
+                            <Button
+                              size="sm"
+                              color="primary"
+                              variant="flat"
+                              onPress={() => {
+                                activateCluster(selectedClusterDetails.id);
+                                onDetailsModalClose();
+                              }}
+                              className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white"
+                            >
+                              <Icon icon="mdi:play" className="mr-1" />
+                              Activate
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            color="danger"
+                            variant="flat"
+                            onPress={() => {
+                              onDetailsModalClose();
+                              openDeleteModal(selectedClusterDetails);
+                            }}
+                            className="bg-gradient-to-r from-red-500 to-pink-600 text-white"
+                          >
+                            <Icon icon="mdi:delete" className="mr-1" />
+                            Delete
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </CardBody>
-              </Card>
- 
-              {/* Confirmation Input */}
-              <Card className="bg-gradient-to-r from-red-50 to-pink-50">
-                <CardBody>
-                  <div className="space-y-3">
-                    <p className="text-sm font-medium text-red-800">
-                      To confirm deletion, please type the cluster name below:
-                    </p>
-                    <Input
-                      placeholder={clusterToDelete?.cluster_name || "cluster-name"}
-                      variant="bordered"
-                      classNames={{
-                        input: "font-mono",
-                        inputWrapper: "border-red-200 focus-within:border-red-400"
-                      }}
-                    />
-                    <p className="text-xs text-red-600">
-                      Expected: <Code className="text-xs">{clusterToDelete?.cluster_name}</Code>
-                    </p>
-                  </div>
-                </CardBody>
-              </Card>
-            </div>
-          </ModalBody>
-          <ModalFooter className="bg-gradient-to-r from-gray-50 to-gray-100">
-            <Button
-              color="default"
-              variant="light"
-              onPress={onDeleteModalClose}
-              startContent={<Icon icon="mdi:close" />}
-            >
-              Cancel
-            </Button>
-            <Button
-              color="danger"
-              variant="shadow"
-              onPress={confirmDelete}
-              startContent={<Icon icon="mdi:delete-forever" />}
-              className="bg-gradient-to-r from-red-500 to-pink-600"
-            >
-              Delete Permanently
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
- 
-      {/* Commands Help Modal */}
-<Modal
-  isOpen={isCommandsModalOpen}
-  onClose={onCommandsModalClose}
-  size="4xl"
-  scrollBehavior="inside"
-  classNames={{
-    backdrop: "bg-gradient-to-t from-zinc-900 to-zinc-900/10 backdrop-opacity-20"
-  }}
->
-  <ModalContent>
-    <ModalHeader className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white">
-      <div className="flex items-center gap-3">
-        <Icon icon="mdi:terminal" className="text-2xl" />
-        <span className="text-xl font-bold">How to Get Server URL & Bearer Token</span>
-      </div>
-    </ModalHeader>
-    <ModalBody className="p-6">
-      <div className="space-y-6">
-        {/* Step 1 */}
-        <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-l-4 border-green-500">
-          <CardHeader>
-            <h4 className="font-bold text-green-800 flex items-center gap-2">
-              <div className="w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center text-sm font-bold">1</div>
-              Download the Script
-            </h4>
-          </CardHeader>
-          <CardBody>
-            <p className="text-green-700 mb-3">First, download the Kubernetes service account export script:</p>
-            <div className="bg-gray-900 p-4 rounded-lg">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-green-400 text-sm font-mono">Terminal</span>
-                <Button
-                  size="sm"
-                  variant="flat"
-                  color="success"
-                  onPress={() => {
-                    navigator.clipboard.writeText('curl -O http://10.0.34.169:3000/devendra/k8s/raw/branch/main/kubeconfig-exporter/kubernetes_export_sa.sh');
-                  }}
-                  startContent={<Icon icon="mdi:content-copy" />}
+                )}
+              </ModalBody>
+              <ModalFooter>
+                <Button 
+                  variant="light" 
+                  onPress={onDetailsModalClose}
+                  className="hover:bg-gray-100 dark:hover:bg-gray-800"
                 >
-                  Copy
+                  Close
                 </Button>
-              </div>
-              <Code className="block text-green-400 bg-transparent p-0 text-sm">
-                curl -O http://10.0.34.169:3000/devendra/k8s/raw/branch/main/kubeconfig-exporter/kubernetes_export_sa.sh
-              </Code>
-            </div>
-          </CardBody>
-        </Card>
- 
-        {/* Step 2 */}
-        <Card className="bg-gradient-to-r from-blue-50 to-cyan-50 border-l-4 border-blue-500">
-          <CardHeader>
-            <h4 className="font-bold text-blue-800 flex items-center gap-2">
-              <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-bold">2</div>
-              Run the Script
-            </h4>
-          </CardHeader>
-          <CardBody>
-            <p className="text-blue-700 mb-3">Execute the script with your parameters:</p>
-            <div className="bg-gray-900 p-4 rounded-lg">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-green-400 text-sm font-mono">Terminal</span>
-                <Button
-                  size="sm"
-                  variant="flat"
-                  color="primary"
-                  onPress={() => {
-                    navigator.clipboard.writeText('bash kubernetes_export_sa.sh myapp-sa myapp-namespace http://10.0.34.169:3000/devendra/k8s/raw/branch/main/kubeconfig-exporter/clusterrole.yaml https://webhook.site/65d8fe21-ffcc-4ccb-9473-52c4a73e4aca');
-                  }}
-                  startContent={<Icon icon="mdi:content-copy" />}
-                >
-                  Copy
-                </Button>
-              </div>
-              <Code className="block text-green-400 bg-transparent p-0 text-sm">
-                bash kubernetes_export_sa.sh myapp-sa myapp-namespace http://10.0.34.169:3000/devendra/k8s/raw/branch/main/kubeconfig-exporter/clusterrole.yaml https://webhook.site/65d8fe21-ffcc-4ccb-9473-52c4a73e4aca
-              </Code>
-            </div>
-            
-            <div className="mt-4 p-3 bg-blue-100 rounded-lg">
-              <h5 className="font-semibold text-blue-800 mb-2">Parameters Explanation:</h5>
-              <ul className="text-sm text-blue-700 space-y-1">
-                <li><strong>myapp-sa:</strong> Service account name (change as needed)</li>
-                <li><strong>myapp-namespace:</strong> Kubernetes namespace (change as needed)</li>
-                <li><strong>clusterrole.yaml URL:</strong> Cluster role configuration</li>
-                <li><strong>webhook URL:</strong> Endpoint to receive the credentials</li>
-              </ul>
-            </div>
-          </CardBody>
-        </Card>
- 
-        {/* Step 3 */}
-        <Card className="bg-gradient-to-r from-purple-50 to-pink-50 border-l-4 border-purple-500">
-          <CardHeader>
-            <h4 className="font-bold text-purple-800 flex items-center gap-2">
-              <div className="w-8 h-8 bg-purple-500 text-white rounded-full flex items-center justify-center text-sm font-bold">3</div>
-              Get the Output
-            </h4>
-          </CardHeader>
-          <CardBody>
-            <p className="text-purple-700 mb-3">The script will output the Server URL and Bearer Token:</p>
-            <div className="bg-gray-900 p-4 rounded-lg">
-              <div className="mb-2">
-                <span className="text-green-400 text-sm font-mono">Expected Output:</span>
-              </div>
-              <div className="space-y-2">
-                <div>
-                  <span className="text-yellow-400 text-sm">Server URL:</span>
-                  <Code className="block text-green-400 bg-transparent p-0 text-sm ml-4">
-                    https://your-cluster-api-server:6443
-                  </Code>
-                </div>
-                <div>
-                  <span className="text-yellow-400 text-sm">Bearer Token:</span>
-                  <Code className="block text-green-400 bg-transparent p-0 text-sm ml-4">
-                    eyJhbGciOiJSUzI1NiIsImtpZCI6IjVRVE...
-                  </Code>
-                </div>
-              </div>
-            </div>
-          </CardBody>
-        </Card>
- 
-        
-      </div>
-    </ModalBody>
-    <ModalFooter className="bg-gradient-to-r from-gray-50 to-gray-100">
-      <Button
-        color="primary"
-        variant="shadow"
-        onPress={onCommandsModalClose}
-        startContent={<Icon icon="mdi:check" />}
-        className="bg-gradient-to-r from-blue-500 to-indigo-600"
-      >
-        Got it!
-      </Button>
-      </ModalFooter>
-  </ModalContent>
-</Modal>
- 
-      {/* Loading Overlay */}
-      {(isUploading || isOnboardingLoading) && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Card className="p-8 bg-gradient-to-br from-white to-gray-50">
-            <CardBody className="flex flex-col items-center gap-6">
-              <div className="relative">
-                <Spinner size="lg" color="primary" />
-                <div className="absolute inset-0 animate-ping">
-                  <div className="w-12 h-12 border-2 border-primary-300 rounded-full"></div>
-                </div>
-              </div>
-              <div className="text-center">
-                <p className="font-semibold text-lg">
-                  {isUploading && 'Uploading Configuration...'}
-                  {isOnboardingLoading && 'Adding Cluster...'}
-                </p>
-                <p className="text-sm text-gray-600 mt-2">
-                  {isUploading && 'Processing your kubeconfig file'}
-                  {isOnboardingLoading && 'Creating kubeconfig from your credentials'}
-                </p>
-                <div className="mt-4 flex items-center justify-center gap-2">
-                  <div className="w-2 h-2 bg-primary rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                  <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                </div>
-              </div>
-            </CardBody>
-          </Card>
-        </div>
-      )}
- 
-      {/* Floating Action Buttons */}
-      <div className="fixed bottom-6 right-6 flex flex-col gap-3">
-        <motion.div
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
-        >
-          <Button
-            isIconOnly
-            color="secondary"
-            variant="shadow"
-            size="lg"
-            onPress={() => {
-              fetchKubeconfigList();
-              fetchClusters();
-            }}
-            className="w-14 h-14 bg-gradient-to-r from-purple-500 to-pink-600"
-          >
-            <Icon icon="mdi:refresh" className="text-xl" />
-          </Button>
-        </motion.div>
- 
-        <motion.div
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
-        >
-          <Button
-            isIconOnly
-            color="primary"
-            variant="shadow"
-            size="lg"
-            onPress={onAddClusterModalOpen}
-            className="w-14 h-14 bg-gradient-to-r from-blue-500 to-purple-600"
-          >
-            <Icon icon="mdi:plus" className="text-xl" />
-          </Button>
+              </ModalFooter>
+            </ModalContent>
+          </Modal>
         </motion.div>
       </div>
     </div>
   );
 };
- 
+
 export default UploadKubeconfig;
- 
- 
- 
- 
- 
+
+
+

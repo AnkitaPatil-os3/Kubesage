@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.routes import kubeconfig_router
+from app.routes import cluster_router
 from app.database import create_db_and_tables
 from app.consumer import start_consumers
 from app.logger import logger
@@ -35,7 +35,7 @@ def health_check():
     return {"status": "healthy"}
 
 # Include routers
-app.include_router(kubeconfig_router, prefix="/kubeconfig", tags=["kubeconfig"])
+app.include_router(cluster_router, prefix="/kubeconfig", tags=["kubeconfig"])
 
 if __name__ == "__main__":
     import uvicorn

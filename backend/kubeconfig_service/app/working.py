@@ -28,7 +28,6 @@ def get_active_cluster(session: Session, user_id: int) -> ClusterConfig:
             ClusterConfig.active == True
         )
     ).first()
-    print(f"Active cluster: {active_cluster}")
     
     if not active_cluster:
         raise HTTPException(status_code=404, detail="No active cluster configuration found")
@@ -166,7 +165,6 @@ async def onboard_cluster(
     except Exception as e:
         logger.error(f"Error onboarding cluster: {str(e)}")
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
-        
 @cluster_router.get("/clusters", response_model=ClusterConfigList,
                    summary="List Clusters", 
                    description="Returns a list of all onboarded clusters for the current user")
@@ -186,7 +184,6 @@ async def list_clusters(
             .where(ClusterConfig.user_id == current_user["id"])
             .order_by(ClusterConfig.created_at.desc())
         ).all()
-        
 
         # Convert ClusterConfig models to ClusterConfigResponse models
         cluster_responses = []
@@ -277,208 +274,6 @@ async def activate_cluster(
     
     return JSONResponse(content={"message": f"Cluster '{cluster_to_activate.cluster_name}' set as active"}, status_code=200)
 
-
-@cluster_router.post("/select-cluster-and-get-namespaces/{cluster_id}",
-                    summary="Select Cluster and Get Namespaces", 
-                    description="Activates a specific cluster and returns its namespace list")
-async def select_cluster_and_get_namespaces(
-    cluster_id: int,
-    session: Session = Depends(get_session),
-    current_user: Dict = Depends(get_current_user)
-):
-    """
-    Selects a specific cluster, activates it, and returns its namespace list.
-    
-    This endpoint combines cluster activation and namespace retrieval in a single operation:
-    1. Validates that the cluster exists and belongs to the user
-    2. Deactivates all other clusters for the user
-    3. Activates the selected cluster
-    4. Retrieves and returns the namespace list from the newly active cluster
-    
-    Parameters:
-        cluster_id: The ID of the cluster to select and activate
-    
-    Returns:
-        JSONResponse: Contains cluster info, activation status, and namespace list
-        
-    Raises:
-        HTTPException: 404 error if cluster not found
-        HTTPException: 500 error if cluster activation or namespace retrieval fails
-    """
-    logger.info(f"Cluster selection and namespace retrieval request for user {current_user['id']} with cluster ID {cluster_id}")
-    
-    try:
-        # Step 1: Find the cluster to activate
-        cluster_to_activate = session.exec(
-            select(ClusterConfig).where(
-                ClusterConfig.id == cluster_id,
-                ClusterConfig.user_id == current_user["id"]
-            )
-        ).first()
-
-        if not cluster_to_activate:
-            raise HTTPException(
-                status_code=404, 
-                detail=f"Cluster with ID '{cluster_id}' not found or does not belong to you"
-            )
-
-        # Step 2: Deactivate all clusters for this user
-        session.exec(
-            update(ClusterConfig)
-            .where(ClusterConfig.user_id == current_user["id"])
-            .values(active=False)
-        )
-
-        # Step 3: Activate the selected cluster
-        cluster_to_activate.active = True
-        session.add(cluster_to_activate)
-        session.commit()
-
-        logger.info(f"User {current_user['id']} activated cluster: {cluster_to_activate.cluster_name}")
-
-        # Step 4: Get namespaces from the newly active cluster
-        try:
-            # Create Kubernetes configuration using the selected cluster's data
-            from kubernetes.client import Configuration, ApiClient
-            
-            configuration = Configuration()
-            configuration.host = cluster_to_activate.server_url
-            configuration.api_key = {"authorization": f"Bearer {cluster_to_activate.token}"}
-            configuration.api_key_prefix = {"authorization": ""}
-            
-            # Configure TLS based on cluster settings
-            if cluster_to_activate.use_secure_tls:
-                configuration.verify_ssl = True
-                
-                # Handle CA certificate if provided
-                if cluster_to_activate.ca_data:
-                    import tempfile
-                    import base64
-                    
-                    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.crt') as ca_file:
-                        try:
-                            ca_content = base64.b64decode(cluster_to_activate.ca_data).decode('utf-8')
-                        except:
-                            ca_content = cluster_to_activate.ca_data
-                        ca_file.write(ca_content)
-                        configuration.ssl_ca_cert = ca_file.name
-                
-                # Handle client certificates if provided
-                if cluster_to_activate.tls_cert and cluster_to_activate.tls_key:
-                    import tempfile
-                    import base64
-                    
-                    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.crt') as cert_file:
-                        try:
-                            cert_content = base64.b64decode(cluster_to_activate.tls_cert).decode('utf-8')
-                        except:
-                            cert_content = cluster_to_activate.tls_cert
-                        cert_file.write(cert_content)
-                        configuration.cert_file = cert_file.name
-                    
-                    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.key') as key_file:
-                        try:
-                            key_content = base64.b64decode(cluster_to_activate.tls_key).decode('utf-8')
-                        except:
-                            key_content = cluster_to_activate.tls_key
-                        key_file.write(key_content)
-                        configuration.key_file = key_file.name
-            else:
-                configuration.verify_ssl = False
-
-            # Create API client and get namespaces
-            api_client = ApiClient(configuration)
-            v1 = client.CoreV1Api(api_client)
-            
-            logger.info(f"Retrieving namespaces from cluster: {cluster_to_activate.cluster_name}")
-            namespace_list = v1.list_namespace()
-            namespaces = [ns.metadata.name for ns in namespace_list.items]
-            
-            logger.info(f"Successfully retrieved {len(namespaces)} namespaces from cluster {cluster_to_activate.cluster_name}")
-
-        except client.rest.ApiException as e:
-            logger.error(f"Kubernetes API error while getting namespaces: Status={e.status}, Reason={e.reason}")
-            # Cluster was activated successfully, but namespace retrieval failed
-            return JSONResponse(content={
-                "success": True,
-                "cluster_activated": True,
-                "cluster_info": {
-                    "id": cluster_to_activate.id,
-                    "cluster_name": cluster_to_activate.cluster_name,
-                    "server_url": cluster_to_activate.server_url,
-                    "provider_name": cluster_to_activate.provider_name,
-                    "active": True
-                },
-                "namespaces_retrieved": False,
-                "namespaces": [],
-                "error": f"Cluster activated successfully, but failed to retrieve namespaces: {e.reason}",
-                "message": f"Cluster '{cluster_to_activate.cluster_name}' activated, but namespace retrieval failed"
-            }, status_code=200)
-
-        except Exception as e:
-            logger.error(f"Error retrieving namespaces: {str(e)}")
-            # Cluster was activated successfully, but namespace retrieval failed
-            return JSONResponse(content={
-                "success": True,
-                "cluster_activated": True,
-                "cluster_info": {
-                    "id": cluster_to_activate.id,
-                    "cluster_name": cluster_to_activate.cluster_name,
-                    "server_url": cluster_to_activate.server_url,
-                    "provider_name": cluster_to_activate.provider_name,
-                    "active": True
-                },
-                "namespaces_retrieved": False,
-                "namespaces": [],
-                "error": f"Cluster activated successfully, but failed to retrieve namespaces: {str(e)}",
-                "message": f"Cluster '{cluster_to_activate.cluster_name}' activated, but namespace retrieval failed"
-            }, status_code=200)
-
-        # Step 5: Publish events
-        try:
-            # Publish cluster activated event
-            publish_message("cluster_events", {
-                "event_type": "cluster_selected_and_activated",
-                "cluster_id": cluster_to_activate.id,
-                "user_id": current_user["id"],
-                "username": current_user.get("username", "unknown"),
-                "cluster_name": cluster_to_activate.cluster_name,
-                "namespace_count": len(namespaces),
-                "timestamp": datetime.datetime.now().isoformat()
-            })
-        except Exception as queue_error:
-            logger.warning(f"Failed to publish message to queue: {str(queue_error)}")
-
-        # Step 6: Return success response with cluster info and namespaces
-        return JSONResponse(content={
-            "success": True,
-            "cluster_activated": True,
-            "namespaces_retrieved": True,
-            "cluster_info": {
-                "id": cluster_to_activate.id,
-                "cluster_name": cluster_to_activate.cluster_name,
-                "server_url": cluster_to_activate.server_url,
-                "context_name": cluster_to_activate.context_name,
-                "provider_name": cluster_to_activate.provider_name,
-                "tags": cluster_to_activate.tags,
-                "use_secure_tls": cluster_to_activate.use_secure_tls,
-                "is_operator_installed": cluster_to_activate.is_operator_installed,
-                "active": True,
-                "created_at": cluster_to_activate.created_at.isoformat() if cluster_to_activate.created_at else None,
-                "updated_at": cluster_to_activate.updated_at.isoformat() if cluster_to_activate.updated_at else None
-            },
-            "namespaces": namespaces,
-            "namespace_count": len(namespaces),
-            "message": f"Cluster '{cluster_to_activate.cluster_name}' activated successfully and {len(namespaces)} namespaces retrieved"
-        }, status_code=200)
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error in select cluster and get namespaces: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
-
-
 @cluster_router.delete("/remove-cluster/{cluster_id}",
                       summary="Remove Cluster", 
                       description="Deletes a cluster configuration from the system")
@@ -539,8 +334,6 @@ async def remove_cluster(
         session.rollback()
         logger.error(f"Error removing cluster: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error removing cluster: {str(e)}")
-
-
 @cluster_router.get("/namespaces",
                    summary="Get Kubernetes Namespaces", 
                    description="Retrieves all namespaces from the active Kubernetes cluster")
@@ -572,7 +365,6 @@ async def get_namespaces(
                 ClusterConfig.active == True
             )
         ).first()
-        
         
         if not active_cluster:
             logger.error(f"No active cluster found for user {current_user['id']}")
@@ -2067,3 +1859,66 @@ async def analyze_k8s_with_solutions(
     except Exception as e:
         logger.error(f"Error analyzing Kubernetes resources with solutions: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error analyzing Kubernetes resources with solutions: {str(e)}")
+
+# Backward compatibility routes - these will redirect to the new cluster endpoints
+kubeconfig_router = APIRouter()
+
+
+@kubeconfig_router.post("/upload", response_model=ClusterConfigResponse, status_code=201,
+                       summary="Upload Kubeconfig (Deprecated)", 
+                       description="Deprecated: Use /cluster/onboard-cluster instead")
+async def upload_kubeconfig_deprecated(
+    session: Session = Depends(get_session),
+    current_user: Dict = Depends(get_current_user)
+):
+    """
+    Deprecated endpoint. Use /cluster/onboard-cluster instead.
+    """
+    raise HTTPException(
+        status_code=410, 
+        detail="This endpoint is deprecated. Please use /cluster/onboard-cluster instead."
+    )
+
+@kubeconfig_router.get("/list", response_model=ClusterConfigList,
+                      summary="List Kubeconfigs (Deprecated)", 
+                      description="Deprecated: Use /cluster/clusters instead")
+async def list_kubeconfigs_deprecated(
+    session: Session = Depends(get_session),
+    current_user: Dict = Depends(get_current_user)
+):
+    """
+    Deprecated endpoint. Use /cluster/clusters instead.
+    """
+    # For backward compatibility, redirect to new endpoint
+    return await list_clusters(session, current_user)
+
+@kubeconfig_router.put("/activate/{cluster_id}", 
+                      summary="Activate Kubeconfig (Deprecated)", 
+                      description="Deprecated: Use /cluster/activate-cluster/{cluster_id} instead")
+async def set_active_kubeconfig_deprecated(
+    cluster_id: int,
+    session: Session = Depends(get_session),
+    current_user: Dict = Depends(get_current_user)
+):
+    """
+    Deprecated endpoint. Use /cluster/activate-cluster/{cluster_id} instead.
+    """
+    # For backward compatibility, redirect to new endpoint
+    return await activate_cluster(cluster_id, session, current_user)
+
+@kubeconfig_router.delete("/remove/{cluster_id}",
+                         summary="Remove Kubeconfig (Deprecated)", 
+                         description="Deprecated: Use /cluster/remove-cluster/{cluster_id} instead")
+async def remove_kubeconfig_deprecated(
+    cluster_id: int,
+    session: Session = Depends(get_session),
+    current_user: Dict = Depends(get_current_user)
+):
+    """
+    Deprecated endpoint. Use /cluster/remove-cluster/{cluster_id} instead.
+    """
+    # For backward compatibility, redirect to new endpoint
+    return await remove_cluster(cluster_id, session, current_user)
+
+# Export both routers for main app
+__all__ = ["cluster_router", "kubeconfig_router"]
