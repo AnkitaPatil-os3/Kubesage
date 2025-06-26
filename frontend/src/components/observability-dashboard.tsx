@@ -12,7 +12,7 @@ export const ObservabilityDashboard: React.FC<ObservabilityDashboardProps> = ({ 
  
     // Dashboard URL with parameters to hide UI elements
     const dashboardUrl = React.useMemo(() => {
-        const baseUrl = "https://10.0.32.103:3000/grafana-monitoring/d/ddonjajttscn4e/kub-cluster-details";
+        const baseUrl = "https://10.0.32105:3000/grafana-monitoring/d/ddonjajttscn4e/kub-cluster-details";
         const params = new URLSearchParams({
             orgId: "1",
             from: "now-1h",

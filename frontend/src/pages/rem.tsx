@@ -146,7 +146,7 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
   const [showRemediationModal, setShowRemediationModal] = useState(false);
 
   // API Base URL
-  const API_BASE = 'https://10.0.32.103:8004/remediation';
+  const API_BASE = 'https://10.0.32105:8004/remediation';
 
   // Fetch data functions
   const fetchIncidents = async () => {

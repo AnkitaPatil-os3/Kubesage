@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
 from jose import jwt, ExpiredSignatureError, JWTError
 from sqlmodel import Session, select
 from typing import List
-import datetime  # Added for timestamp
+from datetime import datetime  # Added for timestamp
 from pydantic import BaseModel
 # from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
@@ -182,7 +182,7 @@ async def logout(
             "event_type": "user_logout",
             "user_id": current_user.id,
             "username": current_user.username,
-            "timestamp": datetime.datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat()
         })
         
         return {"message": "Successfully logged out"}
@@ -339,7 +339,7 @@ async def A_change_password(
         "admin_id": current_admin.id,
         "user_id": user.id,
         "username": user.username,
-        "timestamp": datetime.datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat()
     })
 
     return {"detail": "Password updated successfully"}
@@ -454,7 +454,7 @@ async def update_user(
     for key, value in user_data.items():
         setattr(db_user, key, value)
     
-    db_user.updated_at = datetime.datetime.now()
+    db_user.updated_at = datetime.now()
     session.add(db_user)
     session.commit()
     session.refresh(db_user)
@@ -467,7 +467,7 @@ async def update_user(
         "user_id": db_user.id,
         "username": db_user.username,
         "updated_fields": list(user_data.keys()),
-        "timestamp": datetime.datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat()
     })
     
     return db_user
@@ -525,7 +525,7 @@ async def delete_user(
         "event_type": "user_deleted",
         "user_id": user_info["user_id"],
         "username": user_info["username"],
-        "timestamp": datetime.datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat()
     })
     
     return None

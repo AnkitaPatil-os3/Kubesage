@@ -12,7 +12,7 @@ export const CarbonEmissionDashboard: React.FC<CarbonEmissionDashboardProps> = (
  
     // Dashboard URL with parameters to hide UI elements
     const dashboardUrl = React.useMemo(() => {
-        const baseUrl = "https://10.0.32.103:3000/grafana-monitoring/d/NhnADUW4zIB/greenops-overview";
+        const baseUrl = "https://10.0.32105:3000/grafana-monitoring/d/NhnADUW4zIB/greenops-overview";
         const params = new URLSearchParams({
             orgId: "1",
             from: "now-5m",

@@ -226,7 +226,7 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
     // Add this function
     const executeCommand = async (command: string, stepId: number) => {
         try {
-            const response = await fetch('https://10.0.32.103:8002/kubeconfig/execute-kubectl', {
+            const response = await fetch('https://10.0.32105:8002/kubeconfig/execute-kubectl', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

@@ -1,4 +1,5 @@
-import React from 'react';
+//fizex
+import React, { useState } from 'react';
 import {
   Card,
   CardBody,
@@ -30,6 +31,7 @@ import { addToast } from '../components/toast-manager';
 import MarkdownIt from 'markdown-it';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/github-dark.css';
+import '../../styles/chat-ops.css';
 
 // Initialize markdown parser
 const md = new MarkdownIt({
@@ -37,45 +39,191 @@ const md = new MarkdownIt({
   linkify: true,
   typographer: true,
   breaks: true,
-  highlight: function (str, lang) {
-    if (lang && hljs.getLanguage(lang)) {
-      try {
-        return `<pre class="hljs"><code class="hljs language-${lang}">${hljs.highlight(str, { language: lang }).value}</code></pre>`;
-      } catch (__) {}
-    }
-    return `<pre class="hljs"><code class="hljs">${md.utils.escapeHtml(str)}</code></pre>`;
-  }
 });
 
-// Update the renderMessageContent function
-const renderMessageContent = (content: string) => {
-  const htmlContent = md.render(content);
-  return (
-    <div 
-      className="prose prose-sm dark:prose-invert max-w-none prose-pre:bg-content3 prose-pre:border prose-pre:border-divider prose-code:bg-content2 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm"
-      dangerouslySetInnerHTML={{ __html: htmlContent }}
-      style={{
-        '--tw-prose-body': 'var(--nextui-colors-foreground)',
-        '--tw-prose-headings': 'var(--nextui-colors-foreground)',
-        '--tw-prose-lead': 'var(--nextui-colors-foreground-600)',
-        '--tw-prose-links': 'var(--nextui-colors-primary)',
-        '--tw-prose-bold': 'var(--nextui-colors-foreground)',
-        '--tw-prose-counters': 'var(--nextui-colors-foreground-500)',
-        '--tw-prose-bullets': 'var(--nextui-colors-foreground-400)',
-        '--tw-prose-hr': 'var(--nextui-colors-divider)',
-        '--tw-prose-quotes': 'var(--nextui-colors-foreground)',
-        '--tw-prose-quote-borders': 'var(--nextui-colors-divider)',
-        '--tw-prose-captions': 'var(--nextui-colors-foreground-500)',
-        '--tw-prose-code': 'var(--nextui-colors-foreground)',
-        '--tw-prose-pre-code': 'var(--nextui-colors-foreground)',
-        '--tw-prose-pre-bg': 'var(--nextui-colors-content3)',
-        '--tw-prose-th-borders': 'var(--nextui-colors-divider)',
-        '--tw-prose-td-borders': 'var(--nextui-colors-divider)',
-      } as React.CSSProperties}
-    />
-  );
+const defaultFence = md.renderer.rules.fence || function(tokens, idx, options, env, self) {
+  return self.renderToken(tokens, idx, options);
 };
 
+// Fixed markdown fence renderer for proper code block alignment
+md.renderer.rules.fence = function(tokens, idx, options, env, self) {
+  const token = tokens[idx];
+
+  // Extract first comment line starting with # as header, rest as commands
+  const lines = token.content.split('\n');
+  let headerLine = '';
+  let commandLines = lines;
+  
+  if (lines.length > 0 && lines[0].trim().startsWith('#')) {
+    headerLine = lines[0].trim().substring(1).trim(); // remove # and trim
+    commandLines = lines.slice(1);
+  }
+  
+  const escapedHeader = md.utils.escapeHtml(headerLine);
+
+  // Join all command lines and split by double newlines to separate command blocks
+  const commandContent = commandLines.join('\n');
+  
+  // Split by double newlines and filter out empty commands
+  const commands = commandContent.split('\n\n')
+    .map(cmd => cmd.trim())
+    .filter(cmd => cmd.length > 0);
+
+  // If no double newlines found, treat the entire content as a single command block
+  if (commands.length === 0 && commandContent.trim()) {
+    commands.push(commandContent.trim());
+  }
+
+  // Render each command in its own box with proper left alignment
+  const commandBlocks = commands.map(cmd => {
+    // Normalize the command text - remove extra spaces and ensure proper line breaks
+    const normalizedCmd = cmd
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0)
+      .join('\n');
+    
+    const escapedCmd = md.utils.escapeHtml(normalizedCmd);
+    
+    return `
+      <div class="mb-4">
+      <div class="relative rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 overflow-hidden">
+        <div class="flex items-center justify-between bg-gray-200 dark:bg-gray-800 px-3 py-0.5 border-b border-gray-300 dark:border-gray-600">
+          <span class="text-xs font-medium text-gray-600 dark:text-gray-400">bash</span>
+          <button class="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 cursor-pointer" onclick="navigator.clipboard.writeText('${escapedCmd.replace(/'/g, "\\'")}')">copy</button>
+        </div>
+        <pre class="p-0 m-0 bg-transparent overflow-x-auto font-mono text-sm text-gray-800 dark:text-gray-100" 
+        style="white-space: pre; word-break: normal; text-align: left;
+         padding-top: 0.03rem; padding-bottom: 0.03rem;">
+          <code class="text-gray-800 dark:text-gray-100" 
+          style="background-color: transparent !important; display: block;
+           margin-top:-20px; margin-bottom: -20px;        
+            text-align: left;">${escapedCmd}</code>
+        </pre>
+      </div>
+      </div>
+    `;
+  }).join('\n');
+
+  return `
+    <div class="mb-4">
+      ${headerLine ? `<div class="mb-2 font-medium text-foreground">${escapedHeader}</div>` : ''}
+      ${commandBlocks}
+    </div>
+  `;
+};
+
+import { useMemo } from 'react';
+
+// Custom component to render message content with proper code block handling
+const RenderMessageContent: React.FC<{ content: string; isStreaming?: boolean }> = ({ content, isStreaming = false }) => {
+  // Parse content into parts: text and code blocks
+  const parts = useMemo(() => {
+    // Look for bash code blocks specifically
+    const bashCodeBlockRegex = /```bash\n([\s\S]*?)```/g;
+    const result = [];
+    let lastIndex = 0;
+    let match;
+
+    while ((match = bashCodeBlockRegex.exec(content)) !== null) {
+      if (match.index > lastIndex) {
+        // Text before code block
+        const textContent = content.substring(lastIndex, match.index);
+        if (textContent.trim()) {
+          result.push({ type: 'text', content: textContent });
+        }
+      }
+      // Code block content - properly handle the commands
+      const codeContent = match[1];
+      result.push({ type: 'code', content: codeContent });
+      lastIndex = bashCodeBlockRegex.lastIndex;
+    }
+    
+    if (lastIndex < content.length) {
+      // Remaining text after last code block
+      const remainingContent = content.substring(lastIndex);
+      if (remainingContent.trim()) {
+        result.push({ type: 'text', content: remainingContent });
+      }
+    }
+    
+    // If no bash code blocks found, treat as regular content
+    if (result.length === 0) {
+      result.push({ type: 'text', content: content });
+    }
+    
+    return result;
+  }, [content]);
+
+  return (
+    <div className="prose prose-sm dark:prose-invert max-w-none">
+      {parts.map((part, idx) => {
+        if (part.type === 'text') {
+          // Render text as markdown
+          const htmlContent = md.render(part.content);
+          return (
+            <div
+              key={idx}
+              className="mb-2"
+              dangerouslySetInnerHTML={{ __html: htmlContent }}
+              style={{
+                '--tw-prose-body': 'var(--nextui-colors-foreground)',
+                '--tw-prose-headings': 'var(--nextui-colors-foreground)',
+                '--tw-prose-lead': 'var(--nextui-colors-foreground-600)',
+                '--tw-prose-links': 'var(--nextui-colors-primary)',
+                '--tw-prose-bold': 'var(--nextui-colors-foreground)',
+                '--tw-prose-counters': 'var(--nextui-colors-foreground-500)',
+                '--tw-prose-bullets': 'var(--nextui-colors-foreground-400)',
+                '--tw-prose-hr': 'var(--nextui-colors-divider)',
+                '--tw-prose-quotes': 'var(--nextui-colors-foreground)',
+                '--tw-prose-quote-borders': 'var(--nextui-colors-divider)',
+                '--tw-prose-captions': 'var(--nextui-colors-foreground-500)',
+                '--tw-prose-code': 'var(--nextui-colors-foreground)',
+                '--tw-prose-pre-code': 'var(--nextui-colors-foreground)',
+                '--tw-prose-pre-bg': 'var(--nextui-colors-content3)',
+                '--tw-prose-th-borders': 'var(--nextui-colors-divider)',
+                '--tw-prose-td-borders': 'var(--nextui-colors-divider)',
+              } as React.CSSProperties}
+            />
+          );
+        } else if (part.type === 'code') {
+          // Render code block with custom UI and proper left alignment
+          const commands = part.content
+            .split('\n')
+            .map(line => line.trim())
+            .filter(line => line.length > 0);
+
+          return (
+            <div key={idx} className="mb-4">
+              <div className="mb-2 font-medium text-foreground">Commands</div>
+              <div className="relative rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 overflow-hidden">
+                <div className="flex items-center justify-between bg-gray-200 dark:bg-gray-800 px-3 py-1.5 border-b border-gray-300 dark:border-gray-600">
+                  <span className="text-xs font-medium text-gray-600 dark:text-gray-400">bash</span>
+                  <button 
+                    className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 cursor-pointer"
+                    onClick={() => navigator.clipboard.writeText(commands.join('\n'))}
+                  >
+                    copy
+                  </button>
+                </div>
+                <div className="p-4 bg-transparent overflow-x-auto">
+                  {commands.map((command, cmdIdx) => (
+                    <div key={cmdIdx} className="mb-1 last:mb-0">
+                      <code className="font-mono text-sm text-gray-800 dark:text-gray-100 block text-left" style={{ backgroundColor: 'transparent !important' }}>
+                        {command}
+                      </code>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          );
+        }
+        return null;
+      })}
+    </div>
+  );
+};
 
 // Types
 interface Message {
@@ -103,7 +251,7 @@ interface ExecuteResult {
 }
 
 // API Configuration
-const API_BASE_URL = 'https://10.0.32.103:8004/api/v1';
+const API_BASE_URL = 'https://10.0.32.105:8003/api/v1';
 
 class ChatAPI {
   private getAuthHeaders() {
@@ -191,7 +339,7 @@ class ChatAPI {
     const response = await fetch(`${API_BASE_URL}/sessions/${sessionId}`, {
       method: 'DELETE',
       headers: this.getAuthHeaders()
-            });
+    });
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -250,6 +398,47 @@ class ChatAPI {
 }
 
 const chatAPI = new ChatAPI();
+
+// Export Sessions Function
+const exportSessions = async (sessions: Session[], messages: Message[]) => {
+  try {
+    const exportData = {
+      exportDate: new Date().toISOString(),
+      version: "1.0",
+      sessions: sessions,
+      currentSessionMessages: messages,
+      metadata: {
+        totalSessions: sessions.length,
+        totalMessages: messages.length
+      }
+    };
+
+    const dataStr = JSON.stringify(exportData, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `kubesage-sessions-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    addToast({
+      title: 'Success',
+      description: 'Sessions exported successfully',
+      color: 'success'
+    });
+  } catch (error) {
+    console.error('Failed to export sessions:', error);
+    addToast({
+      title: 'Error',
+      description: 'Failed to export sessions',
+      color: 'danger'
+    });
+  }
+};
 
 // Quick Commands
 const QUICK_COMMANDS = [
@@ -318,6 +507,8 @@ export const ChatOps: React.FC = () => {
 
   // UI State
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false);
+  const [showShellPanel, setShowShellPanel] = React.useState(false);
+  const [bottomPanelHeight, setBottomPanelHeight] = React.useState(50);
   const [showQuickCommands, setShowQuickCommands] = React.useState(false);
   const [selectedQuickCommand, setSelectedQuickCommand] = React.useState('');
 
@@ -525,44 +716,65 @@ export const ChatOps: React.FC = () => {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         
-        // Add assistant message placeholder
-        const assistantMessage: Message = {
-          role: 'assistant',
-          content: '',
-          created_at: new Date().toISOString()
-        };
-        setMessages(prev => [...prev, assistantMessage]);
-
         let assistantContent = '';
-        
+        let isFirstMessage = true;
+
         try {
           while (true) {
             const { done, value } = await reader.read();
-            
+
             if (done) break;
-            
+
             const chunk = decoder.decode(value);
             const lines = chunk.split('\n');
-            
+
             for (const line of lines) {
               if (line.startsWith('data: ')) {
                 try {
                   const data = JSON.parse(line.slice(6));
-                  
+
                   if (data.token && !data.done) {
                     assistantContent += data.token;
+
+                    // Update or create the assistant message
                     setMessages(prev => {
                       const newMessages = [...prev];
-                      newMessages[newMessages.length - 1] = {
-                        ...newMessages[newMessages.length - 1],
-                        content: assistantContent
-                      };
+                      const lastMessage = newMessages[newMessages.length - 1];
+                      
+                      if (lastMessage && lastMessage.role === 'assistant' && !isFirstMessage) {
+  newMessages[newMessages.length - 1] = {
+    ...lastMessage,
+    content: assistantContent,
+  };
+} else {
+  newMessages.push({
+    role: 'assistant',
+    content: assistantContent,
+    created_at: new Date().toISOString()
+  });
+  isFirstMessage = false;
+}
+                      
                       return newMessages;
                     });
                   } else if (data.done) {
-                    setIsStreaming(false);
-                    break;
-                  }
+  setIsStreaming(false);
+  // Final update to last assistant message
+  // Yeh line add karo:
+  console.log('Final assistantContent:', assistantContent);
+  setMessages(prev => {
+  const newMessages = [...prev];
+  const lastMessage = newMessages[newMessages.length - 1];
+  if (lastMessage && lastMessage.role === 'assistant') {
+    newMessages[newMessages.length - 1] = {
+      ...lastMessage,
+      content: assistantContent,
+    };
+  }
+  return newMessages;
+});
+  break;
+}
                 } catch (e) {
                   // Ignore JSON parse errors for incomplete chunks
                 }
@@ -572,6 +784,7 @@ export const ChatOps: React.FC = () => {
         } finally {
           reader.releaseLock();
         }
+        
       } else {
         // Non-streaming response
         const response = await chatAPI.sendMessage(userMessage, sessionId, false);
@@ -644,7 +857,7 @@ export const ChatOps: React.FC = () => {
     }
   };
 
-   // Handle keyboard shortcuts
+  // Handle keyboard shortcuts
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -675,35 +888,17 @@ export const ChatOps: React.FC = () => {
     inputRef.current?.focus();
   };
 
-  // Render message content with markdown
-  const renderMessageContent = (content: string) => {
-    const htmlContent = md.render(content);
-    return (
-      <div 
-        className="prose prose-sm dark:prose-invert max-w-none prose-pre:bg-content3 prose-pre:border prose-pre-border-divider prose-code:bg-content2 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm"
-        dangerouslySetInnerHTML={{ __html: htmlContent }}
-        style={{
-          '--tw-prose-body': 'var(--nextui-colors-foreground)',
-          '--tw-prose-headings': 'var(--nextui-colors-foreground)',
-          '--tw-prose-lead': 'var(--nextui-colors-foreground-600)',
-          '--tw-prose-links': 'var(--nextui-colors-primary)',
-          '--tw-prose-bold': 'var(--nextui-colors-foreground)',
-          '--tw-prose-counters': 'var(--nextui-colors-foreground-500)',
-          '--tw-prose-bullets': 'var(--nextui-colors-foreground-400)',
-          '--tw-prose-hr': 'var(--nextui-colors-divider)',
-          '--tw-prose-quotes': 'var(--nextui-colors-foreground)',
-          '--tw-prose-quote-borders': 'var(--nextui-colors-divider)',
-          '--tw-prose-captions': 'var(--nextui-colors-foreground-500)',
-          '--tw-prose-code': 'var(--nextui-colors-foreground)',
-          '--tw-prose-pre-code': 'var(--nextui-colors-foreground)',
-          '--tw-prose-pre-bg': 'var(--nextui-colors-content3)',
-          '--tw-prose-th-borders': 'var(--nextui-colors-divider)',
-          '--tw-prose-td-borders': 'var(--nextui-colors-divider)',
-        } as React.CSSProperties}
-      />
-    );
-  };
-
+  // Render message content with markdown or plain text during streaming
+  // filepath: /home/vaishnavi/new-kubesage/frontend/src/pages/chat-ops.tsx
+const renderMessageContent = (content: string, isStreaming: boolean) => {
+  // Streaming ke dauraan agar code block open hai toh close kar do (rendering ke liye)
+  let safeContent = content;
+  const codeBlockOpen = (safeContent.match(/```/g) || []).length % 2 === 1;
+  if (isStreaming && codeBlockOpen) {
+    safeContent += '\n```';
+  }
+  return <RenderMessageContent content={safeContent} isStreaming={isStreaming} />;
+};
   // Get status color
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -728,7 +923,7 @@ export const ChatOps: React.FC = () => {
             {!sidebarCollapsed && (
               <div className="flex items-center gap-2">
                 <Icon icon="lucide:message-square" className="text-primary text-xl" />
-                <h2 className="font-semibold">ChatOps</h2>
+                <h2 className="font-semibold text-foreground">ChatOps</h2>
               </div>
             )}
             <Button
@@ -781,7 +976,7 @@ export const ChatOps: React.FC = () => {
 
         {/* Sessions List */}
         {!sidebarCollapsed && (
-          <ScrollShadow className="flex-1 p-2">
+          <ScrollShadow className="flex-1 p-2 bg-content1 dark:bg-content1">
             {isLoadingSessions ? (
               <div className="flex justify-center p-4">
                 <Spinner size="sm" />
@@ -793,18 +988,16 @@ export const ChatOps: React.FC = () => {
                     key={session.session_id}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className={`p-3 rounded-lg cursor-pointer transition-colors group ${
+                    className={`p-2 sm:p-3 rounded-lg cursor-pointer transition-colors group ${
                       currentSession?.session_id === session.session_id
-                        ? 'bg-primary/10 border border-primary/20'
-                        : 'hover:bg-content2'
+                        ? 'bg-primary/10 dark:bg-primary/20 border border-primary/20 dark:border-primary/30'
+                        : 'hover:bg-content2 dark:hover:bg-content2'
                     }`}
                     onClick={() => switchSession(session)}
                   >
-                    <div className="flex items-start justify-between">
+                    <div className="flex items-start justify-between min-w-0">
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">
-                          {session.title}
-                        </p>
+                        <p className="text-sm font-medium truncate text-foreground">{session.title}</p>
                         <p className="text-xs text-foreground-500 mt-1">
                           {new Date(session.updated_at).toLocaleDateString()}
                         </p>
@@ -815,7 +1008,7 @@ export const ChatOps: React.FC = () => {
                             isIconOnly
                             size="sm"
                             variant="light"
-                            className="opacity-0 group-hover:opacity-100"
+                            className="opacity-0 group-hover:opacity-100 flex-shrink-0 ml-2"
                           >
                             <Icon icon="lucide:more-vertical" className="text-sm" />
                           </Button>
@@ -883,18 +1076,18 @@ export const ChatOps: React.FC = () => {
       </motion.div>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col relative min-w-0 bg-background">
         {/* Chat Header */}
-        <div className="p-4 border-b border-divider bg-content1">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                <Icon icon="lucide:terminal" className="text-primary text-xl" />
-                <div>
-                  <h1 className="font-semibold">
+        <div className="p-3 sm:p-4 border-b border-divider bg-content1 dark:bg-content1 shadow-sm dark:shadow-lg flex-shrink-0">
+          <div className="flex items-center justify-between min-w-0 gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="flex items-center gap-2 min-w-0">
+                <Icon icon="lucide:terminal" className="text-primary text-xl flex-shrink-0" />
+                <div className="min-w-0">
+                  <h1 className="font-semibold text-foreground truncate">
                     {currentSession?.title || 'KubeSage ChatOps'}
                   </h1>
-                  <p className="text-xs text-foreground-500">
+                  <p className="text-xs text-foreground-500 hidden sm:block">
                     AI-powered Kubernetes operations assistant
                   </p>
                 </div>
@@ -905,20 +1098,31 @@ export const ChatOps: React.FC = () => {
                   color={getStatusColor(healthStatus.status)}
                   variant="flat"
                   startContent={<Icon icon="lucide:activity" className="text-xs" />}
+                  className="hidden md:flex flex-shrink-0"
                 >
                   {healthStatus.status}
                 </Chip>
               )}
             </div>
             
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-shrink-0">
               <Button
                 variant="flat"
                 size="sm"
                 startContent={<Icon icon="lucide:zap" />}
                 onPress={() => setShowQuickCommands(!showQuickCommands)}
+                className="hidden sm:flex"
               >
-                Quick Commands
+                <span className="hidden lg:inline">Quick Commands</span>
+              </Button>
+              <Button
+                variant="flat"
+                size="sm"
+                isIconOnly
+                onPress={() => setShowQuickCommands(!showQuickCommands)}
+                className="sm:hidden"
+              >
+                <Icon icon="lucide:zap" />
               </Button>
               <Switch
                 size="sm"
@@ -926,12 +1130,46 @@ export const ChatOps: React.FC = () => {
                 onValueChange={setStreamingEnabled}
                 startContent={<Icon icon="lucide:zap" />}
                 endContent={<Icon icon="lucide:message-circle" />}
+                className="hidden md:flex"
               >
-                Stream
+                <span className="hidden lg:inline">Stream</span>
               </Switch>
+              <Button
+                variant="flat"
+                size="sm"
+                color={showShellPanel ? "primary" : "default"}
+                startContent={<Icon icon="lucide:chevron-up" />}
+                onPress={() => setShowShellPanel(!showShellPanel)}
+                className="hidden sm:flex"
+              >
+                <span className="hidden lg:inline">Shell</span>
+              </Button>
+              <Button
+                variant="flat"
+                size="sm"
+                color={showShellPanel ? "primary" : "default"}
+                isIconOnly
+                onPress={() => setShowShellPanel(!showShellPanel)}
+                className="sm:hidden"
+              >
+                <Icon icon="lucide:chevron-up" />
+              </Button>
             </div>
           </div>
         </div>
+
+        {/* Quick Commands Overlay Background */}
+        <AnimatePresence>
+          {showQuickCommands && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.3 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black z-30"
+              onClick={() => setShowQuickCommands(false)}
+            />
+          )}
+        </AnimatePresence>
 
         {/* Quick Commands Panel */}
         <AnimatePresence>
@@ -940,14 +1178,35 @@ export const ChatOps: React.FC = () => {
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              className="border-b border-divider bg-content2"
+              className="absolute  top-16 sm:top-20 left-0 right-0 z-40 border-b border-divider bg-content1 dark:bg-content1 shadow-lg"
             >
-              <ScrollShadow orientation="horizontal" className="p-4">
-                <div className="flex gap-4">
+              <div className="flex items-center justify-between p-3  sm:p-4 pb-2 border-b border-divider">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Icon icon="lucide:zap" className="text-primary flex-shrink-0" />
+                  <h3 className="font-semibold text-foreground">Quick Commands</h3>
+                  <span className="text-xs text-foreground-500 hidden sm:inline">Click any command to insert</span>
+                </div>
+                <Button
+                  isIconOnly
+                  variant="light"
+                  size="sm"
+                  onPress={() => setShowQuickCommands(false)}
+                  className="text-foreground-500 hover:text-foreground flex-shrink-0"
+                >
+                  <Icon icon="lucide:x" />
+                </Button>
+              </div>
+
+              <ScrollShadow orientation="horizontal" className="p-3 sm:p-4">
+                <div className="flex gap-3 sm:gap-4">
                   {QUICK_COMMANDS.map((category) => (
-                    <Card key={category.category} className="min-w-64">
+                    <Card 
+                      key={category.category} 
+                      className="bg-content2 dark:bg-content2 border border-divider flex-shrink-0"
+                      style={{ minWidth: '300px', maxWidth: '180px' }}
+                    >
                       <CardHeader className="pb-2">
-                        <h4 className="text-sm font-semibold">{category.category}</h4>
+                        <h4 className="text-sm font-semibold text-foreground">{category.category}</h4>
                       </CardHeader>
                       <CardBody className="pt-0">
                         <div className="space-y-1">
@@ -956,12 +1215,12 @@ export const ChatOps: React.FC = () => {
                               key={index}
                               variant="light"
                               size="sm"
-                              className="justify-start h-auto p-2"
+                              className="justify-start h-auto p-2 w-full"
                               onPress={() => insertQuickCommand(cmd.command)}
                             >
-                              <div className="text-left">
-                                <p className="text-xs font-medium">{cmd.label}</p>
-                                <Code className="text-xs mt-1">{cmd.command}</Code>
+                              <div className="text-left w-full">
+                                <p className="text-xs font-medium text-foreground">{cmd.label}</p>
+                                <Code className="text-xs mt-1 bg-content3 dark:bg-content3">{cmd.command}</Code>
                               </div>
                             </Button>
                           ))}
@@ -976,60 +1235,60 @@ export const ChatOps: React.FC = () => {
         </AnimatePresence>
 
         {/* Messages Area */}
-        <ScrollShadow className="flex-1 p-4">
-          <div className="max-w-4xl mx-auto space-y-4">
+        <ScrollShadow className={`flex-1 p-3 sm:p-4 bg-background ${showShellPanel ? 'max-h-[50vh]' : ''} overflow-y-auto`}>
+          <div className="max-w-4.5xl mx-auto space-y-4">
             <AnimatePresence>
               {messages.length === 0 ? (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="text-center py-12"
+                  className="text-center py-8 sm:py-12"
                 >
-                  <Icon icon="lucide:message-square" className="text-6xl text-foreground-300 mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold mb-2">Welcome to KubeSage ChatOps</h3>
-                  <p className="text-foreground-500 mb-6">
+                  <Icon icon="lucide:message-square" className="text-4xl sm:text-6xl text-foreground-300 mx-auto mb-4" />
+                  <h3 className="text-lg sm:text-xl font-semibold mb-2 text-foreground">Welcome to KubeSage ChatOps</h3>
+                  <p className="text-foreground-500 mb-6 text-sm sm:text-base px-4">
                     Your AI-powered Kubernetes operations assistant. Ask questions, run commands, and manage your cluster.
                   </p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
-                    <Card className="p-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 max-w-2xl mx-auto px-4">
+                    <Card className="p-3 sm:p-4 bg-content1 dark:bg-content1 border border-divider">
                       <div className="flex items-center gap-3">
-                        <Icon icon="lucide:search" className="text-primary text-xl" />
-                        <div className="text-left">
-                          <p className="font-medium">Ask Questions</p>
-                          <p className="text-sm text-foreground-500">
+                        <Icon icon="lucide:search" className="text-primary text-lg sm:text-xl flex-shrink-0" />
+                        <div className="text-left min-w-0">
+                          <p className="font-medium text-foreground text-sm sm:text-base">Ask Questions</p>
+                          <p className="text-xs sm:text-sm text-foreground-500 truncate">
                             "Show me all failing pods"
                           </p>
                         </div>
                       </div>
                     </Card>
-                    <Card className="p-4">
+                    <Card className="p-3 sm:p-4 bg-content1 dark:bg-content1 border border-divider">
                       <div className="flex items-center gap-3">
-                        <Icon icon="lucide:terminal" className="text-primary text-xl" />
-                        <div className="text-left">
-                          <p className="font-medium">Run Commands</p>
-                          <p className="text-sm text-foreground-500">
+                        <Icon icon="lucide:terminal" className="text-primary text-lg sm:text-xl flex-shrink-0" />
+                        <div className="text-left min-w-0">
+                          <p className="font-medium text-foreground text-sm sm:text-base">Run Commands</p>
+                          <p className="text-xs sm:text-sm text-foreground-500 truncate">
                             "kubectl get pods -n production"
                           </p>
                         </div>
                       </div>
                     </Card>
-                    <Card className="p-4">
+                    <Card className="p-3 sm:p-4 bg-content1 dark:bg-content1 border border-divider">
                       <div className="flex items-center gap-3">
-                        <Icon icon="lucide:wrench" className="text-primary text-xl" />
-                        <div className="text-left">
-                          <p className="font-medium">Troubleshoot</p>
-                          <p className="text-sm text-foreground-500">
+                        <Icon icon="lucide:wrench" className="text-primary text-lg sm:text-xl flex-shrink-0" />
+                        <div className="text-left min-w-0">
+                          <p className="font-medium text-foreground text-sm sm:text-base">Troubleshoot</p>
+                          <p className="text-xs sm:text-sm text-foreground-500 truncate">
                             "Why is my deployment failing?"
                           </p>
                         </div>
                       </div>
                     </Card>
-                    <Card className="p-4">
+                    <Card className="p-3 sm:p-4 bg-content1 dark:bg-content1 border border-divider">
                       <div className="flex items-center gap-3">
-                        <Icon icon="lucide:scale" className="text-primary text-xl" />
-                        <div className="text-left">
-                          <p className="font-medium">Scale Resources</p>
-                          <p className="text-sm text-foreground-500">
+                        <Icon icon="lucide:scale" className="text-primary text-lg sm:text-xl flex-shrink-0" />
+                        <div className="text-left min-w-0">
+                          <p className="font-medium text-foreground text-sm sm:text-base">Scale Resources</p>
+                          <p className="text-xs sm:text-sm text-foreground-500 truncate">
                             "Scale my-app to 5 replicas"
                           </p>
                         </div>
@@ -1046,15 +1305,15 @@ export const ChatOps: React.FC = () => {
                     transition={{ delay: index * 0.1 }}
                     className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
-                    <div className={`max-w-[80%] ${message.role === 'user' ? 'order-2' : 'order-1'}`}>
+                    <div className={`max-w-[85%] sm:max-w-[80%] ${message.role === 'user' ? 'order-2' : 'order-1'}`}>
                       <Card className={`${
                         message.role === 'user' 
-                          ? 'bg-primary text-primary-foreground' 
-                          : 'bg-content2'
-                      }`}>
-                        <CardBody className="p-4">
+                          ? 'bg-primary text-primary-foreground border border-primary/20' 
+                          : 'bg-content1 dark:bg-content1 border border-divider'
+                      } shadow-sm`}>
+                        <CardBody className="p-3 sm:p-4">
                           <div className="flex items-start gap-3">
-                            <div className={`p-2 rounded-full ${
+                            <div className={`p-2 rounded-full flex-shrink-0 ${
                               message.role === 'user' 
                                 ? 'bg-primary-foreground/20' 
                                 : 'bg-primary/20'
@@ -1067,7 +1326,7 @@ export const ChatOps: React.FC = () => {
                                     : 'text-primary'
                                 }`}
                               />
-                                        </div>
+                            </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-2">
                                 <span className="text-sm font-medium">
@@ -1082,11 +1341,11 @@ export const ChatOps: React.FC = () => {
                                   ? 'text-primary-foreground' 
                                   : 'text-foreground'
                               }`}>
-                                {message.role === 'user' ? (
-                                  <p className="whitespace-pre-wrap">{message.content}</p>
-                                ) : (
-                                  renderMessageContent(message.content)
-                                )}
+                              {message.role === 'user' ? (
+                                <p className="whitespace-pre-wrap break-words text-sm sm:text-base">{message.content}</p>
+                              ) : (
+                                renderMessageContent(message.content, isStreaming && index === messages.length - 1)
+                              )}
                               </div>
                             </div>
                           </div>
@@ -1099,29 +1358,32 @@ export const ChatOps: React.FC = () => {
             </AnimatePresence>
             
             {/* Streaming indicator */}
-            {isStreaming && (
+            {(isStreaming || (isLoading && !isStreaming)) && (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 className="flex justify-start"
               >
-                <Card className="bg-content2">
-                  <CardBody className="p-4">
+                <Card className="bg-content1 dark:bg-content1 border border-divider shadow-sm">
+                  <CardBody className="p-3 sm:p-4">
                     <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-full bg-primary/20">
+                      <div className="p-2 rounded-full bg-primary/20 flex-shrink-0">
                         <Icon icon="lucide:bot" className="text-sm text-primary" />
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
                         <Spinner size="sm" />
-                        <span className="text-sm">KubeSage is thinking...</span>
-                        <Button
-                          size="sm"
-                          variant="flat"
-                          color="danger"
-                          onPress={stopStreaming}
-                        >
-                          Stop
-                        </Button>
+                        <span className="text-sm text-foreground">KubeSage is thinking...</span>
+                        {isStreaming && (
+                          <Button
+                            size="sm"
+                            variant="flat"
+                            color="danger"
+                            onPress={stopStreaming}
+                            className="flex-shrink-0"
+                          >
+                            Stop
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </CardBody>
@@ -1134,10 +1396,10 @@ export const ChatOps: React.FC = () => {
         </ScrollShadow>
 
         {/* Input Area */}
-        <div className="p-4 border-t border-divider bg-content1">
-          <div className="max-w-4xl mx-auto">
-            <div className="flex gap-3">
-              <div className="flex-1">
+        <div className="p-3 sm:p-4 border-t border-divider bg-content1 dark:bg-content1 shadow-sm dark:shadow-lg flex-shrink-0">
+          <div className="max-w-4.5xl mx-auto">
+            <div className="flex gap-2 sm:gap-3">
+              <div className="flex-1 min-w-0">
                 <Textarea
                   ref={inputRef}
                   placeholder="Ask KubeSage about your Kubernetes cluster... (e.g., 'Show me all pods in production namespace')"
@@ -1148,34 +1410,27 @@ export const ChatOps: React.FC = () => {
                   maxRows={6}
                   variant="bordered"
                   classNames={{
-                    input: "resize-none",
-                    inputWrapper: "bg-content2"
+                    input: "resize-none text-sm sm:text-base",
+                    inputWrapper: "bg-content2 dark:bg-content2 border-divider"
                   }}
                   endContent={
-                    <div className="flex items-center gap-1">
-                      <Kbd keys={["enter"]}>Send</Kbd>
-                      <Kbd keys={["shift", "enter"]}>New line</Kbd>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <Kbd keys={["enter"]} className="hidden sm:inline-flex">Send</Kbd>
+                      <Kbd keys={["shift", "enter"]} className="hidden lg:inline-flex">New line</Kbd>
                     </div>
                   }
                 />
               </div>
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2 flex-shrink-0">
                 <Button
                   color="primary"
                   isDisabled={!inputMessage.trim() || isLoading}
                   isLoading={isLoading}
                   onPress={sendMessage}
-                  className="h-14"
+                  className="h-12 sm:h-14 px-3 sm:px-4"
+                  size="lg"
                 >
-                  <Icon icon="lucide:send" />
-                </Button>
-                <Button
-                  variant="flat"
-                  size="sm"
-                  isIconOnly
-                  onPress={() => setShowQuickCommands(!showQuickCommands)}
-                >
-                  <Icon icon="lucide:zap" />
+                  <Icon icon="lucide:send" className="text-lg" />
                 </Button>
               </div>
             </div>
@@ -1183,117 +1438,190 @@ export const ChatOps: React.FC = () => {
         </div>
       </div>
 
-      {/* Direct Command Execution Panel */}
-      <motion.div
-        initial={{ width: 0 }}
-        animate={{ width: 400 }}
-        className="border-l border-divider bg-content1 flex flex-col"
-      >
-        <div className="p-4 border-b border-divider">
-          <div className="flex items-center gap-2">
-            <Icon icon="lucide:terminal" className="text-primary" />
-            <h3 className="font-semibold">Direct Commands</h3>
-          </div>
-          <p className="text-xs text-foreground-500 mt-1">
-            Execute kubectl commands directly
-          </p>
-        </div>
-
-        <div className="p-4 border-b border-divider">
-          <div className="flex gap-2">
-            <Input
-              placeholder="kubectl command..."
-              value={commandInput}
-              onValueChange={setCommandInput}
-              onKeyDown={handleCommandKeyDown}
-              variant="bordered"
-              size="sm"
-              startContent={<span className="text-xs text-foreground-500">kubectl</span>}
-            />
-            <Button
-              color="primary"
-              size="sm"
-              isDisabled={!commandInput.trim() || isExecuting}
-              isLoading={isExecuting}
-              onPress={executeCommand}
-            >
-              Run
-            </Button>
-          </div>
-        </div>
-
-        <ScrollShadow className="flex-1 p-4">
-          <div className="space-y-3">
-            {executeResults.length === 0 ? (
-              <div className="text-center py-8">
-                <Icon icon="lucide:terminal" className="text-4xl text-foreground-300 mx-auto mb-2" />
-                <p className="text-sm text-foreground-500">
-                  No commands executed yet
-                </p>
+      {/* Bottom Panel - Shell Terminal */}
+      <AnimatePresence>
+        {showShellPanel && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: `${bottomPanelHeight}vh`, opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+            className="absolute bottom-0 left-0 right-0 flex flex-col bg-content1 dark:bg-content1 border-t border-divider overflow-hidden z-50 shadow-lg dark:shadow-2xl"
+          >
+            {/* Bottom Panel Header */}
+            <div className="p-3 sm:p-4 border-b border-divider bg-content1 dark:bg-content1 flex-shrink-0">
+              <div className="flex items-center justify-between min-w-0 gap-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Icon icon="lucide:terminal" className="text-primary flex-shrink-0" />
+                  <div className="min-w-0">
+                    <h3 className="font-semibold text-foreground">Shell Terminal</h3>
+                    <p className="text-xs text-foreground-500 hidden sm:block">
+                      Execute kubectl commands directly
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <Button
+                    variant="flat"
+                    size="sm"
+                    startContent={<Icon icon="lucide:maximize-2" />}
+                    onPress={() => setBottomPanelHeight(80)}
+                    className="hidden sm:flex"
+                  >
+                    Maximize
+                  </Button>
+                  <Button
+                    variant="flat"
+                    size="sm"
+                    startContent={<Icon icon="lucide:minimize-2" />}
+                    onPress={() => setBottomPanelHeight(30)}
+                    className="hidden sm:flex"
+                  >
+                    Minimize
+                  </Button>
+                  <Button
+                    variant="flat"
+                    size="sm"
+                    color="danger"
+                    isIconOnly
+                    onPress={() => setShowShellPanel(false)}
+                  >
+                    <Icon icon="lucide:x" />
+                  </Button>
+                </div>
               </div>
-            ) : (
-              executeResults.map((result, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
+            </div>
+
+            {/* Command Input */}
+            <div className="p-3 sm:p-4 border-b border-divider bg-content1 dark:bg-content1 flex-shrink-0">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="kubectl command..."
+                  value={commandInput}
+                  onValueChange={setCommandInput}
+                  onKeyDown={handleCommandKeyDown}
+                  variant="bordered"
+                  size="sm"
+                  startContent={<span className="text-xs text-foreground-500 flex-shrink-0">kubectl</span>}
+                  className="flex-1 min-w-0"
+                  classNames={{
+                    inputWrapper: "bg-content2 dark:bg-content2 border-divider"
+                  }}
+                />
+                <Button
+                  color="primary"
+                  size="sm"
+                  isDisabled={!commandInput.trim() || isExecuting}
+                  isLoading={isExecuting}
+                  onPress={executeCommand}
+                  className="flex-shrink-0"
                 >
-                  <Card className="bg-content2">
-                    <CardHeader className="pb-2">
-                      <div className="flex items-center justify-between w-full">
-                        <div className="flex items-center gap-2">
-                          <Chip
-                            size="sm"
-                            color={result.status === 'success' ? 'success' : 'danger'}
-                            variant="flat"
-                          >
-                            {result.status}
-                          </Chip>
-                          <span className="text-xs text-foreground-500">
-                            {new Date(result.timestamp).toLocaleTimeString()}
-                          </span>
-                        </div>
-                        {result.execution_time && (
-                          <span className="text-xs text-foreground-500">
-                            {result.execution_time}ms
-                          </span>
-                        )}
-                      </div>
-                    </CardHeader>
-                    <CardBody className="pt-0">
-                      <Code className="text-xs mb-2 block">
-                        {result.command}
-                      </Code>
-                      {result.output && (
-                        <pre className="text-xs bg-content3 p-2 rounded overflow-x-auto">
-                          {result.output}
-                        </pre>
-                      )}
-                      {result.error && (
-                        <pre className="text-xs bg-danger/10 text-danger p-2 rounded overflow-x-auto">
-                          {result.error}
-                        </pre>
-                      )}
-                    </CardBody>
-                  </Card>
-                </motion.div>
-              ))
-            )}
-          </div>
-        </ScrollShadow>
-      </motion.div>
+                  <Icon icon="lucide:play" />
+                  <span className="hidden sm:inline ml-1">Run</span>
+                </Button>
+                <Button
+                  variant="flat"
+                  size="sm"
+                  onPress={() => setExecuteResults([])}
+                  className="flex-shrink-0"
+                >
+                  <Icon icon="lucide:trash-2" />
+                  <span className="hidden sm:inline ml-1">Clear</span>
+                </Button>
+              </div>
+            </div>
+
+            {/* Command Results */}
+            <ScrollShadow className="flex-1 p-3 sm:p-4 bg-background overflow-y-auto">
+              <div className="space-y-3">
+                {executeResults.length === 0 ? (
+                  <div className="text-center py-6 sm:py-8">
+                    <Icon icon="lucide:terminal" className="text-3xl sm:text-4xl text-foreground-300 mx-auto mb-2" />
+                    <p className="text-sm text-foreground-500">
+                      No commands executed yet
+                    </p>
+                  </div>
+                ) : (
+                  executeResults.map((result, index) => (
+                    <motion.div
+                      key={index}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                    >
+                      <Card className="bg-content1 dark:bg-content1 border border-divider shadow-sm">
+                        <CardHeader className="pb-2">
+                          <div className="flex items-center justify-between w-full min-w-0 gap-3">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Chip
+                                size="sm"
+                                color={result.status === 'success' ? 'success' : 'danger'}
+                                variant="flat"
+                                className="flex-shrink-0"
+                              >
+                                {result.status}
+                              </Chip>
+                              <span className="text-xs text-foreground-500 truncate">
+                                {new Date(result.timestamp).toLocaleTimeString()}
+                              </span>
+                            </div>
+                            {result.execution_time && (
+                              <span className="text-xs text-foreground-500 flex-shrink-0">
+                                {result.execution_time}ms
+                              </span>
+                            )}
+                          </div>
+                        </CardHeader>
+                        <CardBody className="pt-0">
+                          <Code className="text-xs mb-2 block bg-content2 dark:bg-content2 p-2 rounded overflow-x-auto">
+                            {result.command}
+                          </Code>
+                          {result.output && (
+                            <pre className="text-xs bg-content3 dark:bg-content3 p-2 rounded overflow-x-auto whitespace-pre-wrap break-words text-foreground">
+                              {result.output}
+                            </pre>
+                          )}
+                          {result.error && (
+                            <pre className="text-xs bg-danger/10 dark:bg-danger/20 text-danger p-2 rounded overflow-x-auto whitespace-pre-wrap break-words border border-danger/20">
+                              {result.error}
+                            </pre>
+                          )}
+                        </CardBody>
+                      </Card>
+                    </motion.div>
+                  ))
+                )}
+              </div>
+            </ScrollShadow>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* New Session Modal */}
-      <Modal isOpen={isNewSessionOpen} onClose={onNewSessionClose}>
+      <Modal 
+        isOpen={isNewSessionOpen} 
+        onClose={onNewSessionClose}
+        size="md"
+        classNames={{
+          base: "mx-4",
+          backdrop: "bg-black/50",
+          wrapper: "items-center justify-center",
+          body: "bg-content1 dark:bg-content1",
+          header: "bg-content1 dark:bg-content1 border-b border-divider",
+          footer: "bg-content1 dark:bg-content1 border-t border-divider"
+        }}
+      >
         <ModalContent>
           {(onClose) => (
             <>
-              <ModalHeader>Create New Chat Session</ModalHeader>
+              <ModalHeader className="text-foreground">Create New Chat Session</ModalHeader>
               <ModalBody>
                 <Input
                   label="Session Title"
                   placeholder="e.g., Production Troubleshooting"
                   variant="bordered"
+                  classNames={{
+                    inputWrapper: "bg-content2 dark:bg-content2 border-divider"
+                  }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       const title = (e.target as HTMLInputElement).value;
@@ -1325,16 +1653,29 @@ export const ChatOps: React.FC = () => {
       </Modal>
 
       {/* Settings Modal */}
-      <Modal isOpen={isSettingsOpen} onClose={onSettingsClose}>
+      <Modal 
+        isOpen={isSettingsOpen} 
+        onClose={onSettingsClose}
+        size="lg"
+        scrollBehavior="inside"
+        classNames={{
+          base: "mx-4",
+          backdrop: "bg-black/50",
+          wrapper: "items-center justify-center",
+          body: "bg-content1 dark:bg-content1",
+          header: "bg-content1 dark:bg-content1 border-b border-divider",
+          footer: "bg-content1 dark:bg-content1 border-t border-divider"
+        }}
+      >
         <ModalContent>
           {(onClose) => (
             <>
-              <ModalHeader>ChatOps Settings</ModalHeader>
+              <ModalHeader className="text-foreground">ChatOps Settings</ModalHeader>
               <ModalBody>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="font-medium">Streaming Responses</p>
+                      <p className="font-medium text-foreground">Streaming Responses</p>
                       <p className="text-sm text-foreground-500">
                         Enable real-time response streaming
                       </p>
@@ -1348,11 +1689,11 @@ export const ChatOps: React.FC = () => {
                   <Divider />
                   
                   <div>
-                    <p className="font-medium mb-2">Quick Commands</p>
+                    <p className="font-medium mb-2 text-foreground">Quick Commands</p>
                     <p className="text-sm text-foreground-500 mb-3">
                       Manage your frequently used kubectl commands
                     </p>
-                    <Button variant="flat" size="sm">
+                    <Button variant="flat" size="sm" className="bg-content2 dark:bg-content2">
                       Customize Commands
                     </Button>
                   </div>
@@ -1360,15 +1701,20 @@ export const ChatOps: React.FC = () => {
                   <Divider />
                   
                   <div>
-                    <p className="font-medium mb-2">Export/Import</p>
+                    <p className="font-medium mb-2 text-foreground">Export/Import</p>
                     <p className="text-sm text-foreground-500 mb-3">
                       Backup your chat sessions and settings
                     </p>
                     <div className="flex gap-2">
-                      <Button variant="flat" size="sm">
+                      <Button 
+                        variant="flat" 
+                        size="sm" 
+                        className="bg-content2 dark:bg-content2"
+                        onPress={() => exportSessions(sessions, messages)}
+                      >
                         Export Sessions
                       </Button>
-                      <Button variant="flat" size="sm">
+                      <Button variant="flat" size="sm" className="bg-content2 dark:bg-content2">
                         Import Sessions
                       </Button>
                     </div>
@@ -1386,16 +1732,29 @@ export const ChatOps: React.FC = () => {
       </Modal>
 
       {/* Health Status Modal */}
-      <Modal isOpen={isHealthOpen} onClose={onHealthClose}>
+      <Modal 
+        isOpen={isHealthOpen} 
+        onClose={onHealthClose}
+        size="2xl"
+        scrollBehavior="inside"
+        classNames={{
+          base: "mx-4",
+          backdrop: "bg-black/50",
+          wrapper: "items-center justify-center",
+          body: "bg-content1 dark:bg-content1",
+          header: "bg-content1 dark:bg-content1 border-b border-divider",
+          footer: "bg-content1 dark:bg-content1 border-t border-divider"
+        }}
+      >
         <ModalContent>
           {(onClose) => (
             <>
-              <ModalHeader>System Health Status</ModalHeader>
+              <ModalHeader className="text-foreground">System Health Status</ModalHeader>
               <ModalBody>
                 {healthStatus ? (
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <span className="font-medium">Overall Status</span>
+                      <span className="font-medium text-foreground">Overall Status</span>
                       <Chip
                         color={getStatusColor(healthStatus.status)}
                         variant="flat"
@@ -1407,12 +1766,12 @@ export const ChatOps: React.FC = () => {
                     <Divider />
                     
                     <div className="space-y-3">
-                      <h4 className="font-medium">Components</h4>
+                      <h4 className="font-medium text-foreground">Components</h4>
                       
                       {healthStatus.components && (
                         <>
                           <div className="flex items-center justify-between">
-                            <span className="text-sm">Database</span>
+                            <span className="text-sm text-foreground">Database</span>
                             <Chip
                               size="sm"
                               color={healthStatus.components.database === 'connected' ? 'success' : 'danger'}
@@ -1423,7 +1782,7 @@ export const ChatOps: React.FC = () => {
                           </div>
                           
                           <div className="flex items-center justify-between">
-                            <span className="text-sm">LLM Service</span>
+                            <span className="text-sm text-foreground">LLM Service</span>
                             <Chip
                               size="sm"
                               color={healthStatus.components.llm === 'connected' ? 'success' : 'danger'}
@@ -1436,7 +1795,7 @@ export const ChatOps: React.FC = () => {
                           {healthStatus.components.kubernetes && (
                             <>
                               <div className="flex items-center justify-between">
-                                <span className="text-sm">Kubernetes Client</span>
+                                <span className="text-sm text-foreground">Kubernetes Client</span>
                                 <Chip
                                   size="sm"
                                   color={healthStatus.components.kubernetes.client_available ? 'success' : 'danger'}
@@ -1447,7 +1806,7 @@ export const ChatOps: React.FC = () => {
                               </div>
                               
                               <div className="flex items-center justify-between">
-                                <span className="text-sm">Cluster Access</span>
+                                <span className="text-sm text-foreground">Cluster Access</span>
                                 <Chip
                                   size="sm"
                                   color={healthStatus.components.kubernetes.cluster_accessible ? 'success' : 'danger'}
@@ -1459,19 +1818,19 @@ export const ChatOps: React.FC = () => {
                               
                               {healthStatus.components.kubernetes.cluster_version && (
                                 <div className="flex items-center justify-between">
-                                  <span className="text-sm">Cluster Version</span>
-                                  <Code size="sm">{healthStatus.components.kubernetes.cluster_version}</Code>
+                                  <span className="text-sm text-foreground">Cluster Version</span>
+                                  <Code size="sm" className="bg-content2 dark:bg-content2">{healthStatus.components.kubernetes.cluster_version}</Code>
                                 </div>
                               )}
                               
                               <div className="flex items-center justify-between">
-                                <span className="text-sm">Nodes</span>
-                                <span className="text-sm">{healthStatus.components.kubernetes.node_count}</span>
+                                <span className="text-sm text-foreground">Nodes</span>
+                                <span className="text-sm text-foreground">{healthStatus.components.kubernetes.node_count}</span>
                               </div>
                               
                               <div className="flex items-center justify-between">
-                                <span className="text-sm">Namespaces</span>
-                                <span className="text-sm">{healthStatus.components.kubernetes.namespace_count}</span>
+                                <span className="text-sm text-foreground">Namespaces</span>
+                                <span className="text-sm text-foreground">{healthStatus.components.kubernetes.namespace_count}</span>
                               </div>
                             </>
                           )}
@@ -1483,14 +1842,14 @@ export const ChatOps: React.FC = () => {
                       <>
                         <Divider />
                         <div>
-                          <h4 className="font-medium mb-2">Capabilities</h4>
+                          <h4 className="font-medium mb-2 text-foreground">Capabilities</h4>
                           <div className="flex flex-wrap gap-1">
                             {healthStatus.capabilities.map((capability: string, index: number) => (
                               <Chip key={index} size="sm" variant="flat">
                                 {capability.replace(/_/g, ' ')}
                               </Chip>
                             ))}
-                                      </div>
+                          </div>
                         </div>
                       </>
                     )}
@@ -1502,7 +1861,7 @@ export const ChatOps: React.FC = () => {
                           <h4 className="font-medium mb-2 text-danger">Errors</h4>
                           <div className="space-y-2">
                             {healthStatus.errors.map((error: string, index: number) => (
-                              <div key={index} className="p-2 bg-danger/10 rounded text-sm text-danger">
+                              <div key={index} className="p-2 bg-danger/10 dark:bg-danger/20 rounded text-sm text-danger border border-danger/20">
                                 {error}
                               </div>
                             ))}
@@ -1525,7 +1884,7 @@ export const ChatOps: React.FC = () => {
                 )}
               </ModalBody>
               <ModalFooter>
-                <Button variant="flat" onPress={loadHealthStatus}>
+                <Button variant="flat" onPress={loadHealthStatus} className="bg-content2 dark:bg-content2">
                   Refresh
                 </Button>
                 <Button color="primary" onPress={onClose}>
@@ -1540,4 +1899,4 @@ export const ChatOps: React.FC = () => {
   );
 };
 
-export default ChatOps;       
+export default ChatOps;

@@ -1,0 +1,44 @@
+from app.models import User
+from app.auth import get_password_hash
+
+def create_admin_user():
+    admin_username = "admin"
+    admin_email = "admin@example.com"
+    admin_password = "adminpassword123"
+
+    with Session(engine) as session:
+        # Check if admin user already exists
+        existing_admin = session.query(User).filter(User.username == admin_username).first()
+        if existing_admin:
+            print(f"Admin user '{admin_username}' already exists.")
+=======
+from app.database import engine, SQLModel, Session
+from app.models import User
+from app.auth import get_password_hash
+
+def create_admin_user():
+    admin_username = "admin"
+    admin_email = "admin@example.com"
+    admin_password = "adminpassword123"
+
+    with Session(engine) as session:
+        # Check if admin user already exists
+        existing_admin = session.query(User).filter(User.username == admin_username).first()
+        if existing_admin:
+            print(f"Admin user '{admin_username}' already exists.")
+            return
+
+        # Create new admin user
+        hashed_password = get_password_hash(admin_password)
+        admin_user = User(
+            username=admin_username,
+            email=admin_email,
+            hashed_password=hashed_password,
+            is_admin=True
+        )
+        session.add(admin_user)
+        session.commit()
+        print(f"Admin user '{admin_username}' created successfully.")
+
+if __name__ == "__main__":
+    create_admin_user()

@@ -12,7 +12,7 @@ export const CostAnalysis: React.FC<CostAnalysisProps> = ({ selectedCluster }) =
  
   // Grafana URL with parameters to hide UI elements
   const grafanaUrl = React.useMemo(() => {
-    const baseUrl = "https://10.0.32.103:3000/grafana-monitoring/d/opencost-mixin-kover-jkwq/finops-overview";
+    const baseUrl = "https://10.0.32105:3000/grafana-monitoring/d/opencost-mixin-kover-jkwq/finops-overview";
     const params = new URLSearchParams({
       orgId: "1",
       from: "now-1h",
