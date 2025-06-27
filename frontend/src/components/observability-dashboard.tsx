@@ -84,8 +84,8 @@ export const ObservabilityDashboard: React.FC<ObservabilityDashboardProps> = ({ 
             "var-logs": "eemj7g7ndgzcwe", // Logs datasource ID
             from: "now-1h",
             to: "now",
-            theme: "dark",
-            kiosk: "tv", // Full kiosk mode for clean embedding
+            theme: "light",
+            kiosk: "true", // Full kiosk mode for clean embedding
             refresh: "30s" // Auto-refresh every 30 seconds
         });
 

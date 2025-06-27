@@ -56,3 +56,40 @@ class ChangePasswordRequest(BaseModel):
         if data.get('new_password') != data.get('confirm_password'):
             raise ValueError('Passwords do not match')
         return data
+
+
+# API Key Schemas
+class ApiKeyCreate(BaseModel):
+    key_name: str = Field(..., min_length=1, max_length=100)
+    expires_at: Optional[datetime] = None
+
+class ApiKeyResponse(BaseModel):
+    id: int
+    key_name: str
+    api_key: str  # Only shown once during creation
+    user_id: int
+    is_active: bool
+    expires_at: Optional[datetime]
+    last_used_at: Optional[datetime]
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+class ApiKeyListResponse(BaseModel):
+    id: int
+    key_name: str
+    api_key_preview: str  # Only show first 8 characters for security
+    user_id: int
+    is_active: bool
+    expires_at: Optional[datetime]
+    last_used_at: Optional[datetime]
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+class ApiKeyUpdate(BaseModel):
+    key_name: Optional[str] = None
+    is_active: Optional[bool] = None
+    expires_at: Optional[datetime] = None

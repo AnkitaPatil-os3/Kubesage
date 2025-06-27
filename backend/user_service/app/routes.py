@@ -2,8 +2,23 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
 from jose import jwt, ExpiredSignatureError, JWTError
 from sqlmodel import Session, select
 from typing import List
-import datetime  # Added for timestamp
+from datetime import datetime  # Added for timestamp
 from pydantic import BaseModel
+# from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
+from sqlmodel import Session
+from datetime import datetime, timedelta
+from app.auth import get_current_user_from_api_key
+
+from app.database import get_session
+from app.auth import (
+    authenticate_user,
+    create_access_token
+)
+from app.models import UserToken
+from app.config import settings
+from app.logger import logger
+from app.queue import publish_message
 
 from app.database import get_session
 from app.models import User, UserToken
@@ -22,6 +37,14 @@ from app.logger import logger
 from datetime import timedelta
 from app.queue import publish_message  # Import the queue functionality
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer 
+from app.models import ApiKey
+from app.schemas import ApiKeyCreate, ApiKeyResponse, ApiKeyListResponse, ApiKeyUpdate
+from app.api_key_utils import generate_api_key, get_api_key_preview
+from app.auth import get_user_from_api_key
+
+# Add a new router for API keys
+api_key_router = APIRouter()
+
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
 # User router
@@ -66,22 +89,6 @@ def logout(response: Response):
     """
     response.delete_cookie(key="refresh_token", httponly=True, secure=True)
     return {"message": "Logged out successfully"}
-
-# from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm
-from sqlmodel import Session
-from datetime import datetime, timedelta
-
-from app.database import get_session
-from app.auth import (
-    authenticate_user,
-    create_access_token
-)
-from app.models import UserToken
-from app.config import settings
-from app.logger import logger
-from app.queue import publish_message
-
 
 
 @auth_router.post("/token", summary="User Login", description="Authenticates a user and returns access & refresh tokens")
@@ -175,7 +182,7 @@ async def logout(
             "event_type": "user_logout",
             "user_id": current_user.id,
             "username": current_user.username,
-            "timestamp": datetime.datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat()
         })
         
         return {"message": "Successfully logged out"}
@@ -186,8 +193,6 @@ async def logout(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error during logout"
         )
-
-
 
 
 # Endpoint to check if user is admin
@@ -206,8 +211,6 @@ async def check_if_admin(current_user: User = Depends(get_current_user)):
         "is_admin": getattr(current_user, "is_admin", False),  # Using getattr instead of get
         "username": current_user.username  # Direct attribute access
     }
-
-
 
 
 # Register API
@@ -336,7 +339,7 @@ async def A_change_password(
         "admin_id": current_admin.id,
         "user_id": user.id,
         "username": user.username,
-        "timestamp": datetime.datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat()
     })
 
     return {"detail": "Password updated successfully"}
@@ -451,7 +454,7 @@ async def update_user(
     for key, value in user_data.items():
         setattr(db_user, key, value)
     
-    db_user.updated_at = datetime.datetime.now()
+    db_user.updated_at = datetime.now()
     session.add(db_user)
     session.commit()
     session.refresh(db_user)
@@ -464,7 +467,7 @@ async def update_user(
         "user_id": db_user.id,
         "username": db_user.username,
         "updated_fields": list(user_data.keys()),
-        "timestamp": datetime.datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat()
     })
     
     return db_user
@@ -522,8 +525,394 @@ async def delete_user(
         "event_type": "user_deleted",
         "user_id": user_info["user_id"],
         "username": user_info["username"],
-        "timestamp": datetime.datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat()
     })
     
     return None
 
+
+
+@api_key_router.post("/", response_model=ApiKeyResponse, status_code=status.HTTP_201_CREATED,
+                    summary="Create API Key", description="Creates a new API key for the current user")
+async def create_api_key(
+    api_key_data: ApiKeyCreate,
+    current_user: User = Depends(get_current_active_user),
+    session: Session = Depends(get_session)
+):
+    """
+    Creates a new API key for the authenticated user.
+    
+    - Generates a secure random API key
+    - Associates it with the current user
+    - Optionally sets an expiration date
+    - Returns the full API key (only shown once)
+    
+    Parameters:
+        api_key_data: Contains key name and optional expiration
+    
+    Returns:
+        ApiKeyResponse: The created API key with full key value
+    
+    Note: The full API key is only returned once during creation
+    """
+    # Check if user already has an API key with the same name
+    existing_key = session.exec(
+        select(ApiKey).where(
+            ApiKey.user_id == current_user.id,
+            ApiKey.key_name == api_key_data.key_name,
+            ApiKey.is_active == True
+        )
+    ).first()
+    
+    if existing_key:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="API key with this name already exists"
+        )
+    
+    # Generate new API key
+    new_api_key = generate_api_key()
+    
+    # Create API key record
+    db_api_key = ApiKey(
+        key_name=api_key_data.key_name,
+        api_key=new_api_key,
+        user_id=current_user.id,
+        expires_at=api_key_data.expires_at
+    )
+    
+    try:
+        session.add(db_api_key)
+        session.commit()
+        session.refresh(db_api_key)
+        
+        logger.info(f"API key '{api_key_data.key_name}' created for user {current_user.username}")
+        
+        # Publish API key creation event
+        publish_message("user_events", {
+            "event_type": "api_key_created",
+            "user_id": current_user.id,
+            "username": current_user.username,
+            "key_name": api_key_data.key_name,
+            "key_id": db_api_key.id,
+            "expires_at": api_key_data.expires_at.isoformat() if api_key_data.expires_at else None,
+            "timestamp": datetime.now().isoformat()
+        })
+        
+        return db_api_key
+        
+    except Exception as e:
+        logger.error(f"Error creating API key: {e}")
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create API key"
+        )
+
+@api_key_router.get("/", response_model=List[ApiKeyListResponse],
+                   summary="List API Keys", description="Lists all API keys for the current user")
+async def list_api_keys(
+    current_user: User = Depends(get_current_active_user),
+    session: Session = Depends(get_session)
+):
+    """
+    Lists all API keys for the authenticated user.
+    
+    - Returns API keys with preview (masked) values for security
+    - Shows key status, expiration, and usage information
+    
+    Returns:
+        List[ApiKeyListResponse]: List of user's API keys with masked values
+    """
+    api_keys = session.exec(
+        select(ApiKey).where(ApiKey.user_id == current_user.id)
+    ).all()
+    
+    # Convert to response format with masked API keys
+    response_keys = []
+    for key in api_keys:
+        key_dict = key.model_dump()
+        key_dict["api_key_preview"] = get_api_key_preview(key.api_key)
+        response_keys.append(ApiKeyListResponse(**key_dict))
+    
+    return response_keys
+
+@api_key_router.get("/{key_id}", response_model=ApiKeyListResponse,
+                   summary="Get API Key", description="Gets a specific API key by ID")
+async def get_api_key(
+    key_id: int,
+    current_user: User = Depends(get_current_active_user),
+    session: Session = Depends(get_session)
+):
+    """
+    Retrieves a specific API key by ID.
+    
+    - Only returns API keys owned by the current user
+    - Returns masked API key value for security
+    
+    Parameters:
+        key_id: ID of the API key to retrieve
+    
+    Returns:
+        ApiKeyListResponse: The API key with masked value
+    
+    Raises:
+        HTTPException: 404 if key not found or not owned by user
+    """
+    api_key = session.exec(
+        select(ApiKey).where(
+            ApiKey.id == key_id,
+            ApiKey.user_id == current_user.id
+        )
+    ).first()
+    
+    if not api_key:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="API key not found"
+        )
+    
+    key_dict = api_key.model_dump()
+    key_dict["api_key_preview"] = get_api_key_preview(api_key.api_key)
+    
+    return ApiKeyListResponse(**key_dict)
+
+@api_key_router.put("/{key_id}", response_model=ApiKeyListResponse,
+                   summary="Update API Key", description="Updates an API key's properties")
+async def update_api_key(
+    key_id: int,
+    api_key_update: ApiKeyUpdate,
+    current_user: User = Depends(get_current_active_user),
+    session: Session = Depends(get_session)
+):
+    """
+    Updates an API key's properties.
+    
+    - Can update key name, active status, and expiration
+    - Cannot update the actual API key value
+    - Only allows updates to keys owned by the current user
+    
+    Parameters:
+        key_id: ID of the API key to update
+        api_key_update: Properties to update
+    
+    Returns:
+        ApiKeyListResponse: The updated API key
+    
+    Raises:
+        HTTPException: 404 if key not found or not owned by user
+    """
+    db_api_key = session.exec(
+        select(ApiKey).where(
+            ApiKey.id == key_id,
+            ApiKey.user_id == current_user.id
+        )
+    ).first()
+    
+    if not db_api_key:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="API key not found"
+        )
+    
+    # Update fields if provided
+    update_data = api_key_update.model_dump(exclude_unset=True)
+    
+    for key, value in update_data.items():
+        setattr(db_api_key, key, value)
+    
+    db_api_key.updated_at = datetime.now()
+    
+    try:
+        session.add(db_api_key)
+        session.commit()
+        session.refresh(db_api_key)
+        
+        logger.info(f"API key '{db_api_key.key_name}' updated for user {current_user.username}")
+        
+        # Publish API key update event
+        publish_message("user_events", {
+            "event_type": "api_key_updated",
+            "user_id": current_user.id,
+            "username": current_user.username,
+            "key_name": db_api_key.key_name,
+            "key_id": db_api_key.id,
+            "updated_fields": list(update_data.keys()),
+            "timestamp": datetime.now().isoformat()
+        })
+        
+        key_dict = db_api_key.model_dump()
+        key_dict["api_key_preview"] = get_api_key_preview(db_api_key.api_key)
+        
+        return ApiKeyListResponse(**key_dict)
+        
+    except Exception as e:
+        logger.error(f"Error updating API key: {e}")
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update API key"
+        )
+
+@api_key_router.delete("/{key_id}", status_code=status.HTTP_204_NO_CONTENT,
+                      summary="Delete API Key", description="Deletes an API key")
+async def delete_api_key(
+    key_id: int,
+    current_user: User = Depends(get_current_active_user),
+    session: Session = Depends(get_session)
+):
+    """
+    Deletes an API key.
+    
+    - Permanently removes the API key from the system
+    - Only allows deletion of keys owned by the current user
+    - Cannot be undone
+    
+    Parameters:
+        key_id: ID of the API key to delete
+    
+    Returns:
+        None: Returns 204 No Content on success
+    
+    Raises:
+        HTTPException: 404 if key not found or not owned by user
+    """
+    db_api_key = session.exec(
+        select(ApiKey).where(
+            ApiKey.id == key_id,
+            ApiKey.user_id == current_user.id
+        )
+    ).first()
+    
+    if not db_api_key:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="API key not found"
+        )
+    
+    # Store info for event publishing
+    key_info = {
+        "key_name": db_api_key.key_name,
+        "key_id": db_api_key.id
+    }
+    
+    try:
+        session.delete(db_api_key)
+        session.commit()
+        
+        logger.info(f"API key '{key_info['key_name']}' deleted for user {current_user.username}")
+        
+        # Publish API key deletion event
+        publish_message("user_events", {
+            "event_type": "api_key_deleted",
+            "user_id": current_user.id,
+            "username": current_user.username,
+            "key_name": key_info["key_name"],
+            "key_id": key_info["key_id"],
+            "timestamp": datetime.now().isoformat()
+        })
+        
+        return None
+        
+    except Exception as e:
+        logger.error(f"Error deleting API key: {e}")
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete API key"
+        )
+
+@api_key_router.post("/{key_id}/regenerate", response_model=ApiKeyResponse,
+                    summary="Regenerate API Key", description="Regenerates a new API key value")
+async def regenerate_api_key(
+    key_id: int,
+    current_user: User = Depends(get_current_active_user),
+    session: Session = Depends(get_session)
+):
+    """
+    Regenerates a new API key value for an existing API key.
+    
+    - Creates a new random API key value
+    - Keeps the same name and settings
+    - Invalidates the old API key immediately
+    - Returns the new API key (only shown once)
+    
+    Parameters:
+        key_id: ID of the API key to regenerate
+    
+    Returns:
+        ApiKeyResponse: The API key with new value
+    
+    Raises:
+        HTTPException: 404 if key not found or not owned by user
+    
+    Note: The old API key becomes invalid immediately
+    """
+    db_api_key = session.exec(
+        select(ApiKey).where(
+            ApiKey.id == key_id,
+            ApiKey.user_id == current_user.id
+        )
+    ).first()
+    
+    if not db_api_key:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="API key not found"
+        )
+    
+    # Store old key for logging
+    old_key_preview = get_api_key_preview(db_api_key.api_key)
+    
+    # Generate new API key
+    new_api_key = generate_api_key()
+    db_api_key.api_key = new_api_key
+    db_api_key.updated_at = datetime.now()
+    
+    try:
+        session.add(db_api_key)
+        session.commit()
+        session.refresh(db_api_key)
+        
+        logger.info(f"API key '{db_api_key.key_name}' regenerated for user {current_user.username}")
+        
+        # Publish API key regeneration event
+        publish_message("user_events", {
+            "event_type": "api_key_regenerated",
+            "user_id": current_user.id,
+            "username": current_user.username,
+            "key_name": db_api_key.key_name,
+            "key_id": db_api_key.id,
+            "old_key_preview": old_key_preview,
+            "timestamp": datetime.now().isoformat()
+        })
+        
+        return db_api_key
+        
+    except Exception as e:
+        logger.error(f"Error regenerating API key: {e}")
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to regenerate API key"
+        )
+
+
+
+# ADD THIS NEW ROUTE
+@user_router.get("/me/api-key", response_model=UserResponse, 
+                summary="Get Current User via API Key", 
+                description="Returns the current user information using API key authentication")
+async def get_current_user_via_api_key(
+    current_user: User = Depends(get_current_user_from_api_key)
+):
+    """
+    Returns the profile information of the currently authenticated user via API key.
+    
+    - Requires a valid API key in X-API-Key header
+    - Returns the user's profile data
+    
+    Returns:
+        UserResponse: The current user's profile information
+    """
+    return current_user

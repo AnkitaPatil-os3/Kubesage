@@ -117,7 +117,7 @@ export const CarbonEmissionDashboard: React.FC<CarbonEmissionDashboardProps> = (
             from: "now-1h",
             to: "now",
             theme: currentTheme === 'dark' ? "dark" : "light",
-            kiosk: "tv", // Full kiosk mode for clean embedding
+            kiosk: "true", // Full kiosk mode for clean embedding
             refresh: "30s" // Auto-refresh every 30 seconds
         });
 
@@ -253,7 +253,7 @@ export const CarbonEmissionDashboard: React.FC<CarbonEmissionDashboardProps> = (
                         >
                             <Icon icon="lucide:refresh-cw" className="text-lg" />
                         </Button>
-                        <Button
+                        {/* <Button
                             color="secondary"
                             variant="flat"
                             size="lg"
@@ -262,7 +262,7 @@ export const CarbonEmissionDashboard: React.FC<CarbonEmissionDashboardProps> = (
                             className="min-w-12"
                         >
                             <Icon icon={currentTheme === 'dark' ? "lucide:sun" : "lucide:moon"} className="text-lg" />
-                        </Button>
+                        </Button> */}
                     </div>
                 </div>
             </div>

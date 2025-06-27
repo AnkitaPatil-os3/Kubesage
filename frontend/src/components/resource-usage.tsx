@@ -26,23 +26,21 @@ export const ResourceUsage: React.FC<ResourceUsageProps> = ({ clusterId }) => {
   const [loading, setLoading] = React.useState(false);
 
   const fetchResourceUsage = async (metric: string) => {
-  try {
-    setLoading(true);
-    const username = localStorage.getItem("username") || "";
-
-    const res = await fetch(
-      `/kubeconfig/metrics/resource-usage?metric=${metric}&username=${username}&namespace=default`
-    );
-    const json = await res.json();
-    setChartData(json.data);
-    console.log("Fetched resource usage data:", json.data);
-  } catch (error) {
-    console.error("Failed to fetch resource usage:", error);
-  } finally {
-    setLoading(false);
-  }
-};
-
+    try {
+      setLoading(true);
+      const username = localStorage.getItem("username") || "";
+      const res = await fetch(
+        `/kubeconfig/metrics/resource-usage?metric=${metric}&username=${username}&namespace=default`
+      );
+      const json = await res.json();
+      setChartData(json.data);
+      console.log("Fetched resource usage data:", json.data);
+    } catch (error) {
+      console.error("Failed to fetch resource usage:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   React.useEffect(() => {
     fetchResourceUsage(selected);
@@ -57,6 +55,15 @@ export const ResourceUsage: React.FC<ResourceUsageProps> = ({ clusterId }) => {
     if (usage < 60) return "success";
     if (usage < 80) return "warning";
     return "danger";
+  };
+
+  const formatBytes = (bytes: number, decimals = 2) => {
+    if (bytes === 0) return "0 B";
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ["B", "KB", "MB", "GB", "TB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
   };
 
   return (
@@ -88,13 +95,19 @@ export const ResourceUsage: React.FC<ResourceUsageProps> = ({ clusterId }) => {
           <div className="flex items-center justify-between mb-2">
             <div>
               <p className="text-sm text-foreground-500">Current Usage</p>
-              <p className="text-2xl font-semibold">{getCurrentUsage().toFixed(1)}%</p>
+              <p className="text-2xl font-semibold">
+                {selected === "cpu"
+                  ? `${getCurrentUsage().toFixed(3)}%`
+                  : formatBytes(getCurrentUsage())}
+              </p>
             </div>
-            <Progress
-              value={getCurrentUsage()}
-              color={getUsageColor(getCurrentUsage())}
-              className="w-32"
-            />
+            {selected === "cpu" && (
+              <Progress
+                value={getCurrentUsage()}
+                color={getUsageColor(getCurrentUsage())}
+                className="w-32"
+              />
+            )}
           </div>
 
           <div className="h-64 mt-4">
@@ -124,11 +137,13 @@ export const ResourceUsage: React.FC<ResourceUsageProps> = ({ clusterId }) => {
                     tick={{ fontSize: 12, fill: 'hsl(var(--heroui-foreground-500))' }}
                   />
                   <YAxis
-                    domain={[0, 4]}
+                    domain={selected === "cpu" ? [0, 4] : ["auto", "auto"]}
                     axisLine={false}
                     tickLine={false}
                     tick={{ fontSize: 12, fill: 'hsl(var(--heroui-foreground-500))' }}
-                    tickFormatter={(value) => `${value.toFixed(0)}%`}
+                    tickFormatter={(value) =>
+                      selected === "cpu" ? `${value.toFixed(1)}%` : formatBytes(value)
+                    }
                   />
                   <Tooltip
                     contentStyle={{
@@ -137,7 +152,11 @@ export const ResourceUsage: React.FC<ResourceUsageProps> = ({ clusterId }) => {
                       borderRadius: '8px',
                       boxShadow: '0 4px 14px 0 rgba(0, 0, 0, 0.1)'
                     }}
-                    formatter={(value: number) => [`${value.toFixed(5)}%`, 'Usage']}
+                    formatter={(value: number) =>
+                      selected === "cpu"
+                        ? [`${value.toFixed(3)}%`, "Usage"]
+                        : [formatBytes(value), "Usage"]
+                    }
                   />
                   <Area
                     type="monotone"

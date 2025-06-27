@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useHistory } from "react-router-dom";
 import { Icon } from "@iconify/react";
 import {
@@ -31,11 +31,39 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [expandedCategories, setExpandedCategories] = React.useState<{ [key: string]: boolean }>({
     clusters: true,
   });
+  const [isAdmin, setIsAdmin] = useState(false);
   const history = useHistory();
 
   const userEmail = localStorage.getItem("userEmail") || "user@kubesage.io";
   const userName = userEmail.split("@")[0].charAt(0).toUpperCase() + userEmail.split("@")[0].slice(1);
   const userInitials = userName.slice(0, 2).toUpperCase();
+
+  useEffect(() => {
+    const fetchAdminStatus = async () => {
+      try {
+        const accessToken = localStorage.getItem("access_token");
+        if (!accessToken) {
+          setIsAdmin(false);
+          return;
+        }
+        const response = await fetch("/auth/check-admin", {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setIsAdmin(data.is_admin);
+        } else {
+          setIsAdmin(false);
+        }
+      } catch (error) {
+        console.error("Failed to fetch admin status:", error);
+        setIsAdmin(false);
+      }
+    };
+    fetchAdminStatus();
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -218,7 +246,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             </div>
             <Divider className="my-3" />
-            <div className="flex items-center justify-between">
+            <div
+              className="flex items-center justify-between gap-3 rounded px-2 py-1 transition"
+              onClick={() => {
+                if (isAdmin) {
+                  history.push("/dashboard/admin");
+                }
+              }}
+              title={isAdmin ? "Go to Admin Dashboard" : "Profile not clickable"}
+              style={{ cursor: isAdmin ? "pointer" : "default" }}
+            >
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-medium">
                   {userInitials}
@@ -229,7 +266,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </div>
               </div>
               <Tooltip content="Logout">
-                <Button isIconOnly variant="ghost" color="danger" size="sm" onPress={handleLogout}>
+                <Button isIconOnly variant="ghost" color="danger" size="sm" onClick={(e) => { e.stopPropagation(); handleLogout(); }}>
                   <Icon icon="lucide:log-out" />
                 </Button>
               </Tooltip>
