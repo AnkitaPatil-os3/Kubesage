@@ -7,6 +7,7 @@ class KubeconfigBase(BaseModel):
     original_filename: str
     cluster_name: Optional[str] = None
     context_name: Optional[str] = None
+    provider_name: Optional[str] = None
     active: bool = False
     is_operator_installed: bool = False
 
@@ -17,7 +18,7 @@ class KubeconfigResponse(KubeconfigBase):
     updated_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True  # Updated for Pydantic v2
 
 class KubeconfigList(BaseModel):
     kubeconfigs: List[KubeconfigResponse]
@@ -37,3 +38,59 @@ class ClusterNameResponse(BaseModel):
 class ClusterNamesResponse(BaseModel):
     cluster_names: List[ClusterNameResponse]
     errors: Optional[List[dict]] = None
+
+# New schemas for cluster configuration
+class ClusterConfigRequest(BaseModel):
+    cluster_name: str
+    server_url: str
+    token: str
+    context_name: Optional[str] = None
+    provider_name: Optional[str] = "Standard"
+    tags: Optional[str] = None
+    use_secure_tls: bool = False
+    ca_data: Optional[str] = None
+    tls_key: Optional[str] = None
+    tls_cert: Optional[str] = None
+
+class ClusterConfigResponse(BaseModel):
+    id: int
+    cluster_name: str
+    server_url: str
+    context_name: Optional[str] = None
+    provider_name: Optional[str] = None
+    tags: Optional[str] = None
+    use_secure_tls: bool
+    ca_data: Optional[str] = None
+    tls_key: Optional[str] = None
+    tls_cert: Optional[str] = None
+    user_id: int
+    active: bool
+    is_operator_installed: bool
+    created_at: datetime
+    updated_at: datetime
+    message: Optional[str] = None  # For success messages
+
+    class Config:
+        from_attributes = True  # Updated for Pydantic v2
+
+class ClusterConfigList(BaseModel):
+    clusters: List[ClusterConfigResponse]
+
+# Backward compatibility schemas
+class ClusterOnboardRequest(BaseModel):
+    cluster_name: str
+    server_url: str
+    token: str
+    provider_name: Optional[str] = "Standard"
+
+class ClusterOnboardResponse(BaseModel):
+    id: int
+    cluster_name: str
+    server_url: str
+    user_id: int
+    active: bool
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True  # Updated for Pydantic v2

@@ -17,8 +17,6 @@ from app.auth import get_current_user
 from app.config import settings
 from app.logger import logger
 from app.queue import publish_message
-from app.llm_service import K8sLLMService
-
 
 cluster_router = APIRouter()
 
@@ -30,7 +28,6 @@ def get_active_cluster(session: Session, user_id: int) -> ClusterConfig:
             ClusterConfig.active == True
         )
     ).first()
-    print(f"Active cluster: {active_cluster}")
     
     if not active_cluster:
         raise HTTPException(status_code=404, detail="No active cluster configuration found")
@@ -168,7 +165,6 @@ async def onboard_cluster(
     except Exception as e:
         logger.error(f"Error onboarding cluster: {str(e)}")
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
-        
 @cluster_router.get("/clusters", response_model=ClusterConfigList,
                    summary="List Clusters", 
                    description="Returns a list of all onboarded clusters for the current user")
@@ -188,7 +184,6 @@ async def list_clusters(
             .where(ClusterConfig.user_id == current_user["id"])
             .order_by(ClusterConfig.created_at.desc())
         ).all()
-        
 
         # Convert ClusterConfig models to ClusterConfigResponse models
         cluster_responses = []
@@ -279,208 +274,6 @@ async def activate_cluster(
     
     return JSONResponse(content={"message": f"Cluster '{cluster_to_activate.cluster_name}' set as active"}, status_code=200)
 
-
-@cluster_router.post("/select-cluster-and-get-namespaces/{cluster_id}",
-                    summary="Select Cluster and Get Namespaces", 
-                    description="Activates a specific cluster and returns its namespace list")
-async def select_cluster_and_get_namespaces(
-    cluster_id: int,
-    session: Session = Depends(get_session),
-    current_user: Dict = Depends(get_current_user)
-):
-    """
-    Selects a specific cluster, activates it, and returns its namespace list.
-    
-    This endpoint combines cluster activation and namespace retrieval in a single operation:
-    1. Validates that the cluster exists and belongs to the user
-    2. Deactivates all other clusters for the user
-    3. Activates the selected cluster
-    4. Retrieves and returns the namespace list from the newly active cluster
-    
-    Parameters:
-        cluster_id: The ID of the cluster to select and activate
-    
-    Returns:
-        JSONResponse: Contains cluster info, activation status, and namespace list
-        
-    Raises:
-        HTTPException: 404 error if cluster not found
-        HTTPException: 500 error if cluster activation or namespace retrieval fails
-    """
-    logger.info(f"Cluster selection and namespace retrieval request for user {current_user['id']} with cluster ID {cluster_id}")
-    
-    try:
-        # Step 1: Find the cluster to activate
-        cluster_to_activate = session.exec(
-            select(ClusterConfig).where(
-                ClusterConfig.id == cluster_id,
-                ClusterConfig.user_id == current_user["id"]
-            )
-        ).first()
-
-        if not cluster_to_activate:
-            raise HTTPException(
-                status_code=404, 
-                detail=f"Cluster with ID '{cluster_id}' not found or does not belong to you"
-            )
-
-        # Step 2: Deactivate all clusters for this user
-        session.exec(
-            update(ClusterConfig)
-            .where(ClusterConfig.user_id == current_user["id"])
-            .values(active=False)
-        )
-
-        # Step 3: Activate the selected cluster
-        cluster_to_activate.active = True
-        session.add(cluster_to_activate)
-        session.commit()
-
-        logger.info(f"User {current_user['id']} activated cluster: {cluster_to_activate.cluster_name}")
-
-        # Step 4: Get namespaces from the newly active cluster
-        try:
-            # Create Kubernetes configuration using the selected cluster's data
-            from kubernetes.client import Configuration, ApiClient
-            
-            configuration = Configuration()
-            configuration.host = cluster_to_activate.server_url
-            configuration.api_key = {"authorization": f"Bearer {cluster_to_activate.token}"}
-            configuration.api_key_prefix = {"authorization": ""}
-            
-            # Configure TLS based on cluster settings
-            if cluster_to_activate.use_secure_tls:
-                configuration.verify_ssl = True
-                
-                # Handle CA certificate if provided
-                if cluster_to_activate.ca_data:
-                    import tempfile
-                    import base64
-                    
-                    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.crt') as ca_file:
-                        try:
-                            ca_content = base64.b64decode(cluster_to_activate.ca_data).decode('utf-8')
-                        except:
-                            ca_content = cluster_to_activate.ca_data
-                        ca_file.write(ca_content)
-                        configuration.ssl_ca_cert = ca_file.name
-                
-                # Handle client certificates if provided
-                if cluster_to_activate.tls_cert and cluster_to_activate.tls_key:
-                    import tempfile
-                    import base64
-                    
-                    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.crt') as cert_file:
-                        try:
-                            cert_content = base64.b64decode(cluster_to_activate.tls_cert).decode('utf-8')
-                        except:
-                            cert_content = cluster_to_activate.tls_cert
-                        cert_file.write(cert_content)
-                        configuration.cert_file = cert_file.name
-                    
-                    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.key') as key_file:
-                        try:
-                            key_content = base64.b64decode(cluster_to_activate.tls_key).decode('utf-8')
-                        except:
-                            key_content = cluster_to_activate.tls_key
-                        key_file.write(key_content)
-                        configuration.key_file = key_file.name
-            else:
-                configuration.verify_ssl = False
-
-            # Create API client and get namespaces
-            api_client = ApiClient(configuration)
-            v1 = client.CoreV1Api(api_client)
-            
-            logger.info(f"Retrieving namespaces from cluster: {cluster_to_activate.cluster_name}")
-            namespace_list = v1.list_namespace()
-            namespaces = [ns.metadata.name for ns in namespace_list.items]
-            
-            logger.info(f"Successfully retrieved {len(namespaces)} namespaces from cluster {cluster_to_activate.cluster_name}")
-
-        except client.rest.ApiException as e:
-            logger.error(f"Kubernetes API error while getting namespaces: Status={e.status}, Reason={e.reason}")
-            # Cluster was activated successfully, but namespace retrieval failed
-            return JSONResponse(content={
-                "success": True,
-                "cluster_activated": True,
-                "cluster_info": {
-                    "id": cluster_to_activate.id,
-                    "cluster_name": cluster_to_activate.cluster_name,
-                    "server_url": cluster_to_activate.server_url,
-                    "provider_name": cluster_to_activate.provider_name,
-                    "active": True
-                },
-                "namespaces_retrieved": False,
-                "namespaces": [],
-                "error": f"Cluster activated successfully, but failed to retrieve namespaces: {e.reason}",
-                "message": f"Cluster '{cluster_to_activate.cluster_name}' activated, but namespace retrieval failed"
-            }, status_code=200)
-
-        except Exception as e:
-            logger.error(f"Error retrieving namespaces: {str(e)}")
-            # Cluster was activated successfully, but namespace retrieval failed
-            return JSONResponse(content={
-                "success": True,
-                "cluster_activated": True,
-                "cluster_info": {
-                    "id": cluster_to_activate.id,
-                    "cluster_name": cluster_to_activate.cluster_name,
-                    "server_url": cluster_to_activate.server_url,
-                    "provider_name": cluster_to_activate.provider_name,
-                    "active": True
-                },
-                "namespaces_retrieved": False,
-                "namespaces": [],
-                "error": f"Cluster activated successfully, but failed to retrieve namespaces: {str(e)}",
-                "message": f"Cluster '{cluster_to_activate.cluster_name}' activated, but namespace retrieval failed"
-            }, status_code=200)
-
-        # Step 5: Publish events
-        try:
-            # Publish cluster activated event
-            publish_message("cluster_events", {
-                "event_type": "cluster_selected_and_activated",
-                "cluster_id": cluster_to_activate.id,
-                "user_id": current_user["id"],
-                "username": current_user.get("username", "unknown"),
-                "cluster_name": cluster_to_activate.cluster_name,
-                "namespace_count": len(namespaces),
-                "timestamp": datetime.datetime.now().isoformat()
-            })
-        except Exception as queue_error:
-            logger.warning(f"Failed to publish message to queue: {str(queue_error)}")
-
-        # Step 6: Return success response with cluster info and namespaces
-        return JSONResponse(content={
-            "success": True,
-            "cluster_activated": True,
-            "namespaces_retrieved": True,
-            "cluster_info": {
-                "id": cluster_to_activate.id,
-                "cluster_name": cluster_to_activate.cluster_name,
-                "server_url": cluster_to_activate.server_url,
-                "context_name": cluster_to_activate.context_name,
-                "provider_name": cluster_to_activate.provider_name,
-                "tags": cluster_to_activate.tags,
-                "use_secure_tls": cluster_to_activate.use_secure_tls,
-                "is_operator_installed": cluster_to_activate.is_operator_installed,
-                "active": True,
-                "created_at": cluster_to_activate.created_at.isoformat() if cluster_to_activate.created_at else None,
-                "updated_at": cluster_to_activate.updated_at.isoformat() if cluster_to_activate.updated_at else None
-            },
-            "namespaces": namespaces,
-            "namespace_count": len(namespaces),
-            "message": f"Cluster '{cluster_to_activate.cluster_name}' activated successfully and {len(namespaces)} namespaces retrieved"
-        }, status_code=200)
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error in select cluster and get namespaces: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
-
-
 @cluster_router.delete("/remove-cluster/{cluster_id}",
                       summary="Remove Cluster", 
                       description="Deletes a cluster configuration from the system")
@@ -541,8 +334,6 @@ async def remove_cluster(
         session.rollback()
         logger.error(f"Error removing cluster: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error removing cluster: {str(e)}")
-
-
 @cluster_router.get("/namespaces",
                    summary="Get Kubernetes Namespaces", 
                    description="Retrieves all namespaces from the active Kubernetes cluster")
@@ -574,7 +365,6 @@ async def get_namespaces(
                 ClusterConfig.active == True
             )
         ).first()
-        
         
         if not active_cluster:
             logger.error(f"No active cluster found for user {current_user['id']}")
@@ -745,8 +535,575 @@ async def get_namespaces(
         
         raise HTTPException(status_code=500, detail=f"Error fetching namespaces: {str(e)}")
 
+@cluster_router.post("/install-operator",
+                    summary="Install K8sGPT Operator", 
+                    description="Installs the K8sGPT operator on the active Kubernetes cluster")
+async def install_operator(
+    session: Session = Depends(get_session),
+    current_user: Dict = Depends(get_current_user)
+):
+    """
+    Installs the K8sGPT operator on the active Kubernetes cluster.
+    """
+    active_cluster = get_active_cluster(session, current_user["id"])
+    
+    try:
+        # Create temporary kubeconfig for helm operations
+        kubeconfig_content = {
+            "apiVersion": "v1",
+            "kind": "Config",
+            "clusters": [{
+                "name": active_cluster.cluster_name,
+                "cluster": {
+                    "server": active_cluster.server_url,
+                    "insecure-skip-tls-verify": not active_cluster.use_secure_tls
+                }
+            }],
+            "users": [{
+                "name": f"{active_cluster.cluster_name}-user",
+                "user": {
+                    "token": active_cluster.token
+                }
+            }],
+            "contexts": [{
+                "name": active_cluster.cluster_name,
+                "context": {
+                    "cluster": active_cluster.cluster_name,
+                    "user": f"{active_cluster.cluster_name}-user"
+                }
+            }],
+            "current-context": active_cluster.cluster_name
+        }
+        
+        # Add TLS configuration if enabled
+        if active_cluster.use_secure_tls and active_cluster.ca_data:
+            kubeconfig_content["clusters"][0]["cluster"]["certificate-authority-data"] = active_cluster.ca_data
+            kubeconfig_content["clusters"][0]["cluster"].pop("insecure-skip-tls-verify", None)
+        
+        # Create temporary kubeconfig file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as temp_file:
+            yaml.dump(kubeconfig_content, temp_file)
+            temp_kubeconfig_path = temp_file.name
+        
+        commands = [
+            f"helm repo add k8sgpt https://charts.k8sgpt.ai/ --kubeconfig {temp_kubeconfig_path}",
+            f"helm repo update --kubeconfig {temp_kubeconfig_path}",
+            f"helm install release k8sgpt/k8sgpt-operator -n k8sgpt-operator-system --create-namespace --kubeconfig {temp_kubeconfig_path}"
+        ]
+        
+        results = []
+        success = True
+        error_message = ""
+        
+        for command in commands:
+            try:
+                result = execute_command(command)
+                results.append({"command": command, "result": result})
+            except HTTPException as e:
+                error_message = str(e.detail)
+                results.append({"command": command, "error": error_message})
+                success = False
+                break
+        
+        # Clean up temporary file
+        if os.path.exists(temp_kubeconfig_path):
+            os.unlink(temp_kubeconfig_path)
+        
+        if success:
+            # Update operator installation status in DB
+            active_cluster.is_operator_installed = True
+            session.add(active_cluster)
+            session.commit()
+            
+            logger.info(f"User {current_user['id']} installed operator on cluster {active_cluster.cluster_name}")
+            
+            # Publish operator installed event
+            try:
+                publish_message("cluster_events", {
+                    "event_type": "operator_installed",
+                    "cluster_id": active_cluster.id,
+                    "user_id": current_user["id"],
+                    "username": current_user.get("username", "unknown"),
+                    "cluster_name": active_cluster.cluster_name,
+                    "success": True,
+                    "timestamp": datetime.datetime.now().isoformat()
+                })
+            except Exception as queue_error:
+                logger.warning(f"Failed to publish message to queue: {str(queue_error)}")
+            
+            return JSONResponse(
+                content={"results": results, "operator_installed": True, "message": "Operator installed successfully"},
+                status_code=200
+            )
+        else:
+            # Publish operator installation failed event
+            try:
+                publish_message("cluster_events", {
+                    "event_type": "operator_installation_failed",
+                    "cluster_id": active_cluster.id,
+                    "user_id": current_user["id"],
+                    "username": current_user.get("username", "unknown"),
+                    "cluster_name": active_cluster.cluster_name,
+                    "error": error_message,
+                    "timestamp": datetime.datetime.now().isoformat()
+                })
+            except Exception as queue_error:
+                logger.warning(f"Failed to publish message to queue: {str(queue_error)}")
+            
+            return JSONResponse(
+                content={
+                    "results": results,
+                    "operator_installed": False,
+                    "message": f"Operator installation failed: {error_message}"
+                },
+                status_code=400
+            )
+    
+    except Exception as e:
+        logger.error(f"Error installing operator: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error installing operator: {str(e)}")
 
+@cluster_router.post("/uninstall-operator",
+                    summary="Uninstall K8sGPT Operator", 
+                    description="Uninstalls the K8sGPT operator from the active Kubernetes cluster")
+async def uninstall_operator(
+    session: Session = Depends(get_session),
+    current_user: Dict = Depends(get_current_user)
+):
+    """
+    Uninstalls the K8sGPT operator from the active Kubernetes cluster.
+    """
+    active_cluster = get_active_cluster(session, current_user["id"])
+    
+    results = []
+    success = True
+    error_message = ""
+    
+    try:
+        # Load the kubeconfig
+        configuration = Configuration()
+        configuration.host = active_cluster.server_url
+        configuration.api_key = {"authorization": f"Bearer {active_cluster.token}"}
+        configuration.api_key_prefix = {"authorization": "Bearer"}
+        configuration.verify_ssl = active_cluster.use_secure_tls
+        
+        # Create API clients
+        api_client = ApiClient(configuration)
+        core_v1_api = client.CoreV1Api(api_client)
+        
+        # Step 1: Uninstall Helm release using subprocess
+        try:
+            # Create temporary kubeconfig for helm operations
+            kubeconfig_content = {
+                "apiVersion": "v1",
+                "kind": "Config",
+                "clusters": [{
+                    "name": active_cluster.cluster_name,
+                    "cluster": {
+                        "server": active_cluster.server_url,
+                        "insecure-skip-tls-verify": not active_cluster.use_secure_tls
+                    }
+                }],
+                "users": [{
+                    "name": f"{active_cluster.cluster_name}-user",
+                    "user": {
+                        "token": active_cluster.token
+                    }
+                }],
+                "contexts": [{
+                    "name": active_cluster.cluster_name,
+                    "context": {
+                        "cluster": active_cluster.cluster_name,
+                        "user": f"{active_cluster.cluster_name}-user"
+                    }
+                }],
+                "current-context": active_cluster.cluster_name
+            }
+            
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as temp_file:
+                yaml.dump(kubeconfig_content, temp_file)
+                temp_kubeconfig_path = temp_file.name
+            
+            helm_cmd = ["helm", "uninstall", "release", "-n", "k8sgpt-operator-system", "--kubeconfig", temp_kubeconfig_path]
+            helm_result = subprocess.run(helm_cmd, capture_output=True, text=True, check=True)
+            results.append({
+                "operation": "Helm uninstall",
+                "success": True,
+                "output": helm_result.stdout
+            })
+            
+            # Clean up temporary file
+            if os.path.exists(temp_kubeconfig_path):
+                os.unlink(temp_kubeconfig_path)
+                
+        except subprocess.CalledProcessError as e:
+            # Check if the error is because the release doesn't exist
+            if "release: not found" in e.stderr:
+                results.append({
+                    "operation": "Helm uninstall",
+                    "success": True,
+                    "output": "Release not found (already uninstalled)"
+                })
+            else:
+                error_message = f"Helm uninstall failed: {e.stderr}"
+                results.append({
+                    "operation": "Helm uninstall",
+                    "success": False,
+                    "error": error_message
+                })
+                success = False
+        
+        # Step 2: Delete the namespace using Kubernetes client
+        if success:
+            try:
+                # Check if namespace exists first
+                try:
+                    core_v1_api.read_namespace(name="k8sgpt-operator-system")
+                    namespace_exists = True
+                except client.rest.ApiException as e:
+                    if e.status == 404:
+                        namespace_exists = False
+                    else:
+                        raise
+                
+                if namespace_exists:
+                    # Delete the namespace
+                    core_v1_api.delete_namespace(name="k8sgpt-operator-system")
+                    results.append({
+                        "operation": "Delete namespace",
+                        "success": True,
+                        "output": "Namespace k8sgpt-operator-system deleted"
+                    })
+                else:
+                    results.append({
+                        "operation": "Delete namespace",
+                        "success": True,
+                        "output": "Namespace k8sgpt-operator-system not found (already deleted)"
+                    })
+            except client.rest.ApiException as e:
+                error_message = f"Failed to delete namespace: {str(e)}"
+                results.append({
+                    "operation": "Delete namespace",
+                    "success": False,
+                    "error": error_message
+                })
+                success = False
+        
+        if success:
+            # Update operator installation status in DB
+            active_cluster.is_operator_installed = False
+            session.add(active_cluster)
+            session.commit()
+            
+            logger.info(f"User {current_user['id']} uninstalled operator from cluster {active_cluster.cluster_name}")
+            
+            # Publish operator uninstalled event
+            try:
+                publish_message("cluster_events", {
+                    "event_type": "operator_uninstalled",
+                    "cluster_id": active_cluster.id,
+                    "user_id": current_user["id"],
+                    "username": current_user.get("username", "unknown"),
+                    "cluster_name": active_cluster.cluster_name,
+                    "success": True,
+                    "timestamp": datetime.datetime.now().isoformat()
+                })
+            except Exception as queue_error:
+                logger.warning(f"Failed to publish message to queue: {str(queue_error)}")
+            
+            return JSONResponse(
+                content={
+                    "results": results,
+                    "operator_uninstalled": True,
+                    "message": "Operator uninstalled successfully"
+                },
+                status_code=200
+            )
+        else:
+            # Publish operator uninstallation failed event
+            try:
+                publish_message("cluster_events", {
+                    "event_type": "operator_uninstallation_failed",
+                    "cluster_id": active_cluster.id,
+                    "user_id": current_user["id"],
+                    "username": current_user.get("username", "unknown"),
+                    "cluster_name": active_cluster.cluster_name,
+                    "error": error_message,
+                    "timestamp": datetime.datetime.now().isoformat()
+                })
+            except Exception as queue_error:
+                logger.warning(f"Failed to publish message to queue: {str(queue_error)}")
+            
+            return JSONResponse(
+                content={
+                    "results": results,
+                    "operator_uninstalled": False,
+                    "message": f"Failed to uninstall operator: {error_message}"
+                },
+                status_code=400
+            )
+    
+    except Exception as e:
+        error_message = str(e)
+        logger.error(f"Error uninstalling operator: {error_message}")
+        
+        # Publish operator uninstallation failed event
+        try:
+            publish_message("cluster_events", {
+                "event_type": "operator_uninstallation_failed",
+                "cluster_id": active_cluster.id,
+                "user_id": current_user["id"],
+                "username": current_user.get("username", "unknown"),
+                                "cluster_name": active_cluster.cluster_name,
+                "error": error_message,
+                "timestamp": datetime.datetime.now().isoformat()
+            })
+        except Exception as queue_error:
+            logger.warning(f"Failed to publish message to queue: {str(queue_error)}")
+        
+        return JSONResponse(
+            content={
+                "results": [{"operation": "Uninstall operator", "success": False, "error": error_message}],
+                "operator_uninstalled": False,
+                "message": f"Error uninstalling operator: {error_message}"
+            },
+            status_code=500
+        )
 
+@cluster_router.post("/analyze",
+                    summary="Analyze Kubernetes Cluster", 
+                    description="Runs K8sGPT analysis on the active Kubernetes cluster")
+async def analyze(
+    session: Session = Depends(get_session),
+    current_user: Dict = Depends(get_current_user),
+    anonymize: bool = Query(False, description="Anonymize data before sending it to the AI backend"),
+    backend: str = Query(None, description="Backend AI provider"),
+    custom_analysis: bool = Query(False, description="Enable custom analyzers"),
+    custom_headers: List[str] = Query(None, description="Custom Headers, <key>:<value>"),
+    explain: bool = Query(False, description="Explain the problem"),
+    filter: List[str] = Query(None, description="Filter for these analyzers"),
+    interactive: bool = Query(False, description="Enable interactive mode"),
+    language: str = Query("english", description="Language to use for AI"),
+    max_concurrency: int = Query(10, description="Maximum number of concurrent requests"),
+    namespace: str = Query(None, description="Namespace to analyze"),
+    no_cache: bool = Query(False, description="Do not use cached data"),
+    output: str = Query("text", description="Output format (text, json)"),
+    selector: str = Query(None, description="Label selector"),
+    with_doc: bool = Query(False, description="Give me the official documentation of the involved field"),
+    config: str = Query(None, description="Default config file"),
+    kubecontext: str = Query(None, description="Kubernetes context to use")
+):
+    """
+    Runs K8sGPT analysis on the active Kubernetes cluster.
+    """
+    # Get the active cluster
+    active_cluster = get_active_cluster(session, current_user["id"])
+    
+    try:
+        # Create temporary kubeconfig for k8sgpt operations
+        kubeconfig_content = {
+            "apiVersion": "v1",
+            "kind": "Config",
+            "clusters": [{
+                "name": active_cluster.cluster_name,
+                "cluster": {
+                    "server": active_cluster.server_url,
+                    "insecure-skip-tls-verify": not active_cluster.use_secure_tls
+                }
+            }],
+            "users": [{
+                "name": f"{active_cluster.cluster_name}-user",
+                "user": {
+                    "token": active_cluster.token
+                }
+            }],
+            "contexts": [{
+                "name": active_cluster.cluster_name,
+                "context": {
+                    "cluster": active_cluster.cluster_name,
+                    "user": f"{active_cluster.cluster_name}-user"
+                }
+            }],
+            "current-context": active_cluster.cluster_name
+        }
+        
+        # Add TLS configuration if enabled
+        if active_cluster.use_secure_tls and active_cluster.ca_data:
+            kubeconfig_content["clusters"][0]["cluster"]["certificate-authority-data"] = active_cluster.ca_data
+            kubeconfig_content["clusters"][0]["cluster"].pop("insecure-skip-tls-verify", None)
+        
+        # Create temporary kubeconfig file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as temp_file:
+            yaml.dump(kubeconfig_content, temp_file)
+            temp_kubeconfig_path = temp_file.name
+        
+        # Build k8sgpt command
+        command = "k8sgpt analyze"
+        if anonymize:
+            command += " --anonymize"
+        if backend:
+            command += f" --backend {backend}"
+        if custom_analysis:
+            command += " --custom-analysis"
+        if custom_headers:
+            for header in custom_headers:
+                command += f" --custom-headers {header}"
+        if explain:
+            command += " --explain"
+        if filter:
+            for f in filter:
+                command += f" --filter {f}"
+        if interactive:
+            command += " --interactive"
+        if language != "english":
+            command += f" --language {language}"
+        if max_concurrency != 10:
+            command += f" --max-concurrency {max_concurrency}"
+        if namespace:
+            command += f" --namespace {namespace}"
+        if no_cache:
+            command += " --no-cache"
+        if output != "text":
+            command += f" --output {output}"
+        if selector:
+            command += f" --selector {selector}"
+        if with_doc:
+            command += " --with-doc"
+        if config:
+            command += f" --config {config}"
+        if kubecontext:
+            command += f" --kubecontext {kubecontext}"
+        
+        # Add the temporary kubeconfig path
+        command += f" --kubeconfig {temp_kubeconfig_path}"
+
+        logger.info(f"Executing k8sgpt command: {command}")
+        
+        try:
+            result = execute_command(command + " --output=json")
+            
+            # Clean up temporary file
+            if os.path.exists(temp_kubeconfig_path):
+                os.unlink(temp_kubeconfig_path)
+            
+            return JSONResponse(content=result, status_code=200)
+        except HTTPException as e:
+            # Clean up temporary file
+            if os.path.exists(temp_kubeconfig_path):
+                os.unlink(temp_kubeconfig_path)
+            return JSONResponse(content={"error": str(e.detail)}, status_code=e.status_code)
+    
+    except Exception as e:
+        logger.error(f"Error in k8sgpt analysis: {str(e)}")
+        return JSONResponse(content={"error": str(e)}, status_code=500)
+
+@cluster_router.post("/analyze-k8s",
+                    summary="Analyze Kubernetes Resources", 
+                    description="Analyzes Kubernetes resources using the Kubernetes client library")
+async def analyze_k8s(
+    session: Session = Depends(get_session),
+    current_user: Dict = Depends(get_current_user),
+    namespace: str = Query(None, description="Namespace to analyze"),
+    resource_types: List[str] = Query(
+        ["pods", "deployments", "services", "secrets", "storageclasses", "ingress", "pvc"],
+        description="Resource types to analyze"
+    )
+):
+    """
+    Analyzes Kubernetes resources using the Kubernetes client library.
+    """
+    # Get the active cluster
+    active_cluster = get_active_cluster(session, current_user["id"])
+    
+    try:
+        # Create Kubernetes configuration
+        configuration = Configuration()
+        configuration.host = active_cluster.server_url
+        configuration.api_key = {"authorization": f"Bearer {active_cluster.token}"}
+        configuration.api_key_prefix = {"authorization": "Bearer"}
+        configuration.verify_ssl = active_cluster.use_secure_tls
+        
+        # Initialize API clients
+        api_client = ApiClient(configuration)
+        core_v1 = client.CoreV1Api(api_client)
+        apps_v1 = client.AppsV1Api(api_client)
+        networking_v1 = client.NetworkingV1Api(api_client)
+        storage_v1 = client.StorageV1Api(api_client)
+        
+        # Initialize results list
+        flat_results = []
+        
+        # Analyze resources based on resource_types
+        for resource_type in resource_types:
+            resource_type = resource_type.lower()
+            
+            if resource_type == "pods":
+                flat_results.extend(analyze_pods(core_v1, namespace))
+            elif resource_type == "deployments":
+                flat_results.extend(analyze_deployments(apps_v1, namespace))
+            elif resource_type == "services":
+                flat_results.extend(analyze_services(core_v1, namespace))
+            elif resource_type == "secrets":
+                flat_results.extend(analyze_secrets(core_v1, namespace))
+            elif resource_type == "storageclasses":
+                flat_results.extend(analyze_storage_classes(storage_v1))
+            elif resource_type == "ingress":
+                flat_results.extend(analyze_ingress(networking_v1, core_v1, namespace))
+            elif resource_type == "pvc":
+                flat_results.extend(analyze_pvcs(core_v1, namespace))
+        
+        # Modify the results to separate namespace and name
+        modified_results = []
+        
+        for result in flat_results:
+            # Extract namespace from the name field (format: "namespace/name")
+            name_parts = result["name"].split("/", 1)
+            
+            if len(name_parts) == 2:
+                result_namespace, resource_name = name_parts
+                
+                # Create a new result with separate namespace field
+                modified_result = result.copy()
+                modified_result["namespace"] = result_namespace
+                modified_result["name"] = resource_name
+                
+                # For cluster-scoped resources
+                if result_namespace == "N/A":
+                    modified_result["namespace"] = ""
+                
+                modified_results.append(modified_result)
+            else:
+                # If the name doesn't have a namespace part, keep it as is
+                modified_result = result.copy()
+                modified_result["namespace"] = ""
+                modified_results.append(modified_result)
+        
+        # Publish analysis event
+        try:
+            publish_message("cluster_events", {
+                "event_type": "k8s_analysis_performed",
+                "cluster_id": active_cluster.id,
+                "user_id": current_user["id"],
+                "username": current_user.get("username", "unknown"),
+                "cluster_name": active_cluster.cluster_name,
+                "resource_types": resource_types,
+                "namespace": namespace or "all",
+                "issue_count": len(flat_results),
+                "timestamp": datetime.datetime.now().isoformat()
+            })
+        except Exception as queue_error:
+            logger.warning(f"Failed to publish message to queue: {str(queue_error)}")
+        
+        return JSONResponse(content=modified_results, status_code=200)
+    
+    except client.rest.ApiException as e:
+        logger.error(f"Kubernetes API error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Kubernetes API error: {str(e)}")
+    except Exception as e:
+        logger.error(f"Error analyzing Kubernetes resources: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error analyzing Kubernetes resources: {str(e)}")
+
+# Analysis helper functions
 def analyze_pods(api, namespace=None):
     """Analyze Pods for common issues"""
     results = []
@@ -850,9 +1207,6 @@ def analyze_pods(api, namespace=None):
                         "details": "",
                         "parentObject": ""
                     })
-        
-        # Check for events related to this pod (would require additional API call)
-        # This would be a more comprehensive approach but requires more API calls
     
     return results
 
@@ -931,15 +1285,11 @@ def analyze_services(api, namespace=None):
         service_namespace = service.metadata.namespace
         full_name = f"{service_namespace}/{service_name}"
         
-        # Check if service has no endpoints (would require additional API call)
+        # Check if service has no endpoints
         try:
-            if namespace:
-                endpoints = api.read_namespaced_endpoints(service_name, service_namespace)
-            else:
-                # This is a workaround since there's no direct method to get endpoints by service name across namespaces
-                endpoints = api.read_namespaced_endpoints(service_name, service_namespace)
+            endpoints = api.read_namespaced_endpoints(service_name, service_namespace)
             
-            if not endpoints.subsets or not any(subset.addresses for subset in endpoints.subsets):
+            if not endpoints.subsets or not any(subset.addresses for subset in endpoints.subsets if subset.addresses):
                 results.append({
                     "kind": "Service",
                     "name": full_name,
@@ -974,11 +1324,9 @@ def analyze_secrets(api, namespace=None):
     # Get secrets from all namespaces or specific namespace
     if namespace:
         secrets = api.list_namespaced_secret(namespace)
-        # For cross-checking with pods
         pods = api.list_namespaced_pod(namespace)
     else:
         secrets = api.list_secret_for_all_namespaces()
-        # For cross-checking with pods
         pods = api.list_pod_for_all_namespaces()
     
     # Create a map of secret references from pods
@@ -1028,7 +1376,7 @@ def analyze_secrets(api, namespace=None):
         if secret.type == "kubernetes.io/service-account-token" and secret_name.startswith("default-token"):
             continue
         
-        # 1. Check for empty secrets
+        # Check for empty secrets
         if not secret.data or len(secret.data) == 0:
             results.append({
                 "kind": "Secret",
@@ -1041,35 +1389,14 @@ def analyze_secrets(api, namespace=None):
                 "details": "",
                 "parentObject": ""
             })
-            continue  # Skip further checks for empty secrets
+            continue
         
-        # 2. Check for malformed base64 data
-        try:
-            for key, value in secret.data.items():
-                # The kubernetes client already decodes base64, so we don't need to check this
-                pass
-        except Exception as e:
-            results.append({
-                "kind": "Secret",
-                "name": full_name,
-                "error": [{
-                    "Text": f"Secret contains malformed data: {str(e)}",
-                    "KubernetesDoc": "",
-                    "Sensitive": []
-                }],
-                "details": "",
-                "parentObject": ""
-            })
-        
-        # 3. Check for referenced but non-existent secrets is handled by the pod analysis
-        
-        # 4. Check for TLS certificate expiration
+        # Check for TLS certificate expiration
         if secret.type == "kubernetes.io/tls" and "tls.crt" in secret.data:
             try:
-                import base64
-                import datetime
                 import cryptography.x509
                 from cryptography.hazmat.backends import default_backend
+                from datetime import timezone
                 
                 cert_data = base64.b64decode(secret.data["tls.crt"])
                 cert = cryptography.x509.load_pem_x509_certificate(cert_data, default_backend())
@@ -1106,7 +1433,7 @@ def analyze_secrets(api, namespace=None):
                 # Skip certificate validation if we can't parse it
                 pass
         
-        # 5. Check for missing required keys based on secret type
+        # Check for missing required keys based on secret type
         if secret.type == "kubernetes.io/dockerconfigjson" and ".dockerconfigjson" not in secret.data:
             results.append({
                 "kind": "Secret",
@@ -1138,7 +1465,7 @@ def analyze_secrets(api, namespace=None):
                     "parentObject": ""
                 })
         
-        # 6. Check for unused secrets
+        # Check for unused secrets
         if secret_key not in secret_references:
             results.append({
                 "kind": "Secret",
@@ -1151,48 +1478,8 @@ def analyze_secrets(api, namespace=None):
                 "details": "",
                 "parentObject": ""
             })
-        
-        # 7. Check for incorrect type (requires cross-checking with pods)
-        if secret_key in secret_references:
-            for reference in secret_references[secret_key]:
-                # Check for docker registry secrets used as regular secrets
-                if secret.type == "kubernetes.io/dockerconfigjson" and "env var" in reference["usage"]:
-                    results.append({
-                        "kind": "Secret",
-                        "name": full_name,
-                        "error": [{
-                            "Text": f"Secret has type 'kubernetes.io/dockerconfigjson' but is used as environment variable in {reference['kind']} {reference['resource']}",
-                            "KubernetesDoc": "",
-                            "Sensitive": []
-                        }],
-                        "details": "",
-                        "parentObject": reference["resource"]
-                    })
-        
-        # 8. Insufficient permissions check would require RBAC analysis, which is complex
-        
-        # 9. Check for oversized secrets (1MB limit is recommended)
-        total_size = 0
-        for _, value in secret.data.items():
-            # The size in bytes of the base64 decoded value
-            total_size += len(value) if value else 0
-        
-        if total_size > 1000000:  # 1MB in bytes
-            size_mb = round(total_size / 1000000, 2)
-            results.append({
-                "kind": "Secret",
-                "name": full_name,
-                "error": [{
-                    "Text": f"Secret size ({size_mb}MB) exceeds recommended limit of 1MB",
-                    "KubernetesDoc": "",
-                    "Sensitive": []
-                }],
-                "details": "",
-                "parentObject": ""
-            })
     
     return results
-
 
 def analyze_storage_classes(api):
     """Analyze StorageClasses for common issues"""
@@ -1280,17 +1567,15 @@ def analyze_ingress(api_networking, api_core, namespace=None):
                 "parentObject": ""
             })
         
-        # Check for backend services (would require additional API calls to verify if services exist)
+        # Check for backend services
         for rule in ingress.spec.rules or []:
             if rule.http and rule.http.paths:
                 for path in rule.http.paths:
                     if path.backend and path.backend.service:
                         service_name = path.backend.service.name
-                        service_port = path.backend.service.port.number if path.backend.service.port.number else path.backend.service.port.name
                         
-                        # Check if service exists (would require additional API call)
+                        # Check if service exists
                         try:
-                            # Use the CoreV1Api to check for services
                             api_core.read_namespaced_service(service_name, ingress_namespace)
                         except client.rest.ApiException as e:
                             if e.status == 404:
@@ -1307,7 +1592,6 @@ def analyze_ingress(api_networking, api_core, namespace=None):
                                 })
     
     return results
-
 
 def analyze_pvcs(api, namespace=None):
     """Analyze PersistentVolumeClaims for common issues"""
@@ -1340,8 +1624,6 @@ def analyze_pvcs(api, namespace=None):
         
         # Check for PVCs with access modes that might cause issues
         if pvc.spec.access_modes and "ReadWriteMany" in pvc.spec.access_modes:
-            # ReadWriteMany is not supported by all storage providers
-            # This is just a warning, not necessarily an error
             if pvc.spec.storage_class_name:
                 results.append({
                     "kind": "PersistentVolumeClaim",
@@ -1354,322 +1636,14 @@ def analyze_pvcs(api, namespace=None):
                     "details": "",
                     "parentObject": ""
                 })
-        
-        # Check for bound PVCs with no pods using them (would require additional API calls)
-        # This is a more advanced check that would require listing pods and checking their volumes
     
     return results
-
-def check_pod_events(api, pod_namespace, pod_name):
-    """Check for recent events related to a pod"""
-    field_selector = f"involvedObject.name={pod_name},involvedObject.namespace={pod_namespace},involvedObject.kind=Pod"
-    events = api.list_event_for_all_namespaces(field_selector=field_selector)
-    
-    issues = []
-    for event in events.items:
-        # Focus on Warning events
-        if event.type == "Warning":
-            # Check if event is recent (last 15 minutes)
-            event_time = event.last_timestamp or event.event_time
-            if event_time:
-                event_time = event_time.replace(tzinfo=None)
-                if (datetime.datetime.utcnow() - event_time).total_seconds() < 900:  # 15 minutes in seconds
-                    issues.append({
-                        "Text": f"{event.reason}: {event.message}",
-                        "KubernetesDoc": "",
-                        "Sensitive": []
-                    })
-    
-    return issues
-
-def analyze_pod_with_events(api, namespace=None):
-    """Enhanced pod analysis that includes event information"""
-    results = []
-    
-    # Get pods from all namespaces or specific namespace
-    if namespace:
-        pods = api.list_namespaced_pod(namespace)
-    else:
-        pods = api.list_pod_for_all_namespaces()
-    
-    for pod in pods.items:
-        pod_name = pod.metadata.name
-        pod_namespace = pod.metadata.namespace
-        full_name = f"{pod_namespace}/{pod_name}"
-        
-        # Basic pod status checks (similar to analyze_pods)
-        issues = []
-        
-        # Check for pod status issues
-        if pod.status.phase not in ["Running", "Succeeded"]:
-            issues.append({
-                "Text": f"Pod is in {pod.status.phase} state",
-                "KubernetesDoc": "",
-                "Sensitive": []
-            })
-        
-        # Check container statuses
-        if pod.status.container_statuses:
-            for container in pod.status.container_statuses:
-                # Check for container restarts
-                if container.restart_count > 5:
-                    issues.append({
-                        "Text": f"Container {container.name} has restarted {container.restart_count} times",
-                        "KubernetesDoc": "",
-                        "Sensitive": []
-                    })
-                
-                # Check for container not ready
-                if not container.ready and pod.status.phase == "Running":
-                    issues.append({
-                        "Text": f"Container {container.name} is not ready",
-                        "KubernetesDoc": "",
-                        "Sensitive": []
-                    })
-                
-                # Check for waiting containers
-                if container.state.waiting:
-                    issues.append({
-                        "Text": f"Container {container.name} is waiting: {container.state.waiting.reason} - {container.state.waiting.message or ''}",
-                        "KubernetesDoc": "",
-                        "Sensitive": []
-                    })
-                
-                # Check for terminated containers with error
-                if container.state.terminated and container.state.terminated.exit_code != 0:
-                    issues.append({
-                        "Text": f"Container {container.name} terminated with error: {container.state.terminated.reason} - {container.state.terminated.message or ''}",
-                        "KubernetesDoc": "",
-                        "Sensitive": []
-                    })
-        
-        # Check for pod conditions
-        if pod.status.conditions:
-            for condition in pod.status.conditions:
-                if condition.type == "Ready" and condition.status != "True" and pod.status.phase == "Running":
-                    issues.append({
-                        "Text": f"Pod is not ready: {condition.reason} - {condition.message}",
-                        "KubernetesDoc": "",
-                        "Sensitive": []
-                    })
-        
-        # Get pod events
-        event_issues = check_pod_events(api, pod_namespace, pod_name)
-        issues.extend(event_issues)
-        
-        # Only add to results if there are issues
-        if issues:
-            results.append({
-                "kind": "Pod",
-                "name": full_name,
-                "error": issues,
-                "details": "",
-                "parentObject": ""
-            })
-    
-    return results
-
-
-# **************************** llm analyze solution ****************************
-
-
-import asyncio
-from functools import partial
-async def run_k8s_analysis_async(active_cluster, resource_types: List[str], namespace: str, user_id: str) -> List[Dict]:
-    """Run Kubernetes analysis in background thread with better error handling"""
-    
-    def _run_k8s_analysis_sync():
-        """Synchronous K8s analysis - runs in executor"""
-        try:
-            # CHANGED: Use server_url and token instead of kubeconfig file
-            configuration = Configuration()
-            
-            configuration.host = active_cluster.server_url
-            configuration.api_key = {"authorization": f"Bearer {active_cluster.token}"}
-            configuration.api_key_prefix = {"authorization": ""}
-            configuration.verify_ssl = active_cluster.use_secure_tls
-            print (f"Using server_url: {active_cluster.server_url}")
-            
-            # Create API client with configuration
-            api_client = ApiClient(configuration)
-        
-            
-            # Quick connectivity test
-            core_v1 = client.CoreV1Api(api_client)
-            try:
-                # Test with a simple API call first
-                core_v1.get_api_resources()
-                logger.info(f"Cluster connectivity verified for user {user_id}")
-            except client.rest.ApiException as e:
-                if "cluster agent disconnected" in str(e):
-                    raise Exception(f"Cluster agent disconnected. Please check your cluster connectivity.")
-                elif e.status == 401:
-                    raise Exception(f"Authentication failed. Please check your cluster credentials.")
-                elif e.status == 403:
-                    raise Exception(f"Access denied. Please check your cluster permissions.")
-                else:
-                    raise Exception(f"Cluster connectivity issue: {str(e)}")
-            
-            # Initialize API clients with the same api_client
-            apps_v1 = client.AppsV1Api(api_client)
-            networking_v1 = client.NetworkingV1Api(api_client)
-            storage_v1 = client.StorageV1Api(api_client)
-            
-            # Run analysis with timeout protection
-            flat_results = []
-            for resource_type in resource_types:
-                try:
-                    resource_type = resource_type.lower()
-                    logger.info(f"Analyzing {resource_type} for user {user_id}")
-                    
-                    if resource_type == "pods":
-                        flat_results.extend(analyze_pods(core_v1, namespace))
-                    elif resource_type == "deployments":
-                        flat_results.extend(analyze_deployments(apps_v1, namespace))
-                    elif resource_type == "services":
-                        flat_results.extend(analyze_services(core_v1, namespace))
-                    elif resource_type == "secrets":
-                        flat_results.extend(analyze_secrets(core_v1, namespace))
-                    elif resource_type == "storageclasses":
-                        flat_results.extend(analyze_storage_classes(storage_v1))
-                    elif resource_type == "ingress":
-                        flat_results.extend(analyze_ingress(networking_v1, core_v1, namespace))
-                    elif resource_type == "pvc":
-                        flat_results.extend(analyze_pvcs(core_v1, namespace))
-                        
-                except Exception as e:
-                    logger.error(f"Failed to analyze {resource_type} for user {user_id}: {str(e)}")
-                    # Continue with other resource types
-                    continue
-            
-            return flat_results
-            
-        except Exception as e:
-            logger.error(f"K8s analysis failed for user {user_id}: {str(e)}")
-            raise
-    
-    # Run in background thread with timeout
-    loop = asyncio.get_event_loop()
-    try:
-        return await asyncio.wait_for(
-            loop.run_in_executor(None, _run_k8s_analysis_sync),
-            timeout=600  # 10 minutes timeout
-        )
-    except asyncio.TimeoutError:
-        raise Exception(f"Analysis timed out after 600 seconds for user {user_id}")
-
-
-async def generate_solutions_concurrently(resource_errors: Dict, llm_service: K8sLLMService, active_cluster, user_id: str) -> List[Dict]:
-    """Generate solutions for multiple resources concurrently"""
-    
-    async def generate_single_solution(resource_key: str, resource_data: Dict) -> Dict:
-        """Generate solution for a single resource"""
-        try:
-            # Combine all error texts for this resource
-            error_texts = []
-            for error in resource_data["errors"]:
-                if isinstance(error, dict) and "Text" in error:
-                    error_texts.append(error["Text"])
-                elif isinstance(error, str):
-                    error_texts.append(error)
-            
-            combined_error_text = "; ".join(error_texts)
-            
-            # Generate solution using LLM (now async)
-            solution = await llm_service.generate_solution(
-                error_text=combined_error_text,
-                kind=resource_data["kind"],
-                name=resource_data["name"],
-                namespace=resource_data["namespace"],
-                context={
-                    "cluster_name": active_cluster.cluster_name,  # CHANGED: Use active_cluster
-                    "total_errors": len(error_texts)
-                },
-                user_id=user_id
-            )
-            
-            # Validate solution structure
-            if not isinstance(solution, dict):
-                raise ValueError("Invalid solution format")
-            
-            # Ensure required fields exist with defaults
-            solution.setdefault("solution_summary", "Solution generated")
-            solution.setdefault("detailed_solution", "Please check the remediation steps")
-            solution.setdefault("remediation_steps", [])
-            solution.setdefault("confidence_score", 0.5)
-            solution.setdefault("estimated_time_mins", 30)
-            solution.setdefault("additional_notes", "")
-            
-            return {
-                "problem": {
-                    "kind": resource_data["kind"],
-                    "name": resource_data["name"],
-                    "namespace": resource_data["namespace"],
-                    "errors": resource_data["errors"],
-                    "details": resource_data["details"],
-                    "parentObject": resource_data["parentObject"]
-                },
-                "solution": solution
-            }
-            
-        except Exception as e:
-            logger.error(f"Failed to generate solution for {resource_key} (user {user_id}): {str(e)}")
-            # Return fallback solution
-            return {
-                "problem": {
-                    "kind": resource_data["kind"],
-                    "name": resource_data["name"],
-                    "namespace": resource_data["namespace"],
-                    "errors": resource_data["errors"],
-                    "details": resource_data["details"],
-                    "parentObject": resource_data["parentObject"]
-                },
-                "solution": {
-                    "solution_summary": "Manual investigation required",
-                    "detailed_solution": f"Unable to generate automated solution. Error: {combined_error_text}",
-                    "remediation_steps": [
-                        {
-                            "step_id": 1,
-                            "action_type": "MANUAL_CHECK",
-                            "description": "Investigate the issue manually",
-                            "command": f"kubectl describe {resource_data['kind'].lower()} {resource_data['name']} -n {resource_data['namespace']}" if resource_data['namespace'] else f"kubectl describe {resource_data['kind'].lower()} {resource_data['name']}",
-                            "expected_outcome": "Get detailed information about the resource"
-                        }
-                    ],
-                    "confidence_score": 0.3,
-                    "estimated_time_mins": 30,
-                    "additional_notes": f"LLM generation failed: {str(e)}"
-                }
-            }
-    
-    # Create tasks for concurrent execution
-    tasks = []
-    for resource_key, resource_data in resource_errors.items():
-        task = generate_single_solution(resource_key, resource_data)
-        tasks.append(task)
-    
-    # Execute all solution generations concurrently
-    logger.info(f"Generating {len(tasks)} solutions concurrently for user {user_id}")
-    results = await asyncio.gather(*tasks, return_exceptions=True)
-    
-    # Filter out any exceptions and return valid results
-    valid_results = []
-    for result in results:
-        if isinstance(result, Exception):
-            logger.error(f"Task failed for user {user_id}: {result}")
-        else:
-            valid_results.append(result)
-    
-    return valid_results
-
 
 @cluster_router.post("/analyze-k8s-with-solutions",
-                       summary="Analyze Kubernetes Resources with AI Solutions", 
-                       description="Analyzes Kubernetes resources and provides AI-generated solutions for each problem")
+                    summary="Analyze Kubernetes Resources with AI Solutions", 
+                    description="Analyzes Kubernetes resources and provides AI-generated solutions for each problem")
 async def analyze_k8s_with_solutions(
-    
     session: Session = Depends(get_session),
-    
     current_user: Dict = Depends(get_current_user),
     namespace: str = Query(None, description="Namespace to analyze"),
     resource_types: List[str] = Query(
@@ -1679,12 +1653,7 @@ async def analyze_k8s_with_solutions(
 ):
     """
     Analyzes Kubernetes resources and provides AI-generated solutions for each problem.
-    Now supports TRUE concurrent execution for multiple users.
     """
-    user_id = current_user.get("id", "unknown")
-    logger.info(f"Starting K8s analysis with solutions for user {user_id}")
-    print(f"*************** --Starting K8s analysis with solutions for user {user_id}")
-    
     # Check if LLM is enabled
     if not settings.LLM_ENABLED:
         raise HTTPException(
@@ -1692,25 +1661,63 @@ async def analyze_k8s_with_solutions(
             detail="LLM functionality is disabled. Please enable it in settings to use AI solutions."
         )
     
-    # CHANGED: Get the active cluster instead of kubeconfig
-    active_cluster = get_active_cluster(session, user_id)
-    print (f"Active cluster: {active_cluster}")
+    # Get the active cluster
+    active_cluster = get_active_cluster(session, current_user["id"])
+    print(active_cluster)
     
     try:
-        # CHANGED: Run K8s analysis with active_cluster instead of kubeconfig_path
-        flat_results = await run_k8s_analysis_async(active_cluster, resource_types, namespace, user_id)
+        # Create Kubernetes configuration using active cluster data
+        configuration = Configuration()
+        configuration.host = active_cluster.server_url  # Dynamic server URL
+        configuration.api_key = {"authorization": f"Bearer {active_cluster.token}"}  # Dynamic token
+        configuration.api_key_prefix = {"authorization": ""}  # Fixed authentication
+        configuration.verify_ssl = active_cluster.use_secure_tls  # Dynamic TLS setting
+        print(configuration.host)
+        print(configuration.api_key)
         
-        # Initialize LLM service
+        # Initialize API clients
+        api_client = ApiClient(configuration)
+        core_v1 = client.CoreV1Api(api_client)
+        apps_v1 = client.AppsV1Api(api_client)
+        networking_v1 = client.NetworkingV1Api(api_client)
+        storage_v1 = client.StorageV1Api(api_client)
+        
+        # Initialize results list
+        flat_results = []
+        
+        # Analyze resources based on resource_types
+        for resource_type in resource_types:
+            resource_type = resource_type.lower()
+            
+            if resource_type == "pods":
+                flat_results.extend(analyze_pods(core_v1, namespace))
+            elif resource_type == "deployments":
+                flat_results.extend(analyze_deployments(apps_v1, namespace))
+            elif resource_type == "services":
+                flat_results.extend(analyze_services(core_v1, namespace))
+            elif resource_type == "secrets":
+                flat_results.extend(analyze_secrets(core_v1, namespace))
+            elif resource_type == "storageclasses":
+                flat_results.extend(analyze_storage_classes(storage_v1))
+            elif resource_type == "ingress":
+                flat_results.extend(analyze_ingress(networking_v1, core_v1, namespace))
+            elif resource_type == "pvc":
+                flat_results.extend(analyze_pvcs(core_v1, namespace))
+        
+        # Process results and generate solutions using LLM
+        problems_with_solutions = []
+        
+        # Initialize LLM service with error handling
+        llm_service = None
         try:
+            from app.llm_service import K8sLLMService
             llm_service = K8sLLMService()
         except Exception as e:
-            logger.error(f"Failed to initialize LLM service for user {user_id}: {str(e)}")
-            raise HTTPException(
-                status_code=500, 
-                detail=f"Failed to initialize LLM service: {str(e)}"
-            )
+            logger.error(f"Failed to initialize LLM service: {str(e)}")
+            # Continue without LLM service - we'll use fallback solutions
+            logger.warning("Continuing without LLM service - using fallback solutions")
         
-        # Group errors by resource to avoid duplicate solutions (keep existing logic)
+        # Group errors by resource to avoid duplicate solutions
         resource_errors = {}
         
         for result in flat_results:
@@ -1744,178 +1751,174 @@ async def analyze_k8s_with_solutions(
             else:
                 resource_errors[resource_key]["errors"].append(result["error"])
         
-        # Generate solutions concurrently for all resources
-        problems_with_solutions = await generate_solutions_concurrently(
-            resource_errors, llm_service, active_cluster, user_id
-        )
+        # Generate solutions for each resource's problems
+        for resource_key, resource_data in resource_errors.items():
+            # Combine all error texts for this resource
+            error_texts = []
+            for error in resource_data["errors"]:
+                if isinstance(error, dict) and "Text" in error:
+                    error_texts.append(error["Text"])
+                elif isinstance(error, str):
+                    error_texts.append(error)
+            
+            combined_error_text = "; ".join(error_texts)
+            
+            # Generate solution using LLM (if available)
+            solution = None
+            if llm_service:
+                try:
+                    solution = llm_service.generate_solution(
+                        error_text=combined_error_text,
+                        kind=resource_data["kind"],
+                        name=resource_data["name"],
+                        namespace=resource_data["namespace"],
+                        context={
+                            "cluster_name": active_cluster.cluster_name,
+                            "total_errors": len(error_texts)
+                        }
+                    )
+                    
+                    # Validate solution structure
+                    if not isinstance(solution, dict):
+                        raise ValueError("Invalid solution format")
+                    
+                    # Ensure required fields exist with defaults
+                    solution.setdefault("solution_summary", "Solution generated")
+                    solution.setdefault("detailed_solution", "Please check the remediation steps")
+                    solution.setdefault("remediation_steps", [])
+                    solution.setdefault("confidence_score", 0.5)
+                    solution.setdefault("estimated_time_mins", 30)
+                    solution.setdefault("additional_notes", "")
+                    
+                except Exception as e:
+                    logger.error(f"Failed to generate solution for {resource_key}: {str(e)}")
+                    solution = None
+            
+            # Use fallback solution if LLM failed or unavailable
+            if not solution:
+                solution = {
+                    "solution_summary": "Manual investigation required",
+                    "detailed_solution": f"Issue detected: {combined_error_text}. Please investigate manually.",
+                    "remediation_steps": [
+                        {
+                            "step_id": 1,
+                            "action_type": "MANUAL_CHECK",
+                            "description": "Investigate the issue manually",
+                            "command": f"kubectl describe {resource_data['kind'].lower()} {resource_data['name']} -n {resource_data['namespace']}" if resource_data['namespace'] else f"kubectl describe {resource_data['kind'].lower()} {resource_data['name']}",
+                            "expected_outcome": "Get detailed information about the resource"
+                        }
+                    ],
+                    "confidence_score": 0.3,
+                    "estimated_time_mins": 30,
+                    "additional_notes": "LLM service unavailable - manual solution provided"
+                }
+            
+            # Create the problem-solution pair
+            problem_with_solution = {
+                "problem": {
+                    "kind": resource_data["kind"],
+                    "name": resource_data["name"],
+                    "namespace": resource_data["namespace"],
+                    "errors": resource_data["errors"],
+                    "details": resource_data["details"],
+                    "parentObject": resource_data["parentObject"]
+                },
+                "solution": solution
+            }
+            
+            problems_with_solutions.append(problem_with_solution)
         
-        # CHANGED: Publish analysis event with cluster_id instead of kubeconfig_id
-        publish_message("kubeconfig_events", {
-            "event_type": "k8s_analysis_with_solutions_performed",
-            "cluster_id": active_cluster.id,
-            "user_id": user_id,
-            "username": current_user.get("username", "unknown"),
-            "cluster_name": active_cluster.cluster_name,
-            "resource_types": resource_types,
-            "namespace": namespace or "all",
-            "problem_count": len(problems_with_solutions),
-            "timestamp": datetime.datetime.now().isoformat()
-        })
-        
-        logger.info(f"Analysis completed for user {user_id} with {len(problems_with_solutions)} problems")
+        # Publish analysis event
+        try:
+            publish_message("cluster_events", {
+                "event_type": "k8s_analysis_with_solutions_performed",
+                "cluster_id": active_cluster.id,
+                "user_id": current_user["id"],
+                "username": current_user.get("username", "unknown"),
+                "cluster_name": active_cluster.cluster_name,
+                "resource_types": resource_types,
+                "namespace": namespace or "all",
+                "problem_count": len(problems_with_solutions),
+                "timestamp": datetime.datetime.now().isoformat()
+            })
+        except Exception as queue_error:
+            logger.warning(f"Failed to publish message to queue: {str(queue_error)}")
         
         return JSONResponse(content={
             "cluster_name": active_cluster.cluster_name,
             "namespace": namespace or "all",
             "analyzed_resource_types": resource_types,
             "total_problems": len(problems_with_solutions),
-            "problems_with_solutions": problems_with_solutions
+            "problems_with_solutions": problems_with_solutions,
+            "llm_service_available": llm_service is not None
         }, status_code=200)
     
     except client.rest.ApiException as e:
-        logger.error(f"Kubernetes API error for user {user_id}: {str(e)}")
+        logger.error(f"Kubernetes API error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Kubernetes API error: {str(e)}")
     except Exception as e:
-        logger.error(f"Error analyzing Kubernetes resources with solutions for user {user_id}: {str(e)}")
+        logger.error(f"Error analyzing Kubernetes resources with solutions: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error analyzing Kubernetes resources with solutions: {str(e)}")
 
+# Backward compatibility routes - these will redirect to the new cluster endpoints
+kubeconfig_router = APIRouter()
 
-@cluster_router.post("/execute-kubectl",
-                       summary="Execute Kubectl Command", 
-                       description="Execute any kubectl command on the active cluster")
-async def execute_kubectl_command(
-    command_data: dict,
+
+@kubeconfig_router.post("/upload", response_model=ClusterConfigResponse, status_code=201,
+                       summary="Upload Kubeconfig (Deprecated)", 
+                       description="Deprecated: Use /cluster/onboard-cluster instead")
+async def upload_kubeconfig_deprecated(
     session: Session = Depends(get_session),
     current_user: Dict = Depends(get_current_user)
 ):
     """
-    Execute any kubectl command on the active Kubernetes cluster.
-    
-    - Gets the active cluster configuration
-    - Creates temporary kubeconfig from cluster data
-    - Executes the provided kubectl command
-    - Returns command output and status
-    
-    Parameters:
-        command_data: Dictionary containing the command to execute
-    
-    Returns:
-        JSONResponse: Command execution results
+    Deprecated endpoint. Use /cluster/onboard-cluster instead.
     """
-    # CHANGED: Get active cluster instead of kubeconfig
-    active_cluster = get_active_cluster(session, current_user["id"])
+    raise HTTPException(
+        status_code=410, 
+        detail="This endpoint is deprecated. Please use /cluster/onboard-cluster instead."
+    )
 
-    command = command_data.get("command", "")
-    if not command:
-        raise HTTPException(status_code=400, detail="Command is required")
+@kubeconfig_router.get("/list", response_model=ClusterConfigList,
+                      summary="List Kubeconfigs (Deprecated)", 
+                      description="Deprecated: Use /cluster/clusters instead")
+async def list_kubeconfigs_deprecated(
+    session: Session = Depends(get_session),
+    current_user: Dict = Depends(get_current_user)
+):
+    """
+    Deprecated endpoint. Use /cluster/clusters instead.
+    """
+    # For backward compatibility, redirect to new endpoint
+    return await list_clusters(session, current_user)
 
-    # FIXED: Import required modules at the top of the function
-    import tempfile
-    import yaml
-    import subprocess
-    
-    temp_kubeconfig_path = None  # Initialize variable
+@kubeconfig_router.put("/activate/{cluster_id}", 
+                      summary="Activate Kubeconfig (Deprecated)", 
+                      description="Deprecated: Use /cluster/activate-cluster/{cluster_id} instead")
+async def set_active_kubeconfig_deprecated(
+    cluster_id: int,
+    session: Session = Depends(get_session),
+    current_user: Dict = Depends(get_current_user)
+):
+    """
+    Deprecated endpoint. Use /cluster/activate-cluster/{cluster_id} instead.
+    """
+    # For backward compatibility, redirect to new endpoint
+    return await activate_cluster(cluster_id, session, current_user)
 
-    try:
-        # CHANGED: Create temporary kubeconfig from cluster data
-        kubeconfig_content = {
-            "apiVersion": "v1",
-            "kind": "Config",
-            "clusters": [{
-                "name": active_cluster.cluster_name,
-                "cluster": {
-                    "server": active_cluster.server_url,
-                    "insecure-skip-tls-verify": not active_cluster.use_secure_tls
-                }
-            }],
-            "users": [{
-                "name": f"{active_cluster.cluster_name}-user",
-                "user": {
-                    "token": active_cluster.token
-                }
-            }],
-            "contexts": [{
-                "name": active_cluster.cluster_name,
-                "context": {
-                    "cluster": active_cluster.cluster_name,
-                    "user": f"{active_cluster.cluster_name}-user"
-                }
-            }],
-            "current-context": active_cluster.cluster_name
-        }
-        
-        # Add TLS configuration if enabled
-        if active_cluster.use_secure_tls and hasattr(active_cluster, 'ca_data') and active_cluster.ca_data:
-            kubeconfig_content["clusters"][0]["cluster"]["certificate-authority-data"] = active_cluster.ca_data
-            kubeconfig_content["clusters"][0]["cluster"].pop("insecure-skip-tls-verify", None)
-        
-        # Create temporary kubeconfig file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as temp_file:
-            yaml.dump(kubeconfig_content, temp_file)
-            temp_kubeconfig_path = temp_file.name
+@kubeconfig_router.delete("/remove/{cluster_id}",
+                         summary="Remove Kubeconfig (Deprecated)", 
+                         description="Deprecated: Use /cluster/remove-cluster/{cluster_id} instead")
+async def remove_kubeconfig_deprecated(
+    cluster_id: int,
+    session: Session = Depends(get_session),
+    current_user: Dict = Depends(get_current_user)
+):
+    """
+    Deprecated endpoint. Use /cluster/remove-cluster/{cluster_id} instead.
+    """
+    # For backward compatibility, redirect to new endpoint
+    return await remove_cluster(cluster_id, session, current_user)
 
-        # Add kubeconfig to the command if not already present and if it's a kubectl command
-        if command.strip().startswith("kubectl") and "--kubeconfig" not in command:
-            command = command.replace("kubectl", f"kubectl --kubeconfig {temp_kubeconfig_path}", 1)
-
-        # Use subprocess with shell=True to support all shell features
-        result = subprocess.run(
-            command,
-            shell=True,  # Enable shell features like pipes, grep, jq, &&, ||, etc.
-            capture_output=True,
-            text=True,
-            timeout=300,
-            env=dict(os.environ, KUBECONFIG=temp_kubeconfig_path)  # Set KUBECONFIG env var
-        )
-        
-        # Determine success based on return code
-        success = result.returncode == 0
-        
-        # Get output and error
-        output = result.stdout.strip() if result.stdout else ""
-        error = result.stderr.strip() if result.stderr else None
-        
-        # If no stdout but has stderr, use stderr as output (some commands output to stderr)
-        if not output and error and success:
-            output = error
-            error = None
-        
-        # Ensure we have meaningful output
-        if not output and not error:
-            if success:
-                output = "Command executed successfully (no output)"
-            else:
-                output = "Command failed"
-                error = "No error details available"
-            
-        return JSONResponse(content={
-            "success": success,
-            "output": output,
-            "error": error,
-            "command": command,
-            "return_code": result.returncode
-        }, status_code=200)
-        
-    except subprocess.TimeoutExpired:
-        return JSONResponse(content={
-            "success": False,
-            "output": "",
-            "error": "Command timed out after 300 seconds",
-            "command": command,
-            "return_code": -1
-        }, status_code=200)
-    except Exception as e:
-        return JSONResponse(content={
-            "success": False,
-            "output": "",
-            "error": str(e),
-            "command": command,
-            "return_code": -1
-        }, status_code=200)
-    finally:
-        # FIXED: Clean up temporary kubeconfig file
-        if temp_kubeconfig_path and os.path.exists(temp_kubeconfig_path):
-            try:
-                os.unlink(temp_kubeconfig_path)
-            except Exception as cleanup_error:
-                logger.warning(f"Failed to cleanup temporary kubeconfig: {cleanup_error}")
+# Export both routers for main app
+__all__ = ["cluster_router", "kubeconfig_router"]

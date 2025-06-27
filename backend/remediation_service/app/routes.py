@@ -78,107 +78,7 @@ def parse_timestamp(timestamp_str: str) -> Optional[datetime]:
 
 # Webhook endpoint for receiving incidents
 
-# @remediation_router.post("/webhook/incidents", 
-#                         summary="Receive Incident Webhook",
-#                         description="Webhook endpoint to receive Kubernetes incidents")
-# async def receive_incident_webhook(
-#     payload: IncidentWebhookPayload,
-#     session: Session = Depends(get_session),
-#     x_api_key: Optional[str] = Header(None, alias="X-API-Key")):
-#     """
-#     Webhook endpoint to receive Kubernetes incidents and store important data in database.
-#     Requires valid API key in X-API-Key header.
-#     """
-#     try:
-#         # Authenticate using API key from request header
-#         webhook_user = await authenticate_api_key_from_header(x_api_key, session)
-        
-#         logger.info(f"Webhook called by user: {webhook_user.username} (ID: {webhook_user.user_id})")
-        
-#         # Generate unique incident ID if not provided
-#         base_incident_id = payload.metadata.get("uid", str(uuid.uuid4()))
-        
-#         # CHANGED: Make incident_id user-specific to avoid conflicts between users
-#         incident_id = f"{webhook_user.user_id}_{base_incident_id}"
-        
-#         # Check if incident already exists FOR THIS USER
-#         existing_incident = session.exec(
-#             select(Incident).where(
-#                 Incident.incident_id == incident_id,
-#                 Incident.webhook_user_id == webhook_user.id  # ADDED: Check user ownership
-#             )
-#         ).first()
-        
-#         if existing_incident:
-#             # Update existing incident count and timestamps
-#             existing_incident.count = payload.count or existing_incident.count
-#             existing_incident.last_timestamp = parse_timestamp(payload.lastTimestamp) or existing_incident.last_timestamp
-#             existing_incident.updated_at = datetime.utcnow()
-#             session.add(existing_incident)
-#             session.commit()
-            
-#             logger.info(f"Updated existing incident: {incident_id} for user: {webhook_user.username}")
-#             return JSONResponse(content={"message": "Incident updated", "incident_id": incident_id}, status_code=200)
-        
-#         # Extract important incident data
-#         incident_data = IncidentCreate(
-#             incident_id=incident_id,  # CHANGED: Use user-specific incident_id
-#             type=IncidentType(payload.type) if payload.type in [t.value for t in IncidentType] else IncidentType.NORMAL,
-#             reason=payload.reason,
-#             message=payload.message,
-#             metadata_namespace=payload.metadata.get("namespace"),
-#             metadata_creation_timestamp=parse_timestamp(payload.metadata.get("creationTimestamp")),
-#             involved_object_kind=payload.involvedObject.get("kind"),
-#             involved_object_name=payload.involvedObject.get("name"),
-#             source_component=payload.source.get("component") if payload.source else None,
-#             source_host=payload.source.get("host") if payload.source else None,
-#             reporting_component=payload.reportingComponent,
-#             count=payload.count or 1,
-#             first_timestamp=parse_timestamp(payload.firstTimestamp),
-#             last_timestamp=parse_timestamp(payload.lastTimestamp),
-#             involved_object_labels=payload.involvedObject.get("labels", {}),
-#             involved_object_annotations=payload.involvedObject.get("annotations", {})
-#         )
-        
-#         # Create incident record - EXCLUDE user_id from dict()
-#         incident_dict = incident_data.dict()
-#         # Remove any user_id if it exists
-#         incident_dict.pop('user_id', None)
-        
-#         incident = Incident(**incident_dict)
-        
-#         # Link incident to webhook user
-#         incident.webhook_user_id = webhook_user.id
-        
-#         # Convert labels and annotations to JSON strings BEFORE saving
-#         if incident_data.involved_object_labels:
-#             incident.involved_object_labels = json.dumps(_clean_dict_for_llm(incident_data.involved_object_labels))
-#         else:
-#             incident.involved_object_labels = None
-            
-#         if incident_data.involved_object_annotations:
-#             incident.involved_object_annotations = json.dumps(_clean_dict_for_llm(incident_data.involved_object_annotations))
-#         else:
-#             incident.involved_object_annotations = None
-        
-#         session.add(incident)
-#         session.commit()
-#         session.refresh(incident)
-        
-#         logger.info(f"Created new incident: {incident_id} for user: {webhook_user.username}")
-        
-#         return JSONResponse(content={
-#             "message": "Incident received and stored",
-#             "incident_id": incident_id,
-#             "internal_id": incident.id
-#         }, status_code=201)
-        
-#     except Exception as e:
-#         logger.error(f"Error processing incident webhook: {str(e)}")
-#         raise HTTPException(status_code=500, detail=f"Error processing incident: {str(e)}")
 
-
-# Webhook endpoint for receiving incidents
 
 @remediation_router.post("/webhook/incidents", 
                         summary="Receive Incident Webhook",
@@ -680,7 +580,8 @@ async def execute_remediation_background(
                     session.commit()
         except Exception as db_error:
             logger.error(f"Failed to update incident status for user {user_id}: {str(db_error)}")
-        
+
+
 
 # Remediation endpoints
 
@@ -799,56 +700,6 @@ async def remediate_incident(
     except Exception as e:
         logger.error(f"Error generating remediation solution: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error generating remediation solution: {str(e)}")
-
-
-
-async def execute_remediation_background(
-    incident_id: int,
-    solution: RemediationSolution,
-    executor_type: ExecutorType,
-    executor_config: Dict,
-):
-    """Background task to execute remediation steps"""
-    try:
-        logger.info(f"Starting background execution for incident {incident_id}")
-        
-        # Get executor instance
-        executor = get_executor_instance(executor_type, executor_config)
-        
-        # Execute remediation steps
-        execution_results = await executor.execute_remediation_steps(solution.remediation_steps)
-        
-        # Update incident status based on execution results
-        from app.database import engine
-        with Session(engine) as session:
-            incident = session.get(Incident, incident_id)
-            if incident:
-                # Check if remediation was successful
-                successful_steps = sum(1 for result in execution_results if result.get("success", False))
-                total_steps = len(execution_results)
-                
-                if successful_steps == total_steps:
-                    incident.is_resolved = True
-                    execution_status = "completed_successfully"
-                elif successful_steps > 0:
-                    execution_status = "partially_completed"
-                else:
-                    execution_status = "failed"
-                
-                incident.updated_at = datetime.utcnow()
-                session.add(incident)
-                session.commit()
-        
-        # Log execution completion event (instead of publishing to queue)
-        logger.info(f"Remediation execution completed - Incident: {incident_id}, Status: {execution_status}, Success: {successful_steps}/{total_steps}")
-        
-        logger.info(f"Completed background execution for incident {incident_id}: {execution_status}")
-        
-    except Exception as e:
-        logger.error(f"Error in background execution for incident {incident_id}: {str(e)}")
-        
-        # Log execution failure event (instead of publishing to queue)
-        logger.error(f"Remediation execution failed - Incident: {incident_id}, Error: {str(e)}")
 
 
 @remediation_router.post("/incidents/{id}/execute",

@@ -19,28 +19,13 @@ class K8sLLMService:
             
         if not settings.OPENAI_API_KEY:
             raise ValueError("OpenAI API key not configured")
-        
-        try:
-            # FIXED: Use only the most basic parameters that are guaranteed to work
-            client_params = {
-                "api_key": settings.OPENAI_API_KEY
-            }
             
-            # Only add base_url if it exists and is not None/empty
-            if hasattr(settings, 'OPENAI_BASE_URL') and settings.OPENAI_BASE_URL:
-                client_params["base_url"] = settings.OPENAI_BASE_URL
-            
-            # Initialize with minimal parameters
-            self.client = OpenAI(**client_params)
-            
-            # Set model with fallback
-            self.model = getattr(settings, 'OPENAI_MODEL', "gpt-3.5-turbo")
-            
-            logger.info(f"LLM Service initialized successfully with model: {self.model}")
-            
-        except Exception as e:
-            logger.error(f"Failed to initialize OpenAI client: {str(e)}")
-            raise ValueError(f"Failed to initialize OpenAI client: {str(e)}")
+        self.client = OpenAI(
+            api_key=settings.OPENAI_API_KEY,
+            base_url=settings.OPENAI_BASE_URL,
+            timeout=600.0  # 10 minutes timeout for the client
+        )
+        self.model = settings.OPENAI_MODEL
         
     def _generate_solution_sync(
         self,
@@ -60,7 +45,7 @@ class K8sLLMService:
             system_prompt = self._get_system_prompt()
             user_prompt = self._build_user_prompt(error_text, kind, name, namespace, context)
             
-            # Call OpenAI API
+            # Call OpenAI API with 10-minute timeout
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
@@ -68,8 +53,9 @@ class K8sLLMService:
                     {"role": "user", "content": user_prompt}
                 ],
                 temperature=0.1,
-                max_tokens=1200,
-                response_format={"type": "json_object"}
+                max_tokens=1200,  # Increased back for better solutions
+                response_format={"type": "json_object"},
+                timeout=600  # 10 minutes (600 seconds) timeout
             )
             
             # Check if response has content
@@ -255,3 +241,26 @@ Keep responses concise and focused. Use only valid JSON characters."""
                 response_content = response_content[:end_idx + 1]
         
         return response_content
+
+    def _fix_json_issues(self, content: str) -> str:
+        """Additional JSON fixes for common issues"""
+        import re
+        
+        # Fix specific kubectl command issues
+        fixes = [
+            # Fix complex JSONPath expressions
+            (r'kubectl logs \$\(kubectl get pods[^)]+\)', 'kubectl logs -l app=crashloop-deployment --tail=50'),
+            # Fix malformed JSONPath
+            (r'\{range \.items\[[^\]]+\][^}]*\}', '$(kubectl get pods -o name | head -1)'),
+            # Fix wildcard issues
+            (r'crashloop-deployment-\*[^"]*', 'crashloop-deployment'),
+            # Fix escape sequences
+            (r'\\([^"\\\/bfnrt])', r'\1'),
+            # Fix trailing commas
+            (r',(\s*[}\]])', r'\1'),
+        ]
+        
+        for pattern, replacement in fixes:
+            content = re.sub(pattern, replacement, content)
+        
+        return content

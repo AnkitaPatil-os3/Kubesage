@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw } from 'lucide-react'; 
+import { RefreshCw } from 'lucide-react';
 import {
     Card,
     CardBody,
@@ -74,6 +74,21 @@ interface AnalysisResponse {
     analyzed_resource_types: string[];
     total_problems: number;
     problems_with_solutions: ProblemWithSolution[];
+}
+
+// Add new interfaces for cluster management
+interface ClusterInfo {
+    id: number;
+    cluster_name: string;
+    server_url: string;
+    context_name: string;
+    provider_name: string;
+    tags: string[];
+    use_secure_tls: boolean;
+    is_operator_installed: boolean;
+    active: boolean;
+    created_at: string;
+    updated_at: string;
 }
 
 interface ClusterAnalyzeProps {
@@ -185,6 +200,13 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
     const [currentProblemIndex, setCurrentProblemIndex] = useState(0);
     const [showAllProblems, setShowAllProblems] = useState(false);
     const [currentResourceIndex, setCurrentResourceIndex] = useState(0);
+
+    // Add new state variables for cluster management
+    const [clusters, setClusters] = useState<ClusterInfo[]>([]);
+    const [selectedClusterId, setSelectedClusterId] = useState<number | null>(null);
+    const [isLoadingClusters, setIsLoadingClusters] = useState(false);
+    const [isActivatingCluster, setIsActivatingCluster] = useState(false);
+
     // Add these state variables at the top of your component
     const [editingCommands, setEditingCommands] = useState<Record<number, boolean>>({});
     const [editedCommands, setEditedCommands] = useState<Record<number, string>>({});
@@ -192,6 +214,7 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
     const [selectedCommand, setSelectedCommand] = useState<string>('');
     // Add these state variables at the top of your component
     const [commandOutputs, setCommandOutputs] = useState<Record<number, any>>({});
+
     // Add these functions
     const toggleEditCommand = (stepId: number, originalCommand: string) => {
         setEditingCommands(prev => ({
@@ -221,7 +244,6 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
             [stepId]: false
         }));
     };
-
 
     // Add this function
     const executeCommand = async (command: string, stepId: number) => {
@@ -274,12 +296,104 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
         }
     };
 
-
-
-    // Fetch namespaces on component mount
+    // Fetch clusters and namespaces on component mount
     useEffect(() => {
-        fetchNamespaces();
+        fetchClusters();
     }, []);
+
+    // Fetch namespaces when selected cluster changes
+    useEffect(() => {
+        if (selectedClusterId) {
+            fetchNamespaces();
+        }
+    }, [selectedClusterId]);
+
+    // New function to fetch all onboarded clusters
+    const fetchClusters = async () => {
+        setIsLoadingClusters(true);
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch('/kubeconfig/clusters', {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setClusters(data.clusters || []);
+
+                // Find and set the active cluster as default selected
+                const activeCluster = data.clusters.find((cluster: ClusterInfo) => cluster.active);
+                if (activeCluster) {
+                    setSelectedClusterId(activeCluster.id);
+                } else if (data.clusters.length > 0) {
+                    // If no active cluster, select the first one
+                    setSelectedClusterId(data.clusters[0].id);
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching clusters:', error);
+            setError('Failed to fetch clusters');
+        } finally {
+            setIsLoadingClusters(false);
+        }
+    };
+
+    // New function to activate selected cluster and fetch namespaces
+    const handleClusterSelection = async (clusterId: string) => {
+        const clusterIdNum = parseInt(clusterId);
+        if (clusterIdNum === selectedClusterId) return; // No change needed
+
+        setIsActivatingCluster(true);
+        setError(null);
+
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch(`/kubeconfig/select-cluster-and-get-namespaces/${clusterIdNum}`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+
+                if (data.success && data.cluster_activated) {
+                    setSelectedClusterId(clusterIdNum);
+
+                    // Update cluster list to reflect the new active status
+                    setClusters(prev => prev.map(cluster => ({
+                        ...cluster,
+                        active: cluster.id === clusterIdNum
+                    })));
+
+                    // Update namespaces if retrieved successfully
+                    if (data.namespaces_retrieved && data.namespaces) {
+                        setNamespaces(data.namespaces);
+                        // Reset to default namespace
+                        setSelectedNamespace('default');
+                    } else {
+                        // If namespace retrieval failed, try to fetch them separately
+                        fetchNamespaces();
+                    }
+                } else {
+                    setError(data.message || 'Failed to activate cluster');
+                }
+            } else {
+                const errorData = await response.json();
+                setError(errorData.detail || 'Failed to activate cluster');
+            }
+        } catch (error) {
+            console.error('Error activating cluster:', error);
+            setError('Failed to activate cluster');
+        } finally {
+            setIsActivatingCluster(false);
+        }
+    };
 
     const fetchNamespaces = async () => {
         try {
@@ -621,7 +735,6 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                                                                 </div>
 
                                                             )}
-
                                                         </div>
                                                     </div>
                                                 </CardBody>
@@ -668,7 +781,7 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
 
             {/* Configuration Panel */}
             <Card className="dark:bg-gray-800 dark:border-gray-700">
-                                <CardHeader className="dark:bg-gray-800">
+                <CardHeader className="dark:bg-gray-800">
                     <div className="flex justify-between items-center w-full">
                         <div>
                             <h2 className="text-lg font-semibold flex items-center gap-2 dark:text-gray-100">
@@ -676,7 +789,7 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                                 Analysis Configuration
                             </h2>
                         </div>
-                        
+
                         {/* Add Refresh Button in right corner */}
                         <button
                             type="button"
@@ -694,27 +807,131 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
 
                 <CardBody className="dark:bg-gray-800">
                     <div className="space-y-6">
-                        {/* Namespace Selection */}
-                        <div className="max-w-xs">
-                            <label className="block text-sm font-medium mb-2 dark:text-gray-300">Namespace</label>
-                            <Select
-                                placeholder="All namespaces"
-                                selectedKeys={selectedNamespace ? [selectedNamespace] : ['default']}
-                                onSelectionChange={(keys) => {
-                                    const selected = Array.from(keys)[0] as string;
-                                    setSelectedNamespace(selected || 'default');
-                                }}
-                                startContent={<Icon icon="mdi:folder-outline" />}
-                            >
-                                <SelectItem key="" value="">All namespaces</SelectItem>
-                                {namespaces.map((ns) => (
-                                    <SelectItem key={ns} value={ns}>
-                                        {ns}
-                                    </SelectItem>
-                                ))}
-                            </Select>
-                        </div>
+                        {/* Cluster and Namespace Selection Row */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Cluster Selection */}
+                            <div>
+                                <label className="block text-sm font-medium mb-2 dark:text-gray-300">
+                                    Select Cluster
+                                </label>
+                                <div className="relative">
+                                    <Select
+                                        placeholder={isLoadingClusters ? "Loading clusters..." : "Select a cluster"}
+                                        selectedKeys={selectedClusterId ? [selectedClusterId.toString()] : []}
+                                        onSelectionChange={(keys) => {
+                                            const selected = Array.from(keys)[0] as string;
+                                            if (selected) {
+                                                handleClusterSelection(selected);
+                                            }
+                                        }}
+                                        startContent={
+                                            <div className="flex items-center gap-2">
+                                                <Icon icon="mdi:kubernetes" className="text-blue-500" />
+                                                {isActivatingCluster && <Spinner size="sm" />}
+                                            </div>
+                                        }
+                                        isLoading={isLoadingClusters}
+                                        isDisabled={isActivatingCluster}
+                                        classNames={{
+                                            trigger: "bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 hover:border-blue-300 dark:from-blue-900/20 dark:to-indigo-900/20 dark:border-blue-700",
+                                            value: "text-blue-700 dark:text-blue-300 font-medium"
+                                        }}
+                                    >
+                                        {clusters.map((cluster) => (
+                                            <SelectItem
+                                                key={cluster.id.toString()}
+                                                value={cluster.id.toString()}
+                                            >
+                                                {cluster.cluster_name}
+                                            </SelectItem>
+                                        ))}
+                                    </Select>
 
+
+                                    {/* Active Cluster Indicator */}
+                                    {selectedClusterId && (
+                                        <div className="absolute -top-1 -right-1">
+                                            <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse shadow-lg" />
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Cluster Info Display */}
+                                {selectedClusterId && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        className="mt-2"
+                                    >
+                                        <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 dark:from-blue-900/20 dark:to-indigo-900/20 dark:border-blue-700">
+                                            <CardBody className="p-3">
+                                                {(() => {
+                                                    const selectedCluster = clusters.find(c => c.id === selectedClusterId);
+                                                    return selectedCluster ? (
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
+                                                                <Icon icon="mdi:kubernetes" className="text-lg" />
+                                                            </div>
+                                                            <div className="flex-1">
+                                                                <h4 className="font-bold text-sm text-blue-700 dark:text-blue-300">
+                                                                    {selectedCluster.cluster_name}
+                                                                </h4>
+                                                                {/* <p className="text-xs text-blue-600 dark:text-blue-400 truncate">
+                                                                    {selectedCluster.server_url}
+                                                                </p> */}
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                <Chip size="sm" color="success" variant="flat">
+                                                                    {selectedCluster.provider_name}
+                                                                </Chip>
+                                                                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                                                            </div>
+                                                        </div>
+                                                    ) : null;
+                                                })()}
+                                            </CardBody>
+                                        </Card>
+                                    </motion.div>
+                                )}
+                            </div>
+
+                            {/* Namespace Selection */}
+                            <div>
+                                <label className="block text-sm font-medium mb-2 dark:text-gray-300">
+                                    Namespace
+                                </label>
+                                <Select
+                                    placeholder={selectedClusterId ? "Select namespace" : "Select cluster first"}
+                                    selectedKeys={selectedNamespace ? [selectedNamespace] : ['default']}
+                                    onSelectionChange={(keys) => {
+                                        const selected = Array.from(keys)[0] as string;
+                                        setSelectedNamespace(selected || 'default');
+                                    }}
+                                    startContent={<Icon icon="mdi:folder-outline" className="text-purple-500" />}
+                                    isDisabled={!selectedClusterId || namespaces.length === 0}
+                                    classNames={{
+                                        trigger: "bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200 hover:border-purple-300 dark:from-purple-900/20 dark:to-pink-900/20 dark:border-purple-700",
+                                        value: "text-purple-700 dark:text-purple-300 font-medium"
+                                    }}
+                                >
+                                    <SelectItem key="" value="">All namespaces</SelectItem>
+                                    {namespaces.map((ns) => (
+                                        <SelectItem key={ns} value={ns}>
+                                            {ns}
+                                        </SelectItem>
+                                    ))}
+                                </Select>
+
+
+                                {/* Namespace Count Display */}
+                                {namespaces.length > 0 && (
+                                    <div className="mt-2 text-xs text-purple-600 dark:text-purple-400">
+                                        <Icon icon="mdi:information-outline" className="inline mr-1" />
+                                        {namespaces.length} namespace{namespaces.length !== 1 ? 's' : ''} available
+                                    </div>
+                                )}
+                            </div>
+                        </div>
 
                         {/* Resource Types Selection - Beautified Cards */}
                         <div>
@@ -741,7 +958,6 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                                             {selectedResourceType === type.key && (
                                                 <div className={`absolute inset-0 ${type.color} opacity-10 dark:opacity-20`} />
                                             )}
-
 
                                             {/* Hover Glow Effect - moved to top level */}
                                             <div className={`absolute inset-0 rounded-lg opacity-0 group-hover:opacity-20 transition-opacity duration-300 ${type.color} z-0 dark:group-hover:opacity-30`} />
@@ -794,7 +1010,6 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                                                     )}
 
                                                     {/* Hover Glow Effect */}
-
                                                     <div className={`absolute inset-0 rounded-lg opacity-0 hover:opacity-20 transition-opacity duration-300 ${type.color} dark:hover:opacity-30`} />
                                                 </div>
                                             </CardBody>
@@ -821,7 +1036,6 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                                             </div>
                                             <div className="flex-1">
                                                 <h4 className={`font-bold text-sm ${RESOURCE_TYPES.find(type => type.key === selectedResourceType)?.textColor} dark:text-gray-200`}>
-
                                                     {RESOURCE_TYPES.find(type => type.key === selectedResourceType)?.label}
                                                 </h4>
                                                 <p className="text-xs text-default-600 mt-1 dark:text-gray-400">
@@ -833,7 +1047,6 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                                                 variant="flat"
                                                 className={`${RESOURCE_TYPES.find(type => type.key === selectedResourceType)?.textColor} bg-white/50 dark:bg-gray-700/50 dark:text-gray-200`}
                                             >
-
                                                 Selected
                                             </Chip>
                                         </div>
@@ -843,29 +1056,32 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                         </div>
                     </div>
 
-                                        <div className="flex justify-between items-center mt-6 dark:border-gray-600">
+                    <div className="flex justify-between items-center mt-6 dark:border-gray-600">
                         <div className="flex items-center space-x-4">
                             <div className="text-sm text-default-500 dark:text-gray-400">
                                 Selected: <span className="font-medium text-primary dark:text-green-400">
                                     {RESOURCE_TYPES.find(type => type.key === selectedResourceType)?.label}
                                 </span>
                                 {selectedNamespace && <span className="dark:text-gray-400"> in namespace: {selectedNamespace}</span>}
+                                {selectedClusterId && (
+                                    <span className="dark:text-gray-400"> on cluster: {
+                                        clusters.find(c => c.id === selectedClusterId)?.cluster_name || 'Unknown'
+                                    }</span>
+                                )}
                             </div>
-                            
-                           
                         </div>
-                        
+
                         <Button
                             color="primary"
                             onPress={performAnalysis}
                             isLoading={isAnalyzing}
                             startContent={!isAnalyzing && <Icon icon="mdi:magnify" />}
                             size="lg"
+                            isDisabled={!selectedClusterId}
                         >
                             {isAnalyzing ? 'Analyzing...' : 'Start Analysis'}
                         </Button>
                     </div>
-
                 </CardBody>
             </Card>
 
@@ -879,14 +1095,12 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                             Scanning {RESOURCE_TYPES.find(type => type.key === selectedResourceType)?.label} and generating AI solutions...
                         </p>
                         <div className="bg-warning-50 border border-warning-200 rounded-lg p-4 mb-4 max-w-md mx-auto dark:bg-yellow-900/20 dark:border-yellow-700">
-
                             <div className="flex items-center gap-2 mb-2">
                                 <Icon icon="mdi:clock-outline" className="text-warning-600" />
                                 <span className="text-sm font-medium text-warning-800 dark:text-yellow-300">Estimated Time</span>
                             </div>
                             <p className="text-sm text-warning-700 dark:text-yellow-200">
                                 This process will take approximately <strong className="dark:text-yellow-100">2-3 minutes</strong> to analyze cluster issues and generate AI-powered solutions.
-
                             </p>
                         </div>
                         <Progress
@@ -917,7 +1131,6 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                 >
                     <span className="dark:text-gray-100">{error}</span>
                 </Alert>
-
             )}
 
             {/* Analysis Results */}
@@ -939,7 +1152,6 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                                         startContent={<Icon icon={showAllProblems ? 'mdi:view-sequential' : 'mdi:view-grid'} />}
                                         className="dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
                                     >
-
                                         {showAllProblems ? 'One by One' : 'Show All'}
                                     </Button>
                                 </div>
@@ -1022,8 +1234,6 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                                                 <CardHeader className="dark:bg-gray-800">
                                                     <div className="flex items-center justify-between w-full">
                                                         <h3 className="text-lg font-semibold flex items-center gap-2 dark:text-gray-100">
-
-
                                                             <Icon icon={getSeverityIcon(currentResourceType)} />
                                                             {currentResourceType} Issues
                                                         </h3>
@@ -1042,7 +1252,6 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                                                                 startContent={<Icon icon="mdi:chevron-left" />}
                                                                 className="dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 dark:disabled:bg-gray-800 dark:disabled:text-gray-500"
                                                             >
-
                                                                 Previous Resource
                                                             </Button>
                                                             <Button
@@ -1056,7 +1265,6 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                                                                 endContent={<Icon icon="mdi:chevron-right" />}
                                                                 className="dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 dark:disabled:bg-gray-800 dark:disabled:text-gray-500"
                                                             >
-
                                                                 Next Resource
                                                             </Button>
                                                         </div>
@@ -1072,11 +1280,11 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                                                             color="primary"
                                                             className="max-w-xs dark:bg-gray-700"
                                                         />
-
                                                     </div>
                                                 </CardBody>
                                             </Card>
 
+                                            {/* Problem Navigation within Resource Type */}
                                             {/* Problem Navigation within Resource Type */}
                                             {currentResourceProblems.length > 1 && (
                                                 <Card className="mb-4 dark:bg-gray-800 dark:border-gray-700">
@@ -1094,7 +1302,6 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                                                                     startContent={<Icon icon="mdi:chevron-left" />}
                                                                     className="dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 dark:disabled:bg-gray-800 dark:disabled:text-gray-500"
                                                                 >
-
                                                                     Previous
                                                                 </Button>
                                                                 <Button
@@ -1107,8 +1314,6 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                                                                 >
                                                                     Next Problem
                                                                 </Button>
-
-
                                                             </div>
                                                         </div>
                                                     </CardHeader>
@@ -1118,10 +1323,10 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                                                             color="secondary"
                                                             className="mb-2 dark:bg-gray-700"
                                                         />
-
                                                     </CardBody>
                                                 </Card>
                                             )}
+
 
                                             {/* Current Problem Display */}
                                             {renderProblemCard(
@@ -1144,7 +1349,6 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                 size="2xl"
                 scrollBehavior="inside"
                 className="dark:bg-gray-900"
-
             >
                 <ModalContent className="dark:bg-gray-800 dark:border-gray-700">
                     <ModalHeader className="dark:bg-gray-800 dark:text-gray-100">
@@ -1165,7 +1369,6 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                                 <Icon icon="mdi:alert-triangle" className="mr-2 dark:text-yellow-300" />
                                 <span className="dark:text-yellow-200">Always review commands before executing them in your cluster.</span>
                             </Alert>
-
                         </div>
                     </ModalBody>
                     <ModalFooter className="dark:bg-gray-800">
@@ -1176,7 +1379,6 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                             startContent={<Icon icon="mdi:content-copy" />}
                             className="dark:bg-blue-700 dark:text-blue-200 dark:hover:bg-blue-600"
                         >
-
                             Copy Command
                         </Button>
                         <Button color="primary" onPress={onCommandModalClose} className="dark:bg-blue-600 dark:hover:bg-blue-700">
@@ -1190,3 +1392,7 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
 };
 
 export default ClusterAnalyze;
+
+
+
+
