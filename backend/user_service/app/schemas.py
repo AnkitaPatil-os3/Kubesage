@@ -1,6 +1,33 @@
 from pydantic import BaseModel, EmailStr, Field, model_validator, ConfigDict
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
+
+# Permission Schemas
+class PermissionBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+
+class PermissionResponse(PermissionBase):
+    id: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+# Role Schemas
+class RoleBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+
+class RoleCreate(RoleBase):
+    permission_ids: Optional[List[int]] = []
+
+class RoleUpdate(RoleBase):
+    permission_ids: Optional[List[int]] = []
+
+class RoleResponse(RoleBase):
+    id: int
+    permissions: List[PermissionResponse] = []
+
+    model_config = ConfigDict(from_attributes=True)
 
 # User Schemas
 class UserBase(BaseModel):
@@ -9,10 +36,12 @@ class UserBase(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     is_active: bool = True
-    is_admin: bool = False
+    # is_admin: bool = False  # Deprecated, use roles instead
+    roles: List[RoleResponse] = []
 
 class UserCreate(UserBase):
     password: str
+    role_ids: Optional[List[int]] = []
 
 class UserUpdate(BaseModel):
     username: Optional[str] = None
@@ -20,8 +49,9 @@ class UserUpdate(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     is_active: Optional[bool] = None
-    is_admin: Optional[bool] = None
+    # is_admin: Optional[bool] = None  # Deprecated
     password: Optional[str] = None
+    role_ids: Optional[List[int]] = []
 
 class UserResponse(UserBase):
     id: int
@@ -29,8 +59,6 @@ class UserResponse(UserBase):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
-
-
 
 # Authentication Schemas
 class Token(BaseModel):
@@ -41,7 +69,7 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     user_id: Optional[int] = None
     username: Optional[str] = None
-    is_admin: Optional[bool] = None
+    # is_admin: Optional[bool] = None  # Deprecated
 
 class LoginRequest(BaseModel):
     username: str
@@ -93,4 +121,3 @@ class ApiKeyUpdate(BaseModel):
     key_name: Optional[str] = None
     is_active: Optional[bool] = None
     expires_at: Optional[datetime] = None
-

@@ -14,8 +14,8 @@ def test_register_multiple_users(client: TestClient):
             "password": f"newpassword{i}",
             "first_name": f"New{i}",
             "last_name": "User",
-            "is_active": True,
-            "is_admin": False
+            "is_active": True
+            # Removed is_admin field as roles are used now
         }
         for i in range(1, 6)
     ]
@@ -67,8 +67,8 @@ def test_register_duplicate_usernames(client: TestClient, test_users: List[User]
             "password": "password123",
             "first_name": "Duplicate",
             "last_name": "User",
-            "is_active": True,
-            "is_admin": False
+            "is_active": True
+            # Removed is_admin field as roles are used now
         }
         response = client.post("/auth/register", json=new_user)
         assert response.status_code == 400
@@ -83,8 +83,8 @@ def test_register_duplicate_emails(client: TestClient, test_users: List[User]):
             "password": "password123",
             "first_name": "Duplicate",
             "last_name": "User",
-            "is_active": True,
-            "is_admin": False
+            "is_active": True
+            # Removed is_admin field as roles are used now
         }
         response = client.post("/auth/register", json=new_user)
         assert response.status_code == 400

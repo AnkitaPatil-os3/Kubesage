@@ -30,7 +30,7 @@ def test_logout(client: TestClient, user_token: str):
         headers={"Authorization": f"Bearer {user_token}"}
     )
     assert response.status_code == 200
-    assert response.json() == {"message": "Successfully logged out"}
+    assert response.json() == {"message": "Logged out successfully"}
 
 def test_check_admin_with_admin(client: TestClient, admin_token: str):
     response = client.get(
@@ -87,10 +87,10 @@ def test_admin_change_password(client: TestClient, admin_token: str, test_user: 
     response = client.post(
         f"/auth/change-password/{test_user.id}",
         headers={"Authorization": f"Bearer {admin_token}"},
-        json={"new_password": "newpassword456"}
+        json={"new_password": "newpassword456", "confirm_password": "newpassword456"}
     )
     assert response.status_code == 200
-    assert response.json()["detail"] == "Password updated successfully"
+    assert response.json()["message"] == "Password updated successfully"
     
     # Verify the new password works
     response = client.post(
@@ -111,7 +111,7 @@ def test_read_users_me(client: TestClient, user_token: str, test_user: User):
     assert data["email"] == test_user.email
 
 # User Management Tests (Admin Only)
-def test_list_users(client: TestClient, admin_token: str):
+def test_list_users(client: TestClient, admin_token: str, test_users):
     response = client.get(
         "/users/",
         headers={"Authorization": f"Bearer {admin_token}"}

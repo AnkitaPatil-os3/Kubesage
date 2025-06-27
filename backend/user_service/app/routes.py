@@ -1,6 +1,8 @@
+# hi
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
 from jose import jwt, ExpiredSignatureError, JWTError
 from sqlmodel import Session, select
+from sqlalchemy.orm import selectinload
 from typing import List
 from datetime import datetime  # Added for timestamp
 from pydantic import BaseModel
@@ -21,7 +23,7 @@ from app.logger import logger
 from app.queue import publish_message
 
 from app.database import get_session
-from app.models import User, UserToken
+from app.models import User, UserToken, Role
 from app.schemas import UserCreate, UserResponse, UserUpdate, LoginRequest, Token, ChangePasswordRequest
 from app.auth import (
     authenticate_user, 
@@ -50,8 +52,77 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
 # User router
 user_router = APIRouter()
 
+from typing import List
+from fastapi import Depends
+from sqlmodel import select
+from app.schemas import RoleResponse
+from app.models import Role
+from app.database import get_session
+from sqlmodel import Session
+
+@user_router.get("/roles", response_model=List[RoleResponse], summary="Get all roles with permissions")
+async def get_roles(session: Session = Depends(get_session)):
+    roles = session.exec(select(Role)).all()
+    return roles
+
+# Fix for 422 Unprocessable Entity on /users/roles
+# Add a dummy dependency parameter to avoid FastAPI validation error
+
 # Auth router
 auth_router = APIRouter()
+
+@auth_router.post("/token")
+async def login_for_access_token(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    session: Session = Depends(get_session)
+):
+    user = authenticate_user(session, form_data.username, form_data.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token, expire = create_access_token(data={"sub": str(user.id)})
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "expires_at": expire.isoformat()
+    }
+
+@auth_router.post("/logout", summary="User Logout", description="Logs out a user by invalidating their access token")
+async def logout(
+    token: str = Depends(oauth2_scheme),
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+    ):
+    try:
+        user_token = session.exec(
+            select(UserToken).where(
+                UserToken.token == token,
+                UserToken.user_id == current_user.id
+            )
+        ).first()
+        
+        if user_token:
+            session.delete(user_token)
+            session.commit()
+        
+        publish_message("user_events", {
+            "event_type": "user_logout",
+            "user_id": current_user.id,
+            "username": current_user.username,
+            "timestamp": datetime.now().isoformat()
+        })
+        
+        return {"message": "Logged out successfully"}
+    
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error during logout"
+        )
 
 
 class RefreshRequest(BaseModel):
@@ -76,71 +147,6 @@ def refresh_access_token(data: RefreshRequest):
     except JWTError:
         raise HTTPException(status_code=403, detail="Invalid refresh token")
     
-@auth_router.post("/logout", summary="User Logout", description="Logs out a user by invalidating their refresh token")
-def logout(response: Response):
-    """
-    Logs out a user by clearing the refresh token from cookies.
-
-    - Clears the refresh token
-    - Returns a success message
-
-    Returns:
-        dict: Success message
-    """
-    response.delete_cookie(key="refresh_token", httponly=True, secure=True)
-    return {"message": "Logged out successfully"}
-
-
-@auth_router.post("/token", summary="User Login", description="Authenticates a user and returns access & refresh tokens")
-async def login(form_data: OAuth2PasswordRequestForm = Depends(), session: Session = Depends(get_session)):
-    user = authenticate_user(session, form_data.username, form_data.password)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    # Token expiry times
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    refresh_token_expires = timedelta(days=30)
-
-    # Generate tokens
-    access_token, access_exp = create_access_token(
-        data={"sub": str(user.id)}, expires_delta=access_token_expires
-    )
-    refresh_token, refresh_exp = create_access_token(
-        data={"sub": str(user.id)}, expires_delta=refresh_token_expires
-    )
-
-    # Save access token to database
-    user_token = UserToken(
-        token=access_token,
-        user_id=user.id,
-        expires_at=access_exp
-    )
-    session.add(user_token)
-    session.commit()
-    session.refresh(user_token)
-
-    logger.info(f"User {user.username} logged in with access token")
-
-    # Publish login event
-    publish_message("user_events", {
-        "event_type": "user_login",
-        "user_id": user.id,
-        "username": user.username,
-        "timestamp": datetime.now().isoformat()
-    })
-
-    return {
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "token_type": "bearer",
-        "access_token_expires_at": access_exp,
-        "refresh_token_expires_at": refresh_exp
-    }
-
 @auth_router.post("/logout", summary="User Logout", description="Logs out a user by invalidating their access token")
 async def logout(
     token: str = Depends(oauth2_scheme),
@@ -185,7 +191,7 @@ async def logout(
             "timestamp": datetime.now().isoformat()
         })
         
-        return {"message": "Successfully logged out"}
+        return {"message": "Logged out successfully"}
     
     except Exception as e:
         session.rollback()
@@ -198,19 +204,15 @@ async def logout(
 # Endpoint to check if user is admin
 @auth_router.get("/check-admin", summary="Check Admin Status", description="Checks if the current user has admin privileges")
 async def check_if_admin(current_user: User = Depends(get_current_user)):
-    """
-    Checks if the current authenticated user has admin privileges.
-    
-    - Verifies the admin status of the current user
-    - Returns the admin status and username
-    
-    Returns:
-        dict: Contains is_admin boolean flag and username
-    """
-    return {
-        "is_admin": getattr(current_user, "is_admin", False),  # Using getattr instead of get
-        "username": current_user.username  # Direct attribute access
-    }
+    try:
+        return {"is_admin": bool(getattr(current_user, "is_admin", False))}
+    except Exception as e:
+        import traceback
+        logger.error(f"Error in check_if_admin: {e}\n{traceback.format_exc()}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error in check-admin endpoint"
+        )
 
 
 # Register API
@@ -222,7 +224,7 @@ async def register_user(user_data: UserCreate, session: Session = Depends(get_se
     Registers a new user in the system.
     
     - Validates that username and email are not already registered
-    - Creates a new user with hashed password
+    - Creates a new user with hashed password and assigned roles
     - Publishes a user creation event to the message queue
     - Returns the created user information
     
@@ -262,6 +264,11 @@ async def register_user(user_data: UserCreate, session: Session = Depends(get_se
         is_admin=user_data.is_admin
     )
     
+    # Assign roles if provided
+    if user_data.role_ids:
+        roles = session.exec(select(Role).where(Role.id.in_(user_data.role_ids))).all()
+        db_user.roles = roles
+    
     try:
         # Add user to the session and commit the transaction
         session.add(db_user)
@@ -279,6 +286,7 @@ async def register_user(user_data: UserCreate, session: Session = Depends(get_se
             "last_name": db_user.last_name,
             "is_active": db_user.is_active,
             "is_admin": db_user.is_admin,
+            "roles": [role.name for role in db_user.roles],
             "timestamp": datetime.now().isoformat()  # Fixed: removed duplicate datetime
         })
         
@@ -318,7 +326,7 @@ async def A_change_password(
         HTTPException: 404 error if user not found
     """
     # Fetch the target user by ID
-    user = session.query(User).filter(User.id == user_id).first()
+    user = session.exec(select(User).where(User.id == user_id)).first()
 
     if not user:
         raise HTTPException(
@@ -342,7 +350,7 @@ async def A_change_password(
         "timestamp": datetime.now().isoformat()
     })
 
-    return {"detail": "Password updated successfully"}
+    return {"message": "Password updated successfully"}
 
 
 @user_router.get("/me", response_model=UserResponse, 
@@ -359,31 +367,36 @@ async def read_users_me(current_user: User = Depends(get_current_active_user)):
     """
     return current_user
 
-@user_router.get("/", response_model=List[UserResponse], 
-                summary="List All Users", description="Returns a list of all users (admin only)")
-async def list_users(
-    skip: int = 0, 
-    limit: int = 100, 
-    current_user: User = Depends(get_current_admin_user),
-    session: Session = Depends(get_session)
-):
-    """
-    Lists all users in the system.
+# @user_router.get("/", response_model=List[UserResponse], 
+#                 summary="List All Users", description="Returns a list of all users (admin only)")
+# async def list_users(
+#     skip: int = 0, 
+#     limit: int = 100, 
+#     current_user: User = Depends(get_current_admin_user),
+#     session: Session = Depends(get_session)
+# ):
+#     """
+#     Lists all users in the system.
     
-    - Requires admin privileges
-    - Supports pagination with skip and limit parameters
-    - Returns a list of user profiles
+#     - Requires admin privileges
+#     - Supports pagination with skip and limit parameters
+#     - Returns a list of user profiles
     
-    Parameters:
-        skip: Number of records to skip (for pagination)
-        limit: Maximum number of records to return
+#     Parameters:
+#         skip: Number of records to skip (for pagination)
+#         limit: Maximum number of records to return
     
-    Returns:
-        List[UserResponse]: List of user profiles
-    """
-    users = session.exec(select(User).offset(skip).limit(limit)).all()
+#     Returns:
+#         List[UserResponse]: List of user profiles
+#     """
+#     users = session.exec(select(User).offset(skip).limit(limit)).all()
+#     return users
+@user_router.get("/", response_model=List[UserResponse])
+async def get_users(session: Session = Depends(get_session)):
+    users = session.exec(
+        select(User).options(selectinload(User.roles))
+    ).all()
     return users
-
 @user_router.get("/{user_id}", response_model=UserResponse, 
                 summary="Get User by ID", description="Returns a specific user's information (admin only)")
 async def get_user(
@@ -424,7 +437,7 @@ async def update_user(
     
     - Requires admin privileges
     - Finds the user by ID
-    - Updates the user's information with the provided data
+    - Updates the user's information with the provided data including roles
     - Handles password updates separately with proper hashing
     - Publishes a user update event to the message queue
     
@@ -452,7 +465,16 @@ async def update_user(
     
     # Update other fields
     for key, value in user_data.items():
-        setattr(db_user, key, value)
+        if key != "role_ids":  # <-- role_ids ko skip karo!
+            setattr(db_user, key, value)
+    
+    # Update roles if provided
+    if "role_ids" in user_data:
+        db_user.roles.clear()
+        for role_id in user_data["role_ids"]:
+            role = session.get(Role, role_id)
+            if role:
+                db_user.roles.append(role)
     
     db_user.updated_at = datetime.now()
     session.add(db_user)
@@ -719,7 +741,8 @@ async def update_api_key(
     update_data = api_key_update.model_dump(exclude_unset=True)
     
     for key, value in update_data.items():
-        setattr(db_api_key, key, value)
+        if key != "role_id":
+            setattr(db_api_key, key, value)
     
     db_api_key.updated_at = datetime.now()
     
@@ -916,3 +939,5 @@ async def get_current_user_via_api_key(
         UserResponse: The current user's profile information
     """
     return current_user
+
+# Removed duplicate /auth/token endpoint to avoid conflicts

@@ -31,7 +31,8 @@ import {
   Input,
   Select,
   SelectItem,
-  Switch
+  Switch,
+  Checkbox
 } from "@heroui/react";
 import { 
   ResponsiveContainer, 
@@ -53,6 +54,14 @@ interface AdminDashboardProps {
   selectedCluster?: string;
 }
 
+interface Role {
+  id: number;
+  name: string;
+  description?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 interface User {
   id: number;
   username: string;
@@ -60,8 +69,8 @@ interface User {
   first_name: string;
   last_name: string;
   is_active: boolean;
-  is_admin: boolean;
   created_at?: string;
+  roles?: Role[];
 }
 
 interface NewUser {
@@ -71,7 +80,7 @@ interface NewUser {
   first_name: string;
   last_name: string;
   is_active: boolean;
-  is_admin: boolean;
+  role_ids: number[];
 }
 
 interface EditUser {
@@ -80,8 +89,8 @@ interface EditUser {
   first_name: string;
   last_name: string;
   is_active: boolean;
-  is_admin: boolean;
-  password?: string; // Optional for edit
+  password?: string;
+  role_ids: number[];
 }
 
 interface NewCluster {
@@ -184,6 +193,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [selectedRoles, setSelectedRoles] = useState<number[]>([]);
+  const [editSelectedRoles, setEditSelectedRoles] = useState<number[]>([]);
+  
   const [newUser, setNewUser] = useState<NewUser>({
     username: "",
     email: "",
@@ -191,16 +204,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
     first_name: "",
     last_name: "",
     is_active: true,
-    is_admin: false,
+    role_ids: [],
   });
+  
   const [editUser, setEditUser] = useState<EditUser>({
     username: "",
     email: "",
     first_name: "",
     last_name: "",
     is_active: true,
-    is_admin: false,
     password: "",
+    role_ids: [],
   });
 
   // Cluster Management State
@@ -354,6 +368,32 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
     }
   };
 
+  // Fetch roles from backend
+  const fetchRoles = async () => {
+    try {
+      const token = getValidToken();
+      if (!token) return;
+
+      const res = await fetch(`${API_BASE_URL}/users/roles`, {
+        method: 'GET',
+        headers: {
+          "accept": "application/json",
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setRoles(Array.isArray(data) ? data : []);
+      } else {
+        console.error('Failed to fetch roles:', res.status);
+      }
+    } catch (error) {
+      console.error("Error fetching roles:", error);
+    }
+  };
+
   useEffect(() => {
     const checkAdmin = async () => {
       const isAdmin = await checkAdminStatus();
@@ -363,6 +403,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
     checkAdmin();
     fetchUsers();
     fetchClusters();
+    fetchRoles();
   }, []);
 
   // Add user API call
@@ -377,7 +418,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
         return;
       }
 
-      console.log('Adding user:', newUser);
+      // Update newUser with selected roles
+      const userDataWithRoles = {
+        ...newUser,
+        role_ids: selectedRoles
+      };
+
+      console.log('Adding user:', userDataWithRoles);
 
       const res = await fetch(`${API_BASE_URL}/auth/register`, {
         method: "POST",
@@ -386,7 +433,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`,
         },
-        body: JSON.stringify(newUser),
+        body: JSON.stringify(userDataWithRoles),
       });
 
       if (res.ok) {
@@ -401,10 +448,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
           first_name: "",
           last_name: "",
           is_active: true,
-          is_admin: false,
+          role_ids: [],
         });
+        setSelectedRoles([]); // Reset selected roles
 
         await fetchUsers();
+        await fetchRoles(); // <-- YEH LINE ADD KARO
         setSuccessMessage("User added successfully!");
         setShowSuccessModal(true);
       } else {
@@ -443,14 +492,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
 
       console.log('Editing user:', selectedUser.id, editUser);
 
-      // Prepare update data - only include password if it's provided
+      // Prepare update data with roles
       const updateData: any = {
         username: editUser.username,
         email: editUser.email,
         first_name: editUser.first_name,
         last_name: editUser.last_name,
         is_active: editUser.is_active,
-        is_admin: editUser.is_admin,
+        role_ids: editSelectedRoles,
       };
 
       // Only include password if it's provided
@@ -469,6 +518,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
       });
       
       if (res.ok) {
+
         const responseData = await res.json();
         console.log('User updated:', responseData);
         
@@ -480,11 +530,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
           first_name: "",
           last_name: "",
           is_active: true,
-          is_admin: false,
           password: "",
+          role_ids: [],
         });
+        setEditSelectedRoles([]);
         
         await fetchUsers();
+        await fetchRoles(); // <-- YEH LINE ADD KARO
         setSuccessMessage("User updated successfully!");
         setShowSuccessModal(true);
       } else {
@@ -577,9 +629,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
       first_name: user.first_name,
       last_name: user.last_name,
       is_active: user.is_active,
-      is_admin: user.is_admin,
       password: "", // Keep empty for security
+      role_ids: user.roles ? user.roles.map(role => role.id) : [],
     });
+    setEditSelectedRoles(user.roles ? user.roles.map(role => role.id) : []);
     setShowEditUser(true);
   };
 
@@ -630,13 +683,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
   const resourceDistributionData = [
     { name: "Production", value: 55 },
     { name: "Staging", value: 25 },
-
     { name: "Development", value: 20 },
   ];
   
   const COLORS = ["#0ea5e9", "#7828c8", "#17c964", "#f5a524"];
-  
-  // Remove the hardcoded clusters array to avoid redeclaration error
   
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -718,14 +768,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
         >
           <TableHeader>
             <TableColumn>USER</TableColumn>
-            <TableColumn>ROLE</TableColumn>
+            <TableColumn>ROLES</TableColumn>
             <TableColumn>STATUS</TableColumn>
             <TableColumn>CREATED</TableColumn>
             <TableColumn>ACTIONS</TableColumn>
           </TableHeader>
-                <TableBody>
+          <TableBody>
             {displayedUsers.map((user) => {
-              const canEditOrDelete = user.is_admin || user.id === user.id;
               return (
                 <TableRow key={user.id}>
                   <TableCell>
@@ -742,13 +791,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Chip 
-                      color={user.is_admin ? "primary" : "default"} 
-                      variant="flat" 
-                      size="sm"
-                    >
-                      {user.is_admin ? "Admin" : "User"}
-                    </Chip>
+                    <div className="flex flex-wrap gap-1">
+{user.roles && user.roles.length > 0 ? (
+  user.roles.map((role) => (
+    <Chip 
+      key={role.id}
+      color={
+        role.name === "admin" ? "primary" : 
+        role.name === "manager" ? "secondary" : 
+        role.name === "devops engineer" ? "success" : 
+        "default"
+      } 
+      variant="flat" 
+      size="sm"
+    >
+      {role.name}
+    </Chip>
+  ))
+) : (
+  <Chip color="default" variant="flat" size="sm">
+    No roles
+  </Chip>
+)}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <Chip 
@@ -1047,22 +1112,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
                                     <stop offset="95%" stopColor="hsl(var(--heroui-primary))" stopOpacity={0} />
                                   </linearGradient>
                                   <linearGradient id="colorMemory" x1="0" y1="0" x2="0" y2="1">
-
-
                                     <stop offset="5%" stopColor="hsl(var(--heroui-secondary))" stopOpacity={0.3} />
                                     <stop offset="95%" stopColor="hsl(var(--heroui-secondary))" stopOpacity={0} />
                                   </linearGradient>
                                   <linearGradient id="colorStorage" x1="0" y1="0" x2="0" y2="1">
-
-
                                     <stop offset="5%" stopColor="hsl(var(--heroui-success))" stopOpacity={0.3} />
                                     <stop offset="95%" stopColor="hsl(var(--heroui-success))" stopOpacity={0} />
                                   </linearGradient>
                                 </defs>
-
-
-
-
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--heroui-divider))" />
                                 <XAxis 
                                   dataKey="name" 
@@ -1084,8 +1141,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
                                 <Area 
                                   type="monotone" 
                                   dataKey="cpu" 
-
-
                                   name="CPU"
                                   stroke="hsl(var(--heroui-primary))" 
                                   fillOpacity={1}
@@ -1094,8 +1149,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
                                 <Area 
                                   type="monotone" 
                                   dataKey="memory" 
-
-
                                   name="Memory"
                                   stroke="hsl(var(--heroui-secondary))" 
                                   fillOpacity={1}
@@ -1104,8 +1157,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
                                 <Area 
                                   type="monotone" 
                                   dataKey="storage" 
-
-
                                   name="Storage"
                                   stroke="hsl(var(--heroui-success))" 
                                   fillOpacity={1}
@@ -1122,29 +1173,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
                     <motion.div variants={itemVariants}>
                       <Card>
                         <CardHeader className="flex flex-col gap-1">
-
                           <h3 className="text-lg font-semibold">Cost Analysis</h3>
                         </CardHeader>
                         <CardBody>
                           <div className="h-64">
                             <ResponsiveContainer width="100%" height="100%">
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
                               <BarChart
                                 data={costData}
                                 margin={{ top: 5, right: 5, left: 0, bottom: 5 }}
@@ -1386,9 +1419,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
         </Card>
       </motion.div>
 
-
-
-
       {/* Add User Modal */}
       <Modal 
         isOpen={showAddUser} 
@@ -1451,28 +1481,37 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
                       onChange={(e) => setNewUser({...newUser, password: e.target.value})}
                       isRequired
                     />
-                    <div className="flex flex-row gap-4">
-                      <div className="flex items-center gap-2" style={{ width: '90px' }}>
-                        <Input
-                          type="checkbox"
-                          checked={newUser.is_active}
-                          onChange={(e) => setNewUser({...newUser, is_active: e.target.checked})}
-                          aria-label="Active User"
-                          style={{ width: '16px', height: '16px' }}
-                        />
-                        <label>Active User</label>
-                      </div>
-                      <div className="flex items-center gap-2 mt-2" style={{ width: '120px' }}>
-                        <Input
-                          type="checkbox"
-                          checked={newUser.is_admin}
-                          onChange={(e) => setNewUser({...newUser, is_admin: e.target.checked})}
-                          aria-label="Admin Privileges"
-                          style={{ width: '16px', height: '16px' }}
-                        />
-                        <label>Admin Privileges</label>
-                      </div>
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        isSelected={newUser.is_active}
+                        onValueChange={(checked) => setNewUser({...newUser, is_active: checked})}
+                      >
+                        Active User
+                      </Checkbox>
                     </div>
+                  </div>
+                  
+                  {/* Roles Selection */}
+                  <div className="mt-4">
+                    <p className="text-sm font-medium mb-2">Assign Roles:</p>
+                    <Select
+                      label="Select Roles"
+                      placeholder="Choose roles"
+                      selectionMode="multiple"
+                      variant="bordered"
+                      selectedKeys={selectedRoles.map(String)}
+                      onSelectionChange={(keys) => {
+                        // keys is a Set<string>
+                        setSelectedRoles(Array.from(keys).map(Number));
+                      }}
+                      isRequired
+                    >
+                      {roles.map((role) => (
+                        <SelectItem key={role.id}>
+                          {role.name}
+                        </SelectItem>
+                      ))}
+                    </Select>
                   </div>
                 </ModalBody>
                 <ModalFooter>
@@ -1560,28 +1599,36 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
                       onChange={(e) => setEditUser({...editUser, password: e.target.value})}
                       description="Leave empty to keep current password"
                     />
-                    <div className="flex flex-col gap-4">
-                      <div className="flex items-center gap-2" style={{ width: '120px' }}>
-                        <Input
-                          type="checkbox"
-                          checked={editUser.is_active}
-                          onChange={(e) => setEditUser({...editUser, is_active: e.target.checked})}
-                          aria-label="Active User"
-                          style={{ width: '16px', height: '16px' }}
-                        />
-                        <label>Active User</label>
-                      </div>
-                      <div className="flex items-center gap-2 mt-2" style={{ width: '120px' }}>
-                        <Input
-                          type="checkbox"
-                          checked={editUser.is_admin}
-                          onChange={(e) => setEditUser({...editUser, is_admin: e.target.checked})}
-                          aria-label="Admin Privileges"
-                          style={{ width: '16px', height: '16px' }}
-                        />
-                        <label>Admin Privileges</label>
-                      </div>
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        isSelected={editUser.is_active}
+                        onValueChange={(checked) => setEditUser({...editUser, is_active: checked})}
+                      >
+                        Active User
+                      </Checkbox>
                     </div>
+                  </div>
+                  
+                  {/* Roles Selection */}
+                  <div className="mt-4">
+                    <p className="text-sm font-medium mb-2">Assign Roles:</p>
+                    <Select
+                      label="Select Roles"
+                      placeholder="Choose roles"
+                      selectionMode="multiple"
+                      variant="bordered"
+                      selectedKeys={editSelectedRoles.map(String)}
+                      onSelectionChange={(keys) => {
+                        setEditSelectedRoles(Array.from(keys).map(Number));
+                      }}
+                      isRequired
+                    >
+                      {roles.map((role) => (
+                        <SelectItem key={role.id}>
+                          {role.name}
+                        </SelectItem>
+                      ))}
+                    </Select>
                   </div>
                 </ModalBody>
                 <ModalFooter>
@@ -1597,9 +1644,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
                         first_name: "",
                         last_name: "",
                         is_active: true,
-                        is_admin: false,
                         password: "",
+                        role_ids: [],
                       });
+                      setEditSelectedRoles([]);
                     }}
                   >
                     Cancel

@@ -1,7 +1,37 @@
-from sqlmodel import SQLModel, Field
-from typing import Optional
+# hi
+from sqlmodel import SQLModel, Field, Relationship
+from typing import Optional, List
 import datetime
 import uuid
+
+class UserRoleLink(SQLModel, table=True):
+    user_id: Optional[int] = Field(default=None, foreign_key="user.id", primary_key=True)
+    role_id: Optional[int] = Field(default=None, foreign_key="role.id", primary_key=True)
+
+class RolePermissionLink(SQLModel, table=True):
+    role_id: Optional[int] = Field(default=None, foreign_key="role.id", primary_key=True)
+    permission_id: Optional[int] = Field(default=None, foreign_key="permission.id", primary_key=True)
+
+class Permission(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(index=True, unique=True)
+    description: Optional[str] = None
+    created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
+    updated_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
+    roles: List["Role"] = Relationship(back_populates="permissions", link_model=RolePermissionLink)
+
+class Role(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(index=True, unique=True)
+    description: Optional[str] = None
+    permissions: List[Permission] = Relationship(back_populates="roles", link_model=RolePermissionLink)
+    users: List["User"] = Relationship(back_populates="roles", link_model=UserRoleLink)
+    created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
+    updated_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
+
+# Permission.roles = Relationship(back_populates="permissions", link_model=RolePermissionLink)
+
+# Role.permissions = Relationship(back_populates="roles", link_model=RolePermissionLink)
 
 class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -12,6 +42,7 @@ class User(SQLModel, table=True):
     last_name: Optional[str] = None
     is_active: bool = Field(default=True)
     is_admin: bool = Field(default=False)
+    roles: List[Role] = Relationship(back_populates="users", link_model=UserRoleLink)
     created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
     updated_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
 

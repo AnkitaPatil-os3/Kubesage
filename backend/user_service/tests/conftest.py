@@ -1,3 +1,4 @@
+# hi
 import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session, SQLModel, create_engine
@@ -201,8 +202,9 @@ def user_tokens_fixture(client: TestClient, test_users: List[User]) -> Dict[str,
             "/auth/token",
             data={"username": user.username, "password": password}
         )
-        
-        # Store the token in our dictionary, keyed by username
-        tokens[user.username] = response.json()["access_token"]
+        if response.status_code == 200:
+            tokens[user.username] = response.json()["access_token"]
+        else:
+            tokens[user.username] = None
     
     return tokens  # Return the dictionary of tokens

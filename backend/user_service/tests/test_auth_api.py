@@ -66,7 +66,7 @@ def test_logout_multiple_users(client: TestClient, user_tokens: Dict[str, str], 
             headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code == 200
-        assert response.json() == {"message": "Successfully logged out"}
+        assert response.json() == {"message": "Logged out successfully"}
 
 
 def test_check_admin_status(client: TestClient, user_tokens: Dict[str, str], test_users: List[User]):

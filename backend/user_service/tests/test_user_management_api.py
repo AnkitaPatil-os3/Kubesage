@@ -18,10 +18,10 @@ def test_admin_change_password_for_multiple_users(
         response = client.post(
             f"/auth/change-password/{user.id}",
             headers={"Authorization": f"Bearer {admin_token}"},
-            json={"new_password": f"newpass_{user.username}"}
+            json={"new_password": f"newpass_{user.username}", "confirm_password": f"newpass_{user.username}"}
         )
         assert response.status_code == 200
-        assert response.json()["detail"] == "Password updated successfully"
+        assert response.json()["message"] == "Password updated successfully"
         
         # Verify the new password works
         response = client.post(

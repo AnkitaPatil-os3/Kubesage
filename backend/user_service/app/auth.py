@@ -1,3 +1,4 @@
+# hi
 from datetime import datetime, timedelta , UTC
 from typing import Optional
 
@@ -29,21 +30,17 @@ def get_password_hash(password):
 def authenticate_user(session: Session, username: str, password: str) -> Optional[User]:
     user = session.exec(select(User).where(User.username == username)).first()
     if not user:
-        return None
+        return None  # Pehle yahan kuch nahi tha, ab None return karo
     if not verify_password(password, user.hashed_password):
-        return None
+        return None  # Pehle yahan kuch nahi tha, ab None return karo
     return user
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.now(UTC) + expires_delta
-
-    else:
-        expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=60))
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
-    return encoded_jwt, expire
+    return encoded_jwt, expire  # <-- tuple return karo
 
 async def get_current_user(
     token: str = Depends(oauth2_scheme), 
@@ -63,8 +60,12 @@ async def get_current_user(
         )
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        user_id: int = payload.get("sub")
+        user_id = payload.get("sub")
         if user_id is None:
+            raise credentials_exception
+        try:
+            user_id = int(user_id)  # <-- Yeh line add karo
+        except Exception:
             raise credentials_exception
         token_data = TokenData(user_id=user_id)
     except JWTError as e:
@@ -98,7 +99,7 @@ async def login_for_access_token(
     user = authenticate_user(session, form_data.username, form_data.password)
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_401_UNAUTHORIZED,  # 404 ki jagah 401
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
@@ -109,7 +110,7 @@ async def login_for_access_token(
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        "expires": expire.isoformat()
+        "expires_at": expire.isoformat()
     }
 
 
