@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     
     # User service URL for authentication
     USER_SERVICE_URL: str = os.getenv("USER_SERVICE_URL")
+    KUBECONFIG_SERVICE_URL: str = os.getenv("KUBECONFIG_SERVICE_URL")
 
     # LLM settings for remediation
     OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")
