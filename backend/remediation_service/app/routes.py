@@ -78,28 +78,90 @@ def parse_timestamp(timestamp_str: str) -> Optional[datetime]:
 
 # Webhook endpoint for receiving incidents
 
-
-
 @remediation_router.post("/webhook/incidents", 
                         summary="Receive Incident Webhook",
                         description="Webhook endpoint to receive Kubernetes incidents")
 async def receive_incident_webhook(
     payload: IncidentWebhookPayload,
+    request: Request,  # ADD THIS to access headers
     session: Session = Depends(get_session),
-    x_api_key: Optional[str] = Header(None, alias="X-API-Key")):
+    x_api_key: Optional[str] = Header(None, alias="X-API-Key"),
+    x_cluster_name: Optional[str] = Header(None, alias="X-Cluster-Name"),  # ADD cluster header
+    x_cluster_server: Optional[str] = Header(None, alias="X-Cluster-Server"),  # ADD server header
+    x_cluster_context: Optional[str] = Header(None, alias="X-Cluster-Context"),  # ADD context header
+    x_namespace: Optional[str] = Header(None, alias="X-Namespace"),  # ADD namespace header
+    user_agent: Optional[str] = Header(None, alias="User-Agent"),  # ADD user agent
+    content_type: Optional[str] = Header(None, alias="Content-Type"),  # ADD content type
+):
     """
     Webhook endpoint to receive Kubernetes incidents and store important data in database.
     Requires valid API key in X-API-Key header.
     """
-    print("---------------------- Incoming payload ------------------", payload)
-    print("----------------------------- x_api_key -----------------:", x_api_key)
-    print("----------------------------- session -----------------:", session)
+    print("=" * 80)
+    print("WEBHOOK INCIDENT RECEIVED")
+    print("=" * 80)
+    
+    # Print all headers
+    print("📋 ALL REQUEST HEADERS:")
+    for header_name, header_value in request.headers.items():
+        print(f"   {header_name}: {header_value}")
+    
+    print("\n🔑 AUTHENTICATION INFO:")
+    print(f"   X-API-Key: {x_api_key}")
+    
+    print("\n🌐 CLUSTER INFORMATION:")
+    print(f"   X-Cluster-Name: {x_cluster_name}")
+    print(f"   X-Cluster-Server: {x_cluster_server}")
+    print(f"   X-Cluster-Context: {x_cluster_context}")
+    print(f"   X-Namespace: {x_namespace}")
+    
+    print("\n📡 REQUEST METADATA:")
+    print(f"   User-Agent: {user_agent}")
+    print(f"   Content-Type: {content_type}")
+    print(f"   Request Method: {request.method}")
+    print(f"   Request URL: {request.url}")
+    print(f"   Client Host: {request.client.host if request.client else 'Unknown'}")
+    
+    print("\n📦 PAYLOAD SUMMARY:")
+    print(f"   Incident Type: {payload.type}")
+    print(f"   Reason: {payload.reason}")
+    print(f"   Message: {payload.message[:100]}..." if len(payload.message) > 100 else f"   Message: {payload.message}")
+    print(f"   Namespace: {payload.metadata.get('namespace', 'N/A')}")
+    print(f"   Object Kind: {payload.involvedObject.get('kind', 'N/A')}")
+    print(f"   Object Name: {payload.involvedObject.get('name', 'N/A')}")
+    print(f"   Count: {payload.count}")
+    
+    print("\n🔍 DETAILED PAYLOAD:")
+    print("---------------------- Incoming payload ------------------")
+    print(payload)
+    print("----------------------------- x_api_key -----------------:")
+    print(x_api_key)
+    print("----------------------------- session -----------------:")
+    print(session)
+    
+    # Print cluster-specific headers if present
+    if any([x_cluster_name, x_cluster_server, x_cluster_context, x_namespace]):
+        print("\n🎯 EXTRACTED CLUSTER HEADERS:")
+        if x_cluster_name:
+            print(f"   Cluster Name: {x_cluster_name}")
+        if x_cluster_server:
+            print(f"   Cluster Server: {x_cluster_server}")
+        if x_cluster_context:
+            print(f"   Cluster Context: {x_cluster_context}")
+        if x_namespace:
+            print(f"   Target Namespace: {x_namespace}")
+    else:
+        print("\n⚠️  NO CLUSTER HEADERS FOUND")
+        print("   Expected headers: X-Cluster-Name, X-Cluster-Server, X-Cluster-Context, X-Namespace")
+    
+    print("=" * 80)
 
     try:
         # Authenticate using API key from request header
         webhook_user = await authenticate_api_key_from_header(x_api_key, session)
         
         logger.info(f"Webhook called by user: {webhook_user.username} (ID: {webhook_user.user_id})")
+        print(f"\n✅ AUTHENTICATED USER: {webhook_user.username} (ID: {webhook_user.user_id})")
         
         # Generate unique incident ID if not provided
         incident_id = payload.metadata.get("uid", str(uuid.uuid4()))
@@ -120,6 +182,7 @@ async def receive_incident_webhook(
             session.commit()
             
             logger.info(f"Updated existing incident: {incident_id}")
+            print(f"📝 UPDATED EXISTING INCIDENT: {incident_id}")
             return JSONResponse(content={"message": "Incident updated", "incident_id": incident_id}, status_code=200)
         
         # Extract important incident data
@@ -168,6 +231,8 @@ async def receive_incident_webhook(
         session.refresh(incident)
         
         logger.info(f"Created new incident: {incident_id}")
+        print(f"✨ CREATED NEW INCIDENT: {incident_id} (Internal ID: {incident.id})")
+        print("=" * 80)
         
         return JSONResponse(content={
             "message": "Incident received and stored",
@@ -177,8 +242,9 @@ async def receive_incident_webhook(
         
     except Exception as e:
         logger.error(f"Error processing incident webhook: {str(e)}")
+        print(f"❌ ERROR PROCESSING WEBHOOK: {str(e)}")
+        print("=" * 80)
         raise HTTPException(status_code=500, detail=f"Error processing incident: {str(e)}")
-
 
 
 
