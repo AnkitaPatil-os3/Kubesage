@@ -42,9 +42,8 @@ interface KubeconfigFile {
   context_name: string;
   active: boolean;
   upload_date: string;
-  provider?: string;
+  provider_name?: string; // Add this field to match backend response
 }
-
 interface ClusterInfo {
   filename: string;
   cluster_name: string;
@@ -97,18 +96,18 @@ export const UploadKubeconfig: React.FC = () => {
   const [selectedProvider, setSelectedProvider] = React.useState<string>('Standard');
 
   // Add provider options
-const providerOptions = [
-  { key: 'Standard', label: 'Standard Kubernetes' },
-  { key: 'EKS', label: 'Amazon EKS' },
-  { key: 'GKE', label: 'Google GKE' },
-  { key: 'AKS', label: 'Azure AKS' },
-  { key: 'RKE2', label: 'Rancher RKE2' },
-  { key: 'Edge', label: 'Edge/K3s' },
-  { key: 'OpenShift', label: 'Red Hat OpenShift' },
-  { key: 'MicroK8s', label: 'Canonical MicroK8s' },
-  { key: 'Kind', label: 'Kind (Local)' },
-  { key: 'Minikube', label: 'Minikube (Local)' }
-];
+  const providerOptions = [
+    { key: 'Standard', label: 'Standard Kubernetes' },
+    { key: 'EKS', label: 'Amazon EKS' },
+    { key: 'GKE', label: 'Google GKE' },
+    { key: 'AKS', label: 'Azure AKS' },
+    { key: 'RKE2', label: 'Rancher RKE2' },
+    { key: 'Edge', label: 'Edge/K3s' },
+    { key: 'OpenShift', label: 'Red Hat OpenShift' },
+    { key: 'MicroK8s', label: 'Canonical MicroK8s' },
+    { key: 'Kind', label: 'Kind (Local)' },
+    { key: 'Minikube', label: 'Minikube (Local)' }
+  ];
 
   const getAuthToken = () => {
     return localStorage.getItem('access_token') || '';
@@ -150,7 +149,6 @@ const providerOptions = [
     fetchKubeconfigList();
     fetchClusters();
   }, []);
-
   const fetchKubeconfigList = async () => {
     setLoading(true);
     setError(null);
@@ -172,10 +170,15 @@ const providerOptions = [
       console.log('Cluster list response:', data);
 
       if (data && Array.isArray(data.kubeconfigs)) {
-        // Add provider detection to each cluster
-        const clustersWithProvider = data.kubeconfigs.map((cluster: KubeconfigFile) => ({
-          ...cluster,
-          provider: detectProvider(cluster.cluster_name, cluster.context_name)
+        // Use provider_name from backend response instead of detecting it
+        const clustersWithProvider = data.kubeconfigs.map((cluster: any) => ({
+          filename: cluster.filename,
+          original_filename: cluster.original_filename,
+          cluster_name: cluster.cluster_name,
+          context_name: cluster.context_name,
+          active: cluster.active,
+          upload_date: cluster.created_at, // Use created_at as upload_date
+          provider_name: cluster.provider_name || 'Standard' // Use actual provider_name from backend
         }));
         setKubeconfigFiles(clustersWithProvider);
       } else {
@@ -190,7 +193,6 @@ const providerOptions = [
       setLoading(false);
     }
   };
-
   const fetchClusters = async () => {
     setError(null);
 
@@ -259,20 +261,20 @@ const providerOptions = [
     }
   };
 
-const resetModalState = () => {
-  setSelectedFile(null);
-  setKubeconfigContent("");
-  setSelectedProvider('Standard'); // Reset provider
-  setOnboardingData({
-    clusterName: '',
-    serverUrl: '',
-    bearerToken: '',
-    provider: 'Standard' // Reset provider
-  });
-  setAddClusterMethod("upload");
-  setError(null);
-  setUploadProgress(0);
-};
+  const resetModalState = () => {
+    setSelectedFile(null);
+    setKubeconfigContent("");
+    setSelectedProvider('Standard'); // Reset provider
+    setOnboardingData({
+      clusterName: '',
+      serverUrl: '',
+      bearerToken: '',
+      provider: 'Standard' // Reset provider
+    });
+    setAddClusterMethod("upload");
+    setError(null);
+    setUploadProgress(0);
+  };
 
   const handleModalClose = () => {
     if (!isUploading && !isOnboardingLoading) {
@@ -280,65 +282,64 @@ const resetModalState = () => {
       onAddClusterModalClose();
     }
   };
+  // Update the uploadKubeconfig function to include provider_name instead of provider
+  const uploadKubeconfig = async () => {
+    if (!selectedFile && !kubeconfigContent) return;
 
-  // Update the uploadKubeconfig function to include provider
-const uploadKubeconfig = async () => {
-  if (!selectedFile && !kubeconfigContent) return;
+    setIsUploading(true);
+    setUploadProgress(0);
+    setError(null);
 
-  setIsUploading(true);
-  setUploadProgress(0);
-  setError(null);
+    try {
+      const formData = new FormData();
 
-  try {
-    const formData = new FormData();
+      if (selectedFile) {
+        formData.append('file', selectedFile);
+      } else {
+        const blob = new Blob([kubeconfigContent], { type: 'application/x-yaml' });
+        formData.append('file', blob, 'kubeconfig.yaml');
+      }
 
-    if (selectedFile) {
-      formData.append('file', selectedFile);
-    } else {
-      const blob = new Blob([kubeconfigContent], { type: 'application/x-yaml' });
-      formData.append('file', blob, 'kubeconfig.yaml');
+      // Change 'provider' to 'provider_name' to match backend
+      formData.append('provider_name', selectedProvider);
+
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => Math.min(prev + 10, 90));
+      }, 200);
+
+      const response = await fetch("/kubeconfig/upload", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${getAuthToken()}`
+        },
+        body: formData
+      });
+
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Upload failed: ${response.status} ${response.statusText} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log("Upload successful:", data);
+
+      await fetchKubeconfigList();
+      await fetchClusters();
+
+      resetModalState();
+      onAddClusterModalClose();
+
+    } catch (err: any) {
+      console.error("Upload error:", err);
+      setError(err.message || 'Upload failed');
+    } finally {
+      setIsUploading(false);
+      setTimeout(() => setUploadProgress(0), 1000);
     }
-
-    // Add provider information
-    formData.append('provider', selectedProvider);
-
-    const progressInterval = setInterval(() => {
-      setUploadProgress(prev => Math.min(prev + 10, 90));
-    }, 200);
-
-    const response = await fetch("/kubeconfig/upload", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${getAuthToken()}`
-      },
-      body: formData
-    });
-
-    clearInterval(progressInterval);
-    setUploadProgress(100);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Upload failed: ${response.status} ${response.statusText} - ${errorText}`);
-    }
-
-    const data = await response.json();
-    console.log("Upload successful:", data);
-
-    await fetchKubeconfigList();
-    await fetchClusters();
-
-    resetModalState();
-    onAddClusterModalClose();
-
-  } catch (err: any) {
-    console.error("Upload error:", err);
-    setError(err.message || 'Upload failed');
-  } finally {
-    setIsUploading(false);
-    setTimeout(() => setUploadProgress(0), 1000);
-  }
-};
+  };
 
 
 
@@ -408,7 +409,7 @@ const uploadKubeconfig = async () => {
   const handleOnboardingSubmit = async () => {
     setIsOnboardingLoading(true);
     setError(null);
-  
+
     try {
       // Generate kubeconfig YAML from the provided credentials
       const kubeconfigYaml = `apiVersion: v1
@@ -428,14 +429,14 @@ const uploadKubeconfig = async () => {
   - name: ${onboardingData.clusterName}-user
     user:
       token: ${onboardingData.bearerToken}`;
-  
+
       const formData = new FormData();
       const blob = new Blob([kubeconfigYaml], { type: 'application/x-yaml' });
       formData.append('file', blob, `${onboardingData.clusterName}-kubeconfig.yaml`);
-      
+
       // Add provider information
       formData.append('provider', onboardingData.provider);
-  
+
       const response = await fetch("/kubeconfig/upload", {
         method: "POST",
         headers: {
@@ -443,21 +444,21 @@ const uploadKubeconfig = async () => {
         },
         body: formData
       });
-  
+
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`Failed to add cluster: ${response.status} ${response.statusText} - ${errorText}`);
       }
-  
+
       const data = await response.json();
       console.log("Cluster added successfully:", data);
-  
+
       await fetchKubeconfigList();
       await fetchClusters();
-  
+
       resetModalState();
       onAddClusterModalClose();
-  
+
     } catch (err: any) {
       console.error("Add cluster error:", err);
       setError(err.message || 'Failed to add cluster');
@@ -465,17 +466,31 @@ const uploadKubeconfig = async () => {
       setIsOnboardingLoading(false);
     }
   };
-  
-
-  
 
   const renderOnboardingContent = () => {
+    // Generate dynamic script command
+    const generateDynamicScript = () => {
+      const clusterName = onboardingData.clusterName || "cluster_should_appeare_here";
+      return `curl -O http://10.0.34.169/onboard.sh && bash onboard.sh "${clusterName}" --webhook-endpoint "https://10.0.32.103:8004/remediation/webhook/incidents"`;
+    };
+  
+    const copyToClipboard = async (text: string) => {
+      try {
+        await navigator.clipboard.writeText(text);
+        // You can add a toast notification here if you have a toast system
+        console.log('Command copied to clipboard');
+      } catch (err) {
+        console.error('Failed to copy text: ', err);
+      }
+    };
+  
     return (
       <div className="space-y-6">
         <div className="text-center">
-          <p className="text-gray-600">Enter your cluster details to connect</p>
+          {/* <h3 className="text-2xl font-bold text-gray-800 mb-2">Add Cluster with Credentials</h3> */}
+          <p className="text-gray-600 dark:text-gray-400">Enter your cluster details to connect</p>
         </div>
-
+        
         <div className="space-y-4">
           <Input
             label="Cluster Name"
@@ -487,10 +502,68 @@ const uploadKubeconfig = async () => {
             size="lg"
             isRequired
           />
-
+  
+          {/* Dynamic Script Generation Section - Dark Mode Fixed */}
+          <Card className="bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-950/30 dark:to-blue-950/30 border-l-4 border-indigo-500 dark:border-indigo-400">
+            <CardHeader className="pb-2">
+              <h4 className="font-semibold text-indigo-800 dark:text-indigo-200 flex items-center gap-2">
+                <Icon icon="mdi:terminal" className="text-indigo-600 dark:text-indigo-400" />
+                Auto-Generated Onboarding Script
+              </h4>
+            </CardHeader>
+            <CardBody className="pt-0">
+              <p className="text-indigo-700 dark:text-indigo-300 text-sm mb-3">
+                Run this command on your Kubernetes cluster to automatically generate the required credentials:
+              </p>
+              <div className="bg-gray-900 dark:bg-gray-950 p-4 rounded-lg relative border dark:border-gray-800">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-green-400 dark:text-green-300 text-sm font-mono">Terminal Command</span>
+                  <Button
+                    size="sm"
+                    variant="flat"
+                    color="success"
+                    onPress={() => copyToClipboard(generateDynamicScript())}
+                    startContent={<Icon icon="mdi:content-copy" />}
+                    className="text-xs bg-green-500/10 dark:bg-green-400/10 hover:bg-green-500/20 dark:hover:bg-green-400/20"
+                  >
+                    Copy
+                  </Button>
+                </div>
+                <ScrollShadow className="max-h-32">
+                  <Code 
+                    className="block text-green-400 dark:text-green-300 bg-transparent p-0 text-sm whitespace-pre-wrap break-all font-mono"
+                    style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}
+                  >
+                    {generateDynamicScript()}
+                  </Code>
+                </ScrollShadow>
+              </div>
+              <div className="mt-3 p-3 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg border dark:border-indigo-800/50">
+                <div className="flex items-start gap-2">
+                  <Icon icon="mdi:information" className="text-indigo-600 dark:text-indigo-400 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm text-indigo-700 dark:text-indigo-300">
+                    <p className="font-medium mb-1">What this script does:</p>
+                    <ul className="space-y-1 text-xs">
+                      <li>• Downloads the onboarding script from the server</li>
+                      <li>• Creates a service account for cluster: <strong className="text-indigo-800 dark:text-indigo-200">{onboardingData.clusterName || "your-cluster"}</strong></li>
+                      <li>• Generates the required bearer token and server URL</li>
+                      <li>• Sends the credentials to the webhook endpoint</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </CardBody>
+          </Card>
+  
+          <Divider className="my-4" />
+  
+          <div className="text-center">
+            <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">Or manually enter your cluster credentials below:</p>
+          </div>
+          
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium">Server URL *</label>
+              <label className="text-sm font-medium text-foreground">Server URL *</label>
               <Button
                 size="sm"
                 variant="light"
@@ -502,7 +575,7 @@ const uploadKubeconfig = async () => {
               </Button>
             </div>
             <Input
-              placeholder="e.g., https://cluster-api.example.com:6443"
+              placeholder="e.g., https://kubernetes.example.com:6443"
               value={onboardingData.serverUrl}
               onValueChange={(value) => setOnboardingData(prev => ({ ...prev, serverUrl: value }))}
               startContent={<Icon icon="lucide:server" className="text-foreground-400" />}
@@ -511,10 +584,10 @@ const uploadKubeconfig = async () => {
               isRequired
             />
           </div>
-
+          
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium">Bearer Token *</label>
+              <label className="text-sm font-medium text-foreground">Bearer Token *</label>
               <Button
                 size="sm"
                 variant="light"
@@ -538,9 +611,12 @@ const uploadKubeconfig = async () => {
             />
           </div>
         </div>
+  
+       
       </div>
     );
   };
+
 
   // Calculate stats
   const totalKubeconfigs = kubeconfigFiles.length;
@@ -580,7 +656,7 @@ const uploadKubeconfig = async () => {
 
         {/* Stats Cards with gradients */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <motion.div whileHover={{ scale: 1.02 }}>
+          <motion.div whileHover={{ scale: 1.02 }}>
             <Card className="bg-gradient-to-r from-purple-500 to-pink-600 text-white">
               <CardBody className="flex flex-row items-center gap-4">
                 <Icon icon="mdi:cloud" className="text-3xl" />
@@ -699,7 +775,7 @@ const uploadKubeconfig = async () => {
                               size="sm"
                               startContent={<Icon icon="mdi:cloud-outline" className="text-xs" />}
                             >
-                              {file.provider || 'Standard'}
+                              {file.provider_name || 'Standard'} {/* Use provider_name instead of provider */}
                             </Chip>
                           </TableCell>
                           <TableCell>
@@ -717,7 +793,7 @@ const uploadKubeconfig = async () => {
                               {file.active ? 'Active' : 'Inactive'}
                             </Chip>
                           </TableCell>
-                         
+
                           <TableCell>
                             <div className="flex items-center gap-2 justify-start">
                               <Button
@@ -771,8 +847,8 @@ const uploadKubeconfig = async () => {
         </Card>
       </motion.div>
 
-            {/* Add Cluster Modal - Dark Theme */}
-            <Modal
+      {/* Add Cluster Modal - Dark Theme */}
+      <Modal
         isOpen={isAddClusterModalOpen}
         onClose={handleModalClose}
         size="5xl"
@@ -840,38 +916,38 @@ const uploadKubeconfig = async () => {
                     </CardBody>
                   </Card>
                   {/* Provider Selection */}
-    <Card className="bg-content2 border border-divider">
-      <CardHeader>
-        <h3 className="text-lg font-semibold flex items-center gap-2">
-          <Icon icon="mdi:cloud-outline" className="text-secondary" />
-          Select Provider Type
-        </h3>
-      </CardHeader>
-      <CardBody>
-        <Select
-          label="Kubernetes Provider"
-          placeholder="Choose your cluster provider"
-          selectedKeys={[selectedProvider]}
-          onSelectionChange={(keys) => {
-            const selected = Array.from(keys)[0] as string;
-            setSelectedProvider(selected);
-          }}
-          variant="bordered"
-          size="lg"
-          startContent={<Icon icon="mdi:kubernetes" className="text-primary" />}
-          classNames={{
-            trigger: "bg-content1"
-          }}
-        >
-          {providerOptions.map((provider) => (
-            <SelectItem key={provider.key} value={provider.key}>
-              {provider.label}
-            </SelectItem>
-          ))}
-        </Select>
-        
-      </CardBody>
-    </Card>
+                  <Card className="bg-content2 border border-divider">
+                    <CardHeader>
+                      <h3 className="text-lg font-semibold flex items-center gap-2">
+                        <Icon icon="mdi:cloud-outline" className="text-secondary" />
+                        Select Provider Type
+                      </h3>
+                    </CardHeader>
+                    <CardBody>
+                      <Select
+                        label="Kubernetes Provider"
+                        placeholder="Choose your cluster provider"
+                        selectedKeys={[selectedProvider]}
+                        onSelectionChange={(keys) => {
+                          const selected = Array.from(keys)[0] as string;
+                          setSelectedProvider(selected);
+                        }}
+                        variant="bordered"
+                        size="lg"
+                        startContent={<Icon icon="mdi:kubernetes" className="text-primary" />}
+                        classNames={{
+                          trigger: "bg-content1"
+                        }}
+                      >
+                        {providerOptions.map((provider) => (
+                          <SelectItem key={provider.key} value={provider.key}>
+                            {provider.label}
+                          </SelectItem>
+                        ))}
+                      </Select>
+
+                    </CardBody>
+                  </Card>
 
 
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -1029,78 +1105,13 @@ clusters:
                   animate={{ opacity: 1, x: 0 }}
                   className="mt-6"
                 >
-                  <Card>
-                    <CardBody className="p-6">
-                      <div className="space-y-6">
-                        <div className="text-center">
-                          <p className="text-foreground-500">Enter your cluster details to connect</p>
-                        </div>
-                        
-                        <div className="space-y-4">
-                          <Input
-                            label="Cluster Name"
-                            placeholder="e.g., production-cluster"
-                            value={onboardingData.clusterName}
-                            onValueChange={(value) => setOnboardingData(prev => ({ ...prev, clusterName: value }))}
-                            startContent={<Icon icon="lucide:tag" className="text-foreground-400" />}
-                            variant="bordered"
-                            size="lg"
-                            isRequired
-                          />
-                          
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2">
-                              <label className="text-sm font-medium">Server URL *</label>
-                              <Button
-                                size="sm"
-                                variant="light"
-                                color="primary"
-                                className="text-xs h-6 min-w-0 px-2"
-                                onPress={onCommandsModalOpen}
-                              >
-                                How to get?
-                              </Button>
-                            </div>
-                            <Input
-                              placeholder="e.g., https://kubernetes.example.com:6443"
-                              value={onboardingData.serverUrl}
-                              onValueChange={(value) => setOnboardingData(prev => ({ ...prev, serverUrl: value }))}
-                              startContent={<Icon icon="lucide:server" className="text-foreground-400" />}
-                              variant="bordered"
-                              size="lg"
-                              isRequired
-                            />
-                          </div>
-                          
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2">
-                              <label className="text-sm font-medium">Bearer Token *</label>
-                              <Button
-                                size="sm"
-                                variant="light"
-                                color="primary"
-                                className="text-xs h-6 min-w-0 px-2"
-                                onPress={onCommandsModalOpen}
-                              >
-                                How to get?
-                              </Button>
-                            </div>
-                            <Textarea
-                              placeholder="Enter your bearer token here..."
-                              value={onboardingData.bearerToken}
-                              onValueChange={(value) => setOnboardingData(prev => ({ ...prev, bearerToken: value }))}
-                              minRows={4}
-                              variant="bordered"
-                              classNames={{
-                                input: "font-mono text-sm"
-                              }}
-                              isRequired
-                            />
-                          </div>
-                        </div>
-                      </div>
+                  
+                           <Card>
+              <CardBody className="p-6">
+                      {renderOnboardingContent()}
                     </CardBody>
                   </Card>
+   
                 </motion.div>
               </Tab>
             </Tabs>
@@ -1144,8 +1155,8 @@ clusters:
       </Modal>
 
 
-            {/* Cluster Details Modal - Dark Theme */}
-            <Modal
+      {/* Cluster Details Modal - Dark Theme */}
+      <Modal
         isOpen={isDetailsModalOpen}
         onClose={onDetailsModalClose}
         size="3xl"
@@ -1197,7 +1208,7 @@ clusters:
 
                 {/* Detailed Information */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  
+
 
                   <Card className="bg-content2">
                     <CardHeader className="pb-2">
@@ -1259,7 +1270,7 @@ clusters:
                       >
                         Monitor Cluster
                       </Button>
-                      
+
                     </div>
                   </CardBody>
                 </Card>
@@ -1311,8 +1322,8 @@ clusters:
       </Modal>
 
 
-            {/* Delete Confirmation Modal - Dark Mode Fixed & Simplified */}
-            <Modal
+      {/* Delete Confirmation Modal - Dark Mode Fixed & Simplified */}
+      <Modal
         isOpen={isDeleteModalOpen}
         onClose={onDeleteModalClose}
         size="2xl"
@@ -1437,8 +1448,8 @@ clusters:
       </Modal>
 
 
-                  {/* Commands Help Modal - Fixed Screen Stuck Issue */}
-                 
+      {/* Commands Help Modal - Fixed Screen Stuck Issue */}
+
       <Modal
         isOpen={isCommandsModalOpen}
         onClose={onCommandsModalClose}
@@ -1492,10 +1503,7 @@ clusters:
                         variant="flat"
                         color="success"
                         onPress={() => {
-                          const username = localStorage.getItem('username') || 'user';
-                          const clusterName = onboardingData.clusterName || 'your-cluster-name';
-                          const command = `curl -O http://10.0.34.169/onboard.sh && bash onboard.sh "${clusterName}" --webhook-endpoint "https://10.0.32.106:8004/remediation/webhook/incidents"`;
-                          navigator.clipboard.writeText(command);
+                          navigator.clipboard.writeText('echo "TOKEN: $(grep \'token:\' ~/.kube/config | awk \'{print $2}\' | tr -d \'\"\')" && echo "SERVER_URL: $(grep -A 2 \'cluster:\' ~/.kube/config | grep \'server:\' | awk \'{print $2}\' | tr -d \'\"\')"');
                         }}
                         startContent={<Icon icon="mdi:content-copy" />}
                       >
