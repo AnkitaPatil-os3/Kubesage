@@ -18,6 +18,11 @@ from app.config import settings
 from app.logger import logger
 from app.queue import publish_message
 from app.llm_service import K8sLLMService
+import httpx
+import time
+import requests
+from collections import defaultdict
+
 
 
 cluster_router = APIRouter()
@@ -1919,3 +1924,109 @@ async def execute_kubectl_command(
                 os.unlink(temp_kubeconfig_path)
             except Exception as cleanup_error:
                 logger.warning(f"Failed to cleanup temporary kubeconfig: {cleanup_error}")
+
+
+
+# ******************************** Prometheus api ********************************
+
+  
+PROMETHEUS_URL = "http://10.0.34.142:9090"
+
+@cluster_router.get("/metrics/resource-usage")
+async def get_user_cluster_resource_usage(
+    username: str = Query(...),
+    metric: str = Query(..., enum=["cpu", "memory"]),
+    namespace: str = Query("default"),
+    duration: int = Query(3600),
+    step: int = Query(300),
+):
+    end = int(time.time())
+    start = end - duration
+
+    # Build PromQL query
+    if metric == "cpu":
+        promql = f'rate(container_cpu_usage_seconds_total{{username="{username}", namespace="{namespace}", container!=""}}[5m])'
+    elif metric == "memory":
+        promql = f'kube_pod_container_resource_limits{{username="{username}", container!="", resource="{metric}"}}'
+        # promql = f'container_memory_usage_bytes{{username="{username}", namespace="{namespace}", container!=""}}'
+        # kube_pod_container_resource_limits{{username="{username}", container!="", resource="{metric}"}}
+
+    params = {
+        "query": promql,
+        "start": start,
+        "end": end,
+        "step": step
+    }
+
+    async with httpx.AsyncClient() as client:
+        r = await client.get(f"{PROMETHEUS_URL}/api/v1/query_range", params=params)
+        r.raise_for_status()
+        data = r.json()
+
+    # Group values by timestamp across all clusters
+    aggregated_usage = defaultdict(list)
+
+    for series in data["data"]["result"]:
+        for ts, val in series["values"]:
+            try:
+                aggregated_usage[int(ts)].append(float(val))
+            except ValueError:
+                continue
+
+    # Aggregate and average across clusters per timestamp
+    result = []
+    for ts in sorted(aggregated_usage.keys()):
+        usage_values = aggregated_usage[ts]
+        average_usage = sum(usage_values) / len(usage_values) if usage_values else 0
+        result.append({
+            "time": time.strftime('%H:%M', time.localtime(ts)),
+            "usage": average_usage
+        })
+
+    return {"data": result}
+
+
+def get_nodes_status_all_clusters():
+    query = 'kube_node_status_condition{condition="Ready"}'
+    response = requests.get(f"{PROMETHEUS_URL}/api/v1/query", params={"query": query})
+    result = response.json().get("data", {}).get("result", [])
+
+    cluster_status = {}
+    total_ready = 0
+    total_not_ready = 0
+
+    for item in result:
+        metric = item.get("metric", {})
+        cluster = metric.get("cluster", "unknown")
+        status = metric.get("status")
+
+        if cluster not in cluster_status:
+            cluster_status[cluster] = {
+                "ready": 0,
+                "not_ready": 0
+            }
+
+        if status == "true":
+            cluster_status[cluster]["ready"] += 1
+            total_ready += 1
+        elif status == "false":
+            cluster_status[cluster]["not_ready"] += 1
+            total_not_ready += 1
+
+    for cluster in cluster_status:
+        stats = cluster_status[cluster]
+        stats["total"] = stats["ready"] + stats["not_ready"]
+
+    return {
+        "clusters": cluster_status,
+        "totals": {
+            "ready": total_ready,
+            "not_ready": total_not_ready,
+            "total": total_ready + total_not_ready
+        }
+    }
+
+@cluster_router.get("/nodes/status/all-clusters")
+def all_clusters_node_health():
+    data = get_nodes_status_all_clusters()
+    return JSONResponse(content=data)

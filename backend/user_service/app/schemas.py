@@ -58,6 +58,8 @@ class ChangePasswordRequest(BaseModel):
         return data
 
 
+
+
 # API Key Schemas
 class ApiKeyCreate(BaseModel):
     key_name: str = Field(..., min_length=1, max_length=100)

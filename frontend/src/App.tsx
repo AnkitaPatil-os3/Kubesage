@@ -40,6 +40,7 @@ export default function App() {
       localStorage.setItem('isAuthenticated', 'true');
       // If you have user data, store it as well
       localStorage.setItem('userEmail', email);
+      localStorage.setItem('username', email);
       return true;
     }
     return false;
@@ -50,6 +51,7 @@ export default function App() {
     // Clear authentication data from localStorage
     localStorage.removeItem('isAuthenticated');
     localStorage.removeItem('userEmail');
+    localStorage.removeItem('username');
     localStorage.removeItem('access_token'); // Clear any existing tokens
   };
   
