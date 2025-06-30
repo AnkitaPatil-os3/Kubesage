@@ -22,7 +22,9 @@ import httpx
 import time
 import requests
 from collections import defaultdict
-
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 
 
 cluster_router = APIRouter()
@@ -1982,8 +1984,6 @@ def analyze_pod_with_events(api, namespace=None):
 
 # **************************** llm analyze solution ****************************
 
-import asyncio
-from functools import partial
 async def run_k8s_analysis_async(cluster, resource_types: List[str], namespace: str, user_id: str) -> List[Dict]:
     """Run Kubernetes analysis in background thread with better error handling"""
     
@@ -2302,7 +2302,11 @@ async def analyze_k8s_with_solutions(
         raise HTTPException(status_code=500, detail=f"Error analyzing Kubernetes resources with solutions: {str(e)}")
 
 
-#api 5 - execute kubectl command directly
+
+# Create a thread pool executor for kubectl commands
+kubectl_executor = ThreadPoolExecutor(max_workers=50, thread_name_prefix="kubectl-")
+
+
 @cluster_router.post("/execute-kubectl-direct/{cluster_id}",
                        summary="Execute Kubectl Command Directly", 
                        description="Execute kubectl command using cluster credentials directly")
@@ -2314,13 +2318,7 @@ async def execute_kubectl_command_direct(
 ):
     """
     Execute kubectl command using cluster credentials directly without temporary kubeconfig.
-    
-    Parameters:
-        cluster_id: The ID of the cluster to execute command on
-        command_data: Dictionary containing the command to execute
-    
-    Returns:
-        JSONResponse: Command execution results
+    Optimized for high concurrency (100-150+ users).
     """
     # Get specified cluster
     cluster = session.exec(
@@ -2340,83 +2338,12 @@ async def execute_kubectl_command_direct(
     if not command:
         raise HTTPException(status_code=400, detail="Command is required")
 
+    # Run kubectl command in background thread to avoid blocking
     try:
-        import subprocess
+        result_data = await run_kubectl_command_async(cluster, command, current_user)
+        return JSONResponse(content=result_data, status_code=200)
         
-        # Prepare environment variables for kubectl
-        env = dict(os.environ)
-        
-        # Add cluster credentials to command if it's a kubectl command
-        if command.strip().startswith("kubectl"):
-            # Add server and token directly to kubectl command
-            if "--server" not in command:
-                command += f" --server={cluster.server_url}"
-            if "--token" not in command:
-                command += f" --token={cluster.token}"
-            if not cluster.use_secure_tls and "--insecure-skip-tls-verify" not in command:
-                command += " --insecure-skip-tls-verify=true"
-
-        logger.info(f"Executing command on cluster {cluster.cluster_name}: {command}")
-
-        # Execute command
-        result = subprocess.run(
-            command,
-            shell=True,
-            capture_output=True,
-            text=True,
-            timeout=300,
-            env=env
-        )
-        
-        # Process results
-        success = result.returncode == 0
-        output = result.stdout.strip() if result.stdout else ""
-        error = result.stderr.strip() if result.stderr else None
-        
-        if not output and error and success:
-            output = error
-            error = None
-        
-        if not output and not error:
-            if success:
-                output = "Command executed successfully (no output)"
-            else:
-                output = "Command failed"
-                error = "No error details available"
-        
-        # Publish command execution event
-        try:
-            publish_message("cluster_events", {
-                "event_type": "kubectl_command_executed",
-                "cluster_id": cluster.id,
-                "user_id": current_user["id"],
-                "username": current_user.get("username", "unknown"),
-                "cluster_name": cluster.cluster_name,
-                "command": command,
-                "success": success,
-                "return_code": result.returncode,
-                "timestamp": datetime.datetime.now().isoformat()
-            })
-        except Exception as queue_error:
-            logger.warning(f"Failed to publish command execution event: {str(queue_error)}")
-        
-        return JSONResponse(content={
-            "success": success,
-            "output": output,
-            "error": error,
-            "command": command,
-            "return_code": result.returncode,
-            "cluster_info": {
-                "cluster_id": cluster.id,
-                "cluster_name": cluster.cluster_name,
-                "server_url": cluster.server_url,
-                "provider_name": cluster.provider_name
-            },
-            "executed_at": datetime.datetime.now().isoformat(),
-            "execution_method": "direct"
-        }, status_code=200)
-        
-    except subprocess.TimeoutExpired:
+    except asyncio.TimeoutError:
         return JSONResponse(content={
             "success": False,
             "output": "",
@@ -2445,12 +2372,129 @@ async def execute_kubectl_command_direct(
                 "cluster_name": cluster.cluster_name,
                 "server_url": cluster.server_url,
                 "provider_name": cluster.provider_name
-            } if cluster else None,
+            },
             "executed_at": datetime.datetime.now().isoformat(),
             "execution_method": "direct"
         }, status_code=200)
 
 
+async def run_kubectl_command_async(cluster, command: str, current_user: dict) -> dict:
+    """
+    Run kubectl command asynchronously in a thread pool to handle high concurrency.
+    """
+    def _execute_kubectl_sync():
+        """Synchronous kubectl execution - runs in thread pool"""
+        import subprocess
+        
+        # Prepare environment variables for kubectl
+        env = dict(os.environ)
+        
+        # Add cluster credentials to command if it's a kubectl command
+        if command.strip().startswith("kubectl"):
+            cmd_with_auth = command
+            # Add server and token directly to kubectl command
+            if "--server" not in command:
+                cmd_with_auth += f" --server={cluster.server_url}"
+            if "--token" not in command:
+                cmd_with_auth += f" --token={cluster.token}"
+            if not cluster.use_secure_tls and "--insecure-skip-tls-verify" not in command:
+                cmd_with_auth += " --insecure-skip-tls-verify=true"
+        else:
+            cmd_with_auth = command
+
+        logger.info(f"Executing command on cluster {cluster.cluster_name}: {command}")
+
+        # Execute command with timeout
+        result = subprocess.run(
+            cmd_with_auth,
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=300,
+            env=env
+        )
+        
+        return result
+
+    # Run in thread pool with timeout
+    try:
+        result = await asyncio.wait_for(
+            asyncio.get_event_loop().run_in_executor(
+                kubectl_executor, 
+                _execute_kubectl_sync
+            ),
+            timeout=300
+        )
+        
+        # Process results
+        success = result.returncode == 0
+        output = result.stdout.strip() if result.stdout else ""
+        error = result.stderr.strip() if result.stderr else None
+        
+        if not output and error and success:
+            output = error
+            error = None
+        
+        if not output and not error:
+            if success:
+                output = "Command executed successfully (no output)"
+            else:
+                output = "Command failed"
+                error = "No error details available"
+        
+        # Publish command execution event asynchronously (non-blocking)
+        asyncio.create_task(publish_command_event_async(
+            cluster, current_user, command, success, result.returncode
+        ))
+        
+        return {
+            "success": success,
+            "output": output,
+            "error": error,
+            "command": command,
+            "return_code": result.returncode,
+            "cluster_info": {
+                "cluster_id": cluster.id,
+                "cluster_name": cluster.cluster_name,
+                "server_url": cluster.server_url,
+                "provider_name": cluster.provider_name
+            },
+            "executed_at": datetime.datetime.now().isoformat(),
+            "execution_method": "direct"
+        }
+        
+    except subprocess.TimeoutExpired:
+        raise asyncio.TimeoutError("Command execution timed out")
+
+
+async def publish_command_event_async(cluster, current_user: dict, command: str, success: bool, return_code: int):
+    """
+    Publish command execution event asynchronously without blocking the response.
+    """
+    try:
+        # Run in background thread to avoid blocking
+        await asyncio.get_event_loop().run_in_executor(
+            None,
+            partial(
+                publish_message,
+                "cluster_events",
+                {
+                    "event_type": "kubectl_command_executed",
+                    "cluster_id": cluster.id,
+                    "user_id": current_user["id"],
+                    "username": current_user.get("username", "unknown"),
+                    "cluster_name": cluster.cluster_name,
+                    "command": command,
+                    "success": success,
+                    "return_code": return_code,
+                    "timestamp": datetime.datetime.now().isoformat()
+                }
+            )
+        )
+    except Exception as queue_error:
+        logger.warning(f"Failed to publish command execution event: {str(queue_error)}")
+
+
 # ******************************** Prometheus api ********************************
 
   
@@ -2556,112 +2600,4 @@ def all_clusters_node_health():
     return JSONResponse(content=data)
 
 
-# ******************************** Prometheus api ********************************
 
-import httpx
-import time
-import requests
-from collections import defaultdict
-
-
-  
-PROMETHEUS_URL = "http://10.0.34.142:9090"
-
-@cluster_router.get("/metrics/resource-usage")
-async def get_user_cluster_resource_usage(
-    username: str = Query(...),
-    metric: str = Query(..., enum=["cpu", "memory"]),
-    namespace: str = Query("default"),
-    duration: int = Query(3600),
-    step: int = Query(300),
-):
-    end = int(time.time())
-    start = end - duration
-
-    # Build PromQL query
-    if metric == "cpu":
-        promql = f'rate(container_cpu_usage_seconds_total{{username="{username}", namespace="{namespace}", container!=""}}[5m])'
-    elif metric == "memory":
-        promql = f'kube_pod_container_resource_limits{{username="{username}", container!="", resource="{metric}"}}'
-        # promql = f'container_memory_usage_bytes{{username="{username}", namespace="{namespace}", container!=""}}'
-        # kube_pod_container_resource_limits{{username="{username}", container!="", resource="{metric}"}}
-
-    params = {
-        "query": promql,
-        "start": start,
-        "end": end,
-        "step": step
-    }
-
-    async with httpx.AsyncClient() as client:
-        r = await client.get(f"{PROMETHEUS_URL}/api/v1/query_range", params=params)
-        r.raise_for_status()
-        data = r.json()
-
-    # Group values by timestamp across all clusters
-    aggregated_usage = defaultdict(list)
-
-    for series in data["data"]["result"]:
-        for ts, val in series["values"]:
-            try:
-                aggregated_usage[int(ts)].append(float(val))
-            except ValueError:
-                continue
-
-    # Aggregate and average across clusters per timestamp
-    result = []
-    for ts in sorted(aggregated_usage.keys()):
-        usage_values = aggregated_usage[ts]
-        average_usage = sum(usage_values) / len(usage_values) if usage_values else 0
-        result.append({
-            "time": time.strftime('%H:%M', time.localtime(ts)),
-            "usage": average_usage
-        })
-
-    return {"data": result}
-
-
-def get_nodes_status_all_clusters():
-    query = 'kube_node_status_condition{condition="Ready"}'
-    response = requests.get(f"{PROMETHEUS_URL}/api/v1/query", params={"query": query})
-    result = response.json().get("data", {}).get("result", [])
-
-    cluster_status = {}
-    total_ready = 0
-    total_not_ready = 0
-
-    for item in result:
-        metric = item.get("metric", {})
-        cluster = metric.get("cluster", "unknown")
-        status = metric.get("status")
-
-        if cluster not in cluster_status:
-            cluster_status[cluster] = {
-                "ready": 0,
-                "not_ready": 0
-            }
-
-        if status == "true":
-            cluster_status[cluster]["ready"] += 1
-            total_ready += 1
-        elif status == "false":
-            cluster_status[cluster]["not_ready"] += 1
-            total_not_ready += 1
-
-    for cluster in cluster_status:
-        stats = cluster_status[cluster]
-        stats["total"] = stats["ready"] + stats["not_ready"]
-
-    return {
-        "clusters": cluster_status,
-        "totals": {
-            "ready": total_ready,
-            "not_ready": total_not_ready,
-            "total": total_ready + total_not_ready
-        }
-    }
-
-@cluster_router.get("/nodes/status/all-clusters")
-def all_clusters_node_health():
-    data = get_nodes_status_all_clusters()
-    return JSONResponse(content=data)
