@@ -1,9 +1,9 @@
 from sqlmodel import SQLModel, Field
 from typing import Optional
 import datetime
-
+ 
 class ClusterConfig(SQLModel, table=True):
-    """Unified model for cluster configuration - combines kubeconfig and cluster onboarding"""
+    """Unified model for cluster configuration - without active concept"""
     id: Optional[int] = Field(default=None, primary_key=True)
     cluster_name: str = Field(index=True)
     server_url: str = Field()
@@ -20,9 +20,11 @@ class ClusterConfig(SQLModel, table=True):
     
     # User and status fields
     user_id: int = Field(index=True)
-    active: bool = Field(default=False, index=True)
+    # REMOVED: active field completely
     is_operator_installed: bool = Field(default=False, index=True)
     
     # Timestamps
     created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
     updated_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
+ 
+ 
