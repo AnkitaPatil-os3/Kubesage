@@ -61,7 +61,7 @@ class KubectlExecutor(BaseExecutor):
                     "command": command
                 }
             
-            # CHANGE: Handle compound commands with && operator
+            # CHANGE: Handle compound commands with && operator and jq safety
             if '&&' in command:
                 # Split commands by && and execute them sequentially
                 commands = [cmd.strip() for cmd in command.split('&&')]
@@ -78,19 +78,42 @@ class KubectlExecutor(BaseExecutor):
                         if any(subcmd in cmd for subcmd in ['get', 'describe', 'logs', 'delete', 'create', 'apply']):
                             cmd += f" -n {self.namespace}"
                     
+                    # Handle jq commands with safety
+                    if 'jq' in cmd:
+                        cmd = self._make_jq_safe(cmd)
+                    
                     logger.info(f"Executing kubectl command: {cmd}")
                     
                     # Execute individual command
                     process = await asyncio.create_subprocess_shell(
                         cmd,
                         stdout=asyncio.subprocess.PIPE,
-                        stderr=asyncio.subprocess.PIPE
+                        stderr=asyncio.subprocess.PIPE,
+                        env=dict(os.environ, LC_ALL='C', LANG='C')
                     )
                     
                     stdout, stderr = await process.communicate()
                     
-                    # If any command fails, return failure
-                    if process.returncode != 0:
+                    # Handle jq errors gracefully
+                    if process.returncode != 0 and b'jq: error' in stderr:
+                        # Try to get raw data without jq
+                        if '|' in cmd and 'jq' in cmd:
+                            raw_cmd = cmd.split('|')[0].strip()
+                            try:
+                                raw_process = await asyncio.create_subprocess_shell(
+                                    raw_cmd,
+                                    stdout=asyncio.subprocess.PIPE,
+                                    stderr=asyncio.subprocess.PIPE
+                                )
+                                raw_stdout, _ = await raw_process.communicate()
+                                if raw_process.returncode == 0:
+                                    stdout = b"Raw data (jq failed):\n" + raw_stdout
+                                    stderr = b"jq parsing failed, showing raw data"
+                            except:
+                                pass
+                    
+                    # If any command fails (except jq parsing issues), return failure
+                    if process.returncode != 0 and b'jq: error' not in stderr:
                         return {
                             "success": False,
                             "command": command,
@@ -115,7 +138,7 @@ class KubectlExecutor(BaseExecutor):
                 }
                 
             else:
-                # EXISTING LOGIC: Single command execution
+                # EXISTING LOGIC: Single command execution with jq safety
                 # Add kubeconfig if not present
                 if '--kubeconfig' not in command and self.kubeconfig_path:
                     command += f" --kubeconfig {self.kubeconfig_path}"
@@ -125,19 +148,43 @@ class KubectlExecutor(BaseExecutor):
                     if any(cmd in command for cmd in ['get', 'describe', 'logs', 'delete', 'create', 'apply']):
                         command += f" -n {self.namespace}"
                 
+                # Handle jq commands with safety
+                if 'jq' in command:
+                    command = self._make_jq_safe(command)
+                
                 logger.info(f"Executing kubectl command: {command}")
                 
                 # Execute command asynchronously
                 process = await asyncio.create_subprocess_shell(
                     command,
                     stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE
+                    stderr=asyncio.subprocess.PIPE,
+                    env=dict(os.environ, LC_ALL='C', LANG='C')
                 )
                 
                 stdout, stderr = await process.communicate()
                 
+                # Handle jq errors gracefully
+                success = process.returncode == 0
+                if not success and b'jq: error' in stderr and '|' in command and 'jq' in command:
+                    # Try to get raw data without jq
+                    raw_command = command.split('|')[0].strip()
+                    try:
+                        raw_process = await asyncio.create_subprocess_shell(
+                            raw_command,
+                            stdout=asyncio.subprocess.PIPE,
+                            stderr=asyncio.subprocess.PIPE
+                        )
+                        raw_stdout, _ = await raw_process.communicate()
+                        if raw_process.returncode == 0:
+                            stdout = b"Raw data (jq parsing failed):\n" + raw_stdout
+                            stderr = b"jq parsing failed, showing raw data instead"
+                            success = True  # Consider it successful since we got raw data
+                    except:
+                        pass
+                
                 result = {
-                    "success": process.returncode == 0,
+                    "success": success,
                     "command": command,
                     "return_code": process.returncode,
                     "stdout": stdout.decode('utf-8') if stdout else "",
@@ -161,6 +208,20 @@ class KubectlExecutor(BaseExecutor):
                 "error": str(e),
                 "command": command
             }
+
+    def _make_jq_safe(self, command: str) -> str:
+        """Make jq commands safer by adding error handling"""
+        if '|' in command and 'jq' in command:
+            parts = command.rsplit('|', 1)
+            if len(parts) == 2:
+                base_cmd = parts[0].strip()
+                jq_part = parts[1].strip()
+                
+                # Add error handling to jq
+                safe_jq = f"({jq_part} 2>/dev/null || echo '{{\"error\": \"jq parsing failed\"}}')"
+                return f"{base_cmd} | {safe_jq}"
+        
+        return command
 
 
 

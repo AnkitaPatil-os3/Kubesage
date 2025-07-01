@@ -6,17 +6,20 @@ from Trivy Operator using the Kubernetes Python client.
 """
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes import router
-from app.config import settings
+from app.routes import router, policy_router
+from app.database import create_tables
 from app.logger import logger
+from app.config import settings
+import uvicorn
+from fastapi.responses import JSONResponse
 from datetime import datetime
 
-# Initialize FastAPI app
+
+# Create FastAPI app
 app = FastAPI(
     title="Kubernetes Security Service API",
-    description="API for retrieving and filtering vulnerability reports from Trivy Operator",
+    description="API for Kubernetes security monitoring and policy management",
     version=settings.SERVICE_VERSION,
     docs_url="/docs",
     redoc_url="/redoc"
@@ -25,23 +28,24 @@ app = FastAPI(
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure this properly for production
+    allow_origins=["*"],  # Configure appropriately for production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Include routes
-app.include_router(router, prefix="/api/v1/security")
+# Include routers
+app.include_router(router, prefix="/api/v1")
+app.include_router(policy_router, prefix="/api/v1")
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize service on startup"""
+    """Initialize database on startup"""
     try:
-        logger.info(f"{settings.SERVICE_NAME} v{settings.SERVICE_VERSION} starting up...")
-        logger.info("Security Service started successfully")
+        create_tables()  # This will create the new policy_applications table
+        logger.info("Application started successfully")
     except Exception as e:
-        logger.error(f"Failed to initialize Security Service: {e}")
+        logger.error(f"Failed to start application: {e}")
         raise
 
 @app.on_event("shutdown")
@@ -80,10 +84,23 @@ async def general_exception_handler(request, exc):
 async def root():
     """Root endpoint"""
     return {
-        "service": settings.SERVICE_NAME,
+        "message": "Kubernetes Security Service API",
         "version": settings.SERVICE_VERSION,
-        "status": "running",
-        "docs": "/docs",
-        "api": "/api/v1/security",
-        "timestamp": datetime.now().isoformat()
+        "service": settings.SERVICE_NAME,
+        "endpoints": {
+            "/api/v1/": "Security monitoring endpoints",
+            "/api/v1/policies/": "Policy management endpoints",
+            "/api/v1/policies/apply": "Apply policies to clusters",
+            "/api/v1/policies/applications": "Manage policy applications",
+            "/docs": "API documentation",
+            "/health": "Health check"
+        }
     }
+
+if __name__ == "__main__":
+    uvicorn.run(
+        "app.main:app",
+        host="0.0.0.0",
+        port=8005,
+        reload=settings.DEBUG
+    )

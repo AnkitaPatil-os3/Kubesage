@@ -7,6 +7,7 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime
 from openai import OpenAI
 from app.config import settings
+import re  # Add this import
 
 logger = logging.getLogger(__name__)
 
@@ -80,15 +81,59 @@ class K8sLLMService:
             if not response_content:
                 raise ValueError("Empty response content from OpenAI API")
             
-            # Clean response content to remove invalid characters
-            response_content = self._clean_json_response(response_content)
-            
-            # Parse the response
+            # ENHANCED: Better JSON cleaning and parsing with multiple attempts
             try:
+                # First attempt: Direct parsing
                 solution_data = json.loads(response_content)
-            except json.JSONDecodeError as e:
-                logger.error(f"Failed to parse JSON response for user {user_id}: {response_content}")
-                raise ValueError(f"Invalid JSON response from OpenAI: {str(e)}")
+            except json.JSONDecodeError as first_error:
+                logger.warning(f"First JSON parse failed for user {user_id}: {str(first_error)}")
+                
+                try:
+                    # Second attempt: Clean and parse
+                    cleaned_content = self._clean_json_response(response_content)
+                    solution_data = json.loads(cleaned_content)
+                    logger.info(f"JSON parsing succeeded after cleaning for user {user_id}")
+                except json.JSONDecodeError as second_error:
+                    logger.warning(f"Second JSON parse failed for user {user_id}: {str(second_error)}")
+                    
+                    try:
+                        # Third attempt: More aggressive cleaning
+                        # Remove all problematic escape sequences
+                        ultra_cleaned = response_content
+                        ultra_cleaned = re.sub(r'\\+', '\\\\', ultra_cleaned)  # Fix multiple backslashes
+                        ultra_cleaned = re.sub(r'\\(?!["\\/bfnrt])', '\\\\\\\\', ultra_cleaned)  # Escape invalid escapes
+                        ultra_cleaned = ultra_cleaned.replace('\\"', '"')  # Remove over-escaping
+                        
+                        # Try to extract just the JSON part
+                        json_match = re.search(r'\{.*\}', ultra_cleaned, re.DOTALL)
+                        if json_match:
+                            ultra_cleaned = json_match.group(0)
+                        
+                        solution_data = json.loads(ultra_cleaned)
+                        logger.info(f"JSON parsing succeeded after ultra cleaning for user {user_id}")
+                        
+                    except json.JSONDecodeError as third_error:
+                        logger.error(f"All JSON parsing attempts failed for user {user_id}")
+                        logger.error(f"Original response (first 500 chars): {response_content[:500]}")
+                        logger.error(f"Final error: {str(third_error)}")
+                        
+                        # Last resort: Create a basic solution structure
+                        solution_data = {
+                            "solution_summary": "JSON parsing failed - manual investigation required",
+                            "detailed_solution": f"The AI response could not be parsed. Original error: {error_text}",
+                            "remediation_steps": [
+                                {
+                                    "step_id": 1,
+                                    "action_type": "MANUAL_CHECK",
+                                    "description": "Investigate the issue manually due to parsing error",
+                                    "command": f"kubectl describe {kind.lower()} {name}" + (f" -n {namespace}" if namespace else ""),
+                                    "expected_outcome": "Get detailed information about the resource"
+                                }
+                            ],
+                            "confidence_score": 0.1,
+                            "estimated_time_mins": 30,
+                            "additional_notes": f"AI response parsing failed: {str(third_error)}"
+                        }
             
             # Validate and structure the response
             logger.info(f"Solution generated successfully for user {user_id}")
@@ -156,19 +201,21 @@ class K8sLLMService:
             }
     
     def _get_system_prompt(self) -> str:
-        """Get the system prompt for the LLM"""
+        """Get the system prompt for the LLM - Updated to reduce escape sequence issues"""
         return """You are a Kubernetes expert. Analyze problems and provide JSON solutions.
+
+IMPORTANT: Use simple text without special escape sequences. Avoid backslashes in commands when possible.
 
 Response format:
 {
     "solution_summary": "Brief solution summary",
-    "detailed_solution": "Detailed explanation",
+    "detailed_solution": "Detailed explanation without special characters",
     "remediation_steps": [
         {
             "step_id": 1,
             "action_type": "KUBECTL_GET_LOGS|KUBECTL_APPLY|KUBECTL_DELETE|MANUAL_CHECK",
             "description": "Step description",
-            "command": "kubectl command",
+            "command": "kubectl command without complex escaping",
             "expected_outcome": "Expected result"
         }
     ],
@@ -177,7 +224,7 @@ Response format:
     "additional_notes": "Additional info"
 }
 
-Keep responses concise and focused. Use only valid JSON characters."""
+Keep responses simple and avoid complex escape sequences. Use forward slashes instead of backslashes where possible."""
 
     def _build_user_prompt(
         self,
@@ -232,7 +279,7 @@ Keep responses concise and focused. Use only valid JSON characters."""
         return solution_data
 
     def _clean_json_response(self, response_content: str) -> str:
-        """Clean JSON response to remove invalid control characters"""
+        """Clean JSON response to remove invalid control characters and fix escape sequences"""
         import re
         
         # Remove invalid control characters that break JSON parsing
@@ -242,6 +289,19 @@ Keep responses concise and focused. Use only valid JSON characters."""
         response_content = response_content.replace('\n', ' ')
         response_content = response_content.replace('\t', ' ')
         response_content = re.sub(r'\s+', ' ', response_content)  # Multiple spaces to single
+        
+        # FIX ESCAPE SEQUENCES - This is the main fix
+        # Fix invalid escape sequences that commonly cause issues
+        response_content = re.sub(r'\\(?!["\\/bfnrt]|u[0-9a-fA-F]{4})', r'\\\\', response_content)
+        
+        # Fix specific problematic patterns
+        response_content = response_content.replace('\\"', '"')  # Fix over-escaped quotes
+        response_content = response_content.replace('\\n', '\\\\n')  # Fix newline escapes
+        response_content = response_content.replace('\\t', '\\\\t')  # Fix tab escapes
+        response_content = response_content.replace('\\r', '\\\\r')  # Fix carriage return escapes
+        
+        # Fix kubectl command paths and other common issues
+        response_content = re.sub(r'\\([a-zA-Z])', r'\\\\\\1', response_content)  # Fix \command patterns
         
         # Ensure proper JSON structure
         if not response_content.startswith('{'):
@@ -255,3 +315,22 @@ Keep responses concise and focused. Use only valid JSON characters."""
                 response_content = response_content[:end_idx + 1]
         
         return response_content
+
+    # Add this method to help debug JSON issues
+    def _log_json_debug_info(self, response_content: str, error: Exception, user_id: str):
+        """Log detailed information about JSON parsing failures"""
+        logger.error(f"JSON Debug Info for user {user_id}:")
+        logger.error(f"Response length: {len(response_content)}")
+        logger.error(f"Error position: {getattr(error, 'pos', 'unknown')}")
+        logger.error(f"Error message: {str(error)}")
+        
+        # Log problematic area around the error
+        if hasattr(error, 'pos') and isinstance(error.pos, int):
+            start = max(0, error.pos - 50)
+            end = min(len(response_content), error.pos + 50)
+            problematic_area = response_content[start:end]
+            logger.error(f"Problematic area: ...{problematic_area}...")
+        
+        # Log first and last 200 characters
+        logger.error(f"Response start: {response_content[:200]}")
+        logger.error(f"Response end: {response_content[-200:]}")

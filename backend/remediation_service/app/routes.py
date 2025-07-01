@@ -827,44 +827,65 @@ async def execute_remediation_steps(
                 # Handle jq commands with proper shell escaping
                 command = cmd_info["command"]
                 
-                # Better jq command handling
+                # Better jq command handling with error protection
                 if 'jq' in command:
-                    # Common jq fixes
-                    fixes = [
-                        ('+ .', '+ "." + '),
-                        ('"kubectl logs ". + .metadata.name + " -n', '"kubectl logs " + .metadata.name + " -n'),
-                        ('". + .', '" + .'),
-                        ('+ " -n', '" + " -n')
-                    ]
-                    
-                    for old, new in fixes:
-                        command = command.replace(old, new)
-                    
-                    # Ensure proper quoting for jq expressions
-                    if not command.count("'") % 2 == 0:
-                        # Fix unmatched quotes
-                        parts = command.split("jq")
-                        if len(parts) > 1:
+                    # Wrap jq commands with error handling
+                    if '|' in command and 'jq' in command.split('|')[-1]:
+                        # Split the command at the last pipe to jq
+                        parts = command.rsplit('|', 1)
+                        if len(parts) == 2:
+                            base_cmd = parts[0].strip()
                             jq_part = parts[1].strip()
-                            if jq_part.startswith("'") and not jq_part.endswith("'"):
-                                command = command + "'"
+                            
+                            # Create safe jq command with error handling
+                            safe_jq = f"({jq_part} 2>/dev/null || echo '{{\"error\": \"jq parsing failed\"}}')"
+                            command = f"{base_cmd} | {safe_jq}"
+                    
+                    # Additional jq safety measures
+                    command = command.replace('jq .', 'jq . 2>/dev/null || echo "{\\"error\\": \\"invalid json\\"}"')
+                    command = command.replace('jq \'', 'jq -r \'')  # Use raw output when possible
                 
+                # Execute with better error handling
                 result = subprocess.run(
-                    command,  # Execute as shell command
-                    shell=True,  # Enable shell features like pipes, grep, jq, &&
+                    command,
+                    shell=True,
                     capture_output=True,
                     text=True,
                     timeout=300,
-                    env=dict(os.environ, LC_ALL='C')  # Set proper locale for jq
+                    env=dict(os.environ, LC_ALL='C', LANG='C')  # Set proper locale
                 )
+                
+                # Check if jq failed and provide meaningful output
+                output = result.stdout
+                error = result.stderr
+                
+                # If jq failed, try to provide the raw data
+                if 'jq: error' in error or 'jq: parse error' in error:
+                    # Try to get the raw output without jq
+                    if '|' in cmd_info["command"] and 'jq' in cmd_info["command"]:
+                        raw_command = cmd_info["command"].split('|')[0].strip()
+                        try:
+                            raw_result = subprocess.run(
+                                raw_command,
+                                shell=True,
+                                capture_output=True,
+                                text=True,
+                                timeout=60,
+                                env=dict(os.environ, LC_ALL='C')
+                            )
+                            if raw_result.returncode == 0:
+                                output = f"Raw data (jq parsing failed):\n{raw_result.stdout}"
+                                error = f"jq parsing failed, showing raw data instead. Original error: {error}"
+                        except:
+                            pass
                 
                 execution_results.append({
                     "step_id": cmd_info["step_id"],
                     "command": cmd_info["command"],
                     "description": cmd_info["description"],
-                    "success": result.returncode == 0,
-                    "output": result.stdout,
-                    "error": result.stderr,
+                    "success": result.returncode == 0 or (result.returncode != 0 and 'jq: error' in error and output),
+                    "output": output,
+                    "error": error if result.returncode != 0 and 'jq: error' not in error else None,
                     "return_code": result.returncode
                 })
                 
