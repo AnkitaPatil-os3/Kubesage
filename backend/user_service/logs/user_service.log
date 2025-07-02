@@ -1,0 +1,1572 @@
+2025-06-25 07:56:41,902 - user_service - INFO - RabbitMQ connection established
+2025-06-25 07:56:43,871 - user_service - INFO - RabbitMQ connection established
+2025-06-25 07:57:47,327 - user_service - INFO - RabbitMQ connection established
+2025-06-25 07:59:12,745 - user_service - INFO - RabbitMQ connection established
+2025-06-25 07:59:36,952 - user_service - INFO - RabbitMQ connection established
+2025-06-25 07:59:37,121 - user_service - INFO - Creating database and tables if they don't exist
+2025-06-25 08:00:03,135 - user_service - INFO - RabbitMQ connection established
+2025-06-25 08:00:03,320 - user_service - INFO - Creating database and tables if they don't exist
+2025-06-25 08:00:03,339 - user_service - INFO - Event consumers started in background
+2025-06-25 08:00:03,341 - user_service - INFO - User service started
+2025-06-25 08:00:03,341 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-25 08:00:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:01:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:01:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:02:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:02:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:03:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:03:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:04:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:04:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:05:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:05:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:06:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:06:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:07:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:07:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:08:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:08:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:09:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:09:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:10:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:10:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:11:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:11:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:12:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:12:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:13:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:13:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:14:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:14:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:15:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:15:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:16:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:16:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:17:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:17:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:18:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:18:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:19:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:19:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:20:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:20:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:21:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:21:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:22:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:22:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:23:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:23:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:24:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:24:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:25:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:25:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:26:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:26:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:27:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:27:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:28:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:28:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:29:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:29:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:30:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:30:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:31:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:31:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:32:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:32:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:33:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:33:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:34:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:34:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:35:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:35:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:36:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:36:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:37:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:37:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:38:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:38:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:39:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:39:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:40:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:40:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:41:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:41:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:42:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:42:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:43:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:43:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:44:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:44:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:45:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:45:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:46:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:46:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:47:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:47:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:48:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:48:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:49:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:49:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:50:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:50:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:51:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:51:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:52:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:52:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:53:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:53:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:54:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:54:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:55:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:55:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:56:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:56:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:57:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:57:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:58:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:58:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:59:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 08:59:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:00:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:00:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:01:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:01:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:02:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:02:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:03:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:03:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:04:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:04:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:05:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:05:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:06:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:06:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:07:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:07:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:08:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:08:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:09:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:09:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:10:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:10:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:11:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:11:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:12:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:12:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:13:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:13:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:14:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:14:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:15:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:15:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:16:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:16:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:17:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:17:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:18:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:18:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:19:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:19:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:20:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:20:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:21:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:21:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:22:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:22:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:23:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:23:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:24:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:24:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:25:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:25:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:26:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:26:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:27:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:27:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:28:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:28:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:29:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:29:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:30:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:30:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:31:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:31:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:32:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:32:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:32:40,492 - user_service - ERROR - Failed to publish message: Object of type datetime is not JSON serializable
+2025-06-25 09:32:40,799 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-25 09:32:40,799 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-25 09:32:40,806 - user_service - INFO - RabbitMQ connection established
+2025-06-25 09:32:40,807 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-25 09:33:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:33:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:34:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:34:12,957 - user_service - INFO - Confirmation email sent to nisha30603@gmail.com with ID: d06f8916-533e-4fe5-b3f0-36242482e97d
+2025-06-25 09:34:12,957 - user_service - INFO - Registration confirmation email sent for user: nisha12
+2025-06-25 09:34:33,311 - user_service - INFO - Current pending confirmations: 1
+2025-06-25 09:35:03,311 - user_service - INFO - Current pending confirmations: 1
+2025-06-25 09:35:33,311 - user_service - INFO - Current pending confirmations: 1
+2025-06-25 09:35:56,329 - user_service - INFO - Received confirmation response: yes for ID: d06f8916-533e-4fe5-b3f0-36242482e97d
+2025-06-25 09:35:56,330 - user_service - INFO - Confirmation d06f8916-533e-4fe5-b3f0-36242482e97d status: pending
+2025-06-25 09:35:56,608 - user_service - INFO - User nisha12 registered successfully after confirmation
+2025-06-25 09:35:56,609 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-25 09:35:56,609 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-25 09:35:56,609 - user_service - INFO - Published user_created event for user nisha12
+2025-06-25 09:35:56,609 - user_service - INFO - Confirmation d06f8916-533e-4fe5-b3f0-36242482e97d status updated from pending to confirmed
+2025-06-25 09:35:56,613 - user_service - INFO - RabbitMQ connection established
+2025-06-25 09:35:56,615 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-25 09:36:03,311 - user_service - INFO - Current pending confirmations: 1
+2025-06-25 09:36:03,311 - user_service - INFO - Removing confirmation d06f8916-533e-4fe5-b3f0-36242482e97d with status confirmed during cleanup
+2025-06-25 09:36:03,311 - user_service - INFO - Cleaned up 1 expired confirmations
+2025-06-25 09:36:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:37:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:37:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:38:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:38:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:39:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:39:22,793 - user_service - INFO - Confirmation email sent to nisha.chaurasiya@os3infotech.com with ID: 88986f83-a224-4f4a-9db7-d28f519e1986
+2025-06-25 09:39:22,793 - user_service - INFO - Registration confirmation email sent for user: nisha123
+2025-06-25 09:39:33,311 - user_service - INFO - Current pending confirmations: 1
+2025-06-25 09:39:55,907 - user_service - INFO - Received confirmation response: yes for ID: 88986f83-a224-4f4a-9db7-d28f519e1986
+2025-06-25 09:39:55,907 - user_service - INFO - Confirmation 88986f83-a224-4f4a-9db7-d28f519e1986 status: pending
+2025-06-25 09:39:56,182 - user_service - INFO - User nisha123 registered successfully after confirmation
+2025-06-25 09:39:56,620 - user_service - INFO - Published user_created event for user nisha123
+2025-06-25 09:39:56,620 - user_service - INFO - Confirmation 88986f83-a224-4f4a-9db7-d28f519e1986 status updated from pending to confirmed
+2025-06-25 09:40:03,311 - user_service - INFO - Current pending confirmations: 1
+2025-06-25 09:40:03,311 - user_service - INFO - Removing confirmation 88986f83-a224-4f4a-9db7-d28f519e1986 with status confirmed during cleanup
+2025-06-25 09:40:03,311 - user_service - INFO - Cleaned up 1 expired confirmations
+2025-06-25 09:40:33,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:41:03,311 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:41:06,786 - user_service - INFO - User service shutting down
+2025-06-25 09:41:07,467 - user_service - INFO - RabbitMQ connection established
+2025-06-25 09:41:07,637 - user_service - INFO - Creating database and tables if they don't exist
+2025-06-25 09:41:07,659 - user_service - INFO - Event consumers started in background
+2025-06-25 09:41:07,660 - user_service - INFO - User service started
+2025-06-25 09:41:07,660 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-25 09:41:11,672 - user_service - INFO - User service shutting down
+2025-06-25 09:41:12,340 - user_service - INFO - RabbitMQ connection established
+2025-06-25 09:41:12,524 - user_service - INFO - Creating database and tables if they don't exist
+2025-06-25 09:41:12,547 - user_service - INFO - Event consumers started in background
+2025-06-25 09:41:12,548 - user_service - INFO - User service started
+2025-06-25 09:41:12,549 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-25 09:41:19,967 - user_service - INFO - User service shutting down
+2025-06-25 09:41:20,651 - user_service - INFO - RabbitMQ connection established
+2025-06-25 09:41:20,824 - user_service - INFO - Creating database and tables if they don't exist
+2025-06-25 09:41:20,842 - user_service - INFO - Event consumers started in background
+2025-06-25 09:41:20,843 - user_service - INFO - User service started
+2025-06-25 09:41:20,845 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-25 09:41:23,953 - user_service - INFO - User service shutting down
+2025-06-25 09:41:24,625 - user_service - INFO - RabbitMQ connection established
+2025-06-25 09:41:24,793 - user_service - INFO - Creating database and tables if they don't exist
+2025-06-25 09:41:24,811 - user_service - INFO - Event consumers started in background
+2025-06-25 09:41:24,812 - user_service - INFO - User service started
+2025-06-25 09:41:24,813 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-25 09:41:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:42:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:42:49,442 - user_service - ERROR - Error with database session: 403: Not enough permissions
+2025-06-25 09:42:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:43:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:43:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:44:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:44:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:45:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:45:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:46:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:46:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:47:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:47:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:47:58,715 - user_service - INFO - Confirmation email sent to nisha.chaurasiya@os3infotech.com with ID: 3ff96f48-e726-4ab5-99f9-8c86df0eb5c5
+2025-06-25 09:47:58,715 - user_service - INFO - Registration confirmation email sent for user: nisha123
+2025-06-25 09:48:11,186 - user_service - INFO - Received confirmation response: yes for ID: 3ff96f48-e726-4ab5-99f9-8c86df0eb5c5
+2025-06-25 09:48:11,186 - user_service - INFO - Confirmation 3ff96f48-e726-4ab5-99f9-8c86df0eb5c5 status: pending
+2025-06-25 09:48:11,493 - user_service - INFO - User nisha123 registered successfully after confirmation
+2025-06-25 09:48:11,495 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-25 09:48:11,496 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-25 09:48:11,496 - user_service - INFO - Published user_created event for user nisha123
+2025-06-25 09:48:11,496 - user_service - INFO - Confirmation 3ff96f48-e726-4ab5-99f9-8c86df0eb5c5 status updated from pending to confirmed
+2025-06-25 09:48:11,500 - user_service - INFO - RabbitMQ connection established
+2025-06-25 09:48:11,501 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-25 09:48:24,784 - user_service - INFO - Current pending confirmations: 1
+2025-06-25 09:48:24,784 - user_service - INFO - Removing confirmation 3ff96f48-e726-4ab5-99f9-8c86df0eb5c5 with status confirmed during cleanup
+2025-06-25 09:48:24,784 - user_service - INFO - Cleaned up 1 expired confirmations
+2025-06-25 09:48:36,504 - user_service - ERROR - Error with database session: 401: Incorrect username or password
+2025-06-25 09:48:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:49:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:49:49,519 - user_service - INFO - Confirmation email sent to nisha.chaurasiya@os3infotech.com with ID: 7b154c35-6419-481f-bafa-f76328ae3e26
+2025-06-25 09:49:49,520 - user_service - INFO - Registration confirmation email sent for user: nisha123
+2025-06-25 09:49:54,784 - user_service - INFO - Current pending confirmations: 1
+2025-06-25 09:49:59,127 - user_service - INFO - Received confirmation response: yes for ID: 7b154c35-6419-481f-bafa-f76328ae3e26
+2025-06-25 09:49:59,127 - user_service - INFO - Confirmation 7b154c35-6419-481f-bafa-f76328ae3e26 status: pending
+2025-06-25 09:49:59,402 - user_service - INFO - User nisha123 registered successfully after confirmation
+2025-06-25 09:49:59,403 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-25 09:49:59,403 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-25 09:49:59,404 - user_service - INFO - Published user_created event for user nisha123
+2025-06-25 09:49:59,404 - user_service - INFO - Confirmation 7b154c35-6419-481f-bafa-f76328ae3e26 status updated from pending to confirmed
+2025-06-25 09:49:59,408 - user_service - INFO - RabbitMQ connection established
+2025-06-25 09:49:59,409 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-25 09:50:19,369 - user_service - ERROR - Failed to publish message: Object of type datetime is not JSON serializable
+2025-06-25 09:50:19,370 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-25 09:50:19,377 - user_service - INFO - RabbitMQ connection established
+2025-06-25 09:50:19,378 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-25 09:50:24,784 - user_service - INFO - Current pending confirmations: 1
+2025-06-25 09:50:24,784 - user_service - INFO - Removing confirmation 7b154c35-6419-481f-bafa-f76328ae3e26 with status confirmed during cleanup
+2025-06-25 09:50:24,785 - user_service - INFO - Cleaned up 1 expired confirmations
+2025-06-25 09:50:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:51:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:51:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:52:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:52:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:53:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:53:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:54:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:54:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:55:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:55:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:56:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:56:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:57:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:57:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:58:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:58:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:59:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 09:59:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:00:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:00:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:01:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:01:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:02:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:02:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:03:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:03:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:04:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:04:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:05:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:05:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:06:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:06:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:07:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:07:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:08:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:08:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:09:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:09:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:10:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:10:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:11:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:11:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:12:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:12:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:13:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:13:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:14:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:14:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:15:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:15:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:16:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:16:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:17:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:17:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:18:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:18:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:19:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:19:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:20:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:20:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:21:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:21:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:22:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:22:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:23:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:23:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:24:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:24:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:25:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:25:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:26:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:26:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:27:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:27:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:28:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:28:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:29:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:29:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:30:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:30:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:31:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:31:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:32:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:32:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:33:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:33:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:34:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:34:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:35:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:35:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:36:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:36:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:37:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:37:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:38:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:38:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:39:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:39:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:40:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:40:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:41:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:41:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:42:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:42:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:43:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:43:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:44:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:44:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:45:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:45:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:46:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:46:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:47:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:47:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:48:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:48:37,508 - user_service - INFO - Received kubeconfig event: namespaces_retrieved
+2025-06-25 10:48:54,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:49:24,784 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:49:35,476 - user_service - INFO - User service shutting down
+2025-06-25 10:49:40,792 - user_service - INFO - RabbitMQ connection established
+2025-06-25 10:49:40,967 - user_service - INFO - Creating database and tables if they don't exist
+2025-06-25 10:49:40,991 - user_service - INFO - Event consumers started in background
+2025-06-25 10:49:40,993 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-25 10:49:40,993 - user_service - INFO - User service started
+2025-06-25 10:50:10,958 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:50:30,065 - user_service - ERROR - Error with database session: 401: Incorrect username or password
+2025-06-25 10:50:40,262 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-25 10:50:40,262 - user_service - ERROR - Failed to publish message: Object of type datetime is not JSON serializable
+2025-06-25 10:50:40,270 - user_service - INFO - RabbitMQ connection established
+2025-06-25 10:50:40,273 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-25 10:50:40,959 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:50:49,503 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-25 10:50:49,504 - user_service - ERROR - Error while consuming messages: 'NoneType' object has no attribute 'poll'
+2025-06-25 10:50:49,508 - user_service - INFO - RabbitMQ connection established
+2025-06-25 10:50:49,509 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-25 10:51:10,958 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:51:40,958 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:52:10,958 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:52:40,958 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:53:10,958 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:53:40,958 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:54:10,958 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:55:45,184 - user_service - INFO - RabbitMQ connection established
+2025-06-25 10:55:45,356 - user_service - INFO - Creating database and tables if they don't exist
+2025-06-25 10:55:45,374 - user_service - INFO - Event consumers started in background
+2025-06-25 10:55:45,375 - user_service - INFO - User service started
+2025-06-25 10:55:45,377 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-25 10:56:15,348 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:56:45,348 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:57:15,347 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:57:45,347 - user_service - INFO - Current pending confirmations: 0
+2025-06-25 10:58:02,124 - user_service - INFO - User service shutting down
+2025-06-25 11:15:53,303 - user_service - INFO - RabbitMQ connection established
+2025-06-25 11:15:54,859 - user_service - INFO - RabbitMQ connection established
+2025-06-25 11:17:47,062 - user_service - INFO - RabbitMQ connection established
+2025-06-25 11:18:35,328 - user_service - INFO - RabbitMQ connection established
+2025-06-25 11:19:13,639 - user_service - INFO - RabbitMQ connection established
+2025-06-25 11:19:37,792 - user_service - INFO - RabbitMQ connection established
+2025-06-25 11:21:10,962 - user_service - INFO - RabbitMQ connection established
+2025-06-25 11:21:11,189 - user_service - INFO - Creating database and tables if they don't exist
+2025-06-25 11:21:11,216 - user_service - INFO - Event consumers started in background
+2025-06-25 11:21:11,216 - user_service - INFO - User service started
+2025-06-25 11:21:11,217 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-25 11:22:22,171 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 11:22:37,821 - user_service - ERROR - Failed to publish message: Object of type datetime is not JSON serializable
+2025-06-25 11:24:21,030 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-25 11:24:21,031 - user_service - ERROR - Failed to publish message: Object of type datetime is not JSON serializable
+2025-06-25 11:24:21,035 - user_service - INFO - RabbitMQ connection established
+2025-06-25 11:24:21,036 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-25 11:24:29,914 - user_service - INFO - API key 'admin-key' created for user nisha123
+2025-06-25 11:24:29,916 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-25 11:24:29,916 - user_service - ERROR - Error while consuming messages: 'NoneType' object has no attribute 'poll'
+2025-06-25 11:24:29,921 - user_service - INFO - RabbitMQ connection established
+2025-06-25 11:24:29,924 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-25 11:27:25,221 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 11:27:28,887 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 11:27:28,988 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 11:27:29,387 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 11:28:05,487 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 11:28:05,525 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 11:28:05,581 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 11:38:37,157 - user_service - INFO - RabbitMQ connection established
+2025-06-25 11:38:37,326 - user_service - INFO - Creating database and tables if they don't exist
+2025-06-25 11:38:37,346 - user_service - INFO - Event consumers started in background
+2025-06-25 11:38:37,346 - user_service - INFO - User service started
+2025-06-25 11:38:37,347 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-25 11:44:47,616 - user_service - INFO - RabbitMQ connection established
+2025-06-25 11:44:47,786 - user_service - INFO - Creating database and tables if they don't exist
+2025-06-25 11:44:47,803 - user_service - INFO - Event consumers started in background
+2025-06-25 11:44:47,803 - user_service - INFO - User service started
+2025-06-25 11:44:47,805 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-25 11:47:07,244 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 11:53:55,681 - user_service - ERROR - Failed to publish message: Object of type datetime is not JSON serializable
+2025-06-25 11:53:55,983 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-25 11:53:55,983 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-25 11:53:55,988 - user_service - INFO - RabbitMQ connection established
+2025-06-25 11:53:55,990 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-25 11:53:56,261 - user_service - ERROR - Failed to publish message: Object of type datetime is not JSON serializable
+2025-06-25 12:37:52,962 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 12:37:53,077 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 12:37:53,163 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 12:37:58,397 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 12:38:19,500 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 12:38:19,536 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 12:38:19,601 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 12:38:20,171 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 12:38:20,274 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 12:38:20,466 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 12:43:08,878 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 12:43:08,981 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 12:43:09,079 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 12:43:09,394 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 12:43:11,374 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 12:43:11,407 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 12:43:11,469 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 12:43:12,181 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 12:43:12,286 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 12:43:12,319 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 12:43:51,913 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 12:47:07,098 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 12:47:07,132 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 12:47:07,171 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 12:47:07,228 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 12:47:07,269 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 12:47:07,304 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 12:47:07,341 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 12:47:07,376 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 12:48:57,068 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 13:12:34,187 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 13:12:34,282 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 13:12:34,388 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 13:12:34,491 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 13:12:34,685 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 13:12:34,888 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 13:12:39,484 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 13:12:39,687 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 13:12:54,785 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 13:12:54,820 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 13:12:54,908 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 13:12:55,669 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 13:12:55,782 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 13:12:55,827 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 13:13:42,900 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 13:13:42,935 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 13:13:43,002 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 13:13:43,866 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 13:13:43,966 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 13:13:43,998 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 13:13:44,736 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 13:13:45,741 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 13:47:10,230 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 14:02:19,844 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 14:07:20,220 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 14:17:20,222 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 14:32:21,069 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 14:43:55,072 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 14:52:26,222 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 14:57:07,227 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 14:57:25,220 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 14:58:53,071 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 15:00:02,984 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 15:00:03,183 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 15:42:20,219 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 15:52:13,223 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 15:53:51,070 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 15:55:27,221 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 15:57:41,072 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 16:32:22,220 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 16:42:20,220 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 16:57:21,929 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 17:02:34,081 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 17:28:51,774 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 17:32:17,220 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 17:32:22,063 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 17:33:56,081 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 17:37:33,218 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 18:40:58,390 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 18:40:58,486 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 18:40:58,526 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 18:40:59,382 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 18:42:13,216 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 18:43:58,607 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 18:43:58,642 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 18:43:58,986 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 18:43:59,381 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 19:17:12,221 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 19:32:21,222 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 19:32:46,064 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 19:42:19,040 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 19:47:17,220 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 20:00:01,384 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 20:00:01,486 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 20:03:54,073 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 20:07:21,069 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 20:42:31,222 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 20:53:52,069 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 21:08:41,182 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 21:08:41,218 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 21:08:41,293 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 21:42:15,230 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 22:02:12,224 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 22:37:20,224 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 22:42:19,976 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 22:47:07,099 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 22:47:07,133 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 22:47:07,167 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 22:47:07,204 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 22:47:07,240 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 22:47:07,276 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 22:47:07,314 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 22:47:07,360 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 22:47:27,216 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 22:52:19,944 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 23:08:58,070 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 23:12:41,076 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 23:22:22,068 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 23:48:51,789 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-25 23:52:29,225 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 00:00:03,085 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 00:00:03,284 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 00:47:15,225 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 00:47:15,262 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 01:35:35,366 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 01:35:35,492 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 01:35:35,562 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 01:35:40,587 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 01:35:40,681 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 01:35:40,722 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 01:35:40,883 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 01:35:40,971 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 01:35:42,868 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 01:36:18,881 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 01:36:18,985 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 01:36:19,394 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 01:36:19,477 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 01:36:19,513 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 01:36:22,019 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 01:37:16,954 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 01:37:18,912 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 01:41:27,278 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 01:41:27,381 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 01:41:27,489 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 01:41:27,682 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 01:42:10,253 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 01:42:10,291 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 01:42:10,352 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 01:42:10,985 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 01:42:11,084 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 01:42:19,219 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 01:42:25,223 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:07:24,683 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:07:24,783 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:07:24,981 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:07:29,779 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:07:50,259 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:07:50,307 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:07:50,394 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:07:50,897 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:07:50,998 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:07:51,033 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:26:14,313 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:26:14,661 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:26:14,780 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:26:14,982 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:26:15,079 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:26:15,281 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:26:15,380 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:26:15,481 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:26:15,530 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:26:15,580 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:26:15,682 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:26:15,781 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:26:15,818 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:26:15,854 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:26:15,898 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:32:24,070 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:35:45,771 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:35:45,863 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:35:50,781 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:35:54,419 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:35:54,466 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:35:54,554 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:35:56,993 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:35:57,495 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:35:57,583 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:35:57,690 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:35:57,762 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:35:57,897 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:35:58,093 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:35:58,198 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:35:58,366 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:35:58,559 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:35:58,659 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:35:58,785 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:35:58,892 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:35:59,080 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:35:59,187 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:35:59,290 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:35:59,483 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:35:59,589 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:35:59,780 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:35:59,960 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:00,079 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:00,260 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:00,365 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:00,582 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:00,659 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:00,693 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:00,726 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:00,859 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:00,896 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:01,058 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:01,160 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:01,259 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:01,359 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:01,459 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:01,493 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:01,532 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:01,583 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:01,628 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:01,675 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:01,761 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:01,858 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:01,983 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:02,058 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:02,158 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:02,284 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:02,418 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:02,480 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:02,558 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:02,678 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:02,715 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:02,753 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:03,071 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:03,110 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:03,176 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:04,443 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:04,488 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:04,571 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:04,886 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:04,996 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:05,186 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:05,383 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:05,580 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:05,683 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:05,721 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:05,765 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:05,805 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:05,848 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:05,900 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:06,337 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:06,371 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:06,489 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:06,534 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:06,577 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:06,616 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:09,151 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:09,193 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:09,263 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:09,873 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:15,871 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:15,911 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:15,992 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:16,510 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:16,636 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:16,741 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:16,782 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:16,823 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:16,892 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:20,228 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:21,846 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:21,888 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:36:21,940 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:38:17,342 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:38:49,260 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:40:27,986 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:40:28,084 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:40:28,562 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:40:40,678 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:40:40,711 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:40:40,799 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:40:54,982 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:43:49,275 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:43:49,308 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:48:49,292 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:53:49,297 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 02:58:49,297 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 03:03:49,303 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 03:07:22,220 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 03:08:49,306 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 03:08:50,885 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 03:13:49,317 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 03:13:55,063 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 03:18:49,316 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 03:57:13,221 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 04:23:56,067 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 04:32:18,856 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 04:37:17,220 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 04:37:23,219 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 05:00:04,595 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 05:00:04,780 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 05:02:27,069 - user_service - INFO - RabbitMQ connection established
+2025-06-26 05:02:27,309 - user_service - INFO - Creating database and tables if they don't exist
+2025-06-26 05:02:27,329 - user_service - INFO - Event consumers started in background
+2025-06-26 05:02:27,330 - user_service - INFO - User service started
+2025-06-26 05:02:27,331 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-26 05:37:13,230 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 05:47:22,068 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 05:48:30,800 - user_service - ERROR - Failed to publish message: Object of type datetime is not JSON serializable
+2025-06-26 05:48:30,803 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-26 05:48:30,815 - user_service - INFO - RabbitMQ connection established
+2025-06-26 05:48:30,817 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-26 05:48:36,859 - user_service - INFO - Received kubeconfig event: namespaces_retrieved
+2025-06-26 06:16:29,498 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:16:29,683 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:16:29,785 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:16:29,894 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:16:29,986 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:16:30,091 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:16:30,280 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:16:30,386 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:16:30,498 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:16:30,592 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:16:34,678 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:16:34,791 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:16:48,598 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:16:48,637 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:16:48,695 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:16:50,805 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:16:50,838 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:16:50,901 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:16:52,290 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:16:54,550 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:16:54,934 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:16:56,634 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:16:56,667 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:16:56,725 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:16:57,189 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:16:57,699 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:16:57,792 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:16:57,889 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:16:58,567 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:16:59,579 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:17:08,427 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:17:08,839 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:17:11,932 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:17:28,215 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:17:36,931 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:17:41,119 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:18:24,937 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:18:28,927 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:19:26,897 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:19:26,996 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:19:27,183 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:19:31,883 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:19:47,374 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:19:47,407 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:19:47,467 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:32,788 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:32,983 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:33,079 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:33,185 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:33,379 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:33,483 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:33,588 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:33,760 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:33,889 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:34,082 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:34,186 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:34,477 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:34,579 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:34,657 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:34,689 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:34,778 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:34,859 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:34,893 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:34,984 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:35,087 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:35,178 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:35,284 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:35,388 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:35,583 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:35,690 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:35,880 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:35,981 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:36,079 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:36,187 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:36,388 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:36,489 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:36,658 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:36,785 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:36,888 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:38,182 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:38,284 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:38,391 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:38,584 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:38,685 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:39,870 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:39,906 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:39,938 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:39,970 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:40,038 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:40,410 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:40,445 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:40,493 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:40,683 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:44,406 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:46,452 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:49,326 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:49,359 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:49,394 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:49,429 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:49,463 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:49,498 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:49,530 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:49,564 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:49,596 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:50,285 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:50,391 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:50,686 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:50,792 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:50,982 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:51,023 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:51,056 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:51,087 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:51,182 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:51,586 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:51,759 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:29:52,190 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:30:00,781 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:30:28,766 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:31:20,815 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:32:57,175 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:32:57,208 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:32:57,283 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:38:51,938 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:39:14,528 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:43:59,070 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 06:52:09,224 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 07:02:25,021 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-26 07:02:25,021 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-26 07:02:25,027 - user_service - INFO - RabbitMQ connection established
+2025-06-26 07:02:25,028 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-26 07:03:35,573 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-26 07:03:35,573 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-26 07:03:35,578 - user_service - INFO - RabbitMQ connection established
+2025-06-26 07:03:35,580 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-26 07:22:22,798 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 07:22:22,926 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 07:22:23,092 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 07:22:27,596 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 07:22:45,176 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 07:22:45,217 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 07:22:45,285 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 07:22:45,904 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 07:22:46,085 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 07:23:00,876 - user_service - INFO - Received kubeconfig event: namespaces_retrieved
+2025-06-26 07:23:19,084 - user_service - INFO - Received kubeconfig event: k8s_analysis_with_solutions_performed
+2025-06-26 07:23:27,958 - user_service - INFO - Received kubeconfig event: k8s_analysis_with_solutions_performed
+2025-06-26 07:23:32,897 - user_service - INFO - Received kubeconfig event: k8s_analysis_with_solutions_performed
+2025-06-26 07:23:47,459 - user_service - INFO - Received kubeconfig event: k8s_analysis_with_solutions_performed
+2025-06-26 07:24:08,121 - user_service - INFO - Received kubeconfig event: k8s_analysis_with_solutions_performed
+2025-06-26 07:26:16,601 - user_service - INFO - Received kubeconfig event: namespaces_retrieved
+2025-06-26 07:26:21,777 - user_service - INFO - Received kubeconfig event: k8s_analysis_with_solutions_performed
+2025-06-26 07:27:00,407 - user_service - INFO - Received kubeconfig event: namespaces_retrieved
+2025-06-26 07:27:05,532 - user_service - INFO - Received kubeconfig event: k8s_analysis_with_solutions_performed
+2025-06-26 07:27:31,528 - user_service - INFO - Received kubeconfig event: namespaces_retrieved
+2025-06-26 07:27:31,694 - user_service - INFO - Received kubeconfig event: k8s_analysis_with_solutions_performed
+2025-06-26 07:27:31,751 - user_service - INFO - Received kubeconfig event: namespaces_retrieved
+2025-06-26 07:28:40,607 - user_service - INFO - Received kubeconfig event: namespaces_retrieved
+2025-06-26 07:29:01,081 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 07:32:39,023 - user_service - INFO - Received kubeconfig event: namespaces_retrieved
+2025-06-26 07:32:39,156 - user_service - INFO - Received kubeconfig event: namespaces_retrieved
+2025-06-26 07:37:19,054 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 07:42:30,225 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 07:54:36,508 - user_service - INFO - Received kubeconfig event: kubeconfig_activated
+2025-06-26 08:02:18,233 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 08:29:43,067 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 08:47:07,098 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 08:47:07,131 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 08:47:07,163 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 08:47:07,203 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 08:47:07,238 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 08:47:07,274 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 08:47:07,306 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 08:47:07,338 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 08:52:24,067 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 08:58:50,911 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 08:58:50,946 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 08:58:51,009 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 09:14:39,068 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 09:16:15,583 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 09:16:15,782 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 09:16:15,858 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 09:16:15,984 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 09:16:46,883 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 09:16:46,919 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 09:16:46,967 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 09:16:47,161 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 09:16:47,281 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 09:16:47,364 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 09:47:26,216 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 09:47:31,191 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 09:47:44,435 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 09:47:44,470 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 09:47:44,549 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 09:53:51,089 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 09:53:52,090 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:00:03,006 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:00:03,080 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:03:13,801 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:03:13,977 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:03:14,011 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:03:14,242 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:04:22,859 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:04:22,901 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:04:22,978 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:04:24,002 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:04:24,104 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:04:24,137 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:04:27,580 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:04:29,966 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:04:43,874 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:05:12,952 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:06:04,146 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:07:16,222 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:10:13,787 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:10:13,981 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:10:14,076 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:10:19,076 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:10:52,622 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:10:52,898 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:10:53,176 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:10:53,832 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:03,835 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:05,511 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:05,543 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:05,613 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:05,645 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:05,681 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:05,714 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:06,407 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:07,812 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:07,978 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:08,401 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:09,377 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:09,498 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:09,852 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:10,410 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:10,444 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:10,519 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:10,551 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:10,879 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:10,981 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:11,398 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:11,810 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:11,844 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:12,300 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:12,400 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:12,526 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:12,600 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:12,633 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:12,899 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:13,020 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:13,053 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:13,445 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:13,478 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:13,518 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:13,551 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:14,329 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:14,553 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:14,586 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:14,645 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:14,678 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:14,780 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:14,884 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:15,245 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:15,889 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:15,926 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:16,444 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:16,479 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:16,545 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:16,577 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:16,696 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:16,729 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:16,804 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:17,586 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:17,619 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:18,698 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:18,730 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:19,225 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:19,338 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:20,099 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:20,132 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:20,509 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:20,698 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:20,997 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:21,030 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:21,062 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:21,403 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:21,600 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:21,633 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:21,665 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:22,000 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:22,197 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:22,597 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:22,631 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:22,664 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:22,695 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:23,299 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:23,332 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:23,698 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:23,802 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:23,998 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:24,227 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:25,004 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:25,037 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:25,087 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:25,124 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:25,239 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:25,804 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:25,906 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:26,512 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:27,100 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:27,133 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:29,160 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:29,587 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:29,680 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:30,180 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:30,214 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:30,249 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:30,282 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:30,981 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:31,013 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:31,044 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:33,684 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:33,776 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:33,878 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:33,983 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:34,082 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:34,241 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:34,274 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:34,347 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:34,701 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:34,797 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:34,880 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:34,997 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:35,104 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:36,699 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:36,732 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:36,765 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:36,897 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:36,929 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:37,061 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:39,497 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:39,531 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:39,590 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:40,782 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:40,877 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:40,910 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:40,989 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:41,180 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:48,801 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:48,896 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:48,999 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:49,132 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:49,168 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:50,571 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:50,605 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:50,673 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:51,796 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:53,376 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:53,486 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:11:53,678 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:12:01,196 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:12:04,816 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:12:04,904 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:12:05,003 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:12:05,100 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:12:05,299 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:12:06,879 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:12:08,674 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:12:36,799 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:12:36,897 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:12:36,998 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:12:37,107 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:12:37,210 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:12:46,134 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:13:40,878 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:13:40,976 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:13:41,086 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:13:41,176 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:13:41,208 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:15:48,907 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:15:49,099 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:15:49,207 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:15:49,312 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:15:54,801 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:15:55,001 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:15:55,201 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:16:00,304 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:16:02,075 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:16:02,109 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:16:02,188 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:16:03,002 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:16:03,106 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:16:03,139 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:16:38,475 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:16:43,700 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:17:05,015 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:17:05,048 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:17:05,123 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:17:06,647 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:17:06,682 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:17:06,741 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:17:08,683 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:17:08,717 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:17:18,841 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:20:04,898 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:20:04,997 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:20:05,597 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:21:07,167 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:21:07,199 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:21:07,274 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:21:07,489 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:21:08,558 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:21:08,591 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:21:08,625 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:21:08,792 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:22:08,688 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:22:08,721 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:27:08,696 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:27:08,741 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:32:08,696 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:32:08,729 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:37:08,704 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:37:08,738 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:42:08,708 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:42:08,744 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:42:25,217 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:47:08,720 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:47:08,755 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:52:08,726 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:52:08,772 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:52:16,216 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:57:08,220 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:57:08,719 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 10:57:08,754 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 11:02:08,730 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 11:27:09,906 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 11:37:31,885 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 11:37:31,980 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 11:37:32,086 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 11:37:32,306 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 11:37:56,133 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 11:37:56,168 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 11:37:56,252 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 11:37:56,459 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 11:37:56,564 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 11:37:56,599 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 11:43:57,069 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 11:44:04,297 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 11:44:04,471 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 11:44:04,666 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 11:44:04,890 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 11:44:15,607 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 11:44:15,640 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 11:44:15,696 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 11:44:16,687 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 11:44:16,789 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 11:44:16,828 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-26 12:10:59,220 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-27 09:31:46,783 - user_service - INFO - RabbitMQ connection established
+2025-06-27 09:31:46,969 - user_service - INFO - Creating database and tables if they don't exist
+2025-06-27 09:31:46,989 - user_service - INFO - Event consumers started in background
+2025-06-27 09:31:46,990 - user_service - INFO - User service started
+2025-06-27 09:31:46,993 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-27 09:34:22,640 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-27 09:34:22,640 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-27 09:34:22,646 - user_service - INFO - RabbitMQ connection established
+2025-06-27 09:34:22,647 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-27 09:52:07,149 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-27 09:56:15,238 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-27 09:57:17,221 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-27 09:57:18,219 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-27 09:58:56,073 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-27 10:00:05,149 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-27 10:00:05,297 - user_service - ERROR - Error with database session: 401: Invalid or expired API key
+2025-06-27 10:06:07,275 - user_service - ERROR - Failed to publish message: Object of type datetime is not JSON serializable
+2025-06-27 10:06:07,561 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-27 10:06:07,561 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-27 10:06:07,566 - user_service - INFO - RabbitMQ connection established
+2025-06-27 10:06:07,568 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-27 10:06:51,238 - user_service - INFO - Received kubeconfig event: kubeconfig_uploaded
+2025-06-27 10:07:26,261 - user_service - INFO - Received kubeconfig event: kubeconfig_activated
+2025-06-27 10:10:00,112 - user_service - INFO - Received kubeconfig event: k8s_analysis_with_solutions_performed
+2025-06-27 10:25:07,359 - user_service - INFO - Received kubeconfig event: k8s_analysis_with_solutions_performed
+2025-06-27 11:07:26,268 - user_service - ERROR - Failed to publish message: Object of type datetime is not JSON serializable
+2025-06-27 11:07:26,270 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-27 11:07:26,276 - user_service - INFO - RabbitMQ connection established
+2025-06-27 11:07:26,277 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-27 11:09:31,939 - user_service - INFO - Received kubeconfig event: k8s_analysis_with_solutions_performed
+2025-06-27 11:12:36,384 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-27 11:12:36,385 - user_service - ERROR - Error while consuming messages: 'NoneType' object has no attribute 'poll'
+2025-06-27 11:12:36,390 - user_service - INFO - RabbitMQ connection established
+2025-06-27 11:12:36,392 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-27 11:19:53,427 - user_service - ERROR - Failed to publish message: Object of type datetime is not JSON serializable
+2025-06-27 11:22:23,405 - user_service - ERROR - Failed to publish message: Object of type datetime is not JSON serializable
+2025-06-27 11:22:23,407 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-27 11:22:23,413 - user_service - INFO - RabbitMQ connection established
+2025-06-27 11:22:23,415 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-27 11:25:23,867 - user_service - INFO - Received kubeconfig event: k8s_analysis_with_solutions_performed
+2025-06-27 11:26:07,850 - user_service - INFO - Received kubeconfig event: k8s_analysis_with_solutions_performed
+2025-06-27 11:27:41,031 - user_service - INFO - Received kubeconfig event: k8s_analysis_with_solutions_performed
+2025-06-27 11:58:43,549 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-27 11:58:43,605 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-27 11:58:43,663 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-27 11:58:43,713 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-27 11:58:52,559 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-27 11:58:52,610 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-27 11:58:52,668 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-27 11:58:52,720 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-27 11:59:08,607 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-27 11:59:08,665 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-27 11:59:08,749 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-27 11:59:08,816 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-27 11:59:35,702 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-27 11:59:35,743 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-27 11:59:35,856 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-27 11:59:35,902 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-27 12:00:59,678 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-27 12:00:59,680 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-27 12:00:59,897 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-27 12:00:59,982 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-27 12:02:19,412 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-27 12:02:19,564 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-27 12:02:19,654 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-27 12:02:19,724 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-27 12:02:27,288 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-27 12:02:27,372 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-27 12:02:27,472 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-27 12:02:27,575 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-27 12:02:35,518 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-27 12:02:46,919 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-27 12:02:46,921 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-27 12:02:47,252 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-27 12:02:47,350 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-27 12:03:04,234 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-27 12:03:04,238 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-27 12:03:44,143 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-27 12:03:44,151 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-28 05:32:15,472 - user_service - INFO - RabbitMQ connection established
+2025-06-28 05:32:15,658 - user_service - INFO - Creating database and tables if they don't exist
+2025-06-28 05:32:15,676 - user_service - INFO - Event consumers started in background
+2025-06-28 05:32:15,677 - user_service - INFO - User service started
+2025-06-28 05:32:15,678 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-28 05:33:05,494 - user_service - INFO - RabbitMQ connection established
+2025-06-28 05:33:05,648 - user_service - INFO - Creating database and tables if they don't exist
+2025-06-28 05:33:05,664 - user_service - INFO - Event consumers started in background
+2025-06-28 05:33:05,664 - user_service - INFO - User service started
+2025-06-28 05:33:05,665 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-28 05:33:17,251 - user_service - INFO - RabbitMQ connection established
+2025-06-28 05:33:17,405 - user_service - INFO - Creating database and tables if they don't exist
+2025-06-28 05:33:17,424 - user_service - INFO - Event consumers started in background
+2025-06-28 05:33:17,424 - user_service - INFO - User service started
+2025-06-28 05:33:17,425 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-28 06:21:41,891 - user_service - ERROR - Failed to publish message: Object of type datetime is not JSON serializable
+2025-06-28 06:21:41,893 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-28 06:21:41,899 - user_service - INFO - RabbitMQ connection established
+2025-06-28 06:21:41,901 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-28 07:16:02,737 - user_service - ERROR - Failed to publish message: Object of type datetime is not JSON serializable
+2025-06-28 07:16:17,500 - user_service - ERROR - Failed to publish message: Object of type datetime is not JSON serializable
+2025-06-28 07:16:17,501 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-28 07:16:17,507 - user_service - INFO - RabbitMQ connection established
+2025-06-28 07:16:17,508 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-28 07:19:20,610 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-28 07:19:20,611 - user_service - ERROR - Failed to publish message: _CallbackResult was not set
+2025-06-28 07:19:20,615 - user_service - INFO - RabbitMQ connection established
+2025-06-28 07:19:20,616 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-28 07:20:34,122 - user_service - INFO - Confirmation email sent to vaishnavi.ghodke@os3infotech.com with ID: 468fe549-543c-45d5-b92d-8788b6f12402
+2025-06-28 07:20:34,123 - user_service - INFO - Registration confirmation email sent for user: vaishnavi
+2025-06-28 07:22:28,952 - user_service - INFO - Confirmation email sent to preeti.nathani@os3infotech.com with ID: 5cdff66a-2812-4b3c-b636-49a4d4ee0aa8
+2025-06-28 07:22:28,952 - user_service - INFO - Registration confirmation email sent for user: preeti
+2025-06-28 07:27:55,168 - user_service - ERROR - Failed to publish message: Object of type datetime is not JSON serializable
+2025-06-28 07:28:47,372 - user_service - INFO - User nisha123 updated successfully
+2025-06-28 07:28:47,373 - user_service - ERROR - Failed to publish message: Object of type datetime is not JSON serializable
+2025-06-28 07:29:23,107 - user_service - INFO - Confirmation email sent to nisha.chaurasiya@os3infotech.com with ID: eb258e89-2506-49d5-961a-251275eab519
+2025-06-28 07:29:23,107 - user_service - INFO - Registration confirmation email sent for user: preeti12
+2025-06-28 07:35:17,823 - user_service - INFO - Received confirmation response: yes for ID: eb258e89-2506-49d5-961a-251275eab519
+2025-06-28 07:35:17,823 - user_service - INFO - Confirmation eb258e89-2506-49d5-961a-251275eab519 status: pending
+2025-06-28 07:35:18,095 - user_service - INFO - User preeti12 registered successfully after confirmation
+2025-06-28 07:35:18,096 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-28 07:35:18,096 - user_service - ERROR - Error while consuming messages: 'NoneType' object has no attribute 'poll'
+2025-06-28 07:35:18,096 - user_service - INFO - Published user_created event for user preeti12
+2025-06-28 07:35:18,097 - user_service - INFO - Confirmation eb258e89-2506-49d5-961a-251275eab519 status updated from pending to confirmed
+2025-06-28 07:35:18,100 - user_service - INFO - RabbitMQ connection established
+2025-06-28 07:35:18,101 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-28 07:35:24,665 - user_service - ERROR - JWT error: Signature has expired.
+2025-06-28 07:35:24,666 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-28 07:35:24,674 - user_service - ERROR - JWT error: Signature has expired.
+2025-06-28 07:35:24,675 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-28 07:35:24,836 - user_service - ERROR - JWT error: Signature has expired.
+2025-06-28 07:35:24,836 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-28 07:35:24,916 - user_service - ERROR - JWT error: Signature has expired.
+2025-06-28 07:35:24,917 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-28 07:38:41,423 - user_service - ERROR - Failed to publish message: Object of type datetime is not JSON serializable
+2025-06-28 07:38:41,424 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-28 07:38:41,429 - user_service - INFO - RabbitMQ connection established
+2025-06-28 07:38:41,431 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-28 07:46:10,622 - user_service - INFO - Received kubeconfig event: k8s_analysis_with_solutions_performed
+2025-06-28 07:50:59,167 - user_service - ERROR - Failed to publish message: Object of type datetime is not JSON serializable
+2025-06-28 07:51:17,333 - user_service - ERROR - Failed to publish message: Object of type datetime is not JSON serializable
+2025-06-28 08:20:34,123 - user_service - INFO - Confirmation 468fe549-543c-45d5-b92d-8788b6f12402 expired after timeout
+2025-06-28 08:22:28,952 - user_service - INFO - Confirmation 5cdff66a-2812-4b3c-b636-49a4d4ee0aa8 expired after timeout
+2025-06-28 09:03:13,554 - user_service - ERROR - JWT error: Signature has expired.
+2025-06-28 09:03:13,554 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-28 09:03:13,564 - user_service - ERROR - JWT error: Signature has expired.
+2025-06-28 09:03:13,564 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-28 09:03:13,836 - user_service - ERROR - JWT error: Signature has expired.
+2025-06-28 09:03:13,836 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-28 09:03:13,962 - user_service - ERROR - JWT error: Signature has expired.
+2025-06-28 09:03:13,962 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-28 09:03:27,245 - user_service - ERROR - JWT error: Signature has expired.
+2025-06-28 09:03:27,246 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-28 10:22:27,704 - user_service - INFO - RabbitMQ connection established
+2025-06-28 10:24:11,632 - user_service - INFO - RabbitMQ connection established
+2025-06-28 10:24:11,753 - user_service - INFO - Creating database and tables if they don't exist
+2025-06-28 10:28:56,030 - user_service - INFO - RabbitMQ connection established
+2025-06-28 10:28:56,145 - user_service - INFO - Creating database and tables if they don't exist
+2025-06-28 10:29:31,139 - user_service - INFO - RabbitMQ connection established
+2025-06-28 10:29:31,303 - user_service - INFO - Creating database and tables if they don't exist
+2025-06-28 10:29:39,750 - user_service - INFO - RabbitMQ connection established
+2025-06-28 10:29:39,864 - user_service - INFO - Creating database and tables if they don't exist
+2025-06-28 10:30:51,708 - user_service - INFO - RabbitMQ connection established
+2025-06-28 10:30:51,829 - user_service - INFO - Creating database and tables if they don't exist
+2025-06-28 10:30:51,873 - user_service - INFO - Event consumers started in background
+2025-06-28 10:30:51,873 - user_service - INFO - User service started
+2025-06-28 10:30:51,876 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-28 10:47:24,768 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-28 10:47:24,768 - user_service - ERROR - Error while consuming messages: 'NoneType' object has no attribute 'poll'
+2025-06-28 10:47:24,773 - user_service - INFO - RabbitMQ connection established
+2025-06-28 10:47:24,775 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-28 10:53:22,456 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-28 10:53:22,456 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-28 10:53:22,462 - user_service - INFO - RabbitMQ connection established
+2025-06-28 10:53:22,464 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-28 10:53:34,344 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-28 10:53:34,345 - user_service - ERROR - Failed to publish message: Object of type datetime is not JSON serializable
+2025-06-28 10:53:34,350 - user_service - INFO - RabbitMQ connection established
+2025-06-28 10:53:34,351 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-28 12:00:46,525 - user_service - ERROR - Failed to publish message: Object of type datetime is not JSON serializable
+2025-06-28 12:00:46,527 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-28 12:00:46,532 - user_service - INFO - RabbitMQ connection established
+2025-06-28 12:00:46,533 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-28 12:31:09,495 - user_service - ERROR - Failed to publish message: Object of type datetime is not JSON serializable
+2025-06-28 12:31:09,504 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-28 12:31:09,514 - user_service - INFO - RabbitMQ connection established
+2025-06-28 12:31:09,517 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-28 13:38:14,482 - user_service - ERROR - Failed to publish message: Object of type datetime is not JSON serializable
+2025-06-28 13:38:14,483 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-28 13:38:14,489 - user_service - INFO - RabbitMQ connection established
+2025-06-28 13:38:14,490 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-28 14:09:05,374 - user_service - ERROR - Failed to publish message: Object of type datetime is not JSON serializable
+2025-06-28 14:09:05,376 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-28 14:09:05,381 - user_service - INFO - RabbitMQ connection established
+2025-06-28 14:09:05,382 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-28 17:35:12,054 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-28 17:35:12,055 - user_service - ERROR - Error while consuming messages: 'NoneType' object has no attribute 'poll'
+2025-06-28 17:35:12,059 - user_service - INFO - RabbitMQ connection established
+2025-06-28 17:35:12,060 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-28 18:54:49,600 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-28 18:54:49,600 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-28 18:54:49,606 - user_service - INFO - RabbitMQ connection established
+2025-06-28 18:54:49,607 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-28 19:20:28,689 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-28 19:20:28,689 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-28 19:20:28,696 - user_service - INFO - RabbitMQ connection established
+2025-06-28 19:20:28,697 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-29 11:48:35,088 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-29 11:48:35,088 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-29 11:48:35,113 - user_service - INFO - RabbitMQ connection established
+2025-06-29 11:48:35,115 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-29 17:41:26,799 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-29 17:41:26,799 - user_service - ERROR - Failed to publish message: _CallbackResult was not set
+2025-06-29 17:41:26,807 - user_service - INFO - RabbitMQ connection established
+2025-06-29 17:41:26,808 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-29 17:58:58,384 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-29 17:58:58,384 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-29 17:58:58,395 - user_service - INFO - RabbitMQ connection established
+2025-06-29 17:58:58,397 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-29 19:34:23,536 - user_service - ERROR - JWT error: Signature has expired.
+2025-06-29 19:34:23,537 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-29 19:34:23,558 - user_service - ERROR - JWT error: Signature has expired.
+2025-06-29 19:34:23,558 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-29 19:34:23,588 - user_service - ERROR - JWT error: Signature has expired.
+2025-06-29 19:34:23,589 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-29 19:34:23,634 - user_service - ERROR - JWT error: Signature has expired.
+2025-06-29 19:34:23,634 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-29 19:34:29,706 - user_service - ERROR - JWT error: Signature has expired.
+2025-06-29 19:34:29,707 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-29 19:34:29,841 - user_service - ERROR - JWT error: Signature has expired.
+2025-06-29 19:34:29,842 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-29 19:34:38,164 - user_service - ERROR - JWT error: Signature has expired.
+2025-06-29 19:34:38,165 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-06-29 19:34:52,257 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-29 19:34:52,257 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-29 19:34:52,270 - user_service - INFO - RabbitMQ connection established
+2025-06-29 19:34:52,274 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-30 03:48:23,693 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-30 03:48:23,693 - user_service - ERROR - AMQP Connection error when publishing message: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-30 03:48:23,724 - user_service - INFO - RabbitMQ connection established
+2025-06-30 03:48:23,730 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-06-30 05:22:23,432 - user_service - ERROR - Failed to publish message: Object of type datetime is not JSON serializable
+2025-06-30 05:22:23,436 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-06-30 05:22:23,443 - user_service - INFO - RabbitMQ connection established
+2025-06-30 05:22:23,445 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-07-01 04:42:34,012 - user_service - ERROR - JWT error: Signature has expired.
+2025-07-01 04:42:34,017 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-07-01 04:42:34,036 - user_service - ERROR - JWT error: Signature has expired.
+2025-07-01 04:42:34,040 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-07-01 04:42:34,049 - user_service - ERROR - JWT error: Signature has expired.
+2025-07-01 04:42:34,049 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-07-01 04:42:34,131 - user_service - ERROR - JWT error: Signature has expired.
+2025-07-01 04:42:34,132 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-07-01 04:42:54,970 - user_service - ERROR - JWT error: Signature has expired.
+2025-07-01 04:42:54,971 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-07-01 04:42:54,980 - user_service - ERROR - JWT error: Signature has expired.
+2025-07-01 04:42:54,981 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-07-01 04:42:55,022 - user_service - ERROR - JWT error: Signature has expired.
+2025-07-01 04:42:55,025 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-07-01 04:42:56,177 - user_service - ERROR - JWT error: Signature has expired.
+2025-07-01 04:42:56,178 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-07-01 04:43:31,417 - user_service - ERROR - JWT error: Signature has expired.
+2025-07-01 04:43:31,417 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-07-01 04:43:43,523 - user_service - ERROR - Failed to publish message: Object of type datetime is not JSON serializable
+2025-07-01 04:43:43,534 - user_service - ERROR - Error while consuming messages: Stream connection lost: IndexError('pop from an empty deque')
+2025-07-01 04:43:43,553 - user_service - INFO - RabbitMQ connection established
+2025-07-01 04:43:43,556 - user_service - INFO - Consumer set up for queue kubeconfig_events
+2025-07-01 09:56:28,749 - user_service - ERROR - JWT error: Not enough segments
+2025-07-01 09:56:28,752 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-07-02 06:02:44,355 - user_service - ERROR - JWT error: Signature has expired.
+2025-07-02 06:02:44,362 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-07-02 06:02:55,810 - user_service - ERROR - JWT error: Signature has expired.
+2025-07-02 06:02:55,813 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-07-02 06:03:00,834 - user_service - ERROR - JWT error: Signature has expired.
+2025-07-02 06:03:00,835 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-07-02 06:03:00,849 - user_service - ERROR - JWT error: Signature has expired.
+2025-07-02 06:03:00,849 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-07-02 06:03:00,886 - user_service - ERROR - JWT error: Signature has expired.
+2025-07-02 06:03:00,887 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-07-02 06:03:00,920 - user_service - ERROR - JWT error: Signature has expired.
+2025-07-02 06:03:00,923 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-07-02 06:03:06,752 - user_service - ERROR - JWT error: Signature has expired.
+2025-07-02 06:03:06,752 - user_service - ERROR - Error with database session: 401: Could not validate credentials
+2025-07-02 06:04:15,570 - user_service - ERROR - Failed to publish message: Object of type datetime is not JSON serializable
+2025-07-02 10:30:37,840 - user_service - ERROR - JWT error: Not enough segments
+2025-07-02 10:30:37,840 - user_service - ERROR - Error with database session: 401: Could not validate credentials
