@@ -232,6 +232,7 @@ from sqlalchemy import and_
 # Create router
 policy_router = APIRouter(prefix="/policies", tags=["policies"])
 
+
 @policy_router.post("/initialize")
 async def initialize_policies(
     db: Session = Depends(get_db),
