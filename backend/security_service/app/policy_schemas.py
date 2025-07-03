@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 from enum import Enum
+from fastapi import Request
 
 class ApplicationStatus(str, Enum):
     PENDING = "pending"
@@ -80,7 +81,7 @@ class PolicyListResponse(BaseModel):
 class PolicyApplicationRequest(BaseModel):
     cluster_name: str
     policy_id: str  # The policy's policy_id (not database id)
-    kubernetes_namespace: Optional[str] = "default"
+    kubernetes_namespace: Optional[str] = None  # Make it optional for cluster-level policies
 
 class PolicyApplicationResponse(BaseModel):
     id: int
@@ -88,7 +89,7 @@ class PolicyApplicationResponse(BaseModel):
     cluster_id: int
     cluster_name: str
     policy_id: int
-    policy: Optional[PolicyResponse] = None
+    policy: Optional[PolicyResponse] = None  # Make this optional
     status: ApplicationStatus
     applied_yaml: Optional[str] = None
     application_log: Optional[str] = None
@@ -98,6 +99,10 @@ class PolicyApplicationResponse(BaseModel):
     created_at: datetime
     applied_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+    
+    # Add these fields for when policy is missing
+    policy_name: Optional[str] = None
+    policy_severity: Optional[str] = None
     
     class Config:
         from_attributes = True
@@ -123,3 +128,9 @@ class ClusterPolicyOverview(BaseModel):
     failed_count: int
     pending_count: int
     categories_applied: List[str]
+
+class PolicyApplicationListRequest(BaseModel):
+    cluster_name: Optional[str] = None
+    status: Optional[str] = None
+    page: int = 1
+    size: int = 10

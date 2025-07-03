@@ -11,6 +11,7 @@ from datetime import datetime
 import tempfile
 import base64
 import os
+from fastapi import Request
 
 from app.models import (
     PolicyCategoryModel, PolicyModel, PolicyApplicationModel, 
@@ -1247,7 +1248,12 @@ spec:
         group = "kyverno.io"
         version = "v1"
         
+        # Apply based on policy kind
         if kind == "ClusterPolicy":
+            # Remove namespace from metadata if present
+            if "namespace" in policy.get("metadata", {}):
+                del policy["metadata"]["namespace"]
+        
             plural = "clusterpolicies"
             return custom_api.create_cluster_custom_object(
                 group=group,
@@ -1274,7 +1280,7 @@ spec:
         db: Session, 
         request: PolicyApplicationRequest, 
         user_id: int,
-        user_token: str  # Add user token parameter
+        user_token: str
     ) -> PolicyApplicationResponse:
         """Apply a policy to a specific cluster"""
         
@@ -1298,7 +1304,7 @@ spec:
             cluster_name=request.cluster_name,
             policy_id=policy.id,
             status=ApplicationStatus.PENDING,
-            kubernetes_namespace=request.kubernetes_namespace,
+            kubernetes_namespace=request.kubernetes_namespace or "cluster-wide",  # Set to cluster-wide if no namespace
             applied_yaml=policy.yaml_content
         )
         
@@ -1316,7 +1322,7 @@ spec:
                 api_server_url=cluster_info["server_url"],
                 token=cluster_info["token"],
                 policy_yaml=policy.yaml_content,
-                namespace=request.kubernetes_namespace
+                namespace=request.kubernetes_namespace or "default"
             )
             
             # 6. Extract resource name from result
@@ -1341,7 +1347,7 @@ spec:
             db.commit()
             
             logger.error(f"Failed to apply policy {request.policy_id} to cluster {request.cluster_name}: {e}")
-            raise  # Re-raise the exception to return error to user
+            raise
         
         # 9. Return response
         return self._convert_application_to_response(db, application)
@@ -1355,34 +1361,70 @@ spec:
         page: int = 1, 
         size: int = 10
     ) -> PolicyApplicationListResponse:
-        """Get policy applications for a user"""
+        """Get policy applications for a user with cluster filtering"""
         
-        query = db.query(PolicyApplicationModel).filter(
-            PolicyApplicationModel.user_id == user_id
-        )
-        
-        if cluster_name:
-            query = query.filter(PolicyApplicationModel.cluster_name == cluster_name)
-        
-        if status:
-            query = query.filter(PolicyApplicationModel.status == status)
-        
-        total = query.count()
-        applications = query.offset((page - 1) * size).limit(size).all()
-        
-        application_responses = [
-            self._convert_application_to_response(db, app) for app in applications
-        ]
-        
-        total_pages = (total + size - 1) // size
-        
-        return PolicyApplicationListResponse(
-            applications=application_responses,
-            total=total,
-            page=page,
-            size=size,
-            total_pages=total_pages
-        )
+        try:
+            # Build query with proper joins
+            query = db.query(PolicyApplicationModel).outerjoin(
+                PolicyModel, PolicyApplicationModel.policy_id == PolicyModel.id
+            ).filter(
+                PolicyApplicationModel.user_id == user_id
+            )
+            
+            # Apply cluster filter if provided
+            if cluster_name:
+                query = query.filter(PolicyApplicationModel.cluster_name == cluster_name)
+                logger.info(f"Filtering applications for cluster: {cluster_name}")
+            
+            # Apply status filter if provided
+            if status:
+                try:
+                    status_enum = ApplicationStatus(status.lower())
+                    query = query.filter(PolicyApplicationModel.status == status_enum)
+                    logger.info(f"Filtering applications by status: {status}")
+                except ValueError:
+                    logger.warning(f"Invalid status filter: {status}")
+                    return PolicyApplicationListResponse(
+                        applications=[],
+                        total=0,
+                        page=page,
+                        size=size,
+                        total_pages=0
+                    )
+            
+            total = query.count()
+            applications = query.offset((page - 1) * size).limit(size).all()
+            
+            logger.info(f"Found {total} total applications, returning {len(applications)} for page {page}")
+            
+            application_responses = []
+            for app in applications:
+                try:
+                    response = self._convert_application_to_response(db, app)
+                    application_responses.append(response)
+                except Exception as e:
+                    logger.error(f"Error converting application {app.id} to response: {e}")
+                    continue
+            
+            total_pages = (total + size - 1) // size if total > 0 else 0
+            
+            return PolicyApplicationListResponse(
+                applications=application_responses,
+                total=len(application_responses),
+                page=page,
+                size=size,
+                total_pages=total_pages
+            )
+            
+        except Exception as e:
+            logger.error(f"Error in get_policy_applications: {e}")
+            return PolicyApplicationListResponse(
+                applications=[],
+                total=0,
+                page=page,
+                size=size,
+                total_pages=0
+            )
 
     async def remove_policy_from_cluster(
         self, 
@@ -1522,46 +1564,69 @@ spec:
         db: Session, 
         application: PolicyApplicationModel
     ) -> PolicyApplicationResponse:
-        """Convert database model to response schema"""
+        """Convert database model to response schema with proper error handling"""
         
-        # Get policy details
-        policy = db.query(PolicyModel).filter(PolicyModel.id == application.policy_id).first()
-        policy_response = None
-        
-        if policy:
-            policy_response = PolicyResponse(
-                id=policy.id,
-                policy_id=policy.policy_id,
-                name=policy.name,
-                description=policy.description,
-                purpose=policy.purpose,
-                severity=policy.severity,
-                yaml_content=policy.yaml_content,
-                policy_metadata=policy.policy_metadata,
-                tags=policy.tags,
-                is_active=policy.is_active,
-                category_id=policy.category_id,
-                created_at=policy.created_at,
-                updated_at=policy.updated_at or policy.created_at
+        try:
+            # Get policy details
+            policy = db.query(PolicyModel).filter(PolicyModel.id == application.policy_id).first()
+            policy_response = None
+            
+            if policy:
+                # Get category safely
+                category = None
+                if hasattr(policy, 'category') and policy.category:
+                    category = PolicyCategoryResponse(
+                        id=policy.category.id,
+                        name=policy.category.name,
+                        display_name=policy.category.display_name,
+                        description=policy.category.description,
+                        icon=policy.category.icon,
+                        created_at=policy.category.created_at,
+                        updated_at=policy.category.updated_at,
+                        policy_count=0
+                    )
+                
+                policy_response = PolicyResponse(
+                    id=policy.id,
+                    policy_id=policy.policy_id,
+                    name=policy.name,
+                    description=policy.description,
+                    purpose=policy.purpose,
+                    severity=policy.severity,
+                    yaml_content=policy.yaml_content,
+                    policy_metadata=policy.policy_metadata,
+                    tags=policy.tags,
+                    is_active=policy.is_active,
+                    category_id=policy.category_id,
+                    category=category,
+                    created_at=policy.created_at,
+                    updated_at=policy.updated_at
+                )
+            
+            # Convert enum status safely
+            status_value = application.status.value if hasattr(application.status, 'value') else str(application.status)
+            
+            return PolicyApplicationResponse(
+                id=application.id,
+                user_id=application.user_id,
+                cluster_id=application.cluster_id,
+                cluster_name=application.cluster_name,
+                policy_id=application.policy_id,
+                policy=policy_response,
+                status=SchemaApplicationStatus(status_value),
+                applied_yaml=application.applied_yaml,
+                application_log=application.application_log,
+                error_message=application.error_message,
+                kubernetes_name=application.kubernetes_name,
+                kubernetes_namespace=application.kubernetes_namespace,
+                created_at=application.created_at,
+                applied_at=application.applied_at,
+                updated_at=application.updated_at
             )
-        
-        return PolicyApplicationResponse(
-            id=application.id,
-            user_id=application.user_id,
-            cluster_id=application.cluster_id,
-            cluster_name=application.cluster_name,
-            policy_id=application.policy_id,
-            policy=policy_response,
-            status=SchemaApplicationStatus(application.status.value),
-            applied_yaml=application.applied_yaml,
-            application_log=application.application_log,
-            error_message=application.error_message,
-            kubernetes_name=application.kubernetes_name,
-            kubernetes_namespace=application.kubernetes_namespace,
-            created_at=application.created_at,
-            applied_at=application.applied_at,
-            updated_at=application.updated_at or application.created_at
-        )
+            
+        except Exception as e:
+            logger.error(f"Error converting application {application.id}: {str(e)}")
+            raise Exception(f"Policy not found for application {application.id}")
 
 # Global policy service instance
 policy_db_service = PolicyDatabaseService()

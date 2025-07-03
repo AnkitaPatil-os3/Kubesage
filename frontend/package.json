@@ -13,6 +13,7 @@
     "@heroui/react": "2.7.9",
     "@heroui/use-theme": "2.1.6",
     "@iconify/react": "latest",
+    "@monaco-editor/react": "^4.7.0",
     "axios": "^1.9.0",
     "framer-motion": "^11.18.2",
     "highlight.js": "^11.11.1",

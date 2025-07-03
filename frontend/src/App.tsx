@@ -16,6 +16,8 @@ import { CostAnalysis } from "./components/cost-analysis";
 import { ObservabilityDashboard } from "./components/observability-dashboard";
 import { CarbonEmissionDashboard } from "./components/Carbon-emission";
 import ClusterAnalyze from "./components/cluster-analyze";
+import Policies from './pages/policies';
+
  
  
 export default function App() {
@@ -92,6 +94,7 @@ export default function App() {
                   <Route path="/dashboard/observability" component={ObservabilityDashboard} />
                   <Route path="/dashboard/carbon-emission" component={CarbonEmissionDashboard} />
                   <Route path="/dashboard/analyze" component={ClusterAnalyze} />
+                  <Route path="/dashboard/policies" component={() => <Policies selectedCluster="" />} />
                 </Switch>
               </DashboardLayout>
             )}

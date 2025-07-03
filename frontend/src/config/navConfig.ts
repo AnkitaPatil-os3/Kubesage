@@ -41,6 +41,7 @@ export const navCategories = [
       name: "SECURITY",
       icon: "lucide:shield",
       items: [
+        { id: "policies", name: "Apply Policies", icon: "lucide:clipboard-check", path: "/dashboard/policies" },
         { id: "security", name: "Security Scanner", icon: "lucide:shield", path: "/dashboard/security" },
         { id: "secrets", name: "Secrets", icon: "lucide:key", path: "/dashboard/secrets" },
         { id: "compliance", name: "Compliance", icon: "lucide:key", path: "/dashboard/compliance" },

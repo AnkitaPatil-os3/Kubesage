@@ -578,7 +578,7 @@ async def A_change_password(
 
 @user_router.get("/me", response_model=UserResponse, 
                 summary="Get Current User", description="Returns the current authenticated user's information")
-@limiter.limit("10/minute")
+@limiter.limit("100/minute")
 async def read_users_me(request: Request, current_user: User = Depends(get_current_active_user)):
     """
     Returns the profile information of the currently authenticated user.

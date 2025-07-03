@@ -25,8 +25,10 @@ import {
   Input,
   Select,
   SelectItem,
-  Code
+  Code,
+  ScrollShadow
 } from "@heroui/react";
+
 import { addToast } from "../components/toast-manager";
 
 interface ClusterConfig {
@@ -80,6 +82,29 @@ const UploadKubeconfig: React.FC = () => {
     tls_key: '',
     tls_cert: ''
   });
+
+  // Add these functions after the existing helper functions
+const generateDynamicScript = () => {
+  const clusterName = formData.cluster_name || "your-cluster";
+  return `curl -O http://10.0.34.169/onboard.sh && bash onboard.sh "${clusterName}" --webhook-endpoint "https://10.0.32.106:8004/remediation/webhook/incidents""`;
+};
+
+const copyToClipboard = (text: string) => {
+  navigator.clipboard.writeText(text).then(() => {
+    addToast({
+      title: "Copied!",
+      description: "Script copied to clipboard",
+      color: "success"
+    });
+  }).catch(() => {
+    addToast({
+      title: "Copy Failed",
+      description: "Failed to copy to clipboard",
+      color: "danger"
+    });
+  });
+};
+
 
   // Provider options
   const providers = [
@@ -610,6 +635,64 @@ const UploadKubeconfig: React.FC = () => {
                               Connection Details
                             </h3>
             
+                            {/* Dynamic Script Generation Section */}
+                            <Card className="bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-950/30 dark:to-blue-950/30 border-l-4 border-indigo-500 dark:border-indigo-400">
+                              <CardHeader className="pb-2">
+                                <h4 className="font-semibold text-indigo-800 dark:text-indigo-200 flex items-center gap-2">
+                                  <Icon icon="mdi:terminal" className="text-indigo-600 dark:text-indigo-400" />
+                                  Auto-Generated Onboarding Script
+                                </h4>
+                              </CardHeader>
+                              <CardBody className="pt-0">
+                                <p className="text-indigo-700 dark:text-indigo-300 text-sm mb-3">
+                                  Run this command on your Kubernetes cluster to automatically generate the required credentials:
+                                </p>
+                                <div className="bg-gray-900 dark:bg-gray-950 p-4 rounded-lg relative border dark:border-gray-800">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <span className="text-green-400 dark:text-green-300 text-sm font-mono">Terminal Command</span>
+                                    <Button
+                                      size="sm"
+                                      variant="flat"
+                                      color="success"
+                                      onPress={() => copyToClipboard(generateDynamicScript())}
+                                      startContent={<Icon icon="mdi:content-copy" />}
+                                      className="text-xs bg-green-500/10 dark:bg-green-400/10 hover:bg-green-500/20 dark:hover:bg-green-400/20"
+                                    >
+                                      Copy
+                                    </Button>
+                                  </div>
+                                  <ScrollShadow className="max-h-32">
+                                    <Code 
+                                      className="block text-green-400 dark:text-green-300 bg-transparent p-0 text-sm whitespace-pre-wrap break-all font-mono"
+                                      style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}
+                                    >
+                                      {generateDynamicScript()}
+                                    </Code>
+                                  </ScrollShadow>
+                                </div>
+                                <div className="mt-3 p-3 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg border dark:border-indigo-800/50">
+                                  <div className="flex items-start gap-2">
+                                    <Icon icon="mdi:information" className="text-indigo-600 dark:text-indigo-400 mt-0.5 flex-shrink-0" />
+                                    <div className="text-sm text-indigo-700 dark:text-indigo-300">
+                                      <p className="font-medium mb-1">What this script does:</p>
+                                      <ul className="space-y-1 text-xs">
+                                        <li>• Downloads the onboarding script from the server</li>
+                                        <li>• Creates a service account for cluster: <strong className="text-indigo-800 dark:text-indigo-200">{formData.cluster_name || "your-cluster"}</strong></li>
+                                        <li>• Generates the required bearer token and server URL</li>
+                                        <li>• Sends the credentials to the webhook endpoint</li>
+                                      </ul>
+                                    </div>
+                                  </div>
+                                </div>
+                              </CardBody>
+                            </Card>
+            
+                            <Divider className="my-4" />
+            
+                            <div className="text-center">
+                              <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">Or manually enter your cluster credentials below:</p>
+                            </div>
+            
                             <Input
                               label="Server URL"
                               placeholder="https://your-cluster-api-server.com:6443"
@@ -667,7 +750,9 @@ const UploadKubeconfig: React.FC = () => {
                                 
                                 <Textarea
                                   label="CA Certificate Data"
-                                  placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----"
+                                  placeholder="-----BEGIN CERTIFICATE-----
+...
+-----END CERTIFICATE-----"
                                   value={formData.ca_data}
                                   onValueChange={(value) => handleInputChange('ca_data', value)}
                                   minRows={4}
@@ -680,7 +765,9 @@ const UploadKubeconfig: React.FC = () => {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                   <Textarea
                                     label="TLS Certificate"
-                                    placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----"
+                                    placeholder="-----BEGIN CERTIFICATE-----
+...
+-----END CERTIFICATE-----"
                                     value={formData.tls_cert}
                                     onValueChange={(value) => handleInputChange('tls_cert', value)}
                                     minRows={4}
@@ -692,7 +779,9 @@ const UploadKubeconfig: React.FC = () => {
             
                                   <Textarea
                                     label="TLS Private Key"
-                                    placeholder="-----BEGIN PRIVATE KEY-----&#10;...&#10;-----END PRIVATE KEY-----"
+                                    placeholder="-----BEGIN PRIVATE KEY-----
+...
+-----END PRIVATE KEY-----"
                                     value={formData.tls_key}
                                     onValueChange={(value) => handleInputChange('tls_key', value)}
                                     minRows={4}

@@ -54,19 +54,20 @@ class PolicyApplicationModel(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, nullable=False, index=True)
-    cluster_id = Column(Integer, nullable=False, index=True)  # This should match the cluster_id from kubeconfig service
+    cluster_id = Column(Integer, nullable=False, index=True)
     cluster_name = Column(String(200), nullable=False)
     policy_id = Column(Integer, ForeignKey("policies.id"), nullable=False)
     
     # Application details
     status = Column(Enum(ApplicationStatus), default=ApplicationStatus.PENDING)
-    applied_yaml = Column(Text)  # The actual YAML that was applied
-    application_log = Column(Text)  # Logs from kubectl apply
-    error_message = Column(Text)  # Error details if failed
+    applied_yaml = Column(Text)
+    application_log = Column(Text)
+    error_message = Column(Text)
     
     # Kubernetes details
-    kubernetes_name = Column(String(200))  # Name in Kubernetes (metadata.name)
-    kubernetes_namespace = Column(String(100), default="default")
+    kubernetes_name = Column(String(200))
+    kubernetes_namespace = Column(String(100), default="cluster-wide")
+    # is_cluster_wide = Column(Boolean, default=True)
     
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())

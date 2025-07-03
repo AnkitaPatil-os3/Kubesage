@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Query, Path, Depends, Request
+from fastapi import APIRouter, HTTPException, Query, Path, Depends, Request 
 from fastapi.responses import JSONResponse
 from typing import Optional
 from app.schema import APIResponse, VulnerabilityFilter
@@ -7,8 +7,7 @@ from app.auth import get_current_user
 from app.logger import logger
 from datetime import datetime
 from app.models import PolicyApplicationModel, ApplicationStatus,PolicyModel , PolicyCategoryModel
-from app.policy_schemas import PolicyApplicationRequest, PolicyApplicationResponse
-
+from app.policy_schemas import PolicyApplicationRequest, PolicyApplicationResponse, PolicyApplicationListRequest
 
 
 # Create router
@@ -219,7 +218,7 @@ from typing import Optional, List
 from app.policy_schemas import (
     PolicyResponse, PolicyCreate, PolicyUpdate, PolicyCategoryResponse,
     PolicyListResponse, PolicyApplicationRequest, PolicyApplicationResponse,
-    PolicyApplicationListResponse
+    PolicyApplicationListResponse, ClusterPolicyOverview
 )
 from app.policy_service import policy_db_service
 from app.database import get_db
@@ -293,29 +292,6 @@ async def get_policies_by_category(
         logger.error(f"Error getting policies by category: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@policy_router.get("/search", response_model=APIResponse)
-async def search_policies(
-    q: Optional[str] = Query(None, description="Search query"),
-    category: Optional[str] = Query(None, description="Filter by category"),
-    severity: Optional[str] = Query(None, description="Filter by severity"),
-    page: int = Query(1, ge=1, description="Page number"),
-    size: int = Query(10, ge=1, le=100, description="Page size"),
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
-):
-    """Search policies with filters"""
-    try:
-        logger.info(f"User {current_user.get('username', 'unknown')} searching policies: q={q}, category={category}, severity={severity}")
-        result = policy_db_service.search_policies(db, q or "", category, severity, page, size)
-        return APIResponse(
-            success=True,
-            message=f"Found {result['total']} policies matching search criteria",
-            data=result,
-            timestamp=datetime.now().isoformat()
-        )
-    except Exception as e:
-        logger.error(f"Error searching policies: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
 
 @policy_router.get("/{policy_id}", response_model=APIResponse)
 async def get_policy_by_id(
@@ -343,25 +319,6 @@ async def get_policy_by_id(
         logger.error(f"Error getting policy by ID: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@policy_router.post("/", response_model=APIResponse)
-async def create_policy(
-    policy_data: PolicyCreate,
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
-):
-    """Create a new policy"""
-    try:
-        logger.info(f"User {current_user.get('username', 'unknown')} creating new policy: {policy_data.policy_id}")
-        policy = policy_db_service.create_policy(db, policy_data)
-        return APIResponse(
-            success=True,
-            message=f"Policy '{policy_data.policy_id}' created successfully",
-            data=policy,
-            timestamp=datetime.now().isoformat()
-        )
-    except Exception as e:
-        logger.error(f"Error creating policy: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
 
 @policy_router.put("/{policy_id}", response_model=APIResponse)
 async def update_policy(
@@ -461,35 +418,77 @@ async def get_category_stats(
 
 def get_user_token(request: Request) -> str:
     """Extract token from request headers"""
-    auth_header = request.headers.get('authorization', '')
+    auth_header = request.headers.get('Authorization', '')
     if auth_header.startswith('Bearer '):
-        token = auth_header[7:]  # Remove 'Bearer ' prefix
-        print("_________________________ user token1 _________________________ ", token)
-        if not token:
-            raise HTTPException(
-                status_code=401,
-                detail="User token not available"
-            )
-        return token
-    else:
-        raise HTTPException(
-            status_code=401,
-            detail="User token not available"
-        )
+        return auth_header[7:]  # Remove 'Bearer ' prefix
+    raise HTTPException(
+        status_code=401,
+        detail="User token not available"
+    )
+
+
+
+''' You can apply policies at cluster level because:
+
+1. Your YAML policies already use ClusterPolicy kind - which applies cluster-wide by default
+2. Kyverno ClusterPolicy automatically applies to all namespaces in the cluster
+3. The kubernetes_namespace field set to "cluster-wide" is just for tracking/display purposes
+4. The actual cluster-wide application happens through the YAML content (kind: ClusterPolicy) which makes it apply cluster-wide. 
+
+So removing the is_cluster_wide database field won't affect the cluster-level policy application functionality - it will still work because the policy YAML itself contains kind: ClusterPolicy which makes it apply cluster-wide. '''
+
+
+
+
+''' Note:
+
+1. The kubernetes_namespace field is only for tracking purposes in the database
+2. Since your policies use kind: ClusterPolicy in the YAML, they will automatically apply cluster-wide regardless of the namespace value
+3. Setting kubernetes_namespace: "cluster-wide" just helps you identify in the database that this was intended as a cluster-wide application '''
+
+
+
+
+#  ---------------------------------------- Cluster-wide application: ------------------------------
+
+# {
+#   "cluster_name": "kubesage-demo",
+#   "policy_id": "disallow-latest-tag",
+#   "kubernetes_namespace": "cluster-wide"
+# }
+
+
+
+# ------------------------ Alternative (using default namespace but still applies cluster-wide): ------------------------------
+
+# {
+#   "cluster_name": "kubesage-demo", 
+#   "policy_id": "disallow-latest-tag",
+#   "kubernetes_namespace": "default"
+# }
+
+
+# ------------------------ Or without namespace (will default to "default"): ------------------------------
+
+# {
+#   "cluster_name": "kubesage-demo",
+#   "policy_id": "disallow-latest-tag"
+# }
+
+
+
 
 @policy_router.post("/apply", response_model=APIResponse)
 async def apply_policy_to_cluster(
-    policy_request: PolicyApplicationRequest,  # Rename to avoid confusion
-    request: Request,  # Add FastAPI Request object
+    policy_request: PolicyApplicationRequest,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
     """Apply a policy to a specific cluster"""
     try:
         user_id = current_user.get('user_id', current_user.get('id', 1))
-        print("_________________________ user id _________________________ ", user_id)
-        user_token = get_user_token(request)  # Pass FastAPI Request object
-        print("_________________________ user token2 _________________________ ", user_token)
+        user_token = get_user_token(request)
         
         logger.info(f"User {current_user.get('username', 'unknown')} applying policy {policy_request.policy_id} to cluster {policy_request.cluster_name}")
         
@@ -505,33 +504,34 @@ async def apply_policy_to_cluster(
         logger.error(f"Error applying policy to cluster: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@policy_router.get("/applications", response_model=APIResponse)
+
+
+@policy_router.post("/applications/list", response_model=APIResponse)
 async def get_policy_applications(
-    cluster_name: Optional[str] = Query(None, description="Filter by cluster name"),
-    status: Optional[str] = Query(None, description="Filter by application status"),
-    page: int = Query(1, ge=1, description="Page number"),
-    size: int = Query(10, ge=1, le=100, description="Page size"),
+    request_data: PolicyApplicationListRequest,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get policy applications for the current user"""
+    """Get policy applications for the current user with cluster filtering"""
     try:
         user_id = current_user.get('user_id', current_user.get('id', 1))
-        logger.info(f"User {current_user.get('username', 'unknown')} requested policy applications")
+        
+        logger.info(f"User {current_user.get('username', 'unknown')} requested policy applications for cluster: {request_data.cluster_name}")
         
         result = policy_db_service.get_policy_applications(
-            db, user_id, cluster_name, status, page, size
+            db, user_id, request_data.cluster_name, request_data.status, request_data.page, request_data.size
         )
         
         return APIResponse(
             success=True,
             message=f"Retrieved {len(result.applications)} policy applications",
-            data=result,
+            data=result.dict(),
             timestamp=datetime.now().isoformat()
         )
     except Exception as e:
-        logger.error(f"Error getting policy applications: {e}")
+        logger.error(f"Error getting policy applications: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @policy_router.get("/applications/{application_id}", response_model=APIResponse)
 async def get_policy_application_details(
@@ -592,16 +592,18 @@ async def remove_policy_from_cluster(
         logger.error(f"Error removing policy from cluster: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
+
 @policy_router.get("/clusters/overview", response_model=APIResponse)
 async def get_cluster_policy_overview(
-    request: Request,  # Add Request parameter
+    request: Request,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
     """Get overview of policy applications across all clusters"""
     try:
         user_id = current_user.get('user_id', current_user.get('id', 1))
-        user_token = get_user_token(request)  # Pass Request object instead of current_user
+        user_token = get_user_token(request)
         
         logger.info(f"User {current_user.get('username', 'unknown')} requested cluster policy overview")
         
@@ -616,6 +618,7 @@ async def get_cluster_policy_overview(
     except Exception as e:
         logger.error(f"Error getting cluster policy overview: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @policy_router.get("/clusters/{cluster_name}/available-policies", response_model=APIResponse)
 async def get_available_policies_for_cluster(
