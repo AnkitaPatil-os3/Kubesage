@@ -571,12 +571,13 @@ async def get_policy_application_details(
 async def remove_policy_from_cluster(
     application_id: int = Path(..., description="Policy application ID"),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user),
+    request: Request = None
 ):
     """Remove a policy from cluster"""
     try:
         user_id = current_user.get('user_id', current_user.get('id', 1))
-        user_token = get_user_token(current_user)  # Get user token
+        user_token = get_user_token(request)
         
         logger.info(f"User {current_user.get('username', 'unknown')} removing policy application {application_id}")
         

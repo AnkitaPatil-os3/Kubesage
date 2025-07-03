@@ -171,6 +171,99 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
     const KUBECONFIG_API = '/kubeconfig';
     const POLICIES_API = 'https://10.0.32.103:8005/api/v1/policies';
 
+
+    // Make this function available globally for the modal
+    window.handleRemovePolicyConfirmed = async (applicationId: number) => {
+        try {
+            const response = await fetch(`${POLICIES_API}/applications/${applicationId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                showToast('Policy removed successfully from cluster', 'success');
+                // Refresh the applications list
+                fetchApplications();
+            } else {
+                showToast(data.message || 'Failed to remove policy', 'error');
+            }
+        } catch (error) {
+            console.error('Error removing policy:', error);
+            showToast('Failed to remove policy from cluster', 'error');
+        }
+    };
+
+
+    const showRemoveConfirmModal = (applicationId: number, policyName: string) => {
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+        modal.innerHTML = `
+        <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+            <div class="flex items-center mb-4">
+                <div class="flex-shrink-0 w-10 h-10 mx-auto bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center">
+                    <svg class="w-6 h-6 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                    </svg>
+                </div>
+            </div>
+            <div class="text-center">
+                <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">Remove Policy</h3>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">
+                    Are you sure you want to remove the policy "<strong>${policyName}</strong>" from the cluster? This action cannot be undone.
+                </p>
+                <div class="flex space-x-3">
+                    <button 
+                        onclick="this.closest('.fixed').remove()" 
+                        class="flex-1 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    >
+                        Cancel
+                    </button>
+                    <button 
+                        onclick="handleRemovePolicyConfirmed(${applicationId}); this.closest('.fixed').remove()" 
+                        class="flex-1 px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                    >
+                        Remove
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+        document.body.appendChild(modal);
+    };
+
+
+
+
+    const showYamlModal = (app: PolicyApplication & { yaml?: string }) => {
+        // Create a modal to show YAML content
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+
+        // Get YAML content - try different possible field names
+        const yamlContent = app.applied_yaml || app.yaml || 'YAML content not available';
+
+        modal.innerHTML = `
+        <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-4xl max-h-[80vh] overflow-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Applied YAML - ${app.policy?.name || app.policy_name}</h3>
+                <button class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" onclick="this.closest('.fixed').remove()">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <pre class="bg-gray-100 dark:bg-gray-900 p-4 rounded-lg overflow-auto text-sm font-mono whitespace-pre-wrap"><code>${yamlContent}</code></pre>
+        </div>
+    `;
+        document.body.appendChild(modal);
+    };
+
+
     // Fetch functions
     const fetchAvailablePoliciesForCluster = async (clusterName: string) => {
         if (!clusterName) return;
@@ -580,8 +673,8 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
         // Simple toast implementation - you can replace with your preferred toast library
         const toast = document.createElement('div');
         toast.className = `fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg ${type === 'success' ? 'bg-green-500 text-white' :
-                type === 'error' ? 'bg-red-500 text-white' :
-                    'bg-blue-500 text-white'
+            type === 'error' ? 'bg-red-500 text-white' :
+                'bg-blue-500 text-white'
             }`;
         toast.textContent = message;
         document.body.appendChild(toast);
@@ -807,8 +900,8 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                                 whileTap={{ scale: 0.98 }}
                                 onClick={() => setSelectedClusterName(cluster.cluster_name)}
                                 className={`p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${selectedClusterName === cluster.cluster_name
-                                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 shadow-lg'
-                                        : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 bg-gray-50 dark:bg-gray-700/50'
+                                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 shadow-lg'
+                                    : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 bg-gray-50 dark:bg-gray-700/50'
                                     }`}
                             >
                                 <div className="flex items-center justify-between mb-2">
@@ -878,8 +971,8 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                                     whileTap={{ scale: 0.98 }}
                                     onClick={() => setSelectedCategory(category.name)}
                                     className={`p-6 rounded-xl border-2 cursor-pointer transition-all duration-200 ${selectedCategory === category.name
-                                            ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/30 shadow-lg'
-                                            : 'border-gray-200 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-600 bg-gray-50 dark:bg-gray-700/50'
+                                        ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/30 shadow-lg'
+                                        : 'border-gray-200 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-600 bg-gray-50 dark:bg-gray-700/50'
                                         }`}
                                 >
                                     <div className="flex items-center justify-between mb-3">
@@ -968,6 +1061,7 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                     </motion.div>
                 )} */}
 
+                {/* Policies Grid */}
                 {/* Policies Grid */}
                 {selectedCategory && (
                     <motion.div
@@ -1061,67 +1155,157 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                                     ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
                                     : "space-y-4"
                                 }>
-                                    {sortedPolicies.map((policy, index) => (
-                                        <motion.div
-                                            key={policy.id}
-                                            initial={{ opacity: 0, y: 20 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            transition={{ delay: index * 0.1 }}
-                                            className={`bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 hover:shadow-xl transition-all duration-300 ${viewMode === 'list' ? 'flex items-center p-4' : 'p-6'
-                                                }`}
-                                        >
-                                            {viewMode === 'grid' ? (
-                                                <>
-                                                    {/* Grid View */}
-                                                    <div className="flex items-start justify-between mb-4">
-                                                        <div className="flex items-center space-x-3">
+                                    {sortedPolicies.map((policy, index) => {
+                                        const isApplied = applications.some(app =>
+                                            app.policy?.policy_id === policy.policy_id &&
+                                            app.cluster_name === selectedClusterName &&
+                                            app.status === 'applied'
+                                        );
+
+                                        return (
+                                            <motion.div
+                                                key={policy.id}
+                                                initial={{ opacity: 0, y: 20 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{ delay: index * 0.1 }}
+                                                className={`bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 hover:shadow-xl transition-all duration-300 ${viewMode === 'list' ? 'flex items-center p-4' : 'p-6'
+                                                    }`}
+                                            >
+                                                {viewMode === 'grid' ? (
+                                                    <>
+                                                        {/* Grid View */}
+                                                        <div className="flex items-start justify-between mb-4">
+                                                            <div className="flex items-center space-x-3">
+                                                                <div className="p-2 bg-gradient-to-r from-blue-500 to-cyan-600 rounded-lg">
+                                                                    <Shield className="w-4 h-4 text-white" />
+                                                                </div>
+                                                                <div>
+                                                                    <h4 className="font-semibold text-gray-900 dark:text-white text-sm">
+                                                                        {policy.name}
+                                                                    </h4>
+                                                                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getSeverityColor(policy.severity)}`}>
+                                                                        {policy.severity.toUpperCase()}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                            <button
+                                                                onClick={() => {
+                                                                    setSelectedPolicy(policy);
+                                                                    setShowPolicyModal(true);
+                                                                }}
+                                                                className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                                                            >
+                                                                <Eye className="w-4 h-4" />
+                                                            </button>
+                                                        </div>
+
+                                                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-3">
+                                                            {policy.description || policy.purpose}
+                                                        </p>
+
+                                                        {policy.tags && policy.tags.length > 0 && (
+                                                            <div className="flex flex-wrap gap-1 mb-4">
+                                                                {policy.tags.slice(0, 3).map((tag, tagIndex) => (
+                                                                    <span
+                                                                        key={tagIndex}
+                                                                        className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
+                                                                    >
+                                                                        <Tag className="w-3 h-3 mr-1" />
+                                                                        {tag}
+                                                                    </span>
+                                                                ))}
+                                                                {policy.tags.length > 3 && (
+                                                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
+                                                                        +{policy.tags.length - 3}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        )}
+
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="flex items-center space-x-2">
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setSelectedPolicy(policy);
+                                                                        setShowPolicyModal(true);
+                                                                    }}
+                                                                    className="flex items-center space-x-2 px-3 py-2 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
+                                                                >
+                                                                    <Eye className="w-4 h-4" />
+                                                                    <span className="text-sm">View</span>
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => {
+                                                                        navigator.clipboard.writeText(policy.yaml_content);
+                                                                        showToast('YAML copied to clipboard', 'success');
+                                                                    }}
+                                                                    className="flex items-center space-x-2 px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors"
+                                                                >
+                                                                    <Copy className="w-4 h-4" />
+                                                                    <span className="text-sm">Copy</span>
+                                                                </button>
+                                                            </div>
+
+                                                            <button
+                                                                onClick={() => {
+                                                                    if (!selectedClusterName) {
+                                                                        showToast('Please select a cluster first', 'error');
+                                                                        return;
+                                                                    }
+                                                                    if (isApplied) {
+                                                                        showToast(`Policy "${policy.name}" is already applied to this cluster`, 'error');
+                                                                        return;
+                                                                    }
+                                                                    setSelectedPolicy(policy);
+                                                                    setShowConfirmDialog(true);
+                                                                }}
+                                                                disabled={!selectedClusterName || applyingPolicy === policy.policy_id || isApplied}
+                                                                className={`flex items-center space-x-2 px-4 py-2 font-medium rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl ${isApplied
+                                                                    ? 'bg-gray-400 text-white cursor-not-allowed'
+                                                                    : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white disabled:opacity-50 disabled:cursor-not-allowed'
+                                                                    }`}
+                                                            >
+                                                                {applyingPolicy === policy.policy_id ? (
+                                                                    <>
+                                                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                                                        <span className="text-sm">Applying...</span>
+                                                                    </>
+                                                                ) : isApplied ? (
+                                                                    <>
+                                                                        <Check className="w-4 h-4" />
+                                                                        <span className="text-sm">Applied</span>
+                                                                    </>
+                                                                ) : (
+                                                                    <>
+                                                                        <Play className="w-4 h-4" />
+                                                                        <span className="text-sm">Apply</span>
+                                                                    </>
+                                                                )}
+                                                            </button>
+                                                        </div>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        {/* List View */}
+                                                        <div className="flex items-center space-x-4 flex-1">
                                                             <div className="p-2 bg-gradient-to-r from-blue-500 to-cyan-600 rounded-lg">
                                                                 <Shield className="w-4 h-4 text-white" />
                                                             </div>
-                                                            <div>
-                                                                <h4 className="font-semibold text-gray-900 dark:text-white text-sm">
-                                                                    {policy.name}
-                                                                </h4>
-                                                                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getSeverityColor(policy.severity)}`}>
-                                                                    {policy.severity.toUpperCase()}
-                                                                </span>
+                                                            <div className="flex-1">
+                                                                <div className="flex items-center space-x-3 mb-1">
+                                                                    <h4 className="font-semibold text-gray-900 dark:text-white">
+                                                                        {policy.name}
+                                                                    </h4>
+                                                                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getSeverityColor(policy.severity)}`}>
+                                                                        {policy.severity.toUpperCase()}
+                                                                    </span>
+                                                                </div>
+                                                                <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
+                                                                    {policy.description || policy.purpose}
+                                                                </p>
                                                             </div>
                                                         </div>
-                                                        <button
-                                                            onClick={() => {
-                                                                setSelectedPolicy(policy);
-                                                                setShowPolicyModal(true);
-                                                            }}
-                                                            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                                                        >
-                                                            <Eye className="w-4 h-4" />
-                                                        </button>
-                                                    </div>
 
-                                                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-3">
-                                                        {policy.description || policy.purpose}
-                                                    </p>
-
-                                                    {policy.tags && policy.tags.length > 0 && (
-                                                        <div className="flex flex-wrap gap-1 mb-4">
-                                                            {policy.tags.slice(0, 3).map((tag, tagIndex) => (
-                                                                <span
-                                                                    key={tagIndex}
-                                                                    className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
-                                                                >
-                                                                    <Tag className="w-3 h-3 mr-1" />
-                                                                    {tag}
-                                                                </span>
-                                                            ))}
-                                                            {policy.tags.length > 3 && (
-                                                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
-                                                                    +{policy.tags.length - 3}
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    )}
-
-                                                    <div className="flex items-center justify-between">
                                                         <div className="flex items-center space-x-2">
                                                             <button
                                                                 onClick={() => {
@@ -1143,163 +1327,84 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                                                                 <Copy className="w-4 h-4" />
                                                                 <span className="text-sm">Copy</span>
                                                             </button>
-                                                        </div>
-
-                                                        <button
-                                                            onClick={() => {
-                                                                if (!selectedClusterName) {
-                                                                    showToast('Please select a cluster first', 'error');
-                                                                    return;
-                                                                }
-                                                                if (isPolicyApplied(policy.policy_id)) {
-                                                                    showToast(`Policy "${policy.name}" is already applied to this cluster`, 'error');
-                                                                    return;
-                                                                }
-                                                                setSelectedPolicy(policy);
-                                                                setShowConfirmDialog(true);
-                                                            }}
-                                                            disabled={!selectedClusterName || applyingPolicy === policy.policy_id || isPolicyApplied(policy.policy_id)}
-                                                            className={`flex items-center space-x-2 px-4 py-2 font-medium rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl ${isPolicyApplied(policy.policy_id)
+                                                            <button
+                                                                onClick={() => {
+                                                                    if (!selectedClusterName) {
+                                                                        showToast('Please select a cluster first', 'error');
+                                                                        return;
+                                                                    }
+                                                                    if (isApplied) {
+                                                                        showToast(`Policy "${policy.name}" is already applied to this cluster`, 'error');
+                                                                        return;
+                                                                    }
+                                                                    setSelectedPolicy(policy);
+                                                                    setShowConfirmDialog(true);
+                                                                }}
+                                                                disabled={!selectedClusterName || applyingPolicy === policy.policy_id || isApplied}
+                                                                className={`flex items-center space-x-2 px-4 py-2 font-medium rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl ${isApplied
                                                                     ? 'bg-gray-400 text-white cursor-not-allowed'
                                                                     : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white disabled:opacity-50 disabled:cursor-not-allowed'
-                                                                }`}
-                                                        >
-                                                            {applyingPolicy === policy.policy_id ? (
-                                                                <>
-                                                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                                                    <span className="text-sm">Applying...</span>
-                                                                </>
-                                                            ) : isPolicyApplied(policy.policy_id) ? (
-                                                                <>
-                                                                    <Check className="w-4 h-4" />
-                                                                    <span className="text-sm">Applied</span>
-                                                                </>
-                                                            ) : (
-                                                                <>
-                                                                    <Play className="w-4 h-4" />
-                                                                    <span className="text-sm">Apply</span>
-                                                                </>
-                                                            )}
-                                                        </button>
-                                                    </div>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    {/* List View */}
-                                                    <div className="flex items-center space-x-4 flex-1">
-                                                        <div className="p-2 bg-gradient-to-r from-blue-500 to-cyan-600 rounded-lg">
-                                                            <Shield className="w-4 h-4 text-white" />
+                                                                    }`}
+                                                            >
+                                                                {applyingPolicy === policy.policy_id ? (
+                                                                    <>
+                                                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                                                        <span className="text-sm">Applying...</span>
+                                                                    </>
+                                                                ) : isApplied ? (
+                                                                    <>
+                                                                        <Check className="w-4 h-4" />
+                                                                        <span className="text-sm">Applied</span>
+                                                                    </>
+                                                                ) : (
+                                                                    <>
+                                                                        <Play className="w-4 h-4" />
+                                                                        <span className="text-sm">Apply</span>
+                                                                    </>
+                                                                )}
+                                                            </button>
                                                         </div>
-                                                        <div className="flex-1">
-                                                            <div className="flex items-center space-x-3 mb-1">
-                                                                <h4 className="font-semibold text-gray-900 dark:text-white">
-                                                                    {policy.name}
-                                                                </h4>
-                                                                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getSeverityColor(policy.severity)}`}>
-                                                                    {policy.severity.toUpperCase()}
-                                                                </span>
-                                                            </div>
-                                                            <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-1">
-                                                                {policy.description || policy.purpose}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="flex items-center space-x-2">
-                                                        <button
-                                                            onClick={() => {
-                                                                setSelectedPolicy(policy);
-                                                                setShowPolicyModal(true);
-                                                            }}
-                                                            className="flex items-center space-x-2 px-3 py-2 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
-                                                        >
-                                                            <Eye className="w-4 h-4" />
-                                                            <span className="text-sm">View</span>
-                                                        </button>
-
-                                                        <button
-                                                            onClick={() => {
-                                                                if (!selectedClusterName) {
-                                                                    showToast('Please select a cluster first', 'error');
-                                                                    return;
-                                                                }
-                                                                if (isPolicyApplied(policy.policy_id)) {
-                                                                    showToast(`Policy "${policy.name}" is already applied to this cluster`, 'error');
-                                                                    return;
-                                                                }
-                                                                setSelectedPolicy(policy);
-                                                                setShowConfirmDialog(true);
-                                                            }}
-                                                            disabled={!selectedClusterName || applyingPolicy === policy.policy_id || isPolicyApplied(policy.policy_id)}
-                                                            className={`flex items-center space-x-2 px-4 py-2 font-medium rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl ${isPolicyApplied(policy.policy_id)
-                                                                    ? 'bg-gray-400 text-white cursor-not-allowed'
-                                                                    : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white disabled:opacity-50 disabled:cursor-not-allowed'
-                                                                }`}
-                                                        >
-                                                            {applyingPolicy === policy.policy_id ? (
-                                                                <>
-                                                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                                                    <span className="text-sm">Applying...</span>
-                                                                </>
-                                                            ) : isPolicyApplied(policy.policy_id) ? (
-                                                                <>
-                                                                    <Check className="w-4 h-4" />
-                                                                    <span className="text-sm">Applied</span>
-                                                                </>
-                                                            ) : (
-                                                                <>
-                                                                    <Play className="w-4 h-4" />
-                                                                    <span className="text-sm">Apply</span>
-                                                                </>
-                                                            )}
-                                                        </button>
-                                                    </div>
-                                                </>
-                                            )}
-                                        </motion.div>
-                                    ))}
+                                                    </>
+                                                )}
+                                            </motion.div>
+                                        );
+                                    })}
                                 </div>
 
                                 {/* Pagination */}
                                 {totalPages > 1 && (
-                                    <div className="flex items-center justify-between mt-8">
-                                        <div className="text-sm text-gray-600 dark:text-gray-400">
-                                            Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, sortedPolicies.length)} of {sortedPolicies.length} policies
-                                        </div>
-                                        <div className="flex items-center space-x-2">
-                                            <button
-                                                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                                                disabled={currentPage === 1}
-                                                className="flex items-center space-x-2 px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                                            >
-                                                <ArrowLeft className="w-4 h-4" />
-                                                <span>Previous</span>
-                                            </button>
+                                    <div className="flex items-center justify-center space-x-2 mt-8">
+                                        <button
+                                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                            disabled={currentPage === 1}
+                                            className="px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            <ChevronLeft className="w-4 h-4" />
+                                        </button>
 
-                                            <div className="flex items-center space-x-1">
-                                                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                                                    <button
-                                                        key={page}
-                                                        onClick={() => setCurrentPage(page)}
-                                                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${currentPage === page
-                                                                ? 'bg-blue-500 text-white'
-                                                                : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                                                            }`}
-                                                    >
-                                                        {page}
-                                                    </button>
-                                                ))}
-                                            </div>
+                                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                            const pageNum = Math.max(1, Math.min(currentPage - 2 + i, totalPages - 4 + i));
+                                            return (
+                                                <button
+                                                    key={pageNum}
+                                                    onClick={() => setCurrentPage(pageNum)}
+                                                    className={`px-3 py-2 rounded-lg ${currentPage === pageNum
+                                                        ? 'bg-blue-500 text-white'
+                                                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                                                        }`}
+                                                >
+                                                    {pageNum}
+                                                </button>
+                                            );
+                                        })}
 
-                                            <button
-                                                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                                                disabled={currentPage === totalPages}
-                                                className="flex items-center space-x-2 px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                                            >
-                                                <span>Next</span>
-                                                <ArrowRight className="w-4 h-4" />
-                                            </button>
-                                        </div>
+                                        <button
+                                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                            disabled={currentPage === totalPages}
+                                            className="px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            <ChevronRight className="w-4 h-4" />
+                                        </button>
                                     </div>
                                 )}
                             </>
@@ -1333,55 +1438,95 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                                     <option value="FAILED">Failed</option>
                                 </select>
                                 <span className="text-sm text-gray-500 dark:text-gray-400">
-                                    {applications.length} applications
+                                    {applications.filter(app => app.status !== 'REMOVED').length} applications
                                 </span>
                             </div>
                         </div>
 
                         <div className="space-y-3">
-                            {applications.slice(0, 10).map((app, index) => (
-                                <motion.div
-                                    key={app.id}
-                                    initial={{ opacity: 0, x: -20 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: index * 0.1 }}
-                                    className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                                >
-                                    <div className="flex items-center space-x-4">
-                                        <div className={`p-2 rounded-lg ${getStatusColor(app.status)}`}>
-                                            {getStatusIcon(app.status)}
-                                        </div>
-                                        <div>
-                                            <h4 className="font-medium text-gray-900 dark:text-white">
-                                                {app.policy_name || app.policy_id}
-                                            </h4>
-                                            <p className="text-sm text-gray-600 dark:text-gray-400">
-                                                {app.cluster_name} • {app.kubernetes_namespace}
-                                            </p>
-                                        </div>
-                                    </div>
+                            {applications
+                                .filter(app => app.status !== 'REMOVED') // Filter out removed policies
+                                .slice(0, 10)
+                                .map((app, index) => {
+                                    // Debug logging - remove this after testing
+                                    console.log('App data:', app, 'Status:', app.status, 'Is APPLIED:', app.status === 'APPLIED');
 
-                                    <div className="flex items-center space-x-3">
-                                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(app.status)}`}>
-                                            {app.status}
-                                        </span>
-                                        <span className="text-sm text-gray-500 dark:text-gray-400">
-                                            {new Date(app.applied_at).toLocaleDateString()}
-                                        </span>
-                                        {app.error_message && (
-                                            <button
-                                                onClick={() => showToast(app.error_message, 'error')}
-                                                className="p-1 text-red-500 hover:text-red-700 dark:hover:text-red-400"
-                                            >
-                                                <AlertTriangle className="w-4 h-4" />
-                                            </button>
-                                        )}
-                                    </div>
-                                </motion.div>
-                            ))}
+                                    return (
+                                        <motion.div
+                                            key={app.id}
+                                            initial={{ opacity: 0, x: -20 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            transition={{ delay: index * 0.1 }}
+                                            className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                                        >
+                                            <div className="flex items-center space-x-4">
+                                                <div className={`p-2 rounded-lg ${getStatusColor(app.status)}`}>
+                                                    {getStatusIcon(app.status)}
+                                                </div>
+                                                <div>
+                                                    <h4 className="font-medium text-gray-900 dark:text-white">
+                                                        {app.policy?.name || app.policy_name || app.policy_id}
+                                                    </h4>
+                                                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                                                        {app.cluster_name} • {app.kubernetes_namespace}
+                                                    </p>
+                                                    {app.status === 'FAILED' && app.error_message && (
+                                                        <p className="text-sm text-red-600 dark:text-red-400 mt-1">
+                                                            <AlertTriangle className="w-3 h-3 inline mr-1" />
+                                                            {app.error_message}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center space-x-3">
+                                                <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(app.status)}`}>
+                                                    {app.status}
+                                                </span>
+                                                <span className="text-sm text-gray-500 dark:text-gray-400">
+                                                    {new Date(app.applied_at).toLocaleDateString()}
+                                                </span>
+
+                                                {/* YAML View Icon */}
+                                                <button
+                                                    onClick={() => showYamlModal(app)}
+                                                    className="p-1 text-blue-500 hover:text-blue-700 dark:hover:text-blue-400"
+                                                    title="View Applied YAML"
+                                                >
+                                                    <FileText className="w-4 h-4" />
+                                                </button>
+
+                                                {/* Remove Policy Button - Show for APPLIED policies */}
+                                                {(app.status === 'APPLIED' || app.status === 'applied') && (
+                                                    <button
+                                                        onClick={() => {
+                                                            console.log('Remove button clicked for app:', app.id);
+                                                            showRemoveConfirmModal(app.id, app.policy?.name || app.policy_name || app.policy_id);
+                                                        }}
+                                                        className="p-1 text-red-500 hover:text-red-700 dark:hover:text-red-400"
+                                                        title="Remove Policy from Cluster"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                )}
+
+                                                {/* Error Icon for Failed Policies */}
+                                                {app.status === 'FAILED' && app.error_message && (
+                                                    <button
+                                                        onClick={() => showToast(app.error_message, 'error')}
+                                                        className="p-1 text-red-500 hover:text-red-700 dark:hover:text-red-400"
+                                                        title="View Error Details"
+                                                    >
+                                                        <AlertTriangle className="w-4 h-4" />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </motion.div>
+                                    );
+                                })}
                         </div>
 
-                        {applications.length > 10 && (
+                        {applications.filter(app => app.status !== 'REMOVED').length > 10 && (
                             <div className="mt-4 text-center">
                                 <button className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-sm font-medium">
                                     View All Applications
@@ -1390,6 +1535,8 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                         )}
                     </motion.div>
                 )}
+
+
             </div>
 
             {/* Policy Detail Modal */}
@@ -1533,8 +1680,8 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                                                 }}
                                                 disabled={!selectedClusterName || applyingPolicy === selectedPolicy.policy_id || isPolicyApplied(selectedPolicy.policy_id)}
                                                 className={`w-full flex items-center justify-center space-x-2 px-4 py-3 font-medium rounded-lg transition-all duration-200 ${isPolicyApplied(selectedPolicy.policy_id)
-                                                        ? 'bg-gray-400 text-white cursor-not-allowed'
-                                                        : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white disabled:opacity-50 disabled:cursor-not-allowed'
+                                                    ? 'bg-gray-400 text-white cursor-not-allowed'
+                                                    : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white disabled:opacity-50 disabled:cursor-not-allowed'
                                                     }`}
                                             >
                                                 {applyingPolicy === selectedPolicy.policy_id ? (
@@ -1569,8 +1716,8 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                                                 <button
                                                     onClick={() => setShowYamlEditor(!showYamlEditor)}
                                                     className={`p-2 rounded-lg transition-colors ${showYamlEditor
-                                                            ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400'
-                                                            : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+                                                        ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400'
+                                                        : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
                                                         }`}
                                                 >
                                                     <Code className="w-4 h-4" />
@@ -1578,8 +1725,8 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                                                 <button
                                                     onClick={() => setShowYamlEditor(!showYamlEditor)}
                                                     className={`p-2 rounded-lg transition-colors ${!showYamlEditor
-                                                            ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400'
-                                                            : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+                                                        ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400'
+                                                        : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
                                                         }`}
                                                 >
                                                     <Eye className="w-4 h-4" />
@@ -1760,7 +1907,7 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                                             Policy Statistics
                                         </h2>
                                         <p className="text-gray-600 dark:text-gray-400">
-                                            Overview of policy applications and status
+                                            {selectedClusterName ? `Overview for ${selectedClusterName}` : 'Overview of all policy applications and status'}
                                         </p>
                                     </div>
                                 </div>
@@ -1782,7 +1929,7 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                                                 <FileText className="w-5 h-5 text-white" />
                                             </div>
                                             <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                                                {stats.totalPolicies}
+                                                {policies.length}
                                             </span>
                                         </div>
                                         <h3 className="font-semibold text-blue-900 dark:text-blue-100">Total Policies</h3>
@@ -1796,7 +1943,10 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                                                 <CheckCircle className="w-5 h-5 text-white" />
                                             </div>
                                             <span className="text-2xl font-bold text-green-600 dark:text-green-400">
-                                                {stats.appliedPolicies}
+                                                {selectedClusterName
+                                                    ? applications.filter(app => app.cluster_name === selectedClusterName && app.status === 'applied').length
+                                                    : applications.filter(app => app.status === 'applied').length
+                                                }
                                             </span>
                                         </div>
                                         <h3 className="font-semibold text-green-900 dark:text-green-100">Applied Policies</h3>
@@ -1810,7 +1960,10 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                                                 <XCircle className="w-5 h-5 text-white" />
                                             </div>
                                             <span className="text-2xl font-bold text-red-600 dark:text-red-400">
-                                                {stats.failedPolicies}
+                                                {selectedClusterName
+                                                    ? applications.filter(app => app.cluster_name === selectedClusterName && app.status === 'failed').length
+                                                    : applications.filter(app => app.status === 'failed').length
+                                                }
                                             </span>
                                         </div>
                                         <h3 className="font-semibold text-red-900 dark:text-red-100">Failed Policies</h3>
@@ -1824,7 +1977,10 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                                                 <Clock className="w-5 h-5 text-white" />
                                             </div>
                                             <span className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
-                                                {stats.pendingPolicies}
+                                                {selectedClusterName
+                                                    ? applications.filter(app => app.cluster_name === selectedClusterName && ['pending', 'applying'].includes(app.status)).length
+                                                    : applications.filter(app => ['pending', 'applying'].includes(app.status)).length
+                                                }
                                             </span>
                                         </div>
                                         <h3 className="font-semibold text-yellow-900 dark:text-yellow-100">Pending Policies</h3>
@@ -1835,30 +1991,42 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                                 {/* Severity Breakdown */}
                                 <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6 mb-6">
                                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                                        Severity Breakdown
+                                        Severity Breakdown {selectedClusterName && `(${selectedClusterName})`}
                                     </h3>
                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                         <div className="text-center">
                                             <div className="text-2xl font-bold text-red-600 dark:text-red-400 mb-1">
-                                                {stats.severityBreakdown?.critical || 0}
+                                                {selectedClusterName
+                                                    ? applications.filter(app => app.cluster_name === selectedClusterName && app.policy?.severity === 'critical').length
+                                                    : policies.filter(policy => policy.severity === 'critical').length
+                                                }
                                             </div>
                                             <div className="text-sm text-red-700 dark:text-red-300 font-medium">Critical</div>
                                         </div>
                                         <div className="text-center">
                                             <div className="text-2xl font-bold text-orange-600 dark:text-orange-400 mb-1">
-                                                {stats.severityBreakdown?.high || 0}
+                                                {selectedClusterName
+                                                    ? applications.filter(app => app.cluster_name === selectedClusterName && app.policy?.severity === 'high').length
+                                                    : policies.filter(policy => policy.severity === 'high').length
+                                                }
                                             </div>
                                             <div className="text-sm text-orange-700 dark:text-orange-300 font-medium">High</div>
                                         </div>
                                         <div className="text-center">
                                             <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400 mb-1">
-                                                {stats.severityBreakdown?.medium || 0}
+                                                {selectedClusterName
+                                                    ? applications.filter(app => app.cluster_name === selectedClusterName && app.policy?.severity === 'medium').length
+                                                    : policies.filter(policy => policy.severity === 'medium').length
+                                                }
                                             </div>
                                             <div className="text-sm text-yellow-700 dark:text-yellow-300 font-medium">Medium</div>
                                         </div>
                                         <div className="text-center">
                                             <div className="text-2xl font-bold text-green-600 dark:text-green-400 mb-1">
-                                                {stats.severityBreakdown?.low || 0}
+                                                {selectedClusterName
+                                                    ? applications.filter(app => app.cluster_name === selectedClusterName && app.policy?.severity === 'low').length
+                                                    : policies.filter(policy => policy.severity === 'low').length
+                                                }
                                             </div>
                                             <div className="text-sm text-green-700 dark:text-green-300 font-medium">Low</div>
                                         </div>
@@ -1866,65 +2034,82 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                                 </div>
 
                                 {/* Cluster Overview */}
-                                {clusterOverview.length > 0 && (
+                                {clusters.length > 0 && (
                                     <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6">
                                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                                            Cluster Policy Overview
+                                            {selectedClusterName ? `${selectedClusterName} Policy Overview` : 'Cluster Policy Overview'}
                                         </h3>
                                         <div className="space-y-4">
-                                            {clusterOverview.map((cluster, index) => (
-                                                <div key={index} className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
-                                                    <div className="flex items-center justify-between mb-3">
-                                                        <div className="flex items-center space-x-3">
-                                                            <Server className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                                                            <div>
-                                                                <h4 className="font-semibold text-gray-900 dark:text-white">
-                                                                    {cluster.cluster.cluster_name}
-                                                                </h4>
-                                                                <p className="text-sm text-gray-600 dark:text-gray-400">
-                                                                    {cluster.cluster.provider_name}
-                                                                </p>
-                                                            </div>
-                                                        </div>
-                                                        <div className="flex items-center space-x-4 text-sm">
-                                                            <span className="text-green-600 dark:text-green-400 font-medium">
-                                                                {cluster.applied_count} Applied
-                                                            </span>
-                                                            <span className="text-red-600 dark:text-red-400 font-medium">
-                                                                {cluster.failed_count} Failed
-                                                            </span>
-                                                            <span className="text-yellow-600 dark:text-yellow-400 font-medium">
-                                                                {cluster.pending_count} Pending
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center justify-between">
-                                                        <div className="text-sm text-gray-600 dark:text-gray-400">
-                                                            Total Applications: {cluster.total_applications}
-                                                        </div>
-                                                        {cluster.categories_applied.length > 0 && (
-                                                            <div className="flex items-center space-x-2">
-                                                                <span className="text-sm text-gray-600 dark:text-gray-400">Categories:</span>
-                                                                <div className="flex space-x-1">
-                                                                    {cluster.categories_applied.slice(0, 3).map((category, catIndex) => (
-                                                                        <span
-                                                                            key={catIndex}
-                                                                            className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400"
-                                                                        >
-                                                                            {category}
-                                                                        </span>
-                                                                    ))}
-                                                                    {cluster.categories_applied.length > 3 && (
-                                                                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
-                                                                            +{cluster.categories_applied.length - 3}
-                                                                        </span>
-                                                                    )}
+                                            {(selectedClusterName
+                                                ? clusters.filter(cluster => cluster.cluster_name === selectedClusterName)
+                                                : clusters
+                                            ).map((cluster, index) => {
+                                                const clusterApplications = applications.filter(app => app.cluster_name === cluster.cluster_name);
+                                                const appliedCount = clusterApplications.filter(app => app.status === 'applied').length;
+                                                const failedCount = clusterApplications.filter(app => app.status === 'failed').length;
+                                                const pendingCount = clusterApplications.filter(app => ['pending', 'applying'].includes(app.status)).length;
+
+                                                // Get unique categories applied to this cluster
+                                                const categoriesApplied = [...new Set(
+                                                    clusterApplications
+                                                        .filter(app => app.policy && app.status === 'applied')
+                                                        .map(app => app.policy.category?.name || 'Unknown')
+                                                )];
+
+                                                return (
+                                                    <div key={index} className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
+                                                        <div className="flex items-center justify-between mb-3">
+                                                            <div className="flex items-center space-x-3">
+                                                                <Server className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                                                                <div>
+                                                                    <h4 className="font-semibold text-gray-900 dark:text-white">
+                                                                        {cluster.cluster_name}
+                                                                    </h4>
+                                                                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                                                                        {cluster.provider_name || 'Unknown Provider'}
+                                                                    </p>
                                                                 </div>
                                                             </div>
-                                                        )}
+                                                            <div className="flex items-center space-x-4 text-sm">
+                                                                <span className="text-green-600 dark:text-green-400 font-medium">
+                                                                    {appliedCount} Applied
+                                                                </span>
+                                                                <span className="text-red-600 dark:text-red-400 font-medium">
+                                                                    {failedCount} Failed
+                                                                </span>
+                                                                <span className="text-yellow-600 dark:text-yellow-400 font-medium">
+                                                                    {pendingCount} Pending
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="text-sm text-gray-600 dark:text-gray-400">
+                                                                Total Applications: {clusterApplications.length}
+                                                            </div>
+                                                            {categoriesApplied.length > 0 && (
+                                                                <div className="flex items-center space-x-2">
+                                                                    <span className="text-sm text-gray-600 dark:text-gray-400">Categories:</span>
+                                                                    <div className="flex space-x-1">
+                                                                        {categoriesApplied.slice(0, 3).map((category, catIndex) => (
+                                                                            <span
+                                                                                key={catIndex}
+                                                                                className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400"
+                                                                            >
+                                                                                {category}
+                                                                            </span>
+                                                                        ))}
+                                                                        {categoriesApplied.length > 3 && (
+                                                                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
+                                                                                +{categoriesApplied.length - 3}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            ))}
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 )}
@@ -1933,6 +2118,10 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                     </motion.div>
                 )}
             </AnimatePresence>
+
+
+
+
         </div>
     );
 };
