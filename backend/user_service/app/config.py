@@ -12,11 +12,11 @@ class Settings(BaseSettings):
     DEBUG: bool = os.getenv("DEBUG", "False").lower() == "true"
     
     # PostgreSQL connection
-    POSTGRES_USER: str = os.getenv("POSTGRES_USER", "nisha")
+    POSTGRES_USER: str = os.getenv("POSTGRES_USER", "preet")
     POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "linux")
     POSTGRES_HOST: str = os.getenv("POSTGRES_HOST", "localhost")
     POSTGRES_PORT: str = os.getenv("POSTGRES_PORT", "5432")
-    POSTGRES_DB: str = os.getenv("POSTGRES_DB", "n_user_db")
+    POSTGRES_DB: str = os.getenv("POSTGRES_DB", "p_testuser_db")
     DATABASE_URL: str = ""  # Will be constructed from above settings
 
     # Email Configuration
@@ -28,10 +28,10 @@ class Settings(BaseSettings):
     MAIL_FROM_NAME: str = os.getenv("MAIL_FROM_NAME", "KubeSage Alert System")
     MAIL_STARTTLS: bool = os.getenv("MAIL_TLS", "True").lower() == "true"
     MAIL_SSL_TLS: bool = os.getenv("MAIL_SSL", "False").lower() == "true"
-    SERVER_BASE_URL: str = os.getenv("SERVER_BASE_URL", "https://10.0.32.103:8001")
+    SERVER_BASE_URL: str = os.getenv("SERVER_BASE_URL", "https://10.0.32.122:8001")
     USER_CONFIRMATION_TIMEOUT: int = int(os.getenv("USER_CONFIRMATION_TIMEOUT", "3600"))
-    FRONTEND_BASE_URL: str = os.getenv("FRONTEND_BASE_URL", "https://10.0.32.103:5173")
-    MAIL_RECIPIENT: str = os.getenv("MAIL_RECIPIENT", "nisha.chaurasiya@os3infotech.com")
+    FRONTEND_BASE_URL: str = os.getenv("FRONTEND_BASE_URL", "https://10.0.32.122:5173")
+    MAIL_RECIPIENT: str = os.getenv("MAIL_RECIPIENT", "preeti.nathani@os3infotech.com")
 
     # RabbitMQ settings
     RABBITMQ_USER: str = os.getenv("RABBITMQ_USER", "guest")

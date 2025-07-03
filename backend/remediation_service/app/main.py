@@ -14,7 +14,7 @@ app = FastAPI(
 # Configure CORS
 origins = [
     "https://localhost:3000",
-    "https://10.0.32.103:5173",
+    "https://10.0.32.122:5173",
     "https://127.0.0.1:3000",
     "*"  # Allow all origins for development
 ]

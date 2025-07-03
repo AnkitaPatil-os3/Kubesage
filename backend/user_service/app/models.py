@@ -1,8 +1,25 @@
+# from sqlmodel import SQLModel, Field
+# from typing import Optional
+# import datetime
+# from datetime import datetime  # Import the datetime class directly, not the module
+
+
+# class User(SQLModel, table=True):
+#     id: Optional[int] = Field(default=None, primary_key=True)
+#     username: str = Field(unique=True, index=True)
+#     email: str = Field(unique=True, index=True)
+#     hashed_password: str
+#     first_name: Optional[str] = None
+#     last_name: Optional[str] = None
+#     is_active: bool = Field(default=True)
+
+#     roles: Optional[str] = Field(default="")
+#     created_at: datetime = Field(default_factory=datetime.now)
+#     updated_at: datetime = Field(default_factory=datetime.now)
 from sqlmodel import SQLModel, Field
 from typing import Optional
-import datetime
-from datetime import datetime  # Import the datetime class directly, not the module
-
+from datetime import datetime
+import uuid
 
 class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -12,9 +29,11 @@ class User(SQLModel, table=True):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     is_active: bool = Field(default=True)
-    is_admin: bool = Field(default=False)
+    confirmed: bool = Field(default=False)  # Added confirmed field
+    roles: str 
+    # roles: Optional[str] = Field(default="")  # Comma-separated roles as a string
     created_at: datetime = Field(default_factory=datetime.now)
-    updated_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 class UserToken(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)

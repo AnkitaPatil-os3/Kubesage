@@ -245,7 +245,7 @@ interface ExecuteResult {
 }
 
 // API Configuration
-const API_BASE_URL = 'https://10.0.32.103:8004/api/v1';
+const API_BASE_URL = 'https://10.0.32.122:8004/api/v1';
 
 class ChatAPI {
   private getAuthHeaders() {

@@ -31,7 +31,8 @@ import {
   Input,
   Select,
   SelectItem,
-  Switch
+  Switch,
+  Checkbox
 } from "@heroui/react";
 import { 
   ResponsiveContainer, 
@@ -52,7 +53,7 @@ import {
 interface AdminDashboardProps {
   selectedCluster?: string;
 }
-
+// new 
 interface User {
   id: number;
   username: string;
@@ -61,7 +62,9 @@ interface User {
   last_name: string;
   is_active: boolean;
   is_admin: boolean;
+  roles: string[];
   created_at?: string;
+  confirmed?: boolean;
 }
 
 interface NewUser {
@@ -71,7 +74,7 @@ interface NewUser {
   first_name: string;
   last_name: string;
   is_active: boolean;
-  is_admin: boolean;
+  roles: string[];
 }
 
 interface EditUser {
@@ -80,10 +83,10 @@ interface EditUser {
   first_name: string;
   last_name: string;
   is_active: boolean;
-  is_admin: boolean;
+  roles: string[];
   password?: string; // Optional for edit
 }
-
+// new
 interface NewCluster {
   name: string;
   provider: string;
@@ -191,7 +194,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
     first_name: "",
     last_name: "",
     is_active: true,
-    is_admin: false,
+    roles: [],
   });
   const [editUser, setEditUser] = useState<EditUser>({
     username: "",
@@ -199,7 +202,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
     first_name: "",
     last_name: "",
     is_active: true,
-    is_admin: false,
+    roles: [],
     password: "",
   });
 
@@ -303,7 +306,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
       console.log('Using token:', token.substring(0, 50) + '...');
 
       // Updated API endpoint to fetch cluster names from kubeconfig service on port 8002
-     const res = await fetch(`${KUBECONFIG_BASE_URL}/kubeconfig/list`, {
+     const res = await fetch(`${KUBECONFIG_BASE_URL}/kubeconfig/clusters`, {
   method: 'GET',
   headers: {
     "accept": "application/json",
@@ -386,9 +389,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`,
         },
-        body: JSON.stringify(newUser),
-      });
+        // NEW
+        body: JSON.stringify({
+          ...newUser,
+          roles: newUser.roles,
+        }),
 
+      });
+      // new
       if (res.ok) {
         const responseData = await res.json();
         console.log('User created:', responseData);
@@ -401,11 +409,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
           first_name: "",
           last_name: "",
           is_active: true,
-          is_admin: false,
+          roles: [],
         });
 
         await fetchUsers();
-        setSuccessMessage("User added successfully!");
+        setSuccessMessage("User added successfully! Confirmation email sent. Waiting for user to confirm.");
         setShowSuccessModal(true);
       } else {
         const errorData = await res.text();
@@ -450,7 +458,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
         first_name: editUser.first_name,
         last_name: editUser.last_name,
         is_active: editUser.is_active,
-        is_admin: editUser.is_admin,
+        roles: editUser.roles,
       };
 
       // Only include password if it's provided
@@ -480,7 +488,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
           first_name: "",
           last_name: "",
           is_active: true,
-          is_admin: false,
+          roles: [],
           password: "",
         });
         
@@ -577,7 +585,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
       first_name: user.first_name,
       last_name: user.last_name,
       is_active: user.is_active,
-      is_admin: user.is_admin,
+      roles: user.roles,
       password: "", // Keep empty for security
     });
     setShowEditUser(true);
@@ -716,11 +724,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
           aria-label="Users table" 
           removeWrapper
         >
+        
           <TableHeader>
             <TableColumn>USER</TableColumn>
-            <TableColumn>ROLE</TableColumn>
+            {/* TableColumn for ROLE removed */}
             <TableColumn>STATUS</TableColumn>
             <TableColumn>CREATED</TableColumn>
+            {/* new */}
+            <TableColumn>ROLES</TableColumn>  
+            <TableColumn>CONFIRMATION</TableColumn>
+            {/* new */}
             <TableColumn>ACTIONS</TableColumn>
           </TableHeader>
                 <TableBody>
@@ -741,6 +754,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
                       </div>
                     </div>
                   </TableCell>
+                  {/* 
                   <TableCell>
                     <Chip 
                       color={user.is_admin ? "primary" : "default"} 
@@ -750,6 +764,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
                       {user.is_admin ? "Admin" : "User"}
                     </Chip>
                   </TableCell>
+                  */}
                   <TableCell>
                     <Chip 
                       color={getStatusColor(user.is_active ? "Active" : "Inactive")} 
@@ -762,6 +777,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
                   <TableCell>
                     {user.created_at ? new Date(user.created_at).toLocaleDateString() : "N/A"}
                   </TableCell>
+                  {/* new */}
+                  <TableCell>
+                    <div className="flex gap-1 flex-wrap">
+                      {user.roles && user.roles.length > 0 ? (
+                        user.roles.map((role) => (
+                          <Chip key={role} color="primary" variant="flat" size="sm">{role}</Chip>
+                        ))
+                      ) : (
+                        <Chip color="default" variant="flat" size="sm">No Role</Chip>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {user.confirmed ? (
+                      <Chip color="success" variant="flat" size="sm">Confirmed</Chip>
+                    ) : (
+                      <Chip color="warning" variant="flat" size="sm">Pending</Chip>
+                    )}
+                  </TableCell>
+                  {/* new */}
                   <TableCell>
                     <div className="flex gap-2">
                       <Tooltip content={currentUserIsAdmin ? "Edit User" : "Admin only"}>
@@ -904,6 +939,43 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
     show: { opacity: 1, y: 0, transition: { duration: 0.4 } }
   };
 
+  const resendConfirmation = async (userId: number) => {
+  // Call your backend API to resend confirmation email
+  const token = getValidToken();
+  const res = await fetch(`${API_BASE_URL}/auth/resend-confirm/${userId}`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "accept": "application/json"
+    }
+  });
+  if (res.ok) {
+    setSuccessMessage("Confirmation email resent.");
+    setShowSuccessModal(true);
+  } else {
+    setError("Failed to resend confirmation.");
+  }
+};
+
+const manuallyConfirmUser = async (userId: number) => {
+  // Call your backend API to manually confirm the user
+  const token = getValidToken();
+  const res = await fetch(`${API_BASE_URL}/auth/confirm/${userId}/accept`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "accept": "application/json"
+    }
+  });
+  if (res.ok) {
+    setSuccessMessage("User confirmed successfully.");
+    setShowSuccessModal(true);
+    await fetchUsers();
+  } else {
+    setError("Failed to confirm user.");
+  }
+};
+
   if (checkingAdmin) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -922,7 +994,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
       </div>
     );
   }
-
+//new
+ const ROLE_OPTIONS = [
+  "Super Admin",
+  "Platform/System Engineer",
+  "DevOps/SRE",
+  "Developer",
+  "Security Engineer"
+];
+//new 
   return (
     <>
       <motion.div 
@@ -1258,13 +1338,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
                 <div className="mt-4">
                   <div className="flex justify-between mb-4">
                     <h3 className="text-lg font-semibold">Cluster Management</h3>
-                    <Button 
+                    {/* <Button 
                       color="primary" 
                       startContent={<Icon icon="lucide:plus" />}
                       onClick={() => setShowAddCluster(true)}
                     >
                       Add Cluster
-                    </Button>
+                    </Button> */}
                   </div>
                   {renderClusterTable()}
                 </div>
@@ -1401,78 +1481,112 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
             <>
               <ModalHeader className="flex flex-col gap-1">
                 <div className="flex items-center gap-2">
-                  <Icon icon="lucide:user-plus" className="text-primary" />
-                  <span>Add New User</span>
+                  <Icon icon="lucide:user-plus" className="text-primary text-2xl" />
+                  <span className="text-xl font-bold">Add New User</span>
                 </div>
+                <p className="text-sm text-foreground-500 font-normal">
+                  Fill in the details to create a new user account
+                </p>
               </ModalHeader>
               <form onSubmit={handleAddUser}>
-                <ModalBody>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Input
-                      autoFocus
-                      label="Username"
-                      placeholder="Enter username"
-                      variant="bordered"
-                      value={newUser.username}
-                      onChange={(e) => setNewUser({...newUser, username: e.target.value})}
-                      isRequired
-                    />
-                    <Input
-                      label="Email"
-                      placeholder="Enter email"
-                      type="email"
-                      variant="bordered"
-                      value={newUser.email}
-                      onChange={(e) => setNewUser({...newUser, email: e.target.value})}
-                      isRequired
-                    />
-                    <Input
-                      label="First Name"
-                      placeholder="Enter first name"
-                      variant="bordered"
-                      value={newUser.first_name}
-                      onChange={(e) => setNewUser({...newUser, first_name: e.target.value})}
-                      isRequired
-                    />
-                    <Input
-                      label="Last Name"
-                      placeholder="Enter last name"
-                      variant="bordered"
-                      value={newUser.last_name}
-                      onChange={(e) => setNewUser({...newUser, last_name: e.target.value})}
-                      isRequired
-                    />
-                    <Input
-                      label="Password"
-                      placeholder="Enter password"
-                      type="password"
-                      variant="bordered"
-                      value={newUser.password}
-                      onChange={(e) => setNewUser({...newUser, password: e.target.value})}
-                      isRequired
-                    />
-                    <div className="flex flex-row gap-4">
-                      <div className="flex items-center gap-2" style={{ width: '90px' }}>
+                <ModalBody className="p-6">
+                  <div className="space-y-6">
+                    {/* Section: Basic Info */}
+                    <Card className="bg-content2 border border-divider">
+                      <CardHeader>
+                        <h3 className="text-lg font-semibold flex items-center gap-2">
+                          <Icon icon="lucide:user" className="text-secondary" />
+                          Basic Information
+                        </h3>
+                      </CardHeader>
+                      <CardBody className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <Input
-                          type="checkbox"
-                          checked={newUser.is_active}
-                          onChange={(e) => setNewUser({...newUser, is_active: e.target.checked})}
-                          aria-label="Active User"
-                          style={{ width: '16px', height: '16px' }}
+                          autoFocus
+                          label="Username"
+                          placeholder="Enter username"
+                          variant="bordered"
+                          value={newUser.username}
+                          onChange={(e) => setNewUser({...newUser, username: e.target.value})}
+                          startContent={<Icon icon="lucide:at-sign" className="text-foreground-400" />}
+                          isRequired
                         />
-                        <label>Active User</label>
-                      </div>
-                      <div className="flex items-center gap-2 mt-2" style={{ width: '120px' }}>
                         <Input
-                          type="checkbox"
-                          checked={newUser.is_admin}
-                          onChange={(e) => setNewUser({...newUser, is_admin: e.target.checked})}
-                          aria-label="Admin Privileges"
-                          style={{ width: '16px', height: '16px' }}
+                          label="Email"
+                          placeholder="Enter email"
+                          type="email"
+                          variant="bordered"
+                          value={newUser.email}
+                          onChange={(e) => setNewUser({...newUser, email: e.target.value})}
+                          startContent={<Icon icon="lucide:mail" className="text-foreground-400" />}
+                          isRequired
                         />
-                        <label>Admin Privileges</label>
-                      </div>
-                    </div>
+                        <Input
+                          label="First Name"
+                          placeholder="Enter first name"
+                          variant="bordered"
+                          value={newUser.first_name}
+                          onChange={(e) => setNewUser({...newUser, first_name: e.target.value})}
+                          startContent={<Icon icon="lucide:user" className="text-foreground-400" />}
+                          isRequired
+                        />
+                        <Input
+                          label="Last Name"
+                          placeholder="Enter last name"
+                          variant="bordered"
+                          value={newUser.last_name}
+                          onChange={(e) => setNewUser({...newUser, last_name: e.target.value})}
+                          startContent={<Icon icon="lucide:user" className="text-foreground-400" />}
+                          isRequired
+                        />
+                      </CardBody>
+                    </Card>
+
+                    {/* Section: Security */}
+                    <Card className="bg-content2 border border-divider">
+                      <CardHeader>
+                        <h3 className="text-lg font-semibold flex items-center gap-2">
+                          <Icon icon="lucide:lock" className="text-warning" />
+                          Security & Access
+                        </h3>
+                      </CardHeader>
+                      <CardBody className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Input
+                          label="Password"
+                          placeholder="Enter password"
+                          type="password"
+                          variant="bordered"
+                          value={newUser.password}
+                          onChange={(e) => setNewUser({...newUser, password: e.target.value})}
+                          startContent={<Icon icon="lucide:key" className="text-foreground-400" />}
+                          isRequired
+                        />
+                        {/* new */}
+                        <Select
+                          label="Roles"
+                          placeholder="Select roles"
+                          variant="bordered"
+                          selectionMode="multiple"
+                          selectedKeys={newUser.roles}
+                          onSelectionChange={(keys) => setNewUser({ ...newUser, roles: Array.from(keys) as string[] })}
+                          startContent={<Icon icon="lucide:shield" className="text-primary" />}
+                          isRequired
+                        >
+                          {ROLE_OPTIONS.map((role) => (
+                            <SelectItem key={role}>{role}</SelectItem>
+                          ))}
+                        </Select>
+                        {/* new */}
+                        <div className="flex items-center gap-2 mt-2 md:col-span-2">
+                          <Checkbox
+                            isSelected={newUser.is_active}
+                            onValueChange={(checked) => setNewUser({ ...newUser, is_active: checked })}
+                            color="success"
+                          >
+                            <span className="font-medium">Active User</span>
+                          </Checkbox>
+                        </div>
+                      </CardBody>
+                    </Card>
                   </div>
                 </ModalBody>
                 <ModalFooter>
@@ -1483,6 +1597,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
                     color="primary" 
                     type="submit"
                     isLoading={loading}
+                    endContent={<Icon icon="lucide:user-plus" />}
                   >
                     Add User
                   </Button>
@@ -1515,73 +1630,96 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
                 )}
               </ModalHeader>
               <form onSubmit={handleEditUser}>
-                <ModalBody>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Input
-                      autoFocus
-                      label="Username"
-                      placeholder="Enter username"
-                      variant="bordered"
-                      value={editUser.username}
-                      onChange={(e) => setEditUser({...editUser, username: e.target.value})}
-                      isRequired
-                    />
-                    <Input
-                      label="Email"
-                      placeholder="Enter email"
-                      type="email"
-                      variant="bordered"
-                      value={editUser.email}
-                      onChange={(e) => setEditUser({...editUser, email: e.target.value})}
-                      isRequired
-                    />
-                    <Input
-                      label="First Name"
-                      placeholder="Enter first name"
-                      variant="bordered"
-                      value={editUser.first_name}
-                      onChange={(e) => setEditUser({...editUser, first_name: e.target.value})}
-                      isRequired
-                    />
-                    <Input
-                      label="Last Name"
-                      placeholder="Enter last name"
-                      variant="bordered"
-                      value={editUser.last_name}
-                      onChange={(e) => setEditUser({...editUser, last_name: e.target.value})}
-                      isRequired
-                    />
-                    <Input
-                      label="New Password"
-                      placeholder="Leave empty to keep current password"
-                      type="password"
-                      variant="bordered"
-                      value={editUser.password || ""}
-                      onChange={(e) => setEditUser({...editUser, password: e.target.value})}
-                      description="Leave empty to keep current password"
-                    />
-                    <div className="flex flex-col gap-4">
-                      <div className="flex items-center gap-2" style={{ width: '120px' }}>
+                <ModalBody className="p-6">
+                  <div className="space-y-6">
+                    {/* Section: Basic Info */}
+                    <Card className="bg-content2 border border-divider">
+                      <CardHeader>
+                        <h3 className="text-lg font-semibold flex items-center gap-2">
+                          <Icon icon="lucide:user" className="text-secondary" />
+                          Basic Information
+                        </h3>
+                      </CardHeader>
+                      <CardBody className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <Input
-                          type="checkbox"
-                          checked={editUser.is_active}
-                          onChange={(e) => setEditUser({...editUser, is_active: e.target.checked})}
-                          aria-label="Active User"
-                          style={{ width: '16px', height: '16px' }}
+                          autoFocus
+                          label="Username"
+                          placeholder="Enter username"
+                          variant="bordered"
+                          value={editUser.username}
+                          onChange={(e) => setEditUser({...editUser, username: e.target.value})}
+                          isRequired
                         />
-                        <label>Active User</label>
-                      </div>
-                      <div className="flex items-center gap-2 mt-2" style={{ width: '120px' }}>
                         <Input
-                          type="checkbox"
-                          checked={editUser.is_admin}
-                          onChange={(e) => setEditUser({...editUser, is_admin: e.target.checked})}
-                          aria-label="Admin Privileges"
-                          style={{ width: '16px', height: '16px' }}
+                          label="Email"
+                          placeholder="Enter email"
+                          type="email"
+                          variant="bordered"
+                          value={editUser.email}
+                          onChange={(e) => setEditUser({...editUser, email: e.target.value})}
+                          isRequired
                         />
-                        <label>Admin Privileges</label>
-                      </div>
-                    </div>
+                        <Input
+                          label="First Name"
+                          placeholder="Enter first name"
+                          variant="bordered"
+                          value={editUser.first_name}
+                          onChange={(e) => setEditUser({...editUser, first_name: e.target.value})}
+                          isRequired
+                        />
+                        <Input
+                          label="Last Name"
+                          placeholder="Enter last name"
+                          variant="bordered"
+                          value={editUser.last_name}
+                          onChange={(e) => setEditUser({...editUser, last_name: e.target.value})}
+                          isRequired
+                        />
+                      </CardBody>
+                    </Card>
+
+                    {/* Section: Security */}
+                    <Card className="bg-content2 border border-divider">
+                      <CardHeader>
+                        <h3 className="text-lg font-semibold flex items-center gap-2">
+                          <Icon icon="lucide:lock" className="text-warning" />
+                          Security & Access
+                        </h3>
+                      </CardHeader>
+                      <CardBody className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Input
+                          label="New Password"
+                          placeholder="Leave empty to keep current password"
+                          type="password"
+                          variant="bordered"
+                          value={editUser.password || ""}
+                          onChange={(e) => setEditUser({...editUser, password: e.target.value})}
+                          description="Leave empty to keep current password"
+                        />
+                        <Select
+                          label="Roles"
+                          placeholder="Select roles"
+                          variant="bordered"
+                          selectionMode="multiple"
+                          selectedKeys={editUser.roles}
+                          onSelectionChange={(keys) => setEditUser({ ...editUser, roles: Array.from(keys) as string[] })}
+                          isRequired
+                        >
+                          {ROLE_OPTIONS.map((role) => (
+                            <SelectItem key={role}>{role}</SelectItem>
+                          ))}
+                        </Select>
+                        <div className="flex items-center gap-2 mt-2 md:col-span-2">
+                          <Checkbox
+                            isSelected={editUser.is_active}
+                            onValueChange={(checked) => setEditUser({ ...editUser, is_active: checked })}
+                            color="success"
+                          >
+                            <span className="font-medium">Active User</span>
+                          </Checkbox>
+                        </div>
+                      </CardBody>
+                    </Card>
                   </div>
                 </ModalBody>
                 <ModalFooter>
@@ -1597,7 +1735,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
                         first_name: "",
                         last_name: "",
                         is_active: true,
-                        is_admin: false,
+                        roles: [],
                         password: "",
                       });
                     }}

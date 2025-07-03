@@ -2,7 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, status ,Request
 from sqlmodel import Session, select
 from typing import List ,  Dict, Optional
 from pydantic import BaseModel
-import datetime  # Added for timestamp
+# ##
+# import datetime  # Added for timestamp
+##
 from datetime import datetime  # Import the datetime class directly
 
 from app.database import get_session
@@ -233,23 +235,34 @@ async def confirm_registration(confirmation_id: str, response: str, session: Ses
             
             # Create new user
             hashed_password = get_password_hash(user_data["password"])
+            # db_user = User(
+            #     username=user_data["username"],
+            #     email=user_data["email"],
+            #     hashed_password=hashed_password,
+            #     first_name=user_data.get("first_name", ""),
+            #     last_name=user_data.get("last_name", ""),
+            #     is_active=user_data.get("is_active", True),
+            #     is_admin=user_data.get("is_admin", False)
+            # )
             db_user = User(
-                username=user_data["username"],
-                email=user_data["email"],
-                hashed_password=hashed_password,
-                first_name=user_data.get("first_name", ""),
-                last_name=user_data.get("last_name", ""),
-                is_active=user_data.get("is_active", True),
-                is_admin=user_data.get("is_admin", False)
-            )
-            
+                  username=user_data["username"],
+                  email=user_data["email"],
+                  hashed_password=hashed_password,
+                  first_name=user_data.get("first_name", ""),
+                  last_name=user_data.get("last_name", ""),
+                  is_active=user_data.get("is_active", True),
+                  roles=user_data.get("roles", ""),
+                  created_at=datetime.now(),
+                  updated_at=datetime.now(),
+                  confirmed=True  # Set confirmed to True
+                )
             # Add user to the session and commit the transaction
             session.add(db_user)
             session.commit()
             session.refresh(db_user)
             
+            # logger.info(f"User {user['username']} registered successfully after confirmation")
             logger.info(f"User {db_user.username} registered successfully after confirmation")
-            
             # Publish user registration event
             try:
                 publish_message("user_events", {
@@ -260,7 +273,8 @@ async def confirm_registration(confirmation_id: str, response: str, session: Ses
                     "first_name": db_user.first_name,
                     "last_name": db_user.last_name,
                     "is_active": db_user.is_active,
-                    "is_admin": db_user.is_admin,
+                    # #"is_admin": db_user.is_admin,
+                    "roles":db_user.roles,
                     "timestamp": datetime.now().isoformat()
                 })
                 logger.info(f"Published user_created event for user {db_user.username}")
@@ -502,22 +516,34 @@ async def logout(
         )
 
 # Endpoint to check if user is admin
+# @auth_router.get("/check-admin", summary="Check Admin Status", description="Checks if the current user has admin privileges")
+# @limiter.limit("10/minute")
+# async def check_if_admin(request: Request, current_user: User = Depends(get_current_user)):
+#     """
+#     Checks if the current authenticated user has admin privileges.
+    
+#     - Verifies the admin status of the current user
+#     - Returns the admin status and username
+    
+#     Returns:
+#         dict: Contains is_admin boolean flag and username
+#     """
+
+# Endpoint to check if user is admin
 @auth_router.get("/check-admin", summary="Check Admin Status", description="Checks if the current user has admin privileges")
-@limiter.limit("10/minute")
-async def check_if_admin(request: Request, current_user: User = Depends(get_current_user)):
+async def check_if_admin(current_user: User = Depends(get_current_user)):
     """
     Checks if the current authenticated user has admin privileges.
-    
-    - Verifies the admin status of the current user
-    - Returns the admin status and username
-    
     Returns:
         dict: Contains is_admin boolean flag and username
     """
     return {
-        "is_admin": getattr(current_user, "is_admin", False),  # Using getattr instead of get
-        "username": current_user.username  # Direct attribute access
+        "is_admin": "Super Admin" in (current_user.roles or []),  # <-- Check for super_admin role
+        "roles": current_user.roles,  ## <-- Return all roles
+        "username": current_user.username
     }
+
+
 
 
 @auth_router.post("/change-password/{user_id}", status_code=status.HTTP_200_OK,
@@ -705,7 +731,7 @@ async def update_user(
         "user_id": db_user.id,
         "username": db_user.username,
         "updated_fields": list(user_data.keys()),
-        "timestamp": datetime.now()
+        "timestamp": datetime.now().isoformat()
     })
     
     return db_user
