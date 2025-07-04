@@ -1413,7 +1413,7 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                 )}
 
                 {/* Recent Applications */}
-                {applications.length > 0 && (
+                {applications.filter(app => app.status !== 'REMOVED' && app.status !== 'removed').length > 0 && (
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -1438,14 +1438,15 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                                     <option value="FAILED">Failed</option>
                                 </select>
                                 <span className="text-sm text-gray-500 dark:text-gray-400">
-                                    {applications.filter(app => app.status !== 'REMOVED').length} applications
+                                    {applications.filter(app => app.status !== 'REMOVED' && app.status !== 'removed').length} applications
                                 </span>
+
                             </div>
                         </div>
 
                         <div className="space-y-3">
                             {applications
-                                .filter(app => app.status !== 'REMOVED') // Filter out removed policies
+                                .filter(app => app.status !== 'REMOVED' && app.status !== 'removed') // Filter out removed policies (both cases)
                                 .slice(0, 10)
                                 .map((app, index) => {
                                     // Debug logging - remove this after testing
@@ -1526,15 +1527,18 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                                 })}
                         </div>
 
-                        {applications.filter(app => app.status !== 'REMOVED').length > 10 && (
+                        {applications.filter(app => app.status !== 'REMOVED' && app.status !== 'removed').length > 10 && (
                             <div className="mt-4 text-center">
                                 <button className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-sm font-medium">
                                     View All Applications
                                 </button>
                             </div>
                         )}
+
                     </motion.div>
                 )}
+
+
 
 
             </div>
