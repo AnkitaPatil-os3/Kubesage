@@ -347,26 +347,26 @@ class PolicyDatabaseService:
         """Get all validation policies data"""
         return [
             {
-                "policy_id": "disallow-latest-tag",
-                "name": "Disallow Latest Tag",
-                "description": "Prevent using :latest tag in container images",
+                "policy_id": "disallow-any-image",
+                "name": "Disallow Any Image",
+                "description": "Prevent using :latest tag in container ",
                 "purpose": "Prevent using :latest tag in images",
                 "severity": "high",
                 "tags": ["security", "best-practices", "images"],
                 "yaml_content": """apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
-  name: disallow-latest-tag
+  name: disallow-any-image
 spec:
   validationFailureAction: Enforce
   rules:
-    - name: validate-latest-tag
+    - name: disallow-any-image
       match:
         resources:
           kinds:
             - Pod
       validate:
-        message: "Using the 'latest' tag for images is not allowed."
+        message: "Using image tags is not allowed. Use image digest (e.g., image@sha256:...)."
         pattern:
           spec:
             containers:

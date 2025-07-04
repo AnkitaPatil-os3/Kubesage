@@ -1062,7 +1062,6 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                 )} */}
 
                 {/* Policies Grid */}
-                {/* Policies Grid */}
                 {selectedCategory && (
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}

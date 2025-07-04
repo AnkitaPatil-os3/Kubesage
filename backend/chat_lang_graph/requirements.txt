@@ -1,0 +1,43 @@
+# FastAPI and web framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+
+# Database
+sqlmodel==0.0.14
+psycopg2-binary==2.9.9
+alembic==1.12.1
+
+# LangChain and LangGraph
+langchain==0.1.0
+langchain-openai==0.0.2
+langgraph==0.0.20
+langchain-core==0.1.0
+
+# Authentication
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.6
+
+# HTTP client
+httpx==0.25.2
+
+# Kubernetes
+kubernetes==28.1.0
+
+# Configuration
+python-dotenv==1.0.0
+pydantic-settings==2.1.0
+
+# Logging
+loguru==0.7.2
+
+# Rate limiting
+slowapi==0.1.9
+
+# Monitoring
+prometheus-fastapi-instrumentator==6.1.0
+
+# Utilities
+pydantic==2.5.0
+typing-extensions==4.8.0
