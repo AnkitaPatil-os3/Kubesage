@@ -10,7 +10,7 @@ import { ClusterOnboarding } from "./pages/cluster-onboarding";
 import { ClusterHealth } from "./pages/cluster-health";
 import { ChatOps } from "./pages/chat-ops";
 import { AdminDashboard } from "./pages/admin-dashboard";
-import { UploadKubeconfig } from "./pages/upload-kubeconfig";
+import UploadKubeconfig  from "./pages/upload-kubeconfig";
 import { Remediations as remediationsPage } from "./pages/remediations";
 import { CostAnalysis } from "./components/cost-analysis";
 import { ObservabilityDashboard } from "./components/test";
@@ -18,6 +18,7 @@ import { CarbonEmissionDashboard } from "./components/Carbon-emission";
 import ClusterAnalyze from "./components/cluster-analyze";
 import {SecurityPage} from "./components/security-page";
 import {UsersAndRBAC} from "./components/UsersAndRBAC";
+import {SecOpsDashboard} from "./components/SecOpsDashboard";
 
 
 export default function App() {
@@ -85,6 +86,8 @@ export default function App() {
                 <Route path="/dashboard/observability" component={ObservabilityDashboard} />
                 <Route path="/dashboard/analyze" component={ClusterAnalyze} />
                 <Route path="/dashboard/users" component={UsersAndRBAC} />
+                <Route path="/dashboard/security-dashboard" component={SecOpsDashboard} />
+                <Route path="/dashboard/carbon-emission" component={CarbonEmissionDashboard} />
               </Switch>
             </DashboardLayout>)}
           </Route>

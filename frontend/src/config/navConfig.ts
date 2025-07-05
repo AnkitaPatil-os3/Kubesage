@@ -32,7 +32,7 @@ export const navCategories = [
         { id: "observability", name: "Observability", icon: "lucide:activity", path: "/dashboard/observability" },
         { id: "carbon-emission", name: "GreenOps", icon: "mdi:leaf", path: "/dashboard/carbon-emission" },
         { id: "cost", name: "FinOps", icon: "mdi:currency-inr", path: "/dashboard/cost" },
-        { id: "security", name: "SecOps", icon: "lucide:shield", path: "/dashboard/security" },
+        { id: "security", name: "SecOps", icon: "lucide:shield", path: "/dashboard/security-dashboard" },
         { id: "backup", name: "Backup & Restore", icon: "mdi:backup-restore", path: "/dashboard/backup" },
       ]
     },
