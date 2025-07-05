@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Link, useHistory } from "react-router-dom";
+import { useHistory } from "react-router-dom";
 import { Icon } from "@iconify/react";
 import {
   Button,
@@ -9,6 +9,7 @@ import {
 } from "@heroui/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { navCategories } from "../config/navConfig";
+import { rolePermissions, UserRole } from "../config/permissions";
 
 interface SidebarProps {
   selectedCluster: string;
@@ -19,6 +20,14 @@ interface SidebarProps {
   currentTheme: string;
 }
 
+const roleMap: Record<string, UserRole> = {
+  "Super Admin": "super_admin",
+  "Platform Engineer": "platform_engineer",
+  "DevOps": "devops",
+  "Developer": "developer",
+  "Security Engineer": "security_engineer"
+};
+
 export const Sidebar: React.FC<SidebarProps> = ({
   selectedCluster,
   setSelectedCluster,
@@ -27,8 +36,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   toggleTheme,
   currentTheme
 }) => {
-  const [isCollapsed, setIsCollapsed] = React.useState(false);
-  const [expandedCategories, setExpandedCategories] = React.useState<{ [key: string]: boolean }>({
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [expandedCategories, setExpandedCategories] = useState<{ [key: string]: boolean }>({
     clusters: true,
   });
   const [isAdmin, setIsAdmin] = useState(false);
@@ -38,30 +47,49 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const userName = userEmail.split("@")[0].charAt(0).toUpperCase() + userEmail.split("@")[0].slice(1);
   const userInitials = userName.slice(0, 2).toUpperCase();
 
+  // Normalize role
+  const rawRole = localStorage.getItem("roles") || "super_admin";
+  const role: UserRole = roleMap[rawRole] || (rawRole.toLowerCase().replace(" ", "_") as UserRole);
+  const userRole = role.replace(/^"(.*)"$/, '$1');
+
+  // Determine permissions
+  let permissions: string[] = rolePermissions[userRole] ?? [];
+  if (permissions.includes("all")) {
+    permissions = navCategories.flatMap(category => category.items.map(item => item.id));
+  }
+
+  console.log("role", rawRole, userRole, permissions);
+  
+
+  const filteredCategories = navCategories
+    .map((category) => {
+      const filteredItems = category.items.filter((item) =>
+        permissions.includes(item.id)
+      );
+      return { ...category, items: filteredItems };
+    })
+    .filter((category) => category.items.length > 0);
+
   useEffect(() => {
     const fetchAdminStatus = async () => {
       try {
         const accessToken = localStorage.getItem("access_token");
-        if (!accessToken) {
-          setIsAdmin(false);
-          return;
-        }
+        if (!accessToken) return setIsAdmin(false);
+
         const response = await fetch("/auth/check-admin", {
           headers: {
             Authorization: `Bearer ${accessToken}`,
           },
         });
-        if (response.ok) {
-          const data = await response.json();
-          setIsAdmin(data.is_admin);
-        } else {
-          setIsAdmin(false);
-        }
+
+        const data = await response.json();
+        setIsAdmin(response.ok && data.is_admin);
       } catch (error) {
         console.error("Failed to fetch admin status:", error);
         setIsAdmin(false);
       }
     };
+
     fetchAdminStatus();
   }, []);
 
@@ -80,31 +108,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
     } catch (error) {
       console.error("Logout failed:", error);
     } finally {
-      localStorage.removeItem("access_token");
-      localStorage.removeItem('username');
-      localStorage.removeItem("refresh_token");
-      localStorage.removeItem("isAuthenticated");
-      localStorage.removeItem("userEmail");
+      localStorage.clear();
       onLogout();
     }
   };
 
-  const toggleCollapse = () => {
-    setIsCollapsed(!isCollapsed);
-  };
-
-  const toggleCategory = (categoryId: string) => {
-    setExpandedCategories((prev) => ({
-      ...prev,
-      [categoryId]: !prev[categoryId],
-    }));
-  };
+  const toggleCollapse = () => setIsCollapsed(!isCollapsed);
+  const toggleCategory = (categoryId: string) =>
+    setExpandedCategories(prev => ({ ...prev, [categoryId]: !prev[categoryId] }));
 
   return (
     <motion.aside
-      className={`flex flex-col bg-content1 border-r border-divider transition-all duration-300 ${
-        isCollapsed ? "w-16" : "w-64"
-      }`}
+      className={`flex flex-col bg-content1 border-r border-divider transition-all duration-300 ${isCollapsed ? "w-16" : "w-64"}`}
       initial={{ x: -20, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       transition={{ duration: 0.3 }}
@@ -123,7 +138,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <Icon icon="lucide:layers" className="text-white text-xl" />
           </div>
         )}
-
         <Button isIconOnly variant="ghost" size="sm" onPress={toggleCollapse}>
           <Icon icon={isCollapsed ? "lucide:chevron-right" : "lucide:chevron-left"} />
         </Button>
@@ -131,9 +145,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Navigation */}
       <div className="flex-1 overflow-y-auto scrollbar-hide py-2">
-        {navCategories.map((category) => (
+        {filteredCategories.map((category) => (
           <div key={category.id} className="mb-3">
-            {/* Category Header */}
             {!isCollapsed ? (
               <div
                 className={`px-4 py-2 flex items-center justify-between cursor-pointer transition-colors ${
@@ -143,11 +156,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               >
                 <div className="flex items-center gap-2">
                   <Icon icon={category.icon} className={expandedCategories[category.id] ? "text-primary" : "text-foreground-500"} />
-                  <span
-                    className={`text-xs font-medium ${
-                      expandedCategories[category.id] ? "text-primary font-semibold" : "text-foreground-500"
-                    }`}
-                  >
+                  <span className={`text-xs font-medium ${expandedCategories[category.id] ? "text-primary font-semibold" : "text-foreground-500"}`}>
                     {category.name}
                   </span>
                 </div>
@@ -199,7 +208,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               )}
             </AnimatePresence>
 
-            {/* Collapsed: Only Icons + Tooltips */}
+            {/* Collapsed Icons */}
             {isCollapsed && (
               <div className="space-y-1 flex flex-col items-center mt-1">
                 {expandedCategories[category.id] &&
@@ -248,11 +257,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <Divider className="my-3" />
             <div
               className="flex items-center justify-between gap-3 rounded px-2 py-1 transition"
-              onClick={() => {
-                if (isAdmin) {
-                  history.push("/dashboard/admin");
-                }
-              }}
+              onClick={() => isAdmin && history.push("/dashboard/admin")}
               title={isAdmin ? "Go to Admin Dashboard" : "Profile not clickable"}
               style={{ cursor: isAdmin ? "pointer" : "default" }}
             >
@@ -286,7 +291,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             </Tooltip>
             <Tooltip content="Logout" placement="right">
-              <Button isIconOnly variant="ghost" color="danger" size="sm" onPress={handleLogout}>
+              <Button isIconOnly variant="ghost" color="danger" size="sm" onClick={handleLogout}>
                 <Icon icon="lucide:log-out" />
               </Button>
             </Tooltip>

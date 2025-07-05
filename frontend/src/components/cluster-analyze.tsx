@@ -248,8 +248,7 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
     // Add this function
     const executeCommand = async (command: string, stepId: number) => {
         try {
-            // Use the cluster-specific kubectl execution endpoint
-            const response = await fetch(`/kubeconfig/execute-kubectl-direct/${selectedClusterId}`, {
+            const response = await fetch('https://10.0.32.103:8002/kubeconfig/execute-kubectl', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -297,7 +296,6 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
         }
     };
 
-
     // Fetch clusters and namespaces on component mount
     useEffect(() => {
         fetchClusters();
@@ -315,7 +313,7 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
         setIsLoadingClusters(true);
         try {
             const token = localStorage.getItem('access_token');
-            const response = await fetch('/kubeconfig/clusters', {  // Make sure this matches your backend endpoint
+            const response = await fetch('/kubeconfig/clusters', {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -334,9 +332,6 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                     // If no active cluster, select the first one
                     setSelectedClusterId(data.clusters[0].id);
                 }
-            } else {
-                console.error('Failed to fetch clusters:', response.status);
-                setError('Failed to fetch clusters');
             }
         } catch (error) {
             console.error('Error fetching clusters:', error);
@@ -355,17 +350,9 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
         setError(null);
 
         try {
-            setSelectedClusterId(clusterIdNum);
-
-            // Update cluster list to reflect the new active status (UI only)
-            setClusters(prev => prev.map(cluster => ({
-                ...cluster,
-                active: cluster.id === clusterIdNum
-            })));
-
-            // Fetch namespaces for the selected cluster
             const token = localStorage.getItem('access_token');
-            const response = await fetch(`/kubeconfig/get-namespaces/${clusterIdNum}`, {
+            const response = await fetch(`/kubeconfig/select-cluster-and-get-namespaces/${clusterIdNum}`, {
+                method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -374,27 +361,44 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
 
             if (response.ok) {
                 const data = await response.json();
-                setNamespaces(data.namespaces || []);
-                setSelectedNamespace('default');
+
+                if (data.success && data.cluster_activated) {
+                    setSelectedClusterId(clusterIdNum);
+
+                    // Update cluster list to reflect the new active status
+                    setClusters(prev => prev.map(cluster => ({
+                        ...cluster,
+                        active: cluster.id === clusterIdNum
+                    })));
+
+                    // Update namespaces if retrieved successfully
+                    if (data.namespaces_retrieved && data.namespaces) {
+                        setNamespaces(data.namespaces);
+                        // Reset to default namespace
+                        setSelectedNamespace('default');
+                    } else {
+                        // If namespace retrieval failed, try to fetch them separately
+                        fetchNamespaces();
+                    }
+                } else {
+                    setError(data.message || 'Failed to activate cluster');
+                }
             } else {
-                setError('Failed to fetch namespaces for selected cluster');
-                setNamespaces([]);
+                const errorData = await response.json();
+                setError(errorData.detail || 'Failed to activate cluster');
             }
         } catch (error) {
-            console.error('Error selecting cluster:', error);
-            setError('Failed to select cluster');
+            console.error('Error activating cluster:', error);
+            setError('Failed to activate cluster');
         } finally {
             setIsActivatingCluster(false);
         }
     };
 
-
     const fetchNamespaces = async () => {
-        if (!selectedClusterId) return;
-
         try {
             const token = localStorage.getItem('access_token');
-            const response = await fetch(`/kubeconfig/get-namespaces/${selectedClusterId}`, {  // Use the GET endpoint
+            const response = await fetch('/kubeconfig/namespaces', {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -404,13 +408,9 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
             if (response.ok) {
                 const data = await response.json();
                 setNamespaces(data.namespaces || []);
-            } else {
-                console.error('Failed to fetch namespaces:', response.status);
-                setNamespaces([]);
             }
         } catch (error) {
             console.error('Error fetching namespaces:', error);
-            setNamespaces([]);
         }
     };
 
@@ -420,7 +420,6 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
         setAnalysisData(null);
         setCurrentProblemIndex(0);
         setCurrentResourceIndex(0);
-        setCommandOutputs({}); // Clear previous command outputs
 
         try {
             const token = localStorage.getItem('access_token');
@@ -432,8 +431,7 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
 
             params.append('resource_types', selectedResourceType);
 
-            // Use the cluster-specific analysis endpoint with cluster ID
-            const response = await fetch(`/kubeconfig/analyze-k8s-with-solutions/${selectedClusterId}?${params}`, {
+            const response = await fetch(`/kubeconfig/analyze-k8s-with-solutions?${params}`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -458,7 +456,6 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
             setIsAnalyzing(false);
         }
     };
-
 
     const getConfidenceColor = (score: number) => {
         if (score >= 0.8) return 'success';
@@ -699,61 +696,41 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                                                                     </div>
 
                                                                     {/* Command Output Display */}
-                                                                    {commandOutputs[step.step_id] ? (
-                                                                        <div className="mt-3">
-                                                                            <div className={`p-3 rounded-lg border ${commandOutputs[step.step_id].success
-                                                                                ? 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-700'
-                                                                                : 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-700'
-                                                                                }`}>
-                                                                                <div className="flex items-center gap-2 mb-2">
-                                                                                    <Icon
-                                                                                        icon={commandOutputs[step.step_id].success ? "mdi:check-circle" : "mdi:alert-circle"}
-                                                                                        className={commandOutputs[step.step_id].success ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}
-                                                                                    />
-                                                                                    <span className={`text-sm font-medium ${commandOutputs[step.step_id].success
-                                                                                        ? 'text-green-800 dark:text-green-300'
-                                                                                        : 'text-red-800 dark:text-red-300'
-                                                                                        }`}>
-                                                                                        {commandOutputs[step.step_id].success ? 'Success' : 'Failed'}
-                                                                                    </span>
-                                                                                    <span className="text-xs text-gray-500 dark:text-gray-400">
-                                                                                        {new Date(commandOutputs[step.step_id].executed_at).toLocaleTimeString()}
-                                                                                    </span>
-                                                                                    {/* Close Icon */}
-                                                                                    <button
-                                                                                        onClick={() => {
-                                                                                            setCommandOutputs(prev => {
-                                                                                                const newOutputs = { ...prev };
-                                                                                                delete newOutputs[step.step_id];
-                                                                                                return newOutputs;
-                                                                                            });
-                                                                                        }}
-                                                                                        className="ml-auto p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
-                                                                                        title="Close output"
-                                                                                    >
-                                                                                        <Icon icon="mdi:close" className="w-4 h-4 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200" />
-                                                                                    </button>
-                                                                                </div>
-
-                                                                                {commandOutputs[step.step_id].output && (
-                                                                                    <pre className="text-xs bg-gray-100 dark:bg-gray-800 p-2 rounded overflow-x-auto whitespace-pre-wrap text-gray-800 dark:text-gray-200">
-                                                                                        {commandOutputs[step.step_id].output}
-                                                                                    </pre>
-                                                                                )}
-
-                                                                                {commandOutputs[step.step_id].error && (
-                                                                                    <div className="mt-2 text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-2 rounded">
-                                                                                        {commandOutputs[step.step_id].error}
-                                                                                    </div>
-                                                                                )}
+                                                                    {commandOutputs[step.step_id] && (
+                                                                        <div className="mt-2 bg-gray-50 rounded-lg p-3 dark:bg-gray-800">
+                                                                            <div className="flex items-center justify-between mb-2">
+                                                                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                                                    Output
+                                                                                </span>
+                                                                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${commandOutputs[step.step_id].success
+                                                                                    ? 'bg-green-100 text-green-800'
+                                                                                    : 'bg-red-100 text-red-800'
+                                                                                    }`}>
+                                                                                    {commandOutputs[step.step_id].success ? 'Success' : 'Failed'}
+                                                                                </span>
                                                                             </div>
-                                                                        </div>
-                                                                    ) : (
-                                                                        <div className="mt-3 text-sm text-gray-500 dark:text-gray-400 italic">
-                                                                            Click execute button to run this command and see output
+
+                                                                            {/* Always show output if it exists */}
+                                                                            {(commandOutputs[step.step_id].output || commandOutputs[step.step_id].error) && (
+                                                                                <pre className={`p-2 rounded text-xs overflow-x-auto max-h-32 ${commandOutputs[step.step_id].success
+                                                                                    ? 'bg-gray-900 text-green-400'
+                                                                                    : 'bg-red-100 text-red-800'
+                                                                                    }`}>
+                                                                                    {commandOutputs[step.step_id].output || commandOutputs[step.step_id].error || 'No output'}
+                                                                                </pre>
+                                                                            )}
+
+                                                                            {/* Show error separately if both output and error exist */}
+                                                                            {commandOutputs[step.step_id].output && commandOutputs[step.step_id].error && (
+                                                                                <div className="mt-2">
+                                                                                    <div className="text-xs text-red-600 mb-1">Error:</div>
+                                                                                    <pre className="bg-red-100 text-red-800 p-2 rounded text-xs overflow-x-auto max-h-32">
+                                                                                        {commandOutputs[step.step_id].error}
+                                                                                    </pre>
+                                                                                </div>
+                                                                            )}
                                                                         </div>
                                                                     )}
-
 
                                                                 </div>
 
@@ -833,14 +810,13 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                         {/* Cluster and Namespace Selection Row */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {/* Cluster Selection */}
-                            {/* Cluster Selection */}
                             <div>
                                 <label className="block text-sm font-medium mb-2 dark:text-gray-300">
                                     Select Cluster
                                 </label>
                                 <div className="relative">
                                     <Select
-                                        placeholder={isLoadingClusters ? "Loading clusters..." : clusters.length === 0 ? "No clusters available" : "Select a cluster"}
+                                        placeholder={isLoadingClusters ? "Loading clusters..." : "Select a cluster"}
                                         selectedKeys={selectedClusterId ? [selectedClusterId.toString()] : []}
                                         onSelectionChange={(keys) => {
                                             const selected = Array.from(keys)[0] as string;
@@ -855,7 +831,7 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                                             </div>
                                         }
                                         isLoading={isLoadingClusters}
-                                        isDisabled={isActivatingCluster || clusters.length === 0}
+                                        isDisabled={isActivatingCluster}
                                         classNames={{
                                             trigger: "bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 hover:border-blue-300 dark:from-blue-900/20 dark:to-indigo-900/20 dark:border-blue-700",
                                             value: "text-blue-700 dark:text-blue-300 font-medium"
@@ -865,22 +841,12 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                                             <SelectItem
                                                 key={cluster.id.toString()}
                                                 value={cluster.id.toString()}
-                                                textValue={cluster.cluster_name}
                                             >
-                                                <div className="flex items-center justify-between w-full">
-                                                    <span>{cluster.cluster_name}</span>
-                                                    <div className="flex items-center gap-1">
-                                                        <Chip size="sm" variant="flat" color="primary">
-                                                            {cluster.provider_name}
-                                                        </Chip>
-                                                        {cluster.active && (
-                                                            <div className="w-2 h-2 bg-green-500 rounded-full" />
-                                                        )}
-                                                    </div>
-                                                </div>
+                                                {cluster.cluster_name}
                                             </SelectItem>
                                         ))}
                                     </Select>
+
 
                                     {/* Active Cluster Indicator */}
                                     {selectedClusterId && (
@@ -889,14 +855,6 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                                         </div>
                                     )}
                                 </div>
-
-                                {/* Show message if no clusters */}
-                                {!isLoadingClusters && clusters.length === 0 && (
-                                    <div className="mt-2 text-sm text-orange-600 dark:text-orange-400">
-                                        <Icon icon="mdi:information-outline" className="inline mr-1" />
-                                        No clusters onboarded yet. Please onboard a cluster first.
-                                    </div>
-                                )}
 
                                 {/* Cluster Info Display */}
                                 {selectedClusterId && (
@@ -918,9 +876,9 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                                                                 <h4 className="font-bold text-sm text-blue-700 dark:text-blue-300">
                                                                     {selectedCluster.cluster_name}
                                                                 </h4>
-                                                                <p className="text-xs text-blue-600 dark:text-blue-400 truncate">
-                                                                    {selectedCluster.context_name || 'Default Context'}
-                                                                </p>
+                                                                {/* <p className="text-xs text-blue-600 dark:text-blue-400 truncate">
+                                                                    {selectedCluster.server_url}
+                                                                </p> */}
                                                             </div>
                                                             <div className="flex items-center gap-2">
                                                                 <Chip size="sm" color="success" variant="flat">
@@ -936,7 +894,6 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                                     </motion.div>
                                 )}
                             </div>
-
 
                             {/* Namespace Selection */}
                             <div>
@@ -1105,11 +1062,11 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                                 Selected: <span className="font-medium text-primary dark:text-green-400">
                                     {RESOURCE_TYPES.find(type => type.key === selectedResourceType)?.label}
                                 </span>
-                                {selectedNamespace && <span className="dark:text-gray-400"> in namespace: <span className="font-medium text-purple-600 dark:text-purple-400">{selectedNamespace}</span></span>}
+                                {selectedNamespace && <span className="dark:text-gray-400"> in namespace: {selectedNamespace}</span>}
                                 {selectedClusterId && (
-                                    <span className="dark:text-gray-400"> on cluster: <span className="font-medium text-blue-600 dark:text-blue-400">{
+                                    <span className="dark:text-gray-400"> on cluster: {
                                         clusters.find(c => c.id === selectedClusterId)?.cluster_name || 'Unknown'
-                                    }</span></span>
+                                    }</span>
                                 )}
                             </div>
                         </div>
@@ -1125,7 +1082,6 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                             {isAnalyzing ? 'Analyzing...' : 'Start Analysis'}
                         </Button>
                     </div>
-
                 </CardBody>
             </Card>
 
@@ -1136,11 +1092,7 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                         <Spinner size="lg" color="primary" className="mb-4" />
                         <h3 className="text-lg font-semibold mb-2 dark:text-gray-100">Analyzing Cluster</h3>
                         <p className="text-default-500 mb-4 dark:text-gray-400">
-                            Scanning {RESOURCE_TYPES.find(type => type.key === selectedResourceType)?.label}
-                            {selectedNamespace && ` in namespace "${selectedNamespace}"`}
-                            {selectedClusterId && ` on cluster "${clusters.find(c => c.id === selectedClusterId)?.cluster_name}"`}
-                            <br />
-                            Generating AI solutions...
+                            Scanning {RESOURCE_TYPES.find(type => type.key === selectedResourceType)?.label} and generating AI solutions...
                         </p>
                         <div className="bg-warning-50 border border-warning-200 rounded-lg p-4 mb-4 max-w-md mx-auto dark:bg-yellow-900/20 dark:border-yellow-700">
                             <div className="flex items-center gap-2 mb-2">
@@ -1163,7 +1115,6 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
                     </CardBody>
                 </Card>
             )}
-
 
             {/* Error State */}
             {error && !isAnalyzing && (

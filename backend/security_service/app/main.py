@@ -7,7 +7,7 @@ from Trivy Operator using the Kubernetes Python client.
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes import router, policy_router
+from app.routes import  policy_router
 from app.database import create_tables
 from app.logger import logger
 from app.config import settings
@@ -35,7 +35,7 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(router, prefix="/api/v1")
+# app.include_router(router, prefix="/api/v1")
 app.include_router(policy_router, prefix="/api/v1")
 
 @app.on_event("startup")

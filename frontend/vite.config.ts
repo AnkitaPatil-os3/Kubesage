@@ -20,7 +20,12 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           secure: false,
         },
-        
+        '/api': {
+        target: 'https://10.0.32.103:8005',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ''),
+        secure: false // If using self-signed certificates
+      },
         '/kubeconfig': {
           target: env.VITE_KUBECONFIG_SERVICE,
           changeOrigin: true,
@@ -28,11 +33,6 @@ export default defineConfig(({ mode }) => {
         },
         '/chat': {
           target: env.VITE_CHAT_SERVICE,
-          changeOrigin: true,
-          secure: false,
-        },
-        '/policies': {
-          target: env.VITE_SECURITY_SERVICE,
           changeOrigin: true,
           secure: false,
         },

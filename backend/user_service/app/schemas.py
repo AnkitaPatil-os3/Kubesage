@@ -3,16 +3,25 @@ from typing import Optional
 from datetime import datetime
 
 # User Schemas
+# class UserBase(BaseModel):
+#     username: str
+#     email: EmailStr
+#     first_name: Optional[str] = None
+#     last_name: Optional[str] = None
+#     is_active: bool = True
+#     is_admin: bool = False
 class UserBase(BaseModel):
     username: str
     email: EmailStr
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     is_active: bool = True
-    is_admin: bool = False
+    # confirmed: bool = False  # Added confirmed field
+    roles: str
 
 class UserCreate(UserBase):
     password: str
+
 
 class UserUpdate(BaseModel):
     username: Optional[str] = None
@@ -20,15 +29,27 @@ class UserUpdate(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     is_active: Optional[bool] = None
-    is_admin: Optional[bool] = None
+    roles: Optional[str] = None  # <-- Add this line
     password: Optional[str] = None
+
+
+
+from pydantic import model_validator
 
 class UserResponse(UserBase):
     id: int
     created_at: datetime
-    updated_at: datetime
-
+    updated_at: Optional[datetime]= None
+    confirmed: Optional[bool] = False  # <-- Add this line
     model_config = ConfigDict(from_attributes=True)
+
+    @model_validator(mode='before')
+    def convert_roles_to_string(cls, values):
+        roles = values.get('roles')
+        if isinstance(roles, list):
+            values['roles'] = ",".join(roles)
+        return values
+
 
 
 
@@ -38,10 +59,15 @@ class Token(BaseModel):
     token_type: str = "bearer"
     expires_at: datetime
 
+# class TokenData(BaseModel):
+#     user_id: Optional[int] = None
+#     username: Optional[str] = None
+#     is_admin: Optional[bool] = None
+
 class TokenData(BaseModel):
     user_id: Optional[int] = None
     username: Optional[str] = None
-    is_admin: Optional[bool] = None
+    roles: Optional[str] = None  # <-- Add this line
 
 class LoginRequest(BaseModel):
     username: str
@@ -95,4 +121,11 @@ class ApiKeyUpdate(BaseModel):
     key_name: Optional[str] = None
     is_active: Optional[bool] = None
     expires_at: Optional[datetime] = None
+
+from typing import List
+from pydantic import BaseModel
+
+class UsersListResponse(BaseModel):
+    users: List[UserResponse]
+    roles_options: List[str]
 

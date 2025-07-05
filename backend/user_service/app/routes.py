@@ -1,8 +1,11 @@
+# 
 from fastapi import APIRouter, Depends, HTTPException, status ,Request
 from sqlmodel import Session, select
 from typing import List ,  Dict, Optional
 from pydantic import BaseModel
-import datetime  # Added for timestamp
+# ##
+# import datetime  # Added for timestamp
+##
 from datetime import datetime  # Import the datetime class directly
 
 from app.database import get_session
@@ -233,23 +236,34 @@ async def confirm_registration(confirmation_id: str, response: str, session: Ses
             
             # Create new user
             hashed_password = get_password_hash(user_data["password"])
+            # db_user = User(
+            #     username=user_data["username"],
+            #     email=user_data["email"],
+            #     hashed_password=hashed_password,
+            #     first_name=user_data.get("first_name", ""),
+            #     last_name=user_data.get("last_name", ""),
+            #     is_active=user_data.get("is_active", True),
+            #     is_admin=user_data.get("is_admin", False)
+            # )
             db_user = User(
-                username=user_data["username"],
-                email=user_data["email"],
-                hashed_password=hashed_password,
-                first_name=user_data.get("first_name", ""),
-                last_name=user_data.get("last_name", ""),
-                is_active=user_data.get("is_active", True),
-                is_admin=user_data.get("is_admin", False)
-            )
-            
+                  username=user_data["username"],
+                  email=user_data["email"],
+                  hashed_password=hashed_password,
+                  first_name=user_data.get("first_name", ""),
+                  last_name=user_data.get("last_name", ""),
+                  is_active=user_data.get("is_active", True),
+                  roles=",".join(user_data.get("roles", [])) if isinstance(user_data.get("roles", ""), list) else user_data.get("roles", ""),
+                  created_at=datetime.now(),
+                  updated_at=datetime.now(),
+                  confirmed=True  # Set confirmed to True
+                )
             # Add user to the session and commit the transaction
             session.add(db_user)
             session.commit()
             session.refresh(db_user)
             
+            # logger.info(f"User {user['username']} registered successfully after confirmation")
             logger.info(f"User {db_user.username} registered successfully after confirmation")
-            
             # Publish user registration event
             try:
                 publish_message("user_events", {
@@ -260,7 +274,8 @@ async def confirm_registration(confirmation_id: str, response: str, session: Ses
                     "first_name": db_user.first_name,
                     "last_name": db_user.last_name,
                     "is_active": db_user.is_active,
-                    "is_admin": db_user.is_admin,
+                    # #"is_admin": db_user.is_admin,
+                    "roles":db_user.roles,
                     "timestamp": datetime.now().isoformat()
                 })
                 logger.info(f"Published user_created event for user {db_user.username}")
@@ -412,19 +427,39 @@ async def login( request: Request, form_data: OAuth2PasswordRequestForm = Depend
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token, expires_at = create_access_token(
-        data={"sub": str(user.id)}, expires_delta=access_token_expires
-    )
+    # access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    # access_token, expires_at = create_access_token(
+    #     data={"sub": str(user.id)}, expires_delta=access_token_expires
+    # )
 
-    # Save UserToken in the database
+    # # Save UserToken in the database
+    # user_token = UserToken(
+    #     token=access_token,
+    #     user_id=user.id,
+    #     expires_at=expires_at
+    # )
+    # session.add(user_token)
+    # session.commit()
+
+    # changes user logout
+    # access_token_expires = timedelta(seconds=5)  # Very short for testing
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)  # Use configured expiration time
+    access_token, expires_at = create_access_token(
+    data={"sub": str(user.id)}, expires_delta=access_token_expires
+)
+
+    # Debug log for token expiration
+    print(f"Token expires at: {expires_at} (UTC timestamp: {int(expires_at.timestamp())})")
+
+# Store token in database
     user_token = UserToken(
-        token=access_token,
-        user_id=user.id,
-        expires_at=expires_at
-    )
+    token=access_token,
+    user_id=user.id,
+    expires_at=expires_at
+)
     session.add(user_token)
     session.commit()
+    ####
     session.refresh(user_token)
 
     print(f"User token is {user_token}, save in the database")
@@ -434,13 +469,13 @@ async def login( request: Request, form_data: OAuth2PasswordRequestForm = Depend
         "event_type": "user_login",
         "user_id": user.id,
         "username": user.username,
-        "timestamp": datetime.now()
+        "timestamp": datetime.now().isoformat()
     })
-    
+
     return {
-        "access_token": access_token, 
+        "access_token": access_token,
         "token_type": "bearer",
-        "expires_at": expires_at
+        "expires_at": expires_at.isoformat()
     }
 
 
@@ -502,22 +537,34 @@ async def logout(
         )
 
 # Endpoint to check if user is admin
+# @auth_router.get("/check-admin", summary="Check Admin Status", description="Checks if the current user has admin privileges")
+# @limiter.limit("10/minute")
+# async def check_if_admin(request: Request, current_user: User = Depends(get_current_user)):
+#     """
+#     Checks if the current authenticated user has admin privileges.
+    
+#     - Verifies the admin status of the current user
+#     - Returns the admin status and username
+    
+#     Returns:
+#         dict: Contains is_admin boolean flag and username
+#     """
+
+# Endpoint to check if user is admin
 @auth_router.get("/check-admin", summary="Check Admin Status", description="Checks if the current user has admin privileges")
-@limiter.limit("10/minute")
-async def check_if_admin(request: Request, current_user: User = Depends(get_current_user)):
+async def check_if_admin(current_user: User = Depends(get_current_user)):
     """
     Checks if the current authenticated user has admin privileges.
-    
-    - Verifies the admin status of the current user
-    - Returns the admin status and username
-    
     Returns:
         dict: Contains is_admin boolean flag and username
     """
     return {
-        "is_admin": getattr(current_user, "is_admin", False),  # Using getattr instead of get
-        "username": current_user.username  # Direct attribute access
+        "is_admin": "Super Admin" in (current_user.roles or []),  # <-- Check for super_admin role
+        "roles": current_user.roles,  ## <-- Return all roles
+        "username": current_user.username
     }
+
+
 
 
 @auth_router.post("/change-password/{user_id}", status_code=status.HTTP_200_OK,
@@ -578,7 +625,7 @@ async def A_change_password(
 
 @user_router.get("/me", response_model=UserResponse, 
                 summary="Get Current User", description="Returns the current authenticated user's information")
-@limiter.limit("100/minute")
+@limiter.limit("10/minute")
 async def read_users_me(request: Request, current_user: User = Depends(get_current_active_user)):
     """
     Returns the profile information of the currently authenticated user.
@@ -589,9 +636,43 @@ async def read_users_me(request: Request, current_user: User = Depends(get_curre
     Returns:
         UserResponse: The current user's profile information
     """
-    return current_user
+    # Convert roles to string if needed
+    user_dict = current_user.model_dump()
+    if isinstance(user_dict.get("roles"), list):
+        user_dict["roles"] = ",".join(user_dict["roles"])
+    return user_dict
 
-@user_router.get("/", response_model=List[UserResponse], 
+# @user_router.get("/", response_model=List[UserResponse], 
+#                 summary="List All Users", description="Returns a list of all users (admin only)")
+# @limiter.limit("10/minute")
+# async def list_users(
+#     request: Request, 
+#     skip: int = 0, 
+#     limit: int = 100, 
+#     current_user: User = Depends(get_current_admin_user),
+#     session: Session = Depends(get_session)
+# ):
+#     """
+#     Lists all users in the system.
+    
+#     - Requires admin privileges
+#     - Supports pagination with skip and limit parameters
+#     - Returns a list of user profiles
+    
+#     Parameters:
+#         skip: Number of records to skip (for pagination)
+#         limit: Maximum number of records to return
+    
+#     Returns:
+#         List[UserResponse]: List of user profiles
+#     """
+#     users = session.exec(select(User).offset(skip).limit(limit)).all()
+#     return [user.model_dump() for user in users]
+# new
+from app.config import settings
+from app.schemas import UsersListResponse
+
+@user_router.get("/", response_model=UsersListResponse, 
                 summary="List All Users", description="Returns a list of all users (admin only)")
 @limiter.limit("10/minute")
 async def list_users(
@@ -606,18 +687,20 @@ async def list_users(
     
     - Requires admin privileges
     - Supports pagination with skip and limit parameters
-    - Returns a list of user profiles
+    - Returns a list of user profiles and roles options
     
     Parameters:
         skip: Number of records to skip (for pagination)
         limit: Maximum number of records to return
     
     Returns:
-        List[UserResponse]: List of user profiles
+        UsersListResponse: Contains list of users and roles options
     """
     users = session.exec(select(User).offset(skip).limit(limit)).all()
-    return users
-
+    users_list = [user.model_dump() for user in users]
+    roles_options = settings.ROLE_OPTIONS
+    return {"users": users_list, "roles_options": roles_options}
+# new
 @user_router.get("/{user_id}", response_model=UserResponse, 
                 summary="Get User by ID", description="Returns a specific user's information (admin only)")
 @limiter.limit("10/minute")
@@ -645,7 +728,10 @@ async def get_user(
     user = session.exec(select(User).where(User.id == user_id)).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    return user
+    user_dict = user.model_dump()
+    if isinstance(user_dict.get("roles"), list):
+        user_dict["roles"] = ",".join(user_dict["roles"])
+    return user_dict
 
 @user_router.put("/{user_id}", response_model=UserResponse, 
                 summary="Update User", description="Updates a user's information (admin only)")
@@ -705,10 +791,13 @@ async def update_user(
         "user_id": db_user.id,
         "username": db_user.username,
         "updated_fields": list(user_data.keys()),
-        "timestamp": datetime.now()
+        "timestamp": datetime.now().isoformat()
     })
     
-    return db_user
+    user_dict = db_user.model_dump()
+    if isinstance(user_dict.get("roles"), list):
+        user_dict["roles"] = ",".join(user_dict["roles"])
+    return user_dict
 
 @user_router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT, 
                    summary="Delete User", description="Deletes a user account (admin only)")

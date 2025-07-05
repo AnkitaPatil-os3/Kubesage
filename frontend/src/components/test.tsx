@@ -2,59 +2,62 @@ import React from "react";
 import { Card, CardBody, Spinner } from "@heroui/react";
 import { Icon } from "@iconify/react";
 
-export const CarbonEmissionDashboard: React.FC = () => {
+export const ObservabilityDashboard: React.FC = () => {
     const [isLoading, setIsLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
     const [dashboardUrl, setDashboardUrl] = React.useState<string | null>(null);
-    const [theme, setTheme] = React.useState<string>(() => localStorage.getItem("heroui-theme") || "dark");
+    const [theme, setTheme] = React.useState<string>(() => localStorage.getItem("heroui-theme") || "light");
 
-    // Build Grafana dashboard URL
-    const buildDashboardUrl = (currentTheme: string): string => {
+    // Helper to generate dashboard URL
+    const getDashboardUrl = (currentTheme: string) => {
         const role = localStorage.getItem("roles") || "";
-        const username = localStorage.getItem("username") || "guest";
-        const cluster = localStorage.getItem("default_cluster") || "uat-edg-k3s-cludstk";
+        const username = localStorage.getItem("username") || "";
 
         const isSuperAdmin = role.toLowerCase().includes("super");
 
-        const baseUrl = isSuperAdmin
-            ? "https://10.0.34.151:3000/d/NhnADUW4zIB/greenops-overview"
-            : "https://10.0.34.151:3000/d/NhnADUW4zI/greenops-replica";
-
-        const params = new URLSearchParams({
+        const baseParams = new URLSearchParams({
             orgId: "1",
-            from: "now-1h",
+            from: "now-5m",
             to: "now",
             timezone: "browser",
             theme: currentTheme,
             kiosk: "true",
-            "var-datasource": "eepx4n9ag9vk0c",
-            "var-namespace": "$__all",
-            "var-pod": "$__all",
-            "var-coal": "2.23",
-            "var-natural_gas": "0.91",
-            "var-petroleum": "2.13",
+            "var-DS": "eepx4n9ag9vk0c",
+            "var-Cluster": "rod-lgtm-stck-mumbai-south",
+            "var-Node": "prod-lgtm-stck-mumbai-south",
+            "var-Namespace": "alloy",
+            "var-Pod": "alloy-tc5vp",
+            "var-Container": "alloy",
+            "var-logs": "aepxfvdv7708wf",
         });
 
         if (!isSuperAdmin) {
-            params.append("var-Username", username);
+            baseParams.append("var-Username", username);
         }
 
-        return `${baseUrl}?${params.toString()}`;
+        const baseUrl = isSuperAdmin
+            ? "https://10.0.34.151:3000/d/ddonjajttscn4e/kub-cluster-details"
+            : "https://10.0.34.151:3000/d/ddonjajttscn4/kub-cluster-details-replica";
+
+        return `${baseUrl}?${baseParams.toString()}`;
     };
 
-    // Monitor and react to theme changes
+    // Watch for theme changes in real-time
     React.useEffect(() => {
-        const updateTheme = () => {
-            const stored = localStorage.getItem("heroui-theme") || "dark";
-            if (stored !== theme) {
-                setTheme(stored);
-                setDashboardUrl(buildDashboardUrl(stored));
+        const checkThemeChange = () => {
+            const current = localStorage.getItem("heroui-theme") || "light";
+            if (current !== theme) {
+                setTheme(current);
+                setDashboardUrl(getDashboardUrl(current));
                 setIsLoading(true);
             }
         };
 
-        const interval = setInterval(updateTheme, 1000);
-        setDashboardUrl(buildDashboardUrl(theme));
+        // Run every 1 second (can reduce to 500ms if needed)
+        const interval = setInterval(checkThemeChange, 1000);
+
+        // Initial load
+        setDashboardUrl(getDashboardUrl(theme));
 
         return () => clearInterval(interval);
     }, [theme]);
@@ -66,22 +69,22 @@ export const CarbonEmissionDashboard: React.FC = () => {
 
     const handleIframeError = () => {
         setIsLoading(false);
-        setError("Failed to load the carbon emission dashboard. Please check the server or network connection.");
+        setError("Failed to load monitoring dashboard. Please check if the dashboard is accessible.");
     };
 
     return (
         <div className="p-4 space-y-6">
             {/* Header */}
             <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full flex items-center justify-center">
-                    <Icon icon="mdi:leaf" className="text-white text-2xl" />
+                <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                    <Icon icon="lucide:activity" className="text-white text-2xl" />
                 </div>
                 <div>
                     <h1 className="text-2xl lg:text-3xl font-bold text-foreground">
-                        Sustainable Computing Dashboard
+                        Monitoring Dashboard
                     </h1>
                     <p className="text-sm text-foreground-500 mt-1">
-                        Environmental impact and carbon footprint insights powered by KubeSage
+                        Real-time insights and performance metrics powered by KubeSage
                     </p>
                 </div>
             </div>
@@ -89,11 +92,14 @@ export const CarbonEmissionDashboard: React.FC = () => {
             {/* Dashboard */}
             <Card className="w-full shadow-lg">
                 <CardBody className="p-0 relative">
-                    <div className="relative w-full bg-content1 rounded-lg overflow-hidden" style={{ height: "calc(100vh - 200px)", minHeight: "600px" }}>
+                    <div
+                        className="relative w-full bg-content1 rounded-lg overflow-hidden"
+                        style={{ height: "calc(100vh - 200px)", minHeight: "600px" }}
+                    >
                         {isLoading && (
                             <div className="absolute inset-0 flex items-center justify-center bg-content1 z-10">
                                 <div className="flex flex-col items-center gap-4">
-                                    <Spinner size="lg" color="success" />
+                                    <Spinner size="lg" color="primary" />
                                     <p className="text-lg font-medium text-foreground">Loading Dashboard...</p>
                                 </div>
                             </div>
@@ -113,10 +119,10 @@ export const CarbonEmissionDashboard: React.FC = () => {
 
                         {dashboardUrl && !error && (
                             <iframe
-                                id="carbon-emission-iframe"
+                                id="observability-iframe"
                                 src={dashboardUrl}
                                 className="w-full h-full border-0"
-                                title="Grafana Carbon Emission Dashboard"
+                                title="Grafana Monitoring Dashboard"
                                 onLoad={handleIframeLoad}
                                 onError={handleIframeError}
                                 sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
@@ -133,4 +139,4 @@ export const CarbonEmissionDashboard: React.FC = () => {
     );
 };
 
-export default CarbonEmissionDashboard;
+export default ObservabilityDashboard;

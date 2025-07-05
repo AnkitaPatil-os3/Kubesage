@@ -134,3 +134,11 @@ class PolicyApplicationListRequest(BaseModel):
     status: Optional[str] = None
     page: int = 1
     size: int = 10
+
+# Add this class to your existing policy_schemas.py file:
+
+class APIResponse(BaseModel):
+    success: bool
+    message: str
+    data: Optional[Any] = None
+    timestamp: str

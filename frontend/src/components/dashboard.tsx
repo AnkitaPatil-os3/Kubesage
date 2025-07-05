@@ -53,15 +53,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ selectedCluster }) => {
           "Authorization": `Bearer ${getAuthToken()}`
         }
       });
-
+  
       if (!response.ok) {
         throw new Error(`Failed to fetch clusters: ${response.statusText}`);
       }
-
+  
       const data = await response.json();
       console.log('Dashboard clusters response:', data);
-      if (data && Array.isArray(data.cluster_names)) {
-        setClusters(data.cluster_names);
+  
+      if (data && Array.isArray(data.clusters)) {
+        setClusters(data.clusters); // <-- FIXED LINE
       } else {
         setClusters([]);
       }
@@ -73,6 +74,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ selectedCluster }) => {
       setLoading(false);
     }
   };
+  
 
   const fetchNodeStatus = async () => {
     try {

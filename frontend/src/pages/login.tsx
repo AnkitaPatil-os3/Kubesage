@@ -1,4 +1,3 @@
- 
 import React from "react";
 import { useHistory } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -66,6 +65,22 @@ export const LoginPage: React.FC<{ onLogin?: (username: string, password: string
         const data = await response.json();
         localStorage.setItem("access_token", data.access_token);
         localStorage.setItem("refresh_token", data.refresh_token);
+
+        // Fetch user info to get roles
+        const userRes = await fetch("https://10.0.32.103:8001/users/me", {
+          headers: {
+            "Authorization": `Bearer ${data.access_token}`,
+            "accept": "application/json"
+          }
+        });
+        if (userRes.ok) {
+          const userData = await userRes.json();
+          console.log("User data:", userData); // Debugging line
+          localStorage.setItem("roles", JSON.stringify(userData.roles || []));
+        } else {
+          localStorage.setItem("roles", "[]");
+        }
+
         addToast({
           title: "Login Successful",
           description: "Welcome to KubeSage Dashboard",
@@ -114,7 +129,17 @@ export const LoginPage: React.FC<{ onLogin?: (username: string, password: string
     });
     history.push("/login");
   };
-  
+////  
+  const roles = JSON.parse(localStorage.getItem("roles") || "[]");
+  console.log("User roles:", roles); // Debugging line
+  React.useEffect(() => {
+    if (roles.includes("super_admin")) {
+      // Redirect to admin UI or perform admin-specific logic
+      console.log("Super Admin access granted"); // Debugging line
+      // history.push("/admin"); // Uncomment this line to enable redirection to admin page
+    }
+  }, [roles, history]);
+  ////
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-background to-content2">
       <motion.div
@@ -199,5 +224,4 @@ export const LoginPage: React.FC<{ onLogin?: (username: string, password: string
     </div>
   );
 };
- 
- 
+
