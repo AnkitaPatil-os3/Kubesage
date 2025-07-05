@@ -8,7 +8,7 @@ import { LoginPage } from "./pages/login";
 import { DashboardLayout } from "./layouts/dashboard-layout";
 import { ClusterOnboarding } from "./pages/cluster-onboarding";
 import { ClusterHealth } from "./pages/cluster-health";
-import { ChatOps } from "./pages/chat-ops";
+import ChatOpsPage from "./pages/chat-ops"; // Changed from { ChatOps } to ChatOpsPage
 import { AdminDashboard } from "./pages/admin-dashboard";
 import UploadKubeconfig from "./pages/upload-kubeconfig";
 import { Remediations as remediationsPage } from "./pages/remediations";
@@ -87,7 +87,7 @@ export default function App() {
                   <Route exact path="/dashboard" component={() => <Redirect to="/dashboard/overview" />} />
                   <Route path="/dashboard/overview" component={ClusterHealth} />
                   <Route path="/dashboard/onboarding" component={ClusterOnboarding} />
-                  <Route path="/dashboard/chatops" component={ChatOps} />
+                  <Route path="/dashboard/chatops" component={ChatOpsPage} /> {/* Changed from ChatOps to ChatOpsPage */}
                   <Route path="/dashboard/admin" component={AdminDashboard} />
                   <Route path="/dashboard/upload" component={UploadKubeconfig} />
                   <Route path="/dashboard/cost" component={CostAnalysis} />
@@ -110,6 +110,3 @@ export default function App() {
     </div>
   );
 }
- 
- 
- 

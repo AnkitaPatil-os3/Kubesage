@@ -143,6 +143,7 @@ async def chat_stream(
                 ):
                     full_response += token
                     yield f"data: {token}\n\n"
+                print(f"--------------- Full Response: {full_response}")
                 
                 # Save the complete response
                 if full_response:
@@ -159,6 +160,7 @@ async def chat_stream(
     except Exception as e:
         logger.error(f"❌ Error in chat_stream: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
 
 # Session Management Endpoints
 @router.get("/sessions", response_model=ChatSessionList)
