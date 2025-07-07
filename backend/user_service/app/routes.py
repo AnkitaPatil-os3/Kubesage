@@ -544,8 +544,6 @@ async def check_if_admin(current_user: User = Depends(get_current_user)):
     }
 
 
-
-
 @auth_router.post("/change-password/{user_id}", status_code=status.HTTP_200_OK,
                  summary="Admin Change User Password", description="Allows an admin to change another user's password")
 @limiter.limit("10/minute")

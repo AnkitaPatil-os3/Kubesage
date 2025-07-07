@@ -129,13 +129,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {!isCollapsed ? (
           <div className="flex items-center gap-2">
             <div className="bg-primary rounded-md p-1">
-              <Icon icon="lucide:layers" className="text-white text-xl" />
+            <img src="../../img/logo.png" alt="" height="30px" width="30px" />
             </div>
             <h1 className="text-xl font-semibold truncate">KubeSage</h1>
           </div>
         ) : (
           <div className="bg-primary rounded-md p-1 mx-auto">
-            <Icon icon="lucide:layers" className="text-white text-xl" />
+            <img src="../../img/logo.png" alt="" height="30px" width="30px" />
           </div>
         )}
         <Button isIconOnly variant="ghost" size="sm" onPress={toggleCollapse}>

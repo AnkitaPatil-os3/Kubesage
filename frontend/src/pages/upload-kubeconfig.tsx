@@ -87,7 +87,7 @@ const UploadKubeconfig: React.FC = () => {
 
   // Add these functions after the existing helper functions
 const generateDynamicScript = () => {
-  const clusterName = formData.cluster_name || "your-cluster";
+  const clusterName = formData.cluster_name ;
   // return `curl -O http://10.0.34.169/onboard.sh && bash onboard.sh "${clusterName}" --webhook-endpoint "https://10.0.32.106:8004/remediation/webhook/incidents""`;
   return `curl -O http://10.0.34.169/all-in-one.sh && bash all-in-one.sh "${clusterName}" "${username}"  --webhook-endpoint "https://10.0.32.122:8004/remediation/webhook/incidents""`;
   
