@@ -625,7 +625,6 @@ async def A_change_password(
 
 @user_router.get("/me", response_model=UserResponse, 
                 summary="Get Current User", description="Returns the current authenticated user's information")
-@limiter.limit("10/minute")
 async def read_users_me(request: Request, current_user: User = Depends(get_current_active_user)):
     """
     Returns the profile information of the currently authenticated user.
@@ -636,12 +635,15 @@ async def read_users_me(request: Request, current_user: User = Depends(get_curre
     Returns:
         UserResponse: The current user's profile information
     """
-    # Convert roles to string if needed
+    # new Convert roles to string if needed
     user_dict = current_user.model_dump()
     if isinstance(user_dict.get("roles"), list):
         user_dict["roles"] = ",".join(user_dict["roles"])
+    # Ensure roles field is present
+    if "roles" not in user_dict or user_dict["roles"] is None:
+        user_dict["roles"] = ""
     return user_dict
-
+# new
 # @user_router.get("/", response_model=List[UserResponse], 
 #                 summary="List All Users", description="Returns a list of all users (admin only)")
 # @limiter.limit("10/minute")

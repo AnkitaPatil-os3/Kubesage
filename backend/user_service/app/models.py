@@ -13,6 +13,8 @@ class User(SQLModel, table=True):
     last_name: Optional[str] = None
     is_active: bool = Field(default=True)
     is_admin: bool = Field(default=False)
+    confirmed: bool = Field(default=False)
+    roles: Optional[str] = Field(default="")
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
 

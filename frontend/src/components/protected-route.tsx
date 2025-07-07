@@ -1,26 +1,48 @@
 import React from 'react';
-import { Route, Redirect, RouteProps } from 'react-router-dom';
-import { rolePermissions, UserRole } from '../config/permissions';
-
+import { Route, RouteProps } from 'react-router-dom';
+import { rolePermissions } from '../config/permissions';
 interface ProtectedRouteProps extends RouteProps {
-requiredPermission: string;
-component: React.ComponentType<any>;
+  requiredPermission: string;
+  component: React.ComponentType<any>;
 }
-
+ 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
-requiredPermission,
-component: Component,
-...rest
+  requiredPermission,
+  component: Component,
+  ...rest
 }) => {
-const role = localStorage.getItem('userRole') as UserRole;
-const allowed = rolePermissions[role]?.includes(requiredPermission) || rolePermissions[role]?.includes('all');
-
-return (
-<Route
-{...rest}
-render={(props) =>
-allowed ? <Component {...props} /> : <Redirect to="/dashboard/overview" />
-}
-/>
-);
+  let role = localStorage.getItem('roles') as string | null;
+ 
+  // Remove extra quotes if present and normalize role string to match keys in rolePermissions
+  if (role) {
+    try {
+      role = JSON.parse(role);
+    } catch {
+      // If parsing fails, fallback to original string
+    }
+    role = role.toLowerCase().replace(/\s+/g, '_');
+  }
+ 
+  // Check if role exists and has permissions
+  const hasRole = role && rolePermissions.hasOwnProperty(role) && rolePermissions[role].length > 0;
+ 
+  // Special case: restrict 'users_only' permission to super_admin only
+  let allowed = hasRole && (rolePermissions[role]?.includes(requiredPermission) || rolePermissions[role]?.includes('all'));
+  if (requiredPermission === 'users_only') {
+    allowed = role === 'super_admin' || role === '"super_admin"';
+  }
+ 
+  // Debug logs
+  console.log('ProtectedRoute:', { role, requiredPermission, allowed, permissions: role ? rolePermissions[role] : [] });
+ 
+  return (
+    <Route
+      {...rest}
+      render={(props) =>
+        allowed ? <Component {...props} /> : <div style={{ padding: '20px', color: 'red' }}>Access Denied: You do not have permission to view this page.</div>
+      }
+    />
+  );
 };
+ 
+ 

@@ -11,6 +11,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { navCategories } from "../config/navConfig";
 import { rolePermissions, UserRole } from "../config/permissions";
 
+const API_BASE_URL = (import.meta as any).env.VITE_USER_SERVICE;
+
 interface SidebarProps {
   selectedCluster: string;
   setSelectedCluster: (cluster: string) => void;
@@ -76,7 +78,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         const accessToken = localStorage.getItem("access_token");
         if (!accessToken) return setIsAdmin(false);
 
-        const response = await fetch("/auth/check-admin", {
+        const response = await fetch(`${API_BASE_URL}/auth/check-admin`, {
           headers: {
             Authorization: `Bearer ${accessToken}`,
           },
@@ -97,7 +99,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     try {
       const accessToken = localStorage.getItem("access_token");
       if (accessToken) {
-        await fetch("/auth/logout", {
+        await fetch(`${API_BASE_URL}/auth/logout`, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${accessToken}`,

@@ -247,8 +247,6 @@ async def receive_incident_webhook(
         raise HTTPException(status_code=500, detail=f"Error processing incident: {str(e)}")
 
 
-
-
 # Executor management endpoints
 @remediation_router.get("/executors", response_model=ExecutorList,
                        summary="List Executors",

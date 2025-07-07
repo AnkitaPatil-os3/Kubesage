@@ -137,7 +137,7 @@ const copyToClipboard = (text: string) => {
   const fetchClusters = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/kubeconfig/clusters', {
+      const response = await fetch('https://10.0.32.103:8002/kubeconfig/clusters', {
         headers: getAuthHeaders()
       });
 
@@ -202,7 +202,7 @@ const copyToClipboard = (text: string) => {
 
     try {
       setOnboarding(true);
-      const response = await fetch('/kubeconfig/onboard-cluster', {
+      const response = await fetch('https://10.0.32.103:8002/kubeconfig/onboard-cluster', {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({
@@ -287,7 +287,7 @@ const copyToClipboard = (text: string) => {
   const handleRemoveCluster = async (cluster: ClusterConfig) => {
     try {
       setRemoving(cluster.id);
-      const response = await fetch(`/kubeconfig/remove-cluster/${cluster.id}`, {
+      const response = await fetch(`https://10.0.32.103:8002/kubeconfig/remove-cluster/${cluster.id}`, {
         method: 'DELETE',
         headers: getAuthHeaders()
       });

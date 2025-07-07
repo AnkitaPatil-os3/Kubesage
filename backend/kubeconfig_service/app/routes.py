@@ -2600,4 +2600,65 @@ def all_clusters_node_health():
     return JSONResponse(content=data)
 
 
-
+ 
+def prometheus_query(query: str):
+    url = f"{PROMETHEUS_URL}/api/v1/query"
+    response = httpx.get(url, params={"query": query})
+    data = response.json()
+    return data.get("data", {}).get("result", [])
+ 
+@cluster_router.get("/security")
+async def get_security(username: str):
+    severities = ["Critical", "High", "Medium", "Low"]
+    vulnerabilities = {}
+ 
+    # Step 1: Get counts for each severity using username
+    for severity in severities:
+        query = (
+            f'sum(trivy_image_vulnerabilities{{severity="{severity}", username="{username}"}})'
+        )
+        result = prometheus_query(query)
+        count = int(float(result[0]["value"][1])) if result else 0
+        vulnerabilities[severity.lower()] = count
+ 
+    # Step 2: Get detailed vulnerabilities by username
+    issues_query = (
+        f'sum(trivy_image_vulnerabilities{{username="{username}"}}) '
+        f'by (namespace, image_registry, image_repository, image_tag, severity) > 0'
+    )
+    result = prometheus_query(issues_query)
+ 
+    # Step 3: Top 1 per severity
+    severity_groups = {s.lower(): [] for s in severities}
+    for item in result:
+        metric = item["metric"]
+        severity = metric.get("severity", "").lower()
+        if severity in severity_groups:
+            severity_groups[severity].append(item)
+ 
+    issues = []
+    issue_id = 1
+    for severity in severities:
+        group = severity_groups[severity.lower()]
+        if group:
+            top = sorted(group, key=lambda x: int(float(x["value"][1])), reverse=True)[0]
+            metric = top["metric"]
+            image_repo = metric.get("image_repository", "unknown")
+            image_tag = metric.get("image_tag", "latest")
+            component = f"{image_repo}:{image_tag}"
+            count = int(float(top["value"][1]))
+ 
+            issues.append({
+                "id": issue_id,
+                "severity": severity.lower(),
+                "name": "CVE-XXXX-YYYY",
+                "component": component,
+                "description": f"Detected {count} vulnerability(ies)"
+            })
+            issue_id += 1
+ 
+    return {
+        "lastScan": "unknown",
+        "vulnerabilities": vulnerabilities,
+        "issues": issues
+    }
