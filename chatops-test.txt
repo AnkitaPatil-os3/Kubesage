@@ -43,22 +43,22 @@ const md = new MarkdownIt({
   breaks: true,
 });
 
-const defaultFence = md.renderer.rules.fence || function(tokens, idx, options, env, self) {
+const defaultFence = md.renderer.rules.fence || function (tokens, idx, options, env, self) {
   return self.renderToken(tokens, idx, options);
 };
 
 // Enhanced markdown fence renderer for proper code block alignment
-md.renderer.rules.fence = function(tokens, idx, options, env, self) {
+md.renderer.rules.fence = function (tokens, idx, options, env, self) {
   const token = tokens[idx];
   const lines = token.content.split('\n');
   let headerLine = '';
   let commandLines = lines;
-  
+
   if (lines.length > 0 && lines[0].trim().startsWith('#')) {
     headerLine = lines[0].trim().substring(1).trim();
     commandLines = lines.slice(1);
   }
-  
+
   const escapedHeader = md.utils.escapeHtml(headerLine);
   const commandContent = commandLines.join('\n');
   const commands = commandContent.split('\n\n')
@@ -75,9 +75,9 @@ md.renderer.rules.fence = function(tokens, idx, options, env, self) {
       .map(line => line.trim())
       .filter(line => line.length > 0)
       .join('\n');
-    
+
     const escapedCmd = md.utils.escapeHtml(normalizedCmd);
-    
+
     return `
       <div class="mb-4">
         <div class="relative rounded-lg border border-divider bg-content2 overflow-hidden">
@@ -105,11 +105,8 @@ md.renderer.rules.fence = function(tokens, idx, options, env, self) {
   `;
 };
 
-// Enhanced message content renderer
-const RenderMessageContent: React.FC<{ content: string; isStreaming?: boolean }> = ({ 
-  content, 
-  isStreaming = false 
-}) => {
+// Enhanced message content renderer with better formatting
+const RenderMessageContent: React.FC<{ content: string }> = ({ content }) => {
   const parts = React.useMemo(() => {
     const bashCodeBlockRegex = /```bash\n([\s\S]*?)```/g;
     const result = [];
@@ -123,23 +120,23 @@ const RenderMessageContent: React.FC<{ content: string; isStreaming?: boolean }>
           result.push({ type: 'text', content: textContent });
         }
       }
-      
+
       const codeContent = match[1];
       result.push({ type: 'code', content: codeContent });
       lastIndex = bashCodeBlockRegex.lastIndex;
     }
-    
+
     if (lastIndex < content.length) {
       const remainingContent = content.substring(lastIndex);
       if (remainingContent.trim()) {
         result.push({ type: 'text', content: remainingContent });
       }
     }
-    
+
     if (result.length === 0) {
       result.push({ type: 'text', content: content });
     }
-    
+
     return result;
   }, [content]);
 
@@ -160,6 +157,9 @@ const RenderMessageContent: React.FC<{ content: string; isStreaming?: boolean }>
                 '--tw-prose-bold': 'rgb(var(--nextui-foreground))',
                 '--tw-prose-code': 'rgb(var(--nextui-foreground))',
                 '--tw-prose-pre-bg': 'rgb(var(--nextui-content2))',
+                '--tw-prose-pre-code': 'rgb(var(--nextui-foreground))',
+                '--tw-prose-th-borders': 'rgb(var(--nextui-divider))',
+                '--tw-prose-td-borders': 'rgb(var(--nextui-divider))',
               } as React.CSSProperties}
             />
           );
@@ -238,7 +238,7 @@ interface ChatResponse {
 }
 
 // API Configuration
-const API_BASE_URL = 'https://10.0.32.103:8003';
+const API_BASE_URL = 'https://10.0.32.122:8003';
 
 class ChatAPI {
   private getAuthHeaders() {
@@ -265,23 +265,6 @@ class ChatAPI {
     }
 
     return response.json();
-  }
-
-  async streamMessage(message: string, sessionId?: string): Promise<Response> {
-    const response = await fetch(`${API_BASE_URL}/chat/stream`, {
-      method: 'POST',
-      headers: this.getAuthHeaders(),
-      body: JSON.stringify({
-        message,
-        session_id: sessionId
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    return response;
   }
 
   async getSessions(): Promise<{ sessions: Session[] }> {
@@ -365,7 +348,7 @@ const exportSessions = async (sessions: Session[], messages: Message[]) => {
     const dataStr = JSON.stringify(exportData, null, 2);
     const dataBlob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(dataBlob);
-    
+
     const link = document.createElement('a');
     link.href = url;
     link.download = `kubesage-sessions-${new Date().toISOString().split('T')[0]}.json`;
@@ -418,7 +401,7 @@ const getRoleSpecificCommands = (userRole: UserRole) => {
         icon: "solar:settings-bold",
         commands: [
           { label: "Backup status", command: "Show me backup status and schedules" },
-          { label: "Cost analysis", command: "Provide detailed cost analysis and optimization suggestions" },     
+          { label: "Cost analysis", command: "Provide detailed cost analysis and optimization suggestions" },
           { label: "Performance tuning", command: "Analyze cluster performance and suggest optimizations" },
           { label: "Carbon footprint", command: "Show carbon emission metrics and sustainability insights" }
         ]
@@ -561,37 +544,34 @@ const getRoleSpecificCommands = (userRole: UserRole) => {
 const getUserRole = (): UserRole => {
   const roles = localStorage.getItem("roles") || "";
   const username = localStorage.getItem("username") || "";
-  
+
   // Check for super admin
   if (roles.toLowerCase().includes("super")) {
     return 'super_admin';
   }
-  
+
   // Check for specific roles
   if (roles.toLowerCase().includes("platform")) {
     return 'platform_engineer';
   }
-  
+
   if (roles.toLowerCase().includes("devops")) {
     return 'devops';
   }
-  
+
   if (roles.toLowerCase().includes("security")) {
     return 'security_engineer';
   }
-  
+
   // Default to developer
   return 'developer';
 };
-
 
 export default function ChatOpsPage() {
   // State management
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isStreaming, setIsStreaming] = useState(false);
-  const [streamingMessage, setStreamingMessage] = useState('');
   const [sessions, setSessions] = useState<Session[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [enableToolResponse, setEnableToolResponse] = useState(false);
@@ -617,7 +597,7 @@ export default function ChatOpsPage() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, streamingMessage]);
+  }, [messages]);
 
   // Load sessions and user role on component mount
   useEffect(() => {
@@ -711,7 +691,7 @@ export default function ChatOpsPage() {
     }
   };
 
-  const sendMessage = async (message: string, useStreaming: boolean = true) => {
+  const sendMessage = async (message: string) => {
     if (!message.trim()) return;
 
     const userMessage: Message = {
@@ -722,19 +702,11 @@ export default function ChatOpsPage() {
 
     setMessages(prev => [...prev, userMessage]);
     setInputMessage('');
+    setIsLoading(true);
 
-    if (useStreaming) {
-      await sendStreamingMessage(message);
-    } else {
-      await sendRegularMessage(message);
-    }
-  };
-
-  const sendRegularMessage = async (message: string) => {
     try {
-      setIsLoading(true);
       const response = await chatAPI.sendMessage(message, currentSessionId || undefined, enableToolResponse);
-      
+
       const assistantMessage: Message = {
         role: 'assistant',
         content: response.response,
@@ -742,7 +714,7 @@ export default function ChatOpsPage() {
       };
 
       setMessages(prev => [...prev, assistantMessage]);
-      
+
       if (!currentSessionId) {
         setCurrentSessionId(response.session_id);
         await loadSessions();
@@ -762,7 +734,7 @@ export default function ChatOpsPage() {
             toolInfo += `- ${tool.name}: ${tool.response.substring(0, 200)}...\n`;
           });
         }
-        
+
         const toolMessage: Message = {
           role: 'assistant',
           content: toolInfo,
@@ -773,6 +745,14 @@ export default function ChatOpsPage() {
 
     } catch (error) {
       console.error('Failed to send message:', error);
+      
+      const errorMessage: Message = {
+        role: 'assistant',
+        content: `❌ **Error:** Failed to process your request: ${error instanceof Error ? error.message : 'Unknown error'}\n\n💡 **Please try again** or contact support if the issue persists.`,
+        created_at: new Date().toISOString()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+
       addToast({
         title: 'Error',
         description: 'Failed to send message',
@@ -783,72 +763,6 @@ export default function ChatOpsPage() {
     }
   };
 
-  const sendStreamingMessage = async (message: string) => {
-    try {
-      setIsStreaming(true);
-      setStreamingMessage('');
-      
-      const response = await chatAPI.streamMessage(message, currentSessionId || undefined);
-      const reader = response.body?.getReader();
-      
-      if (!reader) {
-        throw new Error('No response stream available');
-      }
-
-      let fullResponse = '';
-      let sessionId = currentSessionId;
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = new TextDecoder().decode(value);
-        const lines = chunk.split('\n');
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6);
-            if (data.trim()) {
-              try {
-                const parsed = JSON.parse(data);
-                if (parsed.session_id && !sessionId) {
-                  sessionId = parsed.session_id;
-                  setCurrentSessionId(sessionId);
-                }
-              } catch {
-                fullResponse += data;
-                setStreamingMessage(fullResponse);
-              }
-            }
-          }
-        }
-      }
-
-      if (fullResponse) {
-        const assistantMessage: Message = {
-          role: 'assistant',
-          content: fullResponse,
-          created_at: new Date().toISOString()
-        };
-        setMessages(prev => [...prev, assistantMessage]);
-      }
-
-      if (!currentSessionId && sessionId) {
-        await loadSessions();
-      }
-
-    } catch (error) {
-      console.error('Failed to stream message:', error);
-      addToast({
-        title: 'Error',
-        description: 'Failed to stream message',
-        color: 'danger'
-      });
-    } finally {
-      setIsStreaming(false);
-      setStreamingMessage('');
-    }
-  };
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -910,7 +824,7 @@ export default function ChatOpsPage() {
                   isIconOnly
                   size="sm"
                   variant="light"
-                  onPress={loadSessions}
+                                    onPress={loadSessions}
                   isLoading={isLoadingSessions}
                   className="text-default-500 hover:text-default-700"
                 >
@@ -919,7 +833,7 @@ export default function ChatOpsPage() {
               </Tooltip>
             </div>
           </div>
-          
+
           <Button
             color="primary"
             onPress={() => createNewSession()}
@@ -993,11 +907,10 @@ export default function ChatOpsPage() {
                       key={session.session_id}
                       isPressable
                       isHoverable
-                      className={`cursor-pointer transition-all duration-200 ${
-                        currentSessionId === session.session_id
+                      className={`cursor-pointer transition-all duration-200 ${currentSessionId === session.session_id
                           ? 'bg-primary-50 border-primary-200 dark:bg-primary-950 dark:border-primary-800 shadow-md'
                           : 'hover:bg-content2 hover:shadow-sm'
-                      }`}
+                        }`}
                       onPress={() => loadSessionHistory(session.session_id)}
                     >
                       <CardBody className="p-3">
@@ -1101,15 +1014,14 @@ export default function ChatOpsPage() {
 
         {/* Scrollable Messages Area - Only this scrolls */}
         <div className="flex-1 overflow-hidden">
-          <ScrollShadow 
+          <ScrollShadow
             ref={chatContainerRef}
             className="h-full"
           >
             <div className="p-4">
-              {messages.length === 0 && !isStreaming ? (
+              {messages.length === 0 && !isLoading ? (
                 <div className="flex flex-col items-center justify-center h-full min-h-[60vh] text-center">
                   <div className="mb-8">
-                   
                     <h3 className="text-2xl font-bold text-foreground mb-2">
                       Welcome to KubeSage
                     </h3>
@@ -1120,7 +1032,7 @@ export default function ChatOpsPage() {
                       Ask questions, get diagnostics, or request help with troubleshooting your cluster.
                     </p>
                   </div>
-                  
+
                   {/* Role-Specific Quick Commands */}
                   <div className="w-full max-w-6xl">
                     <div className="flex items-center gap-2 mb-4">
@@ -1177,11 +1089,10 @@ export default function ChatOpsPage() {
                         className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                       >
                         <div
-                          className={`max-w-[85%] rounded-2xl p-4 ${
-                            message.role === 'user'
+                          className={`max-w-[85%] rounded-2xl p-4 ${message.role === 'user'
                               ? 'bg-primary text-primary-foreground ml-12'
                               : 'bg-content2 text-foreground mr-12'
-                          }`}
+                            }`}
                         >
                           <div className="flex items-start gap-3">
                             <Avatar
@@ -1192,11 +1103,10 @@ export default function ChatOpsPage() {
                                 />
                               }
                               size="sm"
-                              className={`flex-shrink-0 ${
-                                message.role === 'user' 
-                                  ? 'bg-primary-foreground/20 text-primary-foreground' 
+                              className={`flex-shrink-0 ${message.role === 'user'
+                                  ? 'bg-primary-foreground/20 text-primary-foreground'
                                   : 'bg-primary-100 text-primary'
-                              }`}
+                                }`}
                             />
                             <div className="flex-1 min-w-0">
                               {message.role === 'user' ? (
@@ -1218,32 +1128,6 @@ export default function ChatOpsPage() {
                       </motion.div>
                     ))}
                   </AnimatePresence>
-
-                  {/* Streaming Message */}
-                  {isStreaming && streamingMessage && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="flex justify-start"
-                    >
-                      <div className="max-w-[85%] rounded-2xl p-4 bg-content2 text-foreground mr-12">
-                        <div className="flex items-start gap-3">
-                          <Avatar
-                            icon={<Icon icon="solar:cpu-bolt-bold" width={16} />}
-                            size="sm"
-                            className="flex-shrink-0 bg-primary-100 text-primary"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <RenderMessageContent content={streamingMessage} isStreaming={true} />
-                            <div className="flex items-center gap-2 mt-3">
-                              <Spinner size="sm" color="primary" />
-                              <span className="text-xs text-default-500">Thinking...</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
 
                   {/* Loading Message */}
                   {isLoading && (
@@ -1284,7 +1168,7 @@ export default function ChatOpsPage() {
                   minRows={1}
                   maxRows={4}
                   className="w-full"
-                  disabled={isLoading || isStreaming}
+                  disabled={isLoading}
                   classNames={{
                     input: "text-sm",
                     inputWrapper: "bg-content2 border-2 border-divider hover:border-primary focus-within:border-primary transition-colors"
@@ -1295,8 +1179,8 @@ export default function ChatOpsPage() {
                 color="primary"
                 isIconOnly
                 onPress={() => sendMessage(inputMessage)}
-                isDisabled={!inputMessage.trim() || isLoading || isStreaming}
-                isLoading={isLoading || isStreaming}
+                                isDisabled={!inputMessage.trim() || isLoading}
+                isLoading={isLoading}
                 className="h-14 w-14 min-w-14"
                 radius="lg"
               >
@@ -1329,7 +1213,7 @@ export default function ChatOpsPage() {
                     Session Active
                   </Chip>
                 )}
-                {(isLoading || isStreaming) && (
+                {isLoading && (
                   <Chip size="sm" variant="flat" color="warning" className="text-xs">
                     <Spinner size="sm" className="mr-1" />
                     Processing
@@ -1395,9 +1279,9 @@ export default function ChatOpsPage() {
                   </div>
                 </Switch>
               </div>
-              
+
               <Divider />
-              
+
               {/* Session Management */}
               <div>
                 <h4 className="text-sm font-semibold mb-3">Session Management</h4>
@@ -1469,7 +1353,7 @@ export default function ChatOpsPage() {
               <p className="text-sm text-default-600">
                 Export your chat sessions and messages as a JSON file for backup or analysis.
               </p>
-              
+
               <div className="bg-content2 rounded-lg p-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="text-center">
@@ -1488,8 +1372,8 @@ export default function ChatOpsPage() {
                   <Icon icon="solar:info-circle-bold" width={16} className="text-warning mt-0.5" />
                   <div className="text-xs text-warning-700 dark:text-warning-300">
                     <p className="font-medium mb-1">Export Information</p>
-                    <p>This will export all your chat sessions and the current session messages. 
-                    The exported file can be used for backup or imported into other instances.</p>
+                    <p>This will export all your chat sessions and the current session messages.
+                      The exported file can be used for backup or imported into other instances.</p>
                   </div>
                 </div>
               </div>
@@ -1526,6 +1410,5 @@ export default function ChatOpsPage() {
     </div>
   );
 }
-
 
 
