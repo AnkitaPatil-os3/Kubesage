@@ -24,7 +24,9 @@ import {
   Code,
   Divider,
   Avatar,
-  Tooltip
+  Tooltip,
+  Select,
+  SelectItem
 } from '@heroui/react';
 import { Icon } from '@iconify/react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -42,20 +44,6 @@ const md = new MarkdownIt({
   typographer: true,
   breaks: true,
 });
-// ADD this after the markdown initialization:
-md.renderer.rules.paragraph_open = function (tokens, idx, options, env, self) {
-  return '<p class="mb-2">';
-};
-
-md.renderer.rules.softbreak = function (tokens, idx, options, env, self) {
-  return '<br class="leading-relaxed">\n';
-};
-
-md.renderer.rules.hardbreak = function (tokens, idx, options, env, self) {
-  return '<br class="mb-2">\n';
-};
-
-
 
 const defaultFence = md.renderer.rules.fence || function (tokens, idx, options, env, self) {
   return self.renderToken(tokens, idx, options);
@@ -119,11 +107,8 @@ md.renderer.rules.fence = function (tokens, idx, options, env, self) {
   `;
 };
 
-// Enhanced message content renderer
-const RenderMessageContent: React.FC<{ content: string; isStreaming?: boolean }> = ({
-  content,
-  isStreaming = false
-}) => {
+// Enhanced message content renderer with better formatting
+const RenderMessageContent: React.FC<{ content: string }> = ({ content }) => {
   const parts = React.useMemo(() => {
     const bashCodeBlockRegex = /```bash\n([\s\S]*?)```/g;
     const result = [];
@@ -155,34 +140,17 @@ const RenderMessageContent: React.FC<{ content: string; isStreaming?: boolean }>
     }
 
     return result;
-  }, [content]); // Re-compute when content changes (important for streaming)
-
-  const preprocessContent = (text: string) => {
-    // Convert double line breaks to proper markdown paragraphs
-    let processed = text.replace(/\n\n/g, '\n\n');
-
-    // Ensure proper spacing around headers
-    processed = processed.replace(/\n(#{1,6})/g, '\n\n$1');
-    processed = processed.replace(/(#{1,6}.*)\n([^#\n])/g, '$1\n\n$2');
-
-    // Handle list items properly
-    processed = processed.replace(/\n(\*|-|\d+\.)/g, '\n\n$1');
-
-    return processed;
-  };
+  }, [content]);
 
   return (
     <div className="prose prose-sm dark:prose-invert max-w-none">
       {parts.map((part, idx) => {
         if (part.type === 'text') {
-          // Preprocess content before rendering
-          const processedContent = preprocessContent(part.content);
-          const htmlContent = md.render(processedContent);
-
+          const htmlContent = md.render(part.content);
           return (
             <div
-              key={`${idx}-${isStreaming ? 'streaming' : 'static'}`} // CHANGE: Add streaming key
-              className="mb-2 leading-relaxed"
+              key={idx}
+              className="mb-2"
               dangerouslySetInnerHTML={{ __html: htmlContent }}
               style={{
                 '--tw-prose-body': 'rgb(var(--nextui-foreground))',
@@ -191,8 +159,9 @@ const RenderMessageContent: React.FC<{ content: string; isStreaming?: boolean }>
                 '--tw-prose-bold': 'rgb(var(--nextui-foreground))',
                 '--tw-prose-code': 'rgb(var(--nextui-foreground))',
                 '--tw-prose-pre-bg': 'rgb(var(--nextui-content2))',
-                lineHeight: '1.6',
-                '--tw-prose-p': 'margin-bottom: 1rem',
+                '--tw-prose-pre-code': 'rgb(var(--nextui-foreground))',
+                '--tw-prose-th-borders': 'rgb(var(--nextui-divider))',
+                '--tw-prose-td-borders': 'rgb(var(--nextui-divider))',
               } as React.CSSProperties}
             />
           );
@@ -203,7 +172,7 @@ const RenderMessageContent: React.FC<{ content: string; isStreaming?: boolean }>
             .filter(line => line.length > 0);
 
           return (
-            <div key={`${idx}-code-${isStreaming ? 'streaming' : 'static'}`} className="mb-4">
+            <div key={idx} className="mb-4">
               <div className="mb-2 font-semibold text-foreground">Commands</div>
               <div className="relative rounded-lg border border-divider bg-content2 overflow-hidden">
                 <div className="flex items-center justify-between bg-content3 px-3 py-2 border-b border-divider">
@@ -233,14 +202,9 @@ const RenderMessageContent: React.FC<{ content: string; isStreaming?: boolean }>
         }
         return null;
       })}
-      {/* CHANGE: Add streaming indicator for incomplete content */}
-      {isStreaming && (
-        <span className="inline-block w-2 h-4 bg-primary animate-pulse ml-1" />
-      )}
     </div>
   );
 };
-
 
 // Types
 interface Message {
@@ -275,8 +239,26 @@ interface ChatResponse {
   tool_response?: ToolResponse[];
 }
 
+// Cluster interface from upload-kubeconfig
+interface ClusterConfig {
+  id: number;
+  cluster_name: string;
+  server_url: string;
+  provider_name?: string;
+  tags?: string[];
+  use_secure_tls: boolean;
+  ca_data?: string;
+  tls_key?: string;
+  tls_cert?: string;
+  user_id: number;
+  is_operator_installed: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 // API Configuration
 const API_BASE_URL = 'https://10.0.32.103:8003';
+const KUBECONFIG_API_BASE_URL = 'https://10.0.32.103:8002';
 
 class ChatAPI {
   private getAuthHeaders() {
@@ -287,50 +269,15 @@ class ChatAPI {
     };
   }
 
-async sendMessage(message: string, sessionId?: string, enableToolResponse: boolean = false): Promise<ChatResponse> {
-  const response = await fetch(`${API_BASE_URL}/chat`, {
-    method: 'POST',
-    headers: {
-      ...this.getAuthHeaders(),
-      'Accept': 'text/markdown', // CHANGE: Always request markdown
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      message,
-      session_id: sessionId,
-      enable_tool_response: enableToolResponse,
-      format: 'markdown' // ADD: Explicitly request markdown format
-    })
-  });
-
-  if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
-  }
-
-  // CHANGE: Handle both text and JSON responses
-  const contentType = response.headers.get('content-type');
-  if (contentType && contentType.includes('text/markdown')) {
-    const markdownContent = await response.text();
-    return {
-      session_id: sessionId || '',
-      response: markdownContent,
-      tools_info: [],
-      tool_response: []
-    };
-  }
-
-  return response.json();
-}
-
-
-
-  async streamMessage(message: string, sessionId?: string): Promise<Response> {
-    const response = await fetch(`${API_BASE_URL}/chat/stream`, {
+  async sendMessage(message: string, sessionId?: string, enableToolResponse: boolean = false, clusterName?: string): Promise<ChatResponse> {
+    const response = await fetch(`${API_BASE_URL}/chat`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
       body: JSON.stringify({
         message,
-        session_id: sessionId
+        session_id: sessionId,
+        enable_tool_response: enableToolResponse,
+        cluster_name: clusterName // Changed from cluster_id to cluster_name
       })
     });
 
@@ -338,9 +285,8 @@ async sendMessage(message: string, sessionId?: string, enableToolResponse: boole
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    return response;
+    return response.json();
   }
-
   async getSessions(): Promise<{ sessions: Session[] }> {
     const response = await fetch(`${API_BASE_URL}/sessions`, {
       headers: this.getAuthHeaders()
@@ -392,6 +338,19 @@ async sendMessage(message: string, sessionId?: string, enableToolResponse: boole
 
   async getHealthStatus() {
     const response = await fetch(`${API_BASE_URL}/health`, {
+      headers: this.getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  // Cluster management methods
+  async getClusters(): Promise<{ clusters: ClusterConfig[] }> {
+    const response = await fetch(`${KUBECONFIG_API_BASE_URL}/kubeconfig/clusters`, {
       headers: this.getAuthHeaders()
     });
 
@@ -641,20 +600,22 @@ const getUserRole = (): UserRole => {
   return 'developer';
 };
 
-
 export default function ChatOpsPage() {
   // State management
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isStreaming, setIsStreaming] = useState(false);
-  const [streamingMessage, setStreamingMessage] = useState('');
   const [sessions, setSessions] = useState<Session[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [enableToolResponse, setEnableToolResponse] = useState(false);
   const [isLoadingSessions, setIsLoadingSessions] = useState(false);
   const [healthStatus, setHealthStatus] = useState<any>(null);
   const [userRole, setUserRole] = useState<UserRole>('developer');
+
+  // Cluster selection state
+  const [clusters, setClusters] = useState<ClusterConfig[]>([]);
+  const [selectedCluster, setSelectedCluster] = useState<number | null>(null);
+  const [isLoadingClusters, setIsLoadingClusters] = useState(false);
 
   // Refs for auto-scrolling
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -674,11 +635,12 @@ export default function ChatOpsPage() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, streamingMessage]);
+  }, [messages]);
 
-  // Load sessions and user role on component mount
+  // Load sessions, clusters and user role on component mount
   useEffect(() => {
     loadSessions();
+    loadClusters();
     checkHealthStatus();
     setUserRole(getUserRole());
   }, []);
@@ -700,6 +662,28 @@ export default function ChatOpsPage() {
     }
   };
 
+  const loadClusters = async () => {
+    try {
+      setIsLoadingClusters(true);
+      const response = await chatAPI.getClusters();
+      setClusters(response.clusters);
+
+      // Auto-select first cluster if available
+      if (response.clusters.length > 0 && !selectedCluster) {
+        setSelectedCluster(response.clusters[0].id);
+      }
+    } catch (error) {
+      console.error('Failed to load clusters:', error);
+      addToast({
+        title: 'Error',
+        description: 'Failed to load clusters',
+        color: 'danger'
+      });
+    } finally {
+      setIsLoadingClusters(false);
+    }
+  };
+
   const checkHealthStatus = async () => {
     try {
       const status = await chatAPI.getHealthStatus();
@@ -710,25 +694,19 @@ export default function ChatOpsPage() {
   };
 
   const loadSessionHistory = async (sessionId: string) => {
-  try {
-    const history = await chatAPI.getSessionHistory(sessionId);
-    // CHANGE: Ensure all messages are treated as markdown
-    const formattedMessages = history.messages.map(msg => ({
-      ...msg,
-      content: msg.content // Content is already in markdown format
-    }));
-    setMessages(formattedMessages);
-    setCurrentSessionId(sessionId);
-  } catch (error) {
-    console.error('Failed to load session history:', error);
-    addToast({
-      title: 'Error',
-      description: 'Failed to load session history',
-      color: 'danger'
-    });
-  }
-};
-
+    try {
+      const history = await chatAPI.getSessionHistory(sessionId);
+      setMessages(history.messages);
+      setCurrentSessionId(sessionId);
+    } catch (error) {
+      console.error('Failed to load session history:', error);
+      addToast({
+        title: 'Error',
+        description: 'Failed to load session history',
+        color: 'danger'
+      });
+    }
+  };
 
   const createNewSession = async (title?: string) => {
     try {
@@ -774,8 +752,18 @@ export default function ChatOpsPage() {
     }
   };
 
-  const sendMessage = async (message: string, useStreaming: boolean = true) => {
+  const sendMessage = async (message: string) => {
     if (!message.trim()) return;
+
+    // Check if cluster is selected
+    if (!selectedCluster) {
+      addToast({
+        title: 'Warning',
+        description: 'Please select a cluster before sending messages',
+        color: 'warning'
+      });
+      return;
+    }
 
     const userMessage: Message = {
       role: 'user',
@@ -785,135 +773,77 @@ export default function ChatOpsPage() {
 
     setMessages(prev => [...prev, userMessage]);
     setInputMessage('');
+    setIsLoading(true);
 
-    if (useStreaming) {
-      await sendStreamingMessage(message);
-    } else {
-      await sendRegularMessage(message);
+    try {
+      // Get cluster name from selected cluster
+      const selectedClusterName = getSelectedClusterName();
+
+      console.log('Sending message with cluster:', selectedClusterName); // Debug log
+
+      const response = await chatAPI.sendMessage(
+        message,
+        currentSessionId || undefined,
+        enableToolResponse,
+        selectedClusterName // Pass cluster name instead of cluster ID
+      );
+
+      const assistantMessage: Message = {
+        role: 'assistant',
+        content: response.response,
+        created_at: new Date().toISOString()
+      };
+
+      setMessages(prev => [...prev, assistantMessage]);
+
+      if (!currentSessionId) {
+        setCurrentSessionId(response.session_id);
+        await loadSessions();
+      }
+
+      if (enableToolResponse && (response.tools_info?.length || response.tool_response?.length)) {
+        let toolInfo = '';
+        if (response.tools_info?.length) {
+          toolInfo += '**Tools Used:**\n';
+          response.tools_info.forEach(tool => {
+            toolInfo += `- ${tool.name}: ${tool.args}\n`;
+          });
+        }
+        if (response.tool_response?.length) {
+          toolInfo += '\n**Tool Responses:**\n';
+          response.tool_response.forEach(tool => {
+            toolInfo += `- ${tool.name}: ${tool.response.substring(0, 200)}...\n`;
+          });
+        }
+
+        const toolMessage: Message = {
+          role: 'assistant',
+          content: toolInfo,
+          created_at: new Date().toISOString()
+        };
+        setMessages(prev => [...prev, toolMessage]);
+      }
+
+    } catch (error) {
+      console.error('Failed to send message:', error);
+
+      const errorMessage: Message = {
+        role: 'assistant',
+        content: `❌ **Error:** Failed to process your request: ${error instanceof Error ? error.message : 'Unknown error'}\n\n💡 **Please try again** or contact support if the issue persists.`,
+        created_at: new Date().toISOString()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+
+      addToast({
+        title: 'Error',
+        description: 'Failed to send message',
+        color: 'danger'
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const sendRegularMessage = async (message: string) => {
-  try {
-    setIsLoading(true);
-    const response = await chatAPI.sendMessage(message, currentSessionId || undefined, enableToolResponse);
-
-    const assistantMessage: Message = {
-      role: 'assistant',
-      content: response.response, // This is now markdown format
-      created_at: new Date().toISOString()
-    };
-
-    setMessages(prev => [...prev, assistantMessage]);
-
-    if (!currentSessionId) {
-      setCurrentSessionId(response.session_id);
-      await loadSessions();
-    }
-
-    // Handle tool responses if enabled
-    if (enableToolResponse && (response.tools_info?.length || response.tool_response?.length)) {
-      let toolInfo = '';
-      if (response.tools_info?.length) {
-        toolInfo += '**Tools Used:**\n';
-        response.tools_info.forEach(tool => {
-          toolInfo += `- ${tool.name}: ${tool.args}\n`;
-        });
-      }
-      if (response.tool_response?.length) {
-        toolInfo += '\n**Tool Responses:**\n';
-        response.tool_response.forEach(tool => {
-          toolInfo += `- ${tool.name}: ${tool.response.substring(0, 200)}...\n`;
-        });
-      }
-
-      const toolMessage: Message = {
-        role: 'assistant',
-        content: toolInfo, // This is markdown format
-        created_at: new Date().toISOString()
-      };
-      setMessages(prev => [...prev, toolMessage]);
-    }
-
-  } catch (error) {
-    console.error('Failed to send message:', error);
-    addToast({
-      title: 'Error',
-      description: 'Failed to send message',
-      color: 'danger'
-    });
-  } finally {
-    setIsLoading(false);
-  }
-};
-
-const sendStreamingMessage = async (message: string) => {
-  try {
-    setIsStreaming(true);
-    setStreamingMessage('');
-
-    const response = await chatAPI.streamMessage(message, currentSessionId || undefined);
-    const reader = response.body?.getReader();
-
-    if (!reader) {
-      throw new Error('No response stream available');
-    }
-
-    let fullResponse = '';
-    let sessionId = currentSessionId;
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      const chunk = new TextDecoder().decode(value);
-      const lines = chunk.split('\n');
-
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6);
-          if (data.trim()) {
-            try {
-              const parsed = JSON.parse(data);
-              if (parsed.session_id && !sessionId) {
-                sessionId = parsed.session_id;
-                setCurrentSessionId(sessionId);
-              }
-            } catch {
-              // CHANGE: Treat streaming data as markdown and update state immediately
-              fullResponse += data;
-              setStreamingMessage(fullResponse); // This will trigger re-render with markdown
-            }
-          }
-        }
-      }
-    }
-
-    if (fullResponse) {
-      const assistantMessage: Message = {
-        role: 'assistant',
-        content: fullResponse, // This is already markdown
-        created_at: new Date().toISOString()
-      };
-      setMessages(prev => [...prev, assistantMessage]);
-    }
-
-    if (!currentSessionId && sessionId) {
-      await loadSessions();
-    }
-
-  } catch (error) {
-    console.error('Failed to stream message:', error);
-    addToast({
-      title: 'Error',
-      description: 'Failed to stream message',
-      color: 'danger'
-    });
-  } finally {
-    setIsStreaming(false);
-    setStreamingMessage('');
-  }
-};
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -946,6 +876,16 @@ const sendStreamingMessage = async (message: string) => {
       security_engineer: 'warning' as const
     };
     return roleColors[role] || 'default';
+  };
+
+  const getSelectedClusterName = (): string => {
+    const cluster = clusters.find(c => c.id === selectedCluster);
+    return cluster ? cluster.cluster_name : 'No cluster selected';
+  };
+
+  const getClusterStatusColor = (cluster: ClusterConfig): "success" | "warning" | "danger" => {
+    if (cluster.is_operator_installed) return 'success';
+    return 'warning';
   };
 
   return (
@@ -996,7 +936,7 @@ const sendStreamingMessage = async (message: string) => {
           </Button>
 
           {/* User Role Display */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-3">
             <span className="text-xs text-default-500">Role:</span>
             <Chip
               size="sm"
@@ -1007,6 +947,71 @@ const sendStreamingMessage = async (message: string) => {
               {getRoleDisplayName(userRole)}
             </Chip>
           </div>
+
+          {/* Cluster Selection */}
+          <div className="mb-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-default-500">Active Clusters:</span>
+              <Tooltip content="Refresh Clusters">
+                <Button
+                  isIconOnly
+                  size="sm"
+                  variant="light"
+                  onPress={loadClusters}
+                  isLoading={isLoadingClusters}
+                  className="text-default-500 hover:text-default-700 h-5 w-5 min-w-5"
+                >
+                  <Icon icon="solar:refresh-bold" width={12} />
+                </Button>
+              </Tooltip>
+            </div>
+            <Select
+              size="sm"
+              placeholder="Select cluster"
+              selectedKeys={selectedCluster ? [selectedCluster.toString()] : []}
+              onSelectionChange={(keys) => {
+                const selected = Array.from(keys)[0];
+                const clusterId = selected ? parseInt(selected.toString()) : null;
+                setSelectedCluster(clusterId);
+
+                // Debug logging
+                if (clusterId) {
+                  const clusterName = clusters.find(c => c.id === clusterId)?.cluster_name;
+                  console.log('Selected cluster:', { id: clusterId, name: clusterName });
+                }
+              }}
+              isLoading={isLoadingClusters}
+              classNames={{
+                trigger: "h-8 min-h-8",
+                value: "text-xs",
+                listbox: "max-h-40"
+              }}
+              startContent={<Icon icon="solar:server-bold" width={14} className="text-primary" />}
+            >
+              {clusters.map((cluster) => (
+                <SelectItem
+                  key={cluster.id.toString()}
+                  value={cluster.id.toString()}
+                  textValue={cluster.cluster_name}
+                  startContent={
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${cluster.is_operator_installed ? 'bg-success' : 'bg-warning'
+                        }`} />
+                    </div>
+                  }
+                >
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium">{cluster.cluster_name}</span>
+                    <span className="text-xs text-default-500">
+                      {cluster.provider_name || 'Unknown Provider'}
+                    </span>
+                  </div>
+                </SelectItem>
+              ))}
+            </Select>
+
+
+          </div>
         </div>
 
         {/* Fixed Health Status */}
@@ -1016,6 +1021,7 @@ const sendStreamingMessage = async (message: string) => {
               <Icon icon="solar:heart-pulse-bold" width={16} className="text-success" />
               <span className="text-sm font-semibold text-foreground">System Status</span>
             </div>
+            
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs text-default-600">Overall</span>
@@ -1026,6 +1032,28 @@ const sendStreamingMessage = async (message: string) => {
                   className="text-xs"
                 >
                   {healthStatus.status}
+                </Chip>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-default-600">All Agents</span>
+                <Chip
+                  size="sm"
+                  color={healthStatus.kubernetes === 'healthy' ? 'success' : 'danger'}
+                  variant="flat"
+                  className="text-xs"
+                >
+                  {healthStatus.kubernetes}
+                </Chip>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-default-600">Database</span>
+                <Chip
+                  size="sm"
+                  color={healthStatus.database === 'healthy' ? 'success' : 'danger'}
+                  variant="flat"
+                  className="text-xs"
+                >
+                  {healthStatus.database}
                 </Chip>
               </div>
               <div className="flex items-center justify-between">
@@ -1060,8 +1088,8 @@ const sendStreamingMessage = async (message: string) => {
                       isPressable
                       isHoverable
                       className={`cursor-pointer transition-all duration-200 ${currentSessionId === session.session_id
-                          ? 'bg-primary-50 border-primary-200 dark:bg-primary-950 dark:border-primary-800 shadow-md'
-                          : 'hover:bg-content2 hover:shadow-sm'
+                        ? 'bg-primary-50 border-primary-200 dark:bg-primary-950 dark:border-primary-800 shadow-md'
+                        : 'hover:bg-content2 hover:shadow-sm'
                         }`}
                       onPress={() => loadSessionHistory(session.session_id)}
                     >
@@ -1129,12 +1157,17 @@ const sendStreamingMessage = async (message: string) => {
               <div>
                 <h1 className="text-xl font-bold text-foreground">KubeSage Assistant</h1>
                 <p className="text-sm text-default-500">
-                  {currentSessionId ? 'Active Session' : `Ready to help ${getRoleDisplayName(userRole)}`}
+                  {selectedCluster
+                    ? `Connected to ${getSelectedClusterName()}`
+                    : 'Select a cluster to start chatting'
+                  }
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <Switch
+
+
+              {/* <Switch
                 size="sm"
                 isSelected={enableToolResponse}
                 onValueChange={setEnableToolResponse}
@@ -1144,11 +1177,11 @@ const sendStreamingMessage = async (message: string) => {
                   thumb: "w-6 h-6 border-2 shadow-lg group-data-[hover=true]:border-primary group-data-[selected=true]:ml-6 group-data-[pressed=true]:w-7 group-data-[selected]:group-data-[pressed]:ml-4",
                 }}
               >
-                {/* <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-1">
                   <p className="text-sm text-foreground">Show Tools</p>
                   <p className="text-xs text-default-400">Display tool usage details</p>
-                </div> */}
-              </Switch>
+                </div>
+              </Switch> */}
               <Tooltip content="Chat Settings">
                 <Button
                   isIconOnly
@@ -1171,63 +1204,94 @@ const sendStreamingMessage = async (message: string) => {
             className="h-full"
           >
             <div className="p-4">
-              {messages.length === 0 && !isStreaming ? (
+              {messages.length === 0 && !isLoading ? (
                 <div className="flex flex-col items-center justify-center h-full min-h-[60vh] text-center">
-                  <div className="mb-8">
-
-                    <h3 className="text-2xl font-bold text-foreground mb-2">
-                      Welcome to KubeSage
-                    </h3>
-                    <p className="text-default-500 mb-2 max-w-md">
-                      Your intelligent Kubernetes assistant for {getRoleDisplayName(userRole)}s.
-                    </p>
-                    <p className="text-sm text-default-400 mb-6 max-w-md">
-                      Ask questions, get diagnostics, or request help with troubleshooting your cluster.
-                    </p>
-                  </div>
-
-                  {/* Role-Specific Quick Commands */}
-                  <div className="w-full max-w-6xl">
-                    <div className="flex items-center gap-2 mb-4">
-                      <h4 className="text-lg font-semibold text-foreground">Quick Commands for {getRoleDisplayName(userRole)}</h4>
-                      <Chip
-                        size="sm"
-                        color={getRoleColor(userRole)}
-                        variant="flat"
-                      >
-                        {userRole.replace('_', ' ').toUpperCase()}
-                      </Chip>
+                  {!selectedCluster ? (
+                    // No cluster selected state
+                    <div className="mb-8">
+                      <Icon icon="solar:server-bold" width={64} className="text-default-300 mx-auto mb-4" />
+                      <h3 className="text-2xl font-bold text-foreground mb-2">
+                        Select a Cluster
+                      </h3>
+                      <p className="text-default-500 mb-4 max-w-md">
+                        Choose a Kubernetes cluster from the sidebar to start chatting with KubeSage.
+                      </p>
+                      <div className="bg-warning-50 border border-warning-200 rounded-lg p-4 dark:bg-warning-950 dark:border-warning-800">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Icon icon="solar:info-circle-bold" width={16} className="text-warning" />
+                          <span className="text-sm font-medium text-warning-700 dark:text-warning-300">
+                            No Cluster Selected
+                          </span>
+                        </div>
+                        <p className="text-xs text-warning-600 dark:text-warning-400">
+                          Please select a cluster from the dropdown in the sidebar to enable chat functionality.
+                        </p>
+                      </div>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {QUICK_COMMANDS.map((category) => (
-                        <Card key={category.category} className="p-4 hover:shadow-md transition-shadow">
-                          <CardHeader className="pb-3">
-                            <div className="flex items-center gap-2">
-                              <Icon icon={category.icon} width={20} className="text-primary" />
-                              <h5 className="text-sm font-semibold text-foreground">{category.category}</h5>
-                            </div>
-                          </CardHeader>
-                          <CardBody className="pt-0">
-                            <div className="space-y-2">
-                              {category.commands.map((cmd, idx) => (
-                                <Button
-                                  key={idx}
-                                  size="sm"
-                                  variant="light"
-                                  className="w-full justify-start text-left h-auto p-2 hover:bg-primary-50 hover:text-primary"
-                                  onPress={() => handleQuickCommand(cmd.command)}
-                                >
-                                  <span className="text-xs text-default-600 truncate">
-                                    {cmd.label}
-                                  </span>
-                                </Button>
-                              ))}
-                            </div>
-                          </CardBody>
-                        </Card>
-                      ))}
+                  ) : (
+                    // Cluster selected - show welcome message
+                    <div className="mb-8">
+
+
+                      <h3 className="text-2xl font-bold text-foreground mb-2">
+                        Welcome to KubeSage
+                      </h3>
+                      <p className="text-default-500 mb-2 max-w-md">
+                        Your intelligent Kubernetes assistant for {getRoleDisplayName(userRole)}s.
+                      </p>
+                      <p className="text-sm text-default-400 mb-6 max-w-md">
+                        Connected to <strong>{getSelectedClusterName()}</strong>.
+                        Ask questions, get diagnostics, or request help with troubleshooting your cluster.
+                      </p>
+
+
                     </div>
-                  </div>
+                  )}
+
+                  {/* Role-Specific Quick Commands - Only show if cluster is selected */}
+                  {selectedCluster && (
+                    <div className="w-full max-w-6xl">
+                      <div className="flex items-center gap-2 mb-4">
+                        <h4 className="text-lg font-semibold text-foreground">Quick Commands for {getRoleDisplayName(userRole)}</h4>
+                        <Chip
+                          size="sm"
+                          color={getRoleColor(userRole)}
+                          variant="flat"
+                        >
+                          {userRole.replace('_', ' ').toUpperCase()}
+                        </Chip>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {QUICK_COMMANDS.map((category) => (
+                          <Card key={category.category} className="p-4 hover:shadow-md transition-shadow">
+                            <CardHeader className="pb-3">
+                              <div className="flex items-center gap-2">
+                                <Icon icon={category.icon} width={20} className="text-primary" />
+                                <h5 className="text-sm font-semibold text-foreground">{category.category}</h5>
+                              </div>
+                            </CardHeader>
+                            <CardBody className="pt-0">
+                              <div className="space-y-2">
+                                {category.commands.map((cmd, idx) => (
+                                  <Button
+                                    key={idx}
+                                    size="sm"
+                                    variant="light"
+                                    className="w-full justify-start text-left h-auto p-2 hover:bg-primary-50 hover:text-primary"
+                                    onPress={() => handleQuickCommand(cmd.command)}
+                                  >
+                                    <span className="text-xs text-default-600 truncate">
+                                      {cmd.label}
+                                    </span>
+                                  </Button>
+                                ))}
+                              </div>
+                            </CardBody>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-6 max-w-4xl mx-auto w-full">
@@ -1243,8 +1307,8 @@ const sendStreamingMessage = async (message: string) => {
                       >
                         <div
                           className={`max-w-[85%] rounded-2xl p-4 ${message.role === 'user'
-                              ? 'bg-primary text-primary-foreground ml-12'
-                              : 'bg-content2 text-foreground mr-12'
+                            ? 'bg-primary text-primary-foreground ml-12'
+                            : 'bg-content2 text-foreground mr-12'
                             }`}
                         >
                           <div className="flex items-start gap-3">
@@ -1257,8 +1321,8 @@ const sendStreamingMessage = async (message: string) => {
                               }
                               size="sm"
                               className={`flex-shrink-0 ${message.role === 'user'
-                                  ? 'bg-primary-foreground/20 text-primary-foreground'
-                                  : 'bg-primary-100 text-primary'
+                                ? 'bg-primary-foreground/20 text-primary-foreground'
+                                : 'bg-primary-100 text-primary'
                                 }`}
                             />
                             <div className="flex-1 min-w-0">
@@ -1281,35 +1345,6 @@ const sendStreamingMessage = async (message: string) => {
                       </motion.div>
                     ))}
                   </AnimatePresence>
-
-                  {/* Streaming Message */}
-                 {/* Streaming Message - UPDATED to use RenderMessageContent */}
-{isStreaming && streamingMessage && (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    className="flex justify-start"
-  >
-    <div className="max-w-[85%] rounded-2xl p-4 bg-content2 text-foreground mr-12">
-      <div className="flex items-start gap-3">
-        <Avatar
-          icon={<Icon icon="solar:cpu-bolt-bold" width={16} />}
-          size="sm"
-          className="flex-shrink-0 bg-primary-100 text-primary"
-        />
-        <div className="flex-1 min-w-0">
-          {/* CHANGE: Use RenderMessageContent for streaming content */}
-          <RenderMessageContent content={streamingMessage} isStreaming={true} />
-          <div className="flex items-center gap-2 mt-3">
-            <Spinner size="sm" color="primary" />
-            <span className="text-xs text-default-500">Thinking...</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </motion.div>
-)}
-
 
                   {/* Loading Message */}
                   {isLoading && (
@@ -1343,14 +1378,18 @@ const sendStreamingMessage = async (message: string) => {
             <div className="flex gap-3 items-end">
               <div className="flex-1">
                 <Textarea
-                  placeholder={`Ask about your Kubernetes cluster as ${getRoleDisplayName(userRole)}...`}
+                  placeholder={
+                    selectedCluster
+                      ? `Ask about ${getSelectedClusterName()} as ${getRoleDisplayName(userRole)}...`
+                      : 'Select a cluster to start chatting...'
+                  }
                   value={inputMessage}
                   onValueChange={setInputMessage}
                   onKeyDown={handleKeyPress}
                   minRows={1}
                   maxRows={4}
                   className="w-full"
-                  disabled={isLoading || isStreaming}
+                  disabled={isLoading || !selectedCluster}
                   classNames={{
                     input: "text-sm",
                     inputWrapper: "bg-content2 border-2 border-divider hover:border-primary focus-within:border-primary transition-colors"
@@ -1361,8 +1400,8 @@ const sendStreamingMessage = async (message: string) => {
                 color="primary"
                 isIconOnly
                 onPress={() => sendMessage(inputMessage)}
-                isDisabled={!inputMessage.trim() || isLoading || isStreaming}
-                isLoading={isLoading || isStreaming}
+                isDisabled={!inputMessage.trim() || isLoading || !selectedCluster}
+                isLoading={isLoading}
                 className="h-14 w-14 min-w-14"
                 radius="lg"
               >
@@ -1389,13 +1428,19 @@ const sendStreamingMessage = async (message: string) => {
                 >
                   {getRoleDisplayName(userRole)}
                 </Chip>
-                {currentSessionId && (
+                {selectedCluster && (
                   <Chip size="sm" variant="flat" color="primary" className="text-xs">
+                    <Icon icon="solar:server-bold" width={12} className="mr-1" />
+                    {getSelectedClusterName()}
+                  </Chip>
+                )}
+                {currentSessionId && (
+                  <Chip size="sm" variant="flat" color="success" className="text-xs">
                     <Icon icon="solar:check-circle-bold" width={12} className="mr-1" />
                     Session Active
                   </Chip>
                 )}
-                {(isLoading || isStreaming) && (
+                {isLoading && (
                   <Chip size="sm" variant="flat" color="warning" className="text-xs">
                     <Spinner size="sm" className="mr-1" />
                     Processing
@@ -1438,6 +1483,41 @@ const sendStreamingMessage = async (message: string) => {
                       {localStorage.getItem('username') || 'Unknown'}
                     </span>
                   </div>
+                </div>
+              </div>
+
+              <Divider />
+
+              {/* Cluster Information */}
+              <div>
+                <h4 className="text-sm font-semibold mb-3">Cluster Information</h4>
+                <div className="bg-content2 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-default-600">Active Cluster:</span>
+                    <span className="text-sm font-medium text-foreground">
+                      {selectedCluster ? getSelectedClusterName() : 'None'}
+                    </span>
+                  </div>
+                  {selectedCluster && (
+                    <>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm text-default-600">Status:</span>
+                        <Chip
+                          size="sm"
+                          color={clusters.find(c => c.id === selectedCluster)?.is_operator_installed ? 'success' : 'warning'}
+                          variant="flat"
+                        >
+                          {clusters.find(c => c.id === selectedCluster)?.is_operator_installed ? 'Fully Connected' : 'Basic'}
+                        </Chip>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-default-600">Provider:</span>
+                        <span className="text-sm font-medium text-foreground">
+                          {clusters.find(c => c.id === selectedCluster)?.provider_name || 'Unknown'}
+                        </span>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -1510,6 +1590,18 @@ const sendStreamingMessage = async (message: string) => {
                     <div className="text-xs text-default-500">Current Messages</div>
                   </div>
                 </div>
+                <div className="grid grid-cols-2 gap-4 mt-4">
+                  <div className="bg-content2 rounded-lg p-3 text-center">
+                    <div className="text-2xl font-bold text-secondary">{clusters.length}</div>
+                    <div className="text-xs text-default-500">Available Clusters</div>
+                  </div>
+                  <div className="bg-content2 rounded-lg p-3 text-center">
+                    <div className="text-2xl font-bold text-warning">
+                      {clusters.filter(c => c.is_operator_installed).length}
+                    </div>
+                    <div className="text-xs text-default-500">Fully Connected</div>
+                  </div>
+                </div>
               </div>
             </div>
           </ModalBody>
@@ -1570,6 +1662,19 @@ const sendStreamingMessage = async (message: string) => {
                   </div>
                 </div>
               </div>
+
+              {/* Cluster-specific export note */}
+              {selectedCluster && (
+                <div className="bg-secondary-50 border border-secondary-200 rounded-lg p-3 dark:bg-secondary-950 dark:border-secondary-800">
+                  <div className="flex items-start gap-2">
+                    <Icon icon="solar:server-bold" width={16} className="text-secondary mt-0.5" />
+                    <div className="text-xs text-secondary-700 dark:text-secondary-300">
+                      <p className="font-medium mb-1">Cluster Context</p>
+                      <p>Current session data includes interactions with cluster: <strong>{getSelectedClusterName()}</strong></p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </ModalBody>
           <ModalFooter>
@@ -1592,6 +1697,3 @@ const sendStreamingMessage = async (message: string) => {
     </div>
   );
 }
-
-
-

@@ -9,7 +9,7 @@ export const navCategories = [
         { id: "dashboard", name: "Dashboard", icon: "lucide:layout-dashboard", path: "/dashboard/overview" },
         { id: "clusters", name: "Clusters", icon: "lucide:database", path: "/dashboard/upload" },
         { id: "applications", name: "Applications", icon: "lucide:box", path: "/dashboard/upload" },
-        { id: "workloads", name: "Workloads", icon: "lucide:layers", path: "/dashboard/upload" },
+        { id: "workloads", name: "Workloads", icon: "lucide:layers", path: "/dashboard/workloads" },
         { id: "analyze", name: "Cluster Analysis", icon: "mdi:magnify-scan", path: "/dashboard/analyze" },
       ]
     },

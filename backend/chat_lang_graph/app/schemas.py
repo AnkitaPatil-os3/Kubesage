@@ -25,6 +25,9 @@ class ChatRequest(BaseModel):
     message: str
     session_id: Optional[str] = None
     enable_tool_response: Optional[bool] = False
+    cluster_name: Optional[str] = None
+
+
 
 class ToolInfo(BaseModel):
     name: str

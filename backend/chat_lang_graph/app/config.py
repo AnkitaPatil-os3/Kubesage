@@ -45,7 +45,7 @@ class Settings(BaseSettings):
     RABBITMQ_PASSWORD: str = os.getenv("RABBITMQ_PASSWORD", "guest")
     
     # Kubernetes Configuration
-    KUBECONFIG_PATH: str = os.getenv("KUBECONFIG_PATH", os.path.expanduser("~/.kube/config"))
+    KUBECONFIG_SERVICE_URL: str = os.getenv("KUBECONFIG_SERVICE_URL", "https://10.0.32.103:8002")
     KUBECTL_TIMEOUT: int = int(os.getenv("KUBECTL_TIMEOUT", "60"))
     
     def get_kubeconfig_path(self) -> str:

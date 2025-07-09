@@ -2662,3 +2662,231 @@ async def get_security(username: str):
         "vulnerabilities": vulnerabilities,
         "issues": issues
     }
+
+
+# changes related to workload api
+ 
+@cluster_router.get("/clusters/{cluster_id}/workloads/{namespace}",
+                   summary="Get Workloads in Namespace",
+                   description="Retrieves all workloads (pods, deployments, services, etc.) from specified namespace")
+async def get_workloads_in_namespace(
+    cluster_id: int,
+    namespace: str,
+    session: Session = Depends(get_session),
+    current_user: Dict = Depends(get_current_user)
+):
+    """
+    Retrieves all workloads from specified namespace in the cluster.
+    
+    Parameters:
+        cluster_id: The ID of the cluster
+        namespace: The namespace to get workloads from
+    
+    Returns:
+        JSONResponse: All workloads organized by type
+    """
+    logger.info(f"User {current_user['id']} requested workloads from cluster ID {cluster_id} in namespace {namespace}")
+    
+    try:
+        # Get the specified cluster
+        cluster = session.exec(
+            select(ClusterConfig).where(
+                ClusterConfig.id == cluster_id,
+                ClusterConfig.user_id == current_user["id"]
+            )
+        ).first()
+        
+        if not cluster:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Cluster with ID '{cluster_id}' not found or you don't have access to it"
+            )
+ 
+        # Create Kubernetes configuration using cluster data
+        from kubernetes.client import Configuration, ApiClient
+        
+        configuration = Configuration()
+        configuration.host = cluster.server_url
+        configuration.api_key = {"authorization": f"Bearer {cluster.token}"}
+        configuration.api_key_prefix = {"authorization": ""}
+        configuration.verify_ssl = cluster.use_secure_tls
+        
+        # Configure TLS if needed
+        if cluster.use_secure_tls and cluster.ca_data:
+            import tempfile
+            import base64
+            
+            with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.crt') as ca_file:
+                try:
+                    ca_content = base64.b64decode(cluster.ca_data).decode('utf-8')
+                except:
+                    ca_content = cluster.ca_data
+                ca_file.write(ca_content)
+                configuration.ssl_ca_cert = ca_file.name
+        
+        # Create API clients
+        api_client = ApiClient(configuration)
+        core_v1 = client.CoreV1Api(api_client)
+        apps_v1 = client.AppsV1Api(api_client)
+        batch_v1 = client.BatchV1Api(api_client)
+        
+        # Fetch all workload types
+        workloads = {}
+        
+        try:
+            # Pods
+            pods = core_v1.list_namespaced_pod(namespace)
+            workloads["pods"] = [
+                {
+                    "name": pod.metadata.name,
+                    "status": pod.status.phase,
+                    "ready": f"{sum(1 for c in (pod.status.container_statuses or []) if c.ready)}/{len(pod.status.container_statuses or [])}",
+                    "restarts": sum(c.restart_count for c in (pod.status.container_statuses or [])),
+                    "age": pod.metadata.creation_timestamp.isoformat() if pod.metadata.creation_timestamp else None,
+                    "node": pod.spec.node_name
+                } for pod in pods.items
+            ]
+        except Exception as e:
+            logger.warning(f"Failed to fetch pods: {e}")
+            workloads["pods"] = []
+        
+        try:
+            # Deployments
+            deployments = apps_v1.list_namespaced_deployment(namespace)
+            workloads["deployments"] = [
+                {
+                    "name": dep.metadata.name,
+                    "ready": f"{dep.status.ready_replicas or 0}/{dep.spec.replicas}",
+                    "up_to_date": dep.status.updated_replicas or 0,
+                    "available": dep.status.available_replicas or 0,
+                    "age": dep.metadata.creation_timestamp.isoformat() if dep.metadata.creation_timestamp else None
+                } for dep in deployments.items
+            ]
+        except Exception as e:
+            logger.warning(f"Failed to fetch deployments: {e}")
+            workloads["deployments"] = []
+        
+        try:
+            # Services
+            services = core_v1.list_namespaced_service(namespace)
+            workloads["services"] = [
+                {
+                    "name": svc.metadata.name,
+                    "type": svc.spec.type,
+                    "cluster_ip": svc.spec.cluster_ip,
+                    "external_ip": svc.status.load_balancer.ingress[0].ip if svc.status.load_balancer and svc.status.load_balancer.ingress else None,
+                    "ports": [f"{port.port}:{port.target_port}/{port.protocol}" for port in (svc.spec.ports or [])],
+                    "age": svc.metadata.creation_timestamp.isoformat() if svc.metadata.creation_timestamp else None
+                } for svc in services.items
+            ]
+        except Exception as e:
+            logger.warning(f"Failed to fetch services: {e}")
+            workloads["services"] = []
+        
+        try:
+            # StatefulSets
+            statefulsets = apps_v1.list_namespaced_stateful_set(namespace)
+            workloads["statefulsets"] = [
+                {
+                    "name": sts.metadata.name,
+                    "ready": f"{sts.status.ready_replicas or 0}/{sts.spec.replicas}",
+                    "age": sts.metadata.creation_timestamp.isoformat() if sts.metadata.creation_timestamp else None
+                } for sts in statefulsets.items
+            ]
+        except Exception as e:
+            logger.warning(f"Failed to fetch statefulsets: {e}")
+            workloads["statefulsets"] = []
+        
+        try:
+            # DaemonSets
+            daemonsets = apps_v1.list_namespaced_daemon_set(namespace)
+            workloads["daemonsets"] = [
+                {
+                    "name": ds.metadata.name,
+                    "desired": ds.status.desired_number_scheduled or 0,
+                    "current": ds.status.current_number_scheduled or 0,
+                    "ready": ds.status.number_ready or 0,
+                    "up_to_date": ds.status.updated_number_scheduled or 0,
+                    "available": ds.status.number_available or 0,
+                    "age": ds.metadata.creation_timestamp.isoformat() if ds.metadata.creation_timestamp else None
+                } for ds in daemonsets.items
+            ]
+        except Exception as e:
+            logger.warning(f"Failed to fetch daemonsets: {e}")
+            workloads["daemonsets"] = []
+        
+        try:
+            # Jobs
+            jobs = batch_v1.list_namespaced_job(namespace)
+            workloads["jobs"] = [
+                {
+                    "name": job.metadata.name,
+                    "completions": f"{job.status.succeeded or 0}/{job.spec.completions or 1}",
+                    "duration": job.status.completion_time.isoformat() if job.status.completion_time else None,
+                    "age": job.metadata.creation_timestamp.isoformat() if job.metadata.creation_timestamp else None
+                } for job in jobs.items
+            ]
+        except Exception as e:
+            logger.warning(f"Failed to fetch jobs: {e}")
+            workloads["jobs"] = []
+        
+        try:
+            # CronJobs
+            batch_v1beta1 = client.BatchV1beta1Api(api_client)
+            cronjobs = batch_v1beta1.list_namespaced_cron_job(namespace)
+            workloads["cronjobs"] = [
+                {
+                    "name": cj.metadata.name,
+                    "schedule": cj.spec.schedule,
+                    "suspend": cj.spec.suspend or False,
+                    "active": len(cj.status.active or []),
+                    "last_schedule": cj.status.last_schedule_time.isoformat() if cj.status.last_schedule_time else None,
+                    "age": cj.metadata.creation_timestamp.isoformat() if cj.metadata.creation_timestamp else None
+                } for cj in cronjobs.items
+            ]
+        except Exception as e:
+            logger.warning(f"Failed to fetch cronjobs: {e}")
+            workloads["cronjobs"] = []
+        
+        # Publish workload access event
+        try:
+            publish_message("cluster_events", {
+                "event_type": "workloads_accessed",
+                "cluster_id": cluster.id,
+                "user_id": current_user["id"],
+                "username": current_user.get("username", "unknown"),
+                "cluster_name": cluster.cluster_name,
+                "namespace": namespace,
+                "workload_counts": {k: len(v) for k, v in workloads.items()},
+                "timestamp": datetime.datetime.now().isoformat()
+            })
+        except Exception as queue_error:
+            logger.warning(f"Failed to publish workload access event: {str(queue_error)}")
+        
+        logger.info(f"Successfully retrieved workloads from cluster '{cluster.cluster_name}' namespace '{namespace}'")
+        
+        return JSONResponse(content={
+            "success": True,
+            "cluster_id": cluster.id,
+            "cluster_name": cluster.cluster_name,
+            "namespace": namespace,
+            "workloads": workloads,
+            "total_workloads": sum(len(v) for v in workloads.values()),
+            "retrieved_at": datetime.datetime.now().isoformat()
+        }, status_code=200)
+    
+    except client.rest.ApiException as e:
+        logger.error(f"Kubernetes API error for cluster ID {cluster_id}: Status={e.status}, Reason={e.reason}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error fetching workloads from cluster: {e.reason}"
+        )
+    
+    except Exception as e:
+        logger.error(f"Error fetching workloads from cluster ID {cluster_id}: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error fetching workloads: {str(e)}"
+        )
+ 
+ 
