@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Card,
   CardBody,
@@ -22,11 +22,14 @@ import {
   Kbd,
   Spinner,
   Code,
-  Divider
+  Divider,
+  Avatar,
+  Tooltip
 } from '@heroui/react';
 import { Icon } from '@iconify/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { addToast } from '../components/toast-manager';
+import { UserRole, rolePermissions } from '../config/permissions';
 import MarkdownIt from 'markdown-it';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/github-dark.css';
@@ -39,60 +42,69 @@ const md = new MarkdownIt({
   typographer: true,
   breaks: true,
 });
+// ADD this after the markdown initialization:
+md.renderer.rules.paragraph_open = function (tokens, idx, options, env, self) {
+  return '<p class="mb-2">';
+};
 
-const defaultFence = md.renderer.rules.fence || function(tokens, idx, options, env, self) {
+md.renderer.rules.softbreak = function (tokens, idx, options, env, self) {
+  return '<br class="leading-relaxed">\n';
+};
+
+md.renderer.rules.hardbreak = function (tokens, idx, options, env, self) {
+  return '<br class="mb-2">\n';
+};
+
+
+
+const defaultFence = md.renderer.rules.fence || function (tokens, idx, options, env, self) {
   return self.renderToken(tokens, idx, options);
 };
 
-// Fixed markdown fence renderer for proper code block alignment
-md.renderer.rules.fence = function(tokens, idx, options, env, self) {
+// Enhanced markdown fence renderer for proper code block alignment
+md.renderer.rules.fence = function (tokens, idx, options, env, self) {
   const token = tokens[idx];
-
-  // Extract first comment line starting with # as header, rest as commands
   const lines = token.content.split('\n');
   let headerLine = '';
   let commandLines = lines;
-  
+
   if (lines.length > 0 && lines[0].trim().startsWith('#')) {
-    headerLine = lines[0].trim().substring(1).trim(); // remove # and trim
+    headerLine = lines[0].trim().substring(1).trim();
     commandLines = lines.slice(1);
   }
-  
-  const escapedHeader = md.utils.escapeHtml(headerLine);
 
-  // Join all command lines and split by double newlines to separate command blocks
+  const escapedHeader = md.utils.escapeHtml(headerLine);
   const commandContent = commandLines.join('\n');
-  
-  // Split by double newlines and filter out empty commands
   const commands = commandContent.split('\n\n')
     .map(cmd => cmd.trim())
     .filter(cmd => cmd.length > 0);
 
-  // If no double newlines found, treat the entire content as a single command block
   if (commands.length === 0 && commandContent.trim()) {
     commands.push(commandContent.trim());
   }
 
-  // Render each command in its own box with proper left alignment
   const commandBlocks = commands.map(cmd => {
-    // Normalize the command text - remove extra spaces and ensure proper line breaks
     const normalizedCmd = cmd
       .split('\n')
       .map(line => line.trim())
       .filter(line => line.length > 0)
       .join('\n');
-    
+
     const escapedCmd = md.utils.escapeHtml(normalizedCmd);
-    
+
     return `
       <div class="mb-4">
-        <div class="relative rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 overflow-hidden">
-          <div class="flex items-center justify-between bg-gray-200 dark:bg-gray-800 px-3 py-1.5 border-b border-gray-300 dark:border-gray-600">
-            <span class="text-xs font-medium text-gray-600 dark:text-gray-400">bash</span>
-            <button class="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 cursor-pointer" onclick="navigator.clipboard.writeText('${escapedCmd.replace(/'/g, "\\'")}')">copy</button>
+        <div class="relative rounded-lg border border-divider bg-content2 overflow-hidden">
+          <div class="flex items-center justify-between bg-content3 px-3 py-2 border-b border-divider">
+            <span class="text-xs font-medium text-default-600">bash</span>
+            <button class="text-xs text-default-500 hover:text-default-700 cursor-pointer transition-colors" onclick="navigator.clipboard.writeText('${escapedCmd.replace(/'/g, "\\'")}')">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+              </svg>
+            </button>
           </div>
-          <pre class="p-4 m-0 bg-transparent overflow-x-auto font-mono text-sm leading-relaxed text-gray-800 dark:text-gray-100" style="white-space: pre; word-break: normal; text-align: left;">
-            <code class="text-gray-800 dark:text-gray-100" style="background-color: transparent !important; display: block; text-align: left;">${escapedCmd}</code>
+          <pre class="p-4 m-0 bg-transparent overflow-x-auto font-mono text-sm leading-relaxed text-foreground">
+            <code class="text-foreground block">${escapedCmd}</code>
           </pre>
         </div>
       </div>
@@ -101,87 +113,91 @@ md.renderer.rules.fence = function(tokens, idx, options, env, self) {
 
   return `
     <div class="mb-4">
-      ${headerLine ? `<div class="mb-2 font-medium text-foreground">${escapedHeader}</div>` : ''}
+      ${headerLine ? `<div class="mb-3 font-semibold text-foreground">${escapedHeader}</div>` : ''}
       ${commandBlocks}
     </div>
   `;
 };
 
-import { useMemo } from 'react';
-
-// Custom component to render message content with proper code block handling
-const RenderMessageContent: React.FC<{ content: string; isStreaming?: boolean }> = ({ content, isStreaming = false }) => {
-  // Parse content into parts: text and code blocks
-  const parts = useMemo(() => {
-    // Look for bash code blocks specifically
-    const bashCodeBlockRegex = /\n([\s\S]*?)/g;
+// Enhanced message content renderer
+const RenderMessageContent: React.FC<{ content: string; isStreaming?: boolean }> = ({
+  content,
+  isStreaming = false
+}) => {
+  const parts = React.useMemo(() => {
+    const bashCodeBlockRegex = /```bash\n([\s\S]*?)```/g;
     const result = [];
     let lastIndex = 0;
     let match;
 
     while ((match = bashCodeBlockRegex.exec(content)) !== null) {
       if (match.index > lastIndex) {
-        // Text before code block
         const textContent = content.substring(lastIndex, match.index);
         if (textContent.trim()) {
           result.push({ type: 'text', content: textContent });
         }
       }
-      // Code block content - properly handle the commands
+
       const codeContent = match[1];
       result.push({ type: 'code', content: codeContent });
       lastIndex = bashCodeBlockRegex.lastIndex;
     }
-    
+
     if (lastIndex < content.length) {
-      // Remaining text after last code block
       const remainingContent = content.substring(lastIndex);
       if (remainingContent.trim()) {
         result.push({ type: 'text', content: remainingContent });
       }
     }
-    
-    // If no bash code blocks found, treat as regular content
+
     if (result.length === 0) {
       result.push({ type: 'text', content: content });
     }
-    
+
     return result;
   }, [content]);
+
+  const preprocessContent = (text: string) => {
+    // Convert double line breaks to proper markdown paragraphs
+    let processed = text.replace(/\n\n/g, '\n\n');
+
+    // Ensure proper spacing around headers
+    processed = processed.replace(/\n(#{1,6})/g, '\n\n$1');
+    processed = processed.replace(/(#{1,6}.*)\n([^#\n])/g, '$1\n\n$2');
+
+    // Handle list items properly
+    processed = processed.replace(/\n(\*|-|\d+\.)/g, '\n\n$1');
+
+    return processed;
+  };
 
   return (
     <div className="prose prose-sm dark:prose-invert max-w-none">
       {parts.map((part, idx) => {
         if (part.type === 'text') {
-          // Render text as markdown
-          const htmlContent = md.render(part.content);
+          // ADD: Preprocess content before rendering
+          const processedContent = preprocessContent(part.content);
+          const htmlContent = md.render(processedContent);
+
           return (
             <div
               key={idx}
-              className="mb-2"
+              className="mb-2 leading-relaxed" // ADD: Better line spacing
               dangerouslySetInnerHTML={{ __html: htmlContent }}
               style={{
-                '--tw-prose-body': 'var(--nextui-colors-foreground)',
-                '--tw-prose-headings': 'var(--nextui-colors-foreground)',
-                '--tw-prose-lead': 'var(--nextui-colors-foreground-600)',
-                '--tw-prose-links': 'var(--nextui-colors-primary)',
-                '--tw-prose-bold': 'var(--nextui-colors-foreground)',
-                '--tw-prose-counters': 'var(--nextui-colors-foreground-500)',
-                '--tw-prose-bullets': 'var(--nextui-colors-foreground-400)',
-                '--tw-prose-hr': 'var(--nextui-colors-divider)',
-                '--tw-prose-quotes': 'var(--nextui-colors-foreground)',
-                '--tw-prose-quote-borders': 'var(--nextui-colors-divider)',
-                '--tw-prose-captions': 'var(--nextui-colors-foreground-500)',
-                '--tw-prose-code': 'var(--nextui-colors-foreground)',
-                '--tw-prose-pre-code': 'var(--nextui-colors-foreground)',
-                '--tw-prose-pre-bg': 'var(--nextui-colors-content3)',
-                '--tw-prose-th-borders': 'var(--nextui-colors-divider)',
-                '--tw-prose-td-borders': 'var(--nextui-colors-divider)',
+                '--tw-prose-body': 'rgb(var(--nextui-foreground))',
+                '--tw-prose-headings': 'rgb(var(--nextui-foreground))',
+                '--tw-prose-links': 'rgb(var(--nextui-primary))',
+                '--tw-prose-bold': 'rgb(var(--nextui-foreground))',
+                '--tw-prose-code': 'rgb(var(--nextui-foreground))',
+                '--tw-prose-pre-bg': 'rgb(var(--nextui-content2))',
+                // ADD: Custom line height and spacing
+                lineHeight: '1.6',
+                '--tw-prose-p': 'margin-bottom: 1rem',
               } as React.CSSProperties}
             />
           );
         } else if (part.type === 'code') {
-          // Render code block with custom UI and proper left alignment
           const commands = part.content
             .split('\n')
             .map(line => line.trim())
@@ -189,21 +205,24 @@ const RenderMessageContent: React.FC<{ content: string; isStreaming?: boolean }>
 
           return (
             <div key={idx} className="mb-4">
-              <div className="mb-2 font-medium text-foreground">Commands</div>
-              <div className="relative rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 overflow-hidden">
-                <div className="flex items-center justify-between bg-gray-200 dark:bg-gray-800 px-3 py-1.5 border-b border-gray-300 dark:border-gray-600">
-                  <span className="text-xs font-medium text-gray-600 dark:text-gray-400">bash</span>
-                  <button 
-                    className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 cursor-pointer"
-                    onClick={() => navigator.clipboard.writeText(commands.join('\n'))}
+              <div className="mb-2 font-semibold text-foreground">Commands</div>
+              <div className="relative rounded-lg border border-divider bg-content2 overflow-hidden">
+                <div className="flex items-center justify-between bg-content3 px-3 py-2 border-b border-divider">
+                  <span className="text-xs font-medium text-default-600">bash</span>
+                  <Button
+                    size="sm"
+                    variant="light"
+                    isIconOnly
+                    className="h-6 w-6 min-w-6"
+                    onPress={() => navigator.clipboard.writeText(commands.join('\n'))}
                   >
-                    copy
-                  </button>
+                    <Icon icon="solar:copy-bold" width={12} />
+                  </Button>
                 </div>
                 <div className="p-4 bg-transparent overflow-x-auto">
                   {commands.map((command, cmdIdx) => (
                     <div key={cmdIdx} className="mb-1 last:mb-0">
-                      <code className="font-mono text-sm text-gray-800 dark:text-gray-100 block text-left" style={{ backgroundColor: 'transparent !important' }}>
+                      <code className="font-mono text-sm text-foreground block">
                         {command}
                       </code>
                     </div>
@@ -264,23 +283,42 @@ class ChatAPI {
     };
   }
 
-  async sendMessage(message: string, sessionId?: string, enableToolResponse: boolean = false): Promise<ChatResponse> {
-    const response = await fetch(`${API_BASE_URL}/chat`, {
-      method: 'POST',
-      headers: this.getAuthHeaders(),
-      body: JSON.stringify({
-        message,
-        session_id: sessionId,
-        enable_tool_response: enableToolResponse
-      })
-    });
+async sendMessage(message: string, sessionId?: string, enableToolResponse: boolean = false): Promise<ChatResponse> {
+  const response = await fetch(`${API_BASE_URL}/chat`, {
+    method: 'POST',
+    headers: {
+      ...this.getAuthHeaders(),
+      'Accept': 'text/markdown', // CHANGE: Always request markdown
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      message,
+      session_id: sessionId,
+      enable_tool_response: enableToolResponse,
+      format: 'markdown' // ADD: Explicitly request markdown format
+    })
+  });
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    return response.json();
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
   }
+
+  // CHANGE: Handle both text and JSON responses
+  const contentType = response.headers.get('content-type');
+  if (contentType && contentType.includes('text/markdown')) {
+    const markdownContent = await response.text();
+    return {
+      session_id: sessionId || '',
+      response: markdownContent,
+      tools_info: [],
+      tool_response: []
+    };
+  }
+
+  return response.json();
+}
+
+
 
   async streamMessage(message: string, sessionId?: string): Promise<Response> {
     const response = await fetch(`${API_BASE_URL}/chat/stream`, {
@@ -380,7 +418,7 @@ const exportSessions = async (sessions: Session[], messages: Message[]) => {
     const dataStr = JSON.stringify(exportData, null, 2);
     const dataBlob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(dataBlob);
-    
+
     const link = document.createElement('a');
     link.href = url;
     link.download = `kubesage-sessions-${new Date().toISOString().split('T')[0]}.json`;
@@ -404,55 +442,204 @@ const exportSessions = async (sessions: Session[], messages: Message[]) => {
   }
 };
 
-// Quick Commands
-const QUICK_COMMANDS = [
-  {
-    category: "Pods",
-    commands: [
-      { label: "List all pods", command: "Show me all pods in the cluster" },
-      { label: "Pod status", command: "Check pod status and health" },
-      { label: "Failed pods", command: "Show me failed or problematic pods" },
-      { label: "Pod logs", command: "Get logs from pods with issues" }
+// Role-specific Quick Commands
+const getRoleSpecificCommands = (userRole: UserRole) => {
+  const baseCommands = {
+    super_admin: [
+      {
+        category: "Cluster Management",
+        icon: "solar:server-bold",
+        commands: [
+          { label: "Full cluster overview", command: "Give me a comprehensive cluster overview with all namespaces and resources" },
+          { label: "All node status", command: "Show me detailed status of all nodes in the cluster" },
+          { label: "System resource usage", command: "Show system-wide resource usage across all namespaces" },
+          { label: "Critical alerts", command: "Show me all critical alerts and system issues" }
+        ]
+      },
+      {
+        category: "Security & Compliance",
+        icon: "solar:shield-check-bold",
+        commands: [
+          { label: "Security audit", command: "Perform a comprehensive security audit of the cluster" },
+          { label: "RBAC analysis", command: "Analyze RBAC permissions and potential security issues" },
+          { label: "Compliance check", command: "Check cluster compliance with security standards" },
+          { label: "Vulnerability scan", command: "Show me security vulnerabilities in the cluster" }
+        ]
+      },
+      {
+        category: "Advanced Operations",
+        icon: "solar:settings-bold",
+        commands: [
+          { label: "Backup status", command: "Show me backup status and schedules" },
+          { label: "Cost analysis", command: "Provide detailed cost analysis and optimization suggestions" },
+          { label: "Performance tuning", command: "Analyze cluster performance and suggest optimizations" },
+          { label: "Carbon footprint", command: "Show carbon emission metrics and sustainability insights" }
+        ]
+      },
+    ],
+    platform_engineer: [
+      {
+        category: "Infrastructure",
+        icon: "solar:server-bold",
+        commands: [
+          { label: "Cluster health", command: "Show me overall cluster health and infrastructure status" },
+          { label: "Node management", command: "Help me manage and troubleshoot cluster nodes" },
+          { label: "Resource allocation", command: "Show resource allocation and capacity planning insights" },
+          { label: "Network policies", command: "Help me review and optimize network policies" }
+        ]
+      },
+      {
+        category: "Applications",
+        icon: "solar:widget-bold",
+        commands: [
+          { label: "Application overview", command: "Show me all applications and their health status" },
+          { label: "Deployment strategies", command: "Help me with deployment strategies and best practices" },
+          { label: "Service mesh", command: "Show service mesh configuration and traffic patterns" },
+          { label: "Ingress management", command: "Help me manage ingress controllers and routing" }
+        ]
+      },
+      {
+        category: "Observability",
+        icon: "solar:eye-bold",
+        commands: [
+          { label: "Monitoring setup", command: "Help me set up comprehensive monitoring and alerting" },
+          { label: "Log aggregation", command: "Show log aggregation patterns and troubleshooting" },
+          { label: "Metrics analysis", command: "Analyze key performance metrics and trends" },
+          { label: "Tracing insights", command: "Show distributed tracing and performance insights" }
+        ]
+      }
+    ],
+    devops: [
+      {
+        category: "Deployments",
+        icon: "solar:rocket-bold",
+        commands: [
+          { label: "Deployment status", command: "Show me current deployment status and health" },
+          { label: "Rollback help", command: "Help me rollback a problematic deployment" },
+          { label: "CI/CD pipeline", command: "Show CI/CD pipeline status and integration issues" },
+          { label: "Blue-green deployment", command: "Help me implement blue-green deployment strategy" }
+        ]
+      },
+      {
+        category: "Troubleshooting",
+        icon: "solar:bug-bold",
+        commands: [
+          { label: "Application issues", command: "Help me troubleshoot application performance issues" },
+          { label: "Pod failures", command: "Diagnose and fix pod failures and crashes" },
+          { label: "Service connectivity", command: "Troubleshoot service connectivity and networking issues" },
+          { label: "Resource constraints", command: "Identify and resolve resource constraint issues" }
+        ]
+      },
+      {
+        category: "Automation",
+        icon: "solar:settings-bold",
+        commands: [
+          { label: "Automation scripts", command: "Help me create automation scripts for common tasks" },
+          { label: "Backup procedures", command: "Show backup and disaster recovery procedures" },
+          { label: "Scaling strategies", command: "Help me implement auto-scaling strategies" },
+          { label: "Cost optimization", command: "Suggest cost optimization strategies for resources" }
+        ]
+      }
+    ],
+    developer: [
+      {
+        category: "Application Development",
+        icon: "solar:code-bold",
+        commands: [
+          { label: "My applications", command: "Show me the status of my applications and services" },
+          { label: "Pod logs", command: "Help me get logs from my application pods" },
+          { label: "Debug issues", command: "Help me debug application issues and errors" },
+          { label: "Resource usage", command: "Show resource usage for my applications" }
+        ]
+      },
+      {
+        category: "Development Workflow",
+        icon: "solar:widget-bold",
+        commands: [
+          { label: "Development environment", command: "Help me set up development environment in Kubernetes" },
+          { label: "Testing strategies", command: "Show me testing strategies for Kubernetes applications" },
+          { label: "Local development", command: "Help me with local development and testing workflows" },
+          { label: "Configuration management", command: "Help me manage application configurations and secrets" }
+        ]
+      },
+      {
+        category: "Best Practices",
+        icon: "solar:book-bold",
+        commands: [
+          { label: "Kubernetes best practices", command: "Show me Kubernetes development best practices" },
+          { label: "Container optimization", command: "Help me optimize my container images and resources" },
+          { label: "Health checks", command: "Help me implement proper health checks and monitoring" },
+          { label: "Security practices", command: "Show me security best practices for application development" }
+        ]
+      }
+    ],
+    security_engineer: [
+      {
+        category: "Security Assessment",
+        icon: "solar:shield-check-bold",
+        commands: [
+          { label: "Security scan", command: "Perform a comprehensive security scan of the cluster" },
+          { label: "Vulnerability assessment", command: "Show me current vulnerabilities and security risks" },
+          { label: "Compliance audit", command: "Check compliance with security standards and policies" },
+          { label: "Threat detection", command: "Show me potential security threats and anomalies" }
+        ]
+      },
+      {
+        category: "Access Control",
+        icon: "solar:key-bold",
+        commands: [
+          { label: "RBAC analysis", command: "Analyze RBAC permissions and access patterns" },
+          { label: "Service accounts", command: "Review service account permissions and security" },
+          { label: "Network policies", command: "Help me implement and review network security policies" },
+          { label: "Secret management", command: "Show me secret management and encryption status" }
+        ]
+      },
+      {
+        category: "Incident Response",
+        icon: "solar:danger-bold",
+        commands: [
+          { label: "Security incidents", command: "Show me recent security incidents and alerts" },
+          { label: "Anomaly detection", command: "Help me identify security anomalies and unusual patterns" },
+          { label: "Forensic analysis", command: "Help me perform forensic analysis of security events" },
+          { label: "Remediation steps", command: "Show me security remediation steps and procedures" }
+        ]
+      }
     ]
-  },
-  {
-    category: "Deployments",
-    commands: [
-      { label: "List deployments", command: "Show all deployments" },
-      { label: "Deployment status", command: "Check deployment health and replica status" },
-      { label: "Scale deployment", command: "How do I scale a deployment?" },
-      { label: "Rollout status", command: "Check rollout status of deployments" }
-    ]
-  },
-  {
-    category: "Services",
-    commands: [
-      { label: "List services", command: "Show all services in the cluster" },
-      { label: "Service endpoints", command: "Check service endpoints and connectivity" },
-      { label: "Service troubleshooting", command: "Help troubleshoot service connectivity issues" }
-    ]
-  },
-  {
-    category: "Cluster Health",
-    commands: [
-      { label: "Cluster overview", command: "Give me a cluster health overview" },
-      { label: "Node status", command: "Check node health and status" },
-      { label: "Resource usage", command: "Show cluster resource usage" },
-      { label: "Recent events", command: "Show recent cluster events and warnings" }
-    ]
-  },
-  {
-    category: "Troubleshooting",
-    commands: [
-      { label: "Diagnose issues", command: "Help me diagnose cluster issues" },
-      { label: "Common problems", command: "What are common Kubernetes problems and solutions?" },
-      { label: "Best practices", command: "Show me Kubernetes best practices" },
-      { label: "Performance tips", command: "How can I optimize cluster performance?" }
-    ]
+  };
+
+  return baseCommands[userRole] || baseCommands.developer;
+};
+
+// Get user role from localStorage
+const getUserRole = (): UserRole => {
+  const roles = localStorage.getItem("roles") || "";
+  const username = localStorage.getItem("username") || "";
+
+  // Check for super admin
+  if (roles.toLowerCase().includes("super")) {
+    return 'super_admin';
   }
-];
+
+  // Check for specific roles
+  if (roles.toLowerCase().includes("platform")) {
+    return 'platform_engineer';
+  }
+
+  if (roles.toLowerCase().includes("devops")) {
+    return 'devops';
+  }
+
+  if (roles.toLowerCase().includes("security")) {
+    return 'security_engineer';
+  }
+
+  // Default to developer
+  return 'developer';
+};
+
 
 export default function ChatOpsPage() {
+  // State management
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -463,14 +650,33 @@ export default function ChatOpsPage() {
   const [enableToolResponse, setEnableToolResponse] = useState(false);
   const [isLoadingSessions, setIsLoadingSessions] = useState(false);
   const [healthStatus, setHealthStatus] = useState<any>(null);
+  const [userRole, setUserRole] = useState<UserRole>('developer');
 
+  // Refs for auto-scrolling
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+
+  // Modal states
   const { isOpen: isSessionModalOpen, onOpen: onSessionModalOpen, onClose: onSessionModalClose } = useDisclosure();
   const { isOpen: isExportModalOpen, onOpen: onExportModalOpen, onClose: onExportModalClose } = useDisclosure();
 
-  // Load sessions on component mount
-  React.useEffect(() => {
+  // Get role-specific commands
+  const QUICK_COMMANDS = getRoleSpecificCommands(userRole);
+
+  // Auto-scroll to bottom when new messages arrive
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, streamingMessage]);
+
+  // Load sessions and user role on component mount
+  useEffect(() => {
     loadSessions();
     checkHealthStatus();
+    setUserRole(getUserRole());
   }, []);
 
   const loadSessions = async () => {
@@ -500,19 +706,25 @@ export default function ChatOpsPage() {
   };
 
   const loadSessionHistory = async (sessionId: string) => {
-    try {
-      const history = await chatAPI.getSessionHistory(sessionId);
-      setMessages(history.messages);
-      setCurrentSessionId(sessionId);
-    } catch (error) {
-      console.error('Failed to load session history:', error);
-      addToast({
-        title: 'Error',
-        description: 'Failed to load session history',
-        color: 'danger'
-      });
-    }
-  };
+  try {
+    const history = await chatAPI.getSessionHistory(sessionId);
+    // CHANGE: Ensure all messages are treated as markdown
+    const formattedMessages = history.messages.map(msg => ({
+      ...msg,
+      content: msg.content // Content is already in markdown format
+    }));
+    setMessages(formattedMessages);
+    setCurrentSessionId(sessionId);
+  } catch (error) {
+    console.error('Failed to load session history:', error);
+    addToast({
+      title: 'Error',
+      description: 'Failed to load session history',
+      color: 'danger'
+    });
+  }
+};
+
 
   const createNewSession = async (title?: string) => {
     try {
@@ -578,127 +790,126 @@ export default function ChatOpsPage() {
   };
 
   const sendRegularMessage = async (message: string) => {
-    try {
-      setIsLoading(true);
-      const response = await chatAPI.sendMessage(message, currentSessionId || undefined, enableToolResponse);
-      
-      const assistantMessage: Message = {
+  try {
+    setIsLoading(true);
+    const response = await chatAPI.sendMessage(message, currentSessionId || undefined, enableToolResponse);
+
+    const assistantMessage: Message = {
+      role: 'assistant',
+      content: response.response, // This is now markdown format
+      created_at: new Date().toISOString()
+    };
+
+    setMessages(prev => [...prev, assistantMessage]);
+
+    if (!currentSessionId) {
+      setCurrentSessionId(response.session_id);
+      await loadSessions();
+    }
+
+    // Handle tool responses if enabled
+    if (enableToolResponse && (response.tools_info?.length || response.tool_response?.length)) {
+      let toolInfo = '';
+      if (response.tools_info?.length) {
+        toolInfo += '**Tools Used:**\n';
+        response.tools_info.forEach(tool => {
+          toolInfo += `- ${tool.name}: ${tool.args}\n`;
+        });
+      }
+      if (response.tool_response?.length) {
+        toolInfo += '\n**Tool Responses:**\n';
+        response.tool_response.forEach(tool => {
+          toolInfo += `- ${tool.name}: ${tool.response.substring(0, 200)}...\n`;
+        });
+      }
+
+      const toolMessage: Message = {
         role: 'assistant',
-        content: response.response,
+        content: toolInfo, // This is markdown format
         created_at: new Date().toISOString()
       };
-
-      setMessages(prev => [...prev, assistantMessage]);
-      
-      if (!currentSessionId) {
-        setCurrentSessionId(response.session_id);
-        await loadSessions(); // Refresh sessions list
-      }
-
-      // Show tool information if enabled
-      if (enableToolResponse && (response.tools_info?.length || response.tool_response?.length)) {
-        let toolInfo = '';
-        if (response.tools_info?.length) {
-          toolInfo += '**Tools Used:**\n';
-          response.tools_info.forEach(tool => {
-            toolInfo += `- ${tool.name}: ${tool.args}\n`;
-          });
-        }
-        if (response.tool_response?.length) {
-          toolInfo += '\n**Tool Responses:**\n';
-          response.tool_response.forEach(tool => {
-            toolInfo += `- ${tool.name}: ${tool.response.substring(0, 200)}...\n`;
-          });
-        }
-        
-        const toolMessage: Message = {
-          role: 'assistant',
-          content: toolInfo,
-          created_at: new Date().toISOString()
-        };
-        setMessages(prev => [...prev, toolMessage]);
-      }
-
-    } catch (error) {
-      console.error('Failed to send message:', error);
-      addToast({
-        title: 'Error',
-        description: 'Failed to send message',
-        color: 'danger'
-      });
-    } finally {
-      setIsLoading(false);
+      setMessages(prev => [...prev, toolMessage]);
     }
-  };
+
+  } catch (error) {
+    console.error('Failed to send message:', error);
+    addToast({
+      title: 'Error',
+      description: 'Failed to send message',
+      color: 'danger'
+    });
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const sendStreamingMessage = async (message: string) => {
-    try {
-      setIsStreaming(true);
-      setStreamingMessage('');
-      
-      const response = await chatAPI.streamMessage(message, currentSessionId || undefined);
-      const reader = response.body?.getReader();
-      
-      if (!reader) {
-        throw new Error('No response stream available');
-      }
+  try {
+    setIsStreaming(true);
+    setStreamingMessage('');
 
-      let fullResponse = '';
-      let sessionId = currentSessionId;
+    const response = await chatAPI.streamMessage(message, currentSessionId || undefined);
+    const reader = response.body?.getReader();
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+    if (!reader) {
+      throw new Error('No response stream available');
+    }
 
-        const chunk = new TextDecoder().decode(value);
-        const lines = chunk.split('\n');
+    let fullResponse = '';
+    let sessionId = currentSessionId;
 
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6);
-            if (data.trim()) {
-              try {
-                const parsed = JSON.parse(data);
-                if (parsed.session_id && !sessionId) {
-                  sessionId = parsed.session_id;
-                  setCurrentSessionId(sessionId);
-                }
-              } catch {
-                // Regular streaming content
-                fullResponse += data;
-                setStreamingMessage(fullResponse);
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = new TextDecoder().decode(value);
+      const lines = chunk.split('\n');
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data.trim()) {
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.session_id && !sessionId) {
+                sessionId = parsed.session_id;
+                setCurrentSessionId(sessionId);
               }
+            } catch {
+              // CHANGE: Treat streaming data as markdown
+              fullResponse += data;
+              setStreamingMessage(fullResponse);
             }
           }
         }
       }
-
-      if (fullResponse) {
-        const assistantMessage: Message = {
-          role: 'assistant',
-          content: fullResponse,
-          created_at: new Date().toISOString()
-        };
-        setMessages(prev => [...prev, assistantMessage]);
-      }
-
-      if (!currentSessionId && sessionId) {
-        await loadSessions(); // Refresh sessions list
-      }
-
-    } catch (error) {
-      console.error('Failed to stream message:', error);
-      addToast({
-        title: 'Error',
-        description: 'Failed to stream message',
-        color: 'danger'
-      });
-    } finally {
-      setIsStreaming(false);
-      setStreamingMessage('');
     }
-  };
 
+    if (fullResponse) {
+      const assistantMessage: Message = {
+        role: 'assistant',
+        content: fullResponse, // This is already markdown
+        created_at: new Date().toISOString()
+      };
+      setMessages(prev => [...prev, assistantMessage]);
+    }
+
+    if (!currentSessionId && sessionId) {
+      await loadSessions();
+    }
+
+  } catch (error) {
+    console.error('Failed to stream message:', error);
+    addToast({
+      title: 'Error',
+      description: 'Failed to stream message',
+      color: 'danger'
+    });
+  } finally {
+    setIsStreaming(false);
+    setStreamingMessage('');
+  }
+};
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -710,81 +921,115 @@ export default function ChatOpsPage() {
     setInputMessage(command);
   };
 
+  const getRoleDisplayName = (role: UserRole): string => {
+    const roleNames = {
+      super_admin: 'Super Admin',
+      platform_engineer: 'Platform Engineer',
+      devops: 'DevOps Engineer',
+      developer: 'Developer',
+      security_engineer: 'Security Engineer'
+    };
+    return roleNames[role] || 'User';
+  };
+
+  const getRoleColor = (role: UserRole): "default" | "primary" | "secondary" | "success" | "warning" | "danger" => {
+    const roleColors = {
+      super_admin: 'danger' as const,
+      platform_engineer: 'primary' as const,
+      devops: 'secondary' as const,
+      developer: 'success' as const,
+      security_engineer: 'warning' as const
+    };
+    return roleColors[role] || 'default';
+  };
+
   return (
-    <div className="flex h-screen bg-background">
-      {/* Sidebar */}
-      <div className="w-80 border-r border-divider bg-content1 flex flex-col">
-        {/* Header */}
-        <div className="p-4 border-b border-divider">
+    <div className="flex h-screen bg-background overflow-hidden">
+      {/* Fixed Left Sidebar - No scrolling */}
+      <div className="w-80 border-r border-divider bg-content1 flex flex-col h-full">
+        {/* Fixed Sidebar Header */}
+        <div className="p-4 border-b border-divider flex-shrink-0 bg-content1">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-foreground">Chat Sessions</h2>
-            <div className="flex gap-2">
-              <Button
-                isIconOnly
-                size="sm"
-                variant="light"
-                onPress={onExportModalOpen}
-                className="text-default-500"
-              >
-                <Icon icon="solar:download-bold" width={16} />
-              </Button>
-              <Button
-                isIconOnly
-                size="sm"
-                variant="light"
-                onPress={loadSessions}
-                isLoading={isLoadingSessions}
-                className="text-default-500"
-              >
-                <Icon icon="solar:refresh-bold" width={16} />
-              </Button>
+            <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
+              <Icon icon="solar:chat-round-dots-bold" width={24} className="text-primary" />
+              Chat Sessions
+            </h2>
+            <div className="flex gap-1">
+              <Tooltip content="Export Sessions">
+                <Button
+                  isIconOnly
+                  size="sm"
+                  variant="light"
+                  onPress={onExportModalOpen}
+                  className="text-default-500 hover:text-default-700"
+                >
+                  <Icon icon="solar:download-bold" width={16} />
+                </Button>
+              </Tooltip>
+              <Tooltip content="Refresh Sessions">
+                <Button
+                  isIconOnly
+                  size="sm"
+                  variant="light"
+                  onPress={loadSessions}
+                  isLoading={isLoadingSessions}
+                  className="text-default-500 hover:text-default-700"
+                >
+                  <Icon icon="solar:refresh-bold" width={16} />
+                </Button>
+              </Tooltip>
             </div>
           </div>
-          
+
           <Button
             color="primary"
             onPress={() => createNewSession()}
-            className="w-full"
+            className="w-full mb-3"
             startContent={<Icon icon="solar:add-circle-bold" width={18} />}
           >
             New Chat
           </Button>
+
+          {/* User Role Display */}
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-default-500">Role:</span>
+            <Chip
+              size="sm"
+              color={getRoleColor(userRole)}
+              variant="flat"
+              className="text-xs"
+            >
+              {getRoleDisplayName(userRole)}
+            </Chip>
+          </div>
         </div>
 
-        {/* Health Status */}
+        {/* Fixed Health Status */}
         {healthStatus && (
-          <div className="p-4 border-b border-divider">
-            <div className="flex items-center gap-2 mb-2">
-              <Icon icon="solar:heart-pulse-bold" width={16} />
-              <span className="text-sm font-medium">System Status</span>
+          <div className="p-4 border-b border-divider flex-shrink-0 bg-content1">
+            <div className="flex items-center gap-2 mb-3">
+              <Icon icon="solar:heart-pulse-bold" width={16} className="text-success" />
+              <span className="text-sm font-semibold text-foreground">System Status</span>
             </div>
-            <div className="space-y-1">
-              <div className="flex items-center justify-between text-xs">
-                <span>Overall</span>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-default-600">Overall</span>
                 <Chip
                   size="sm"
                   color={healthStatus.status === 'healthy' ? 'success' : 'warning'}
                   variant="flat"
+                  className="text-xs"
                 >
                   {healthStatus.status}
                 </Chip>
               </div>
-              <div className="flex items-center justify-between text-xs">
-                <span>Database</span>
-                <Chip
-                  size="sm"
-                  color={healthStatus.database === 'healthy' ? 'success' : 'danger'}
-                  variant="flat"
-                >
-                  {healthStatus.database}
-                </Chip>
-              </div>
-              <div className="flex items-center justify-between text-xs">
-                <span>LLM</span>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-default-600">LLM</span>
                 <Chip
                   size="sm"
                   color={healthStatus.llm === 'healthy' ? 'success' : 'danger'}
                   variant="flat"
+                  className="text-xs"
                 >
                   {healthStatus.llm}
                 </Chip>
@@ -793,267 +1038,361 @@ export default function ChatOpsPage() {
           </div>
         )}
 
-        {/* Sessions List */}
-        <ScrollShadow className="flex-1 p-4">
-          <div className="space-y-2">
-            {sessions.map((session) => (
-              <Card
-                key={session.session_id}
-                isPressable
-                isHoverable
-                className={`cursor-pointer transition-all ${
-                  currentSessionId === session.session_id
-                    ? 'bg-primary-50 border-primary-200 dark:bg-primary-950 dark:border-primary-800'
-                    : 'hover:bg-content2'
-                }`}
-                onPress={() => loadSessionHistory(session.session_id)}
-              >
-                <CardBody className="p-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate text-foreground">
-                        {session.title}
-                      </p>
-                      <p className="text-xs text-default-500 mt-1">
-                        {new Date(session.created_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <Dropdown>
-                      <DropdownTrigger>
-                        <Button
-                          isIconOnly
-                          size="sm"
-                          variant="light"
-                          className="text-default-400 hover:text-default-600"
-                        >
-                          <Icon icon="solar:menu-dots-bold" width={16} />
-                        </Button>
-                      </DropdownTrigger>
-                      <DropdownMenu>
-                        <DropdownItem
-                          key="delete"
-                          color="danger"
-                          onPress={() => deleteSession(session.session_id)}
-                        >
-                          Delete Session
-                        </DropdownItem>
-                      </DropdownMenu>
-                    </Dropdown>
+        {/* Scrollable Sessions List - Only this part scrolls */}
+        <div className="flex-1 overflow-hidden bg-content1">
+          <ScrollShadow className="h-full">
+            <div className="p-4">
+              <div className="space-y-2">
+                {sessions.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Icon icon="solar:chat-round-line-bold" width={32} className="text-default-300 mx-auto mb-2" />
+                    <p className="text-sm text-default-500">No chat sessions yet</p>
                   </div>
-                </CardBody>
-              </Card>
-            ))}
-          </div>
-        </ScrollShadow>
+                ) : (
+                  sessions.map((session) => (
+                    <Card
+                      key={session.session_id}
+                      isPressable
+                      isHoverable
+                      className={`cursor-pointer transition-all duration-200 ${currentSessionId === session.session_id
+                          ? 'bg-primary-50 border-primary-200 dark:bg-primary-950 dark:border-primary-800 shadow-md'
+                          : 'hover:bg-content2 hover:shadow-sm'
+                        }`}
+                      onPress={() => loadSessionHistory(session.session_id)}
+                    >
+                      <CardBody className="p-3">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm truncate text-foreground mb-1">
+                              {session.title}
+                            </p>
+                            <div className="flex items-center gap-2">
+                              <p className="text-xs text-default-500">
+                                {new Date(session.created_at).toLocaleDateString()}
+                              </p>
+                              {session.is_active && (
+                                <Chip size="sm" color="success" variant="dot" className="text-xs">
+                                  Active
+                                </Chip>
+                              )}
+                            </div>
+                          </div>
+                          <Dropdown>
+                            <DropdownTrigger>
+                              <Button
+                                isIconOnly
+                                size="sm"
+                                variant="light"
+                                className="text-default-400 hover:text-default-600"
+                              >
+                                <Icon icon="solar:menu-dots-bold" width={16} />
+                              </Button>
+                            </DropdownTrigger>
+                            <DropdownMenu>
+                              <DropdownItem
+                                key="delete"
+                                color="danger"
+                                onPress={() => deleteSession(session.session_id)}
+                                startContent={<Icon icon="solar:trash-bin-bold" width={16} />}
+                              >
+                                Delete Session
+                              </DropdownItem>
+                            </DropdownMenu>
+                          </Dropdown>
+                        </div>
+                      </CardBody>
+                    </Card>
+                  ))
+                )}
+              </div>
+            </div>
+          </ScrollShadow>
+        </div>
       </div>
 
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col">
-        {/* Chat Header */}
-        <div className="p-4 border-b border-divider bg-content1">
-          <div className="flex items-center gap-3">
-            <Icon icon="solar:chat-round-dots-bold" width={24} className="text-primary" />
-            <div>
-              <h1 className="text-xl font-bold text-foreground">KubeSage Chat</h1>
-              <p className="text-sm text-default-500">
-                {currentSessionId ? 'Active Session' : 'No active session'}
-              </p>
+      {/* Main Chat Area - Fixed Layout */}
+      <div className="flex-1 flex flex-col h-full">
+        {/* Fixed Chat Header */}
+        <div className="p-4 border-b border-divider bg-content1 flex-shrink-0">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Avatar
+                icon={<Icon icon="solar:cpu-bolt-bold" width={20} />}
+                className="bg-primary-100 text-primary"
+                size="sm"
+              />
+              <div>
+                <h1 className="text-xl font-bold text-foreground">KubeSage Assistant</h1>
+                <p className="text-sm text-default-500">
+                  {currentSessionId ? 'Active Session' : `Ready to help ${getRoleDisplayName(userRole)}`}
+                </p>
+              </div>
             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Switch
-              size="sm"
-              isSelected={enableToolResponse}
-              onValueChange={setEnableToolResponse}
-            >
-              <span className="text-sm">Show Tools</span>
-            </Switch>
-            <Button
-              isIconOnly
-              size="sm"
-              variant="light"
-              onPress={onSessionModalOpen}
-              className="text-default-500"
-            >
-              <Icon icon="solar:settings-bold" width={18} />
-            </Button>
+            <div className="flex items-center gap-3">
+              <Switch
+                size="sm"
+                isSelected={enableToolResponse}
+                onValueChange={setEnableToolResponse}
+                classNames={{
+                  base: "inline-flex flex-row-reverse w-full max-w-md bg-content1 hover:bg-content2 items-center justify-between cursor-pointer rounded-lg gap-2 p-2 border-2 border-transparent data-[selected=true]:border-primary",
+                  wrapper: "p-0 h-4 overflow-visible",
+                  thumb: "w-6 h-6 border-2 shadow-lg group-data-[hover=true]:border-primary group-data-[selected=true]:ml-6 group-data-[pressed=true]:w-7 group-data-[selected]:group-data-[pressed]:ml-4",
+                }}
+              >
+                <div className="flex flex-col gap-1">
+                  <p className="text-sm text-foreground">Show Tools</p>
+                  <p className="text-xs text-default-400">Display tool usage details</p>
+                </div>
+              </Switch>
+              <Tooltip content="Chat Settings">
+                <Button
+                  isIconOnly
+                  size="sm"
+                  variant="light"
+                  onPress={onSessionModalOpen}
+                  className="text-default-500 hover:text-default-700"
+                >
+                  <Icon icon="solar:settings-bold" width={18} />
+                </Button>
+              </Tooltip>
+            </div>
           </div>
         </div>
 
-        {/* Messages Area */}
-        <div className="flex-1 flex flex-col">
-          <ScrollShadow className="flex-1 p-4">
-            {messages.length === 0 && !isStreaming ? (
-              <div className="flex flex-col items-center justify-center h-full text-center">
-                <Icon icon="solar:chat-round-dots-bold" width={64} className="text-default-300 mb-4" />
-                <h3 className="text-lg font-semibold text-foreground mb-2">
-                  Welcome to KubeSage Chat
-                </h3>
-                <p className="text-default-500 mb-6 max-w-md">
-                  Start a conversation about your Kubernetes cluster. Ask questions, get diagnostics, or request help with troubleshooting.
-                </p>
-                
-                {/* Quick Commands */}
-                <div className="w-full max-w-4xl">
-                  <h4 className="text-sm font-medium text-foreground mb-3">Quick Commands</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {QUICK_COMMANDS.map((category) => (
-                      <Card key={category.category} className="p-3">
-                        <CardHeader className="pb-2">
-                          <h5 className="text-sm font-semibold text-foreground">{category.category}</h5>
-                        </CardHeader>
-                        <CardBody className="pt-0">
-                          <div className="space-y-2">
-                            {category.commands.map((cmd, idx) => (
-                              <Button
-                                key={idx}
-                                size="sm"
-                                variant="light"
-                                className="w-full justify-start text-left h-auto p-2"
-                                onPress={() => handleQuickCommand(cmd.command)}
-                              >
-                                <span className="text-xs text-default-600 truncate">
-                                  {cmd.label}
-                                </span>
-                              </Button>
-                            ))}
-                          </div>
-                        </CardBody>
-                      </Card>
-                    ))}
+        {/* Scrollable Messages Area - Only this scrolls */}
+        <div className="flex-1 overflow-hidden">
+          <ScrollShadow
+            ref={chatContainerRef}
+            className="h-full"
+          >
+            <div className="p-4">
+              {messages.length === 0 && !isStreaming ? (
+                <div className="flex flex-col items-center justify-center h-full min-h-[60vh] text-center">
+                  <div className="mb-8">
+
+                    <h3 className="text-2xl font-bold text-foreground mb-2">
+                      Welcome to KubeSage
+                    </h3>
+                    <p className="text-default-500 mb-2 max-w-md">
+                      Your intelligent Kubernetes assistant for {getRoleDisplayName(userRole)}s.
+                    </p>
+                    <p className="text-sm text-default-400 mb-6 max-w-md">
+                      Ask questions, get diagnostics, or request help with troubleshooting your cluster.
+                    </p>
+                  </div>
+
+                  {/* Role-Specific Quick Commands */}
+                  <div className="w-full max-w-6xl">
+                    <div className="flex items-center gap-2 mb-4">
+                      <h4 className="text-lg font-semibold text-foreground">Quick Commands for {getRoleDisplayName(userRole)}</h4>
+                      <Chip
+                        size="sm"
+                        color={getRoleColor(userRole)}
+                        variant="flat"
+                      >
+                        {userRole.replace('_', ' ').toUpperCase()}
+                      </Chip>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {QUICK_COMMANDS.map((category) => (
+                        <Card key={category.category} className="p-4 hover:shadow-md transition-shadow">
+                          <CardHeader className="pb-3">
+                            <div className="flex items-center gap-2">
+                              <Icon icon={category.icon} width={20} className="text-primary" />
+                              <h5 className="text-sm font-semibold text-foreground">{category.category}</h5>
+                            </div>
+                          </CardHeader>
+                          <CardBody className="pt-0">
+                            <div className="space-y-2">
+                              {category.commands.map((cmd, idx) => (
+                                <Button
+                                  key={idx}
+                                  size="sm"
+                                  variant="light"
+                                  className="w-full justify-start text-left h-auto p-2 hover:bg-primary-50 hover:text-primary"
+                                  onPress={() => handleQuickCommand(cmd.command)}
+                                >
+                                  <span className="text-xs text-default-600 truncate">
+                                    {cmd.label}
+                                  </span>
+                                </Button>
+                              ))}
+                            </div>
+                          </CardBody>
+                        </Card>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ) : (
-              <div className="space-y-4 max-w-4xl mx-auto w-full">
-                {messages.map((message, index) => (
-                  <motion.div
-                    key={index}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                  >
-                    <div
-                      className={`max-w-[80%] rounded-lg p-4 ${
-                        message.role === 'user'
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-content2 text-foreground'
-                      }`}
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                          message.role === 'user' ? 'bg-primary-foreground/20' : 'bg-primary/20'
-                        }`}>
-                          <Icon
-                            icon={message.role === 'user' ? 'solar:user-bold' : 'solar:cpu-bolt-bold'}
-                            width={16}
-                            className={message.role === 'user' ? 'text-primary-foreground' : 'text-primary'}
-                          />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          {message.role === 'user' ? (
-                            <div className="whitespace-pre-wrap break-words">
-                              {message.content}
+              ) : (
+                <div className="space-y-6 max-w-4xl mx-auto w-full">
+                  <AnimatePresence>
+                    {messages.map((message, index) => (
+                      <motion.div
+                        key={index}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        transition={{ duration: 0.3 }}
+                        className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                      >
+                        <div
+                          className={`max-w-[85%] rounded-2xl p-4 ${message.role === 'user'
+                              ? 'bg-primary text-primary-foreground ml-12'
+                              : 'bg-content2 text-foreground mr-12'
+                            }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <Avatar
+                              icon={
+                                <Icon
+                                  icon={message.role === 'user' ? 'solar:user-bold' : 'solar:cpu-bolt-bold'}
+                                  width={16}
+                                />
+                              }
+                              size="sm"
+                              className={`flex-shrink-0 ${message.role === 'user'
+                                  ? 'bg-primary-foreground/20 text-primary-foreground'
+                                  : 'bg-primary-100 text-primary'
+                                }`}
+                            />
+                            <div className="flex-1 min-w-0">
+                              {message.role === 'user' ? (
+                                <div className="whitespace-pre-wrap break-words text-sm leading-relaxed">
+                                  {message.content}
+                                </div>
+                              ) : (
+                                <RenderMessageContent content={message.content} />
+                              )}
+                              {message.created_at && (
+                                <div className="text-xs opacity-70 mt-3 flex items-center gap-1">
+                                  <Icon icon="solar:clock-circle-bold" width={12} />
+                                  {new Date(message.created_at).toLocaleTimeString()}
+                                </div>
+                              )}
                             </div>
-                          ) : (
-                            <RenderMessageContent content={message.content} />
-                          )}
-                          {message.created_at && (
-                            <div className="text-xs opacity-70 mt-2">
-                              {new Date(message.created_at).toLocaleTimeString()}
-                            </div>
-                          )}
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
 
-                {/* Streaming Message */}
-                {isStreaming && streamingMessage && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="flex justify-start"
-                  >
-                    <div className="max-w-[80%] rounded-lg p-4 bg-content2 text-foreground">
-                      <div className="flex items-start gap-3">
-                        <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-primary/20">
-                          <Icon icon="solar:cpu-bolt-bold" width={16} className="text-primary" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <RenderMessageContent content={streamingMessage} isStreaming={true} />
-                          <div className="flex items-center gap-2 mt-2">
-                            <Spinner size="sm" />
-                            <span className="text-xs text-default-500">Thinking...</span>
+                  {/* Streaming Message */}
+                  {isStreaming && streamingMessage && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="flex justify-start"
+                    >
+                      <div className="max-w-[85%] rounded-2xl p-4 bg-content2 text-foreground mr-12">
+                        <div className="flex items-start gap-3">
+                          <Avatar
+                            icon={<Icon icon="solar:cpu-bolt-bold" width={16} />}
+                            size="sm"
+                            className="flex-shrink-0 bg-primary-100 text-primary"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <RenderMessageContent content={streamingMessage} isStreaming={true} />
+                            <div className="flex items-center gap-2 mt-3">
+                              <Spinner size="sm" color="primary" />
+                              <span className="text-xs text-default-500">Thinking...</span>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  </motion.div>
-                )}
+                    </motion.div>
+                  )}
 
-                {/* Loading Message */}
-                {isLoading && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="flex justify-start"
-                  >
-                    <div className="max-w-[80%] rounded-lg p-4 bg-content2 text-foreground">
-                      <div className="flex items-center gap-3">
-                        <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-primary/20">
-                          <Spinner size="sm" />
+                  {/* Loading Message */}
+                  {isLoading && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="flex justify-start"
+                    >
+                      <div className="max-w-[85%] rounded-2xl p-4 bg-content2 text-foreground mr-12">
+                        <div className="flex items-center gap-3">
+                          <Avatar
+                            icon={<Spinner size="sm" />}
+                            size="sm"
+                            className="flex-shrink-0 bg-primary-100"
+                          />
+                          <span className="text-sm text-default-500">Processing your request...</span>
                         </div>
-                        <span className="text-sm text-default-500">Processing your request...</span>
                       </div>
-                    </div>
-                  </motion.div>
-                )}
-              </div>
-            )}
-          </ScrollShadow>
-
-          {/* Input Area */}
-          <div className="p-4 border-t border-divider bg-content1">
-            <div className="max-w-4xl mx-auto">
-              <div className="flex gap-3 items-end">
-                <div className="flex-1">
-                  <Textarea
-                    placeholder="Ask about your Kubernetes cluster..."
-                    value={inputMessage}
-                    onValueChange={setInputMessage}
-                    onKeyDown={handleKeyPress}
-                    minRows={1}
-                    maxRows={4}
-                    className="w-full"
-                    disabled={isLoading || isStreaming}
-                  />
-                </div>
-                <Button
-                  color="primary"
-                  isIconOnly
-                  onPress={() => sendMessage(inputMessage)}
-                  isDisabled={!inputMessage.trim() || isLoading || isStreaming}
-                  isLoading={isLoading || isStreaming}
-                  className="h-14"
-                >
-                  <Icon icon="solar:arrow-up-bold" width={20} />
-                </Button>
-              </div>
-              <div className="flex items-center justify-between mt-2 text-xs text-default-500">
-                <div className="flex items-center gap-4">
-                  <span>Press <Kbd keys={['enter']}>Enter</Kbd> to send</span>
-                  <span>Press <Kbd keys={['shift', 'enter']}>Shift + Enter</Kbd> for new line</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  {currentSessionId && (
-                    <Chip size="sm" variant="flat" color="primary">
-                      Session Active
-                    </Chip>
+                    </motion.div>
                   )}
                 </div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+          </ScrollShadow>
+        </div>
+
+        {/* Fixed Input Area */}
+        <div className="p-4 border-t border-divider bg-content1 flex-shrink-0">
+          <div className="max-w-4xl mx-auto">
+            <div className="flex gap-3 items-end">
+              <div className="flex-1">
+                <Textarea
+                  placeholder={`Ask about your Kubernetes cluster as ${getRoleDisplayName(userRole)}...`}
+                  value={inputMessage}
+                  onValueChange={setInputMessage}
+                  onKeyDown={handleKeyPress}
+                  minRows={1}
+                  maxRows={4}
+                  className="w-full"
+                  disabled={isLoading || isStreaming}
+                  classNames={{
+                    input: "text-sm",
+                    inputWrapper: "bg-content2 border-2 border-divider hover:border-primary focus-within:border-primary transition-colors"
+                  }}
+                />
+              </div>
+              <Button
+                color="primary"
+                isIconOnly
+                onPress={() => sendMessage(inputMessage)}
+                isDisabled={!inputMessage.trim() || isLoading || isStreaming}
+                isLoading={isLoading || isStreaming}
+                className="h-14 w-14 min-w-14"
+                radius="lg"
+              >
+                <Icon icon="solar:arrow-up-bold" width={20} />
+              </Button>
+            </div>
+            <div className="flex items-center justify-between mt-3 text-xs text-default-500">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-1">
+                  <Kbd keys={['enter']}>Enter</Kbd>
+                  <span>to send</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Kbd keys={['shift', 'enter']}>Shift + Enter</Kbd>
+                  <span>for new line</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Chip
+                  size="sm"
+                  color={getRoleColor(userRole)}
+                  variant="flat"
+                  className="text-xs"
+                >
+                  {getRoleDisplayName(userRole)}
+                </Chip>
+                {currentSessionId && (
+                  <Chip size="sm" variant="flat" color="primary" className="text-xs">
+                    <Icon icon="solar:check-circle-bold" width={12} className="mr-1" />
+                    Session Active
+                  </Chip>
+                )}
+                {(isLoading || isStreaming) && (
+                  <Chip size="sm" variant="flat" color="warning" className="text-xs">
+                    <Spinner size="sm" className="mr-1" />
+                    Processing
+                  </Chip>
+                )}
               </div>
             </div>
           </div>
@@ -1070,23 +1409,57 @@ export default function ChatOpsPage() {
             </div>
           </ModalHeader>
           <ModalBody>
-            <div className="space-y-4">
+            <div className="space-y-6">
+              {/* User Role Information */}
               <div>
-                <h4 className="text-sm font-medium mb-2">Tool Response</h4>
+                <h4 className="text-sm font-semibold mb-3">User Information</h4>
+                <div className="bg-content2 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-default-600">Current Role:</span>
+                    <Chip
+                      size="sm"
+                      color={getRoleColor(userRole)}
+                      variant="flat"
+                    >
+                      {getRoleDisplayName(userRole)}
+                    </Chip>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-default-600">Username:</span>
+                    <span className="text-sm font-medium text-foreground">
+                      {localStorage.getItem('username') || 'Unknown'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <Divider />
+
+              {/* Tool Response Settings */}
+              <div>
+                <h4 className="text-sm font-semibold mb-3">Tool Response</h4>
                 <Switch
                   isSelected={enableToolResponse}
                   onValueChange={setEnableToolResponse}
-                  description="Show detailed information about tools used by the assistant"
+                  classNames={{
+                    base: "inline-flex flex-row-reverse w-full max-w-md bg-content1 hover:bg-content2 items-center justify-between cursor-pointer rounded-lg gap-2 p-4 border-2 border-transparent data-[selected=true]:border-primary",
+                  }}
                 >
-                  Enable Tool Response Details
+                  <div className="flex flex-col gap-1">
+                    <p className="text-medium">Enable Tool Response Details</p>
+                    <p className="text-tiny text-default-400">
+                      Show detailed information about tools used by the assistant
+                    </p>
+                  </div>
                 </Switch>
               </div>
-              
+
               <Divider />
-              
+
+              {/* Session Management */}
               <div>
-                <h4 className="text-sm font-medium mb-2">Session Management</h4>
-                <div className="space-y-2">
+                <h4 className="text-sm font-semibold mb-3">Session Management</h4>
+                <div className="space-y-3">
                   <Button
                     variant="flat"
                     onPress={() => {
@@ -1100,6 +1473,7 @@ export default function ChatOpsPage() {
                   </Button>
                   <Button
                     variant="flat"
+                    color="warning"
                     onPress={() => {
                       setCurrentSessionId(null);
                       setMessages([]);
@@ -1110,6 +1484,23 @@ export default function ChatOpsPage() {
                   >
                     Clear Current Chat
                   </Button>
+                </div>
+              </div>
+
+              <Divider />
+
+              {/* Statistics */}
+              <div>
+                <h4 className="text-sm font-semibold mb-3">Statistics</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-content2 rounded-lg p-3 text-center">
+                    <div className="text-2xl font-bold text-primary">{sessions.length}</div>
+                    <div className="text-xs text-default-500">Total Sessions</div>
+                  </div>
+                  <div className="bg-content2 rounded-lg p-3 text-center">
+                    <div className="text-2xl font-bold text-success">{messages.length}</div>
+                    <div className="text-xs text-default-500">Current Messages</div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1136,15 +1527,39 @@ export default function ChatOpsPage() {
               <p className="text-sm text-default-600">
                 Export your chat sessions and messages as a JSON file for backup or analysis.
               </p>
-              
-              <div className="bg-content2 rounded-lg p-3">
-                <div className="flex items-center justify-between text-sm">
-                  <span>Total Sessions:</span>
-                  <span className="font-medium">{sessions.length}</span>
+
+              <div className="bg-content2 rounded-lg p-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-primary">{sessions.length}</div>
+                    <div className="text-xs text-default-500">Total Sessions</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-success">{messages.length}</div>
+                    <div className="text-xs text-default-500">Current Messages</div>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span>Current Session Messages:</span>
-                  <span className="font-medium">{messages.length}</span>
+              </div>
+
+              <div className="bg-warning-50 border border-warning-200 rounded-lg p-3 dark:bg-warning-950 dark:border-warning-800">
+                <div className="flex items-start gap-2">
+                  <Icon icon="solar:info-circle-bold" width={16} className="text-warning mt-0.5" />
+                  <div className="text-xs text-warning-700 dark:text-warning-300">
+                    <p className="font-medium mb-1">Export Information</p>
+                    <p>This will export all your chat sessions and the current session messages.
+                      The exported file can be used for backup or imported into other instances.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Role-specific export note */}
+              <div className="bg-primary-50 border border-primary-200 rounded-lg p-3 dark:bg-primary-950 dark:border-primary-800">
+                <div className="flex items-start gap-2">
+                  <Icon icon="solar:user-bold" width={16} className="text-primary mt-0.5" />
+                  <div className="text-xs text-primary-700 dark:text-primary-300">
+                    <p className="font-medium mb-1">Role-Specific Data</p>
+                    <p>Exporting as {getRoleDisplayName(userRole)}. The exported data will include role-specific interactions and permissions.</p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1161,7 +1576,7 @@ export default function ChatOpsPage() {
               }}
               startContent={<Icon icon="solar:download-bold" width={16} />}
             >
-              Export
+              Export Data
             </Button>
           </ModalFooter>
         </ModalContent>
@@ -1169,3 +1584,6 @@ export default function ChatOpsPage() {
     </div>
   );
 }
+
+
+

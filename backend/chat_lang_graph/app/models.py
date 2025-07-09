@@ -57,7 +57,8 @@ class ChatRequest(BaseModel):
     """Chat request model."""
     message: str
     session_id: Optional[str] = None
-    enable_tool_response: Optional[bool] = False
+    enable_tool_response: bool = False
+    format: Optional[str] = "markdown"  # ADD: Default to markdown
 
 class ToolInfo(BaseModel):
     """Tool information model."""

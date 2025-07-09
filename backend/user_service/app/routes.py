@@ -1,4 +1,3 @@
-# 
 from fastapi import APIRouter, Depends, HTTPException, status ,Request
 from sqlmodel import Session, select
 from typing import List ,  Dict, Optional
@@ -1250,12 +1249,15 @@ async def regenerate_api_key(
         )
 
 
-# ADD THIS NEW ROUTE
+from fastapi import Header, HTTPException, Depends
+
+
 @user_router.get("/me/api-key", response_model=UserResponse, 
                 summary="Get Current User via API Key", 
                 description="Returns the current user information using API key authentication")
 async def get_current_user_via_api_key(
-    current_user: User = Depends(get_current_user_from_api_key)
+    api_key: str = Header(None, alias="X-API-Key"),
+    session: Session = Depends(get_session)
 ):
     """
     Returns the profile information of the currently authenticated user via API key.
@@ -1266,4 +1268,59 @@ async def get_current_user_via_api_key(
     Returns:
         UserResponse: The current user's profile information
     """
-    return current_user
+    if not api_key:
+        raise HTTPException(status_code=401, detail="API key required in X-API-Key header")
+    
+    try:
+        # Find the API key in database
+        db_api_key = session.exec(
+            select(ApiKey).where(
+                ApiKey.api_key == api_key,
+                ApiKey.is_active == True
+            )
+        ).first()
+        
+        if not db_api_key:
+            raise HTTPException(status_code=401, detail="Invalid API key")
+        
+        # Check if API key is expired
+        if db_api_key.expires_at and db_api_key.expires_at < datetime.now():
+            raise HTTPException(status_code=401, detail="API key expired")
+        
+        # Get the user
+        user = session.exec(
+            select(User).where(User.id == db_api_key.user_id)
+        ).first()
+        
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+        
+        if not user.is_active:
+            raise HTTPException(status_code=401, detail="User account is disabled")
+        
+        # Update last_used_at
+        db_api_key.last_used_at = datetime.now()
+        session.add(db_api_key)
+        session.commit()
+        
+        # Build complete response
+        user_response = {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "first_name": user.first_name or "",
+            "last_name": user.last_name or "",
+            "is_active": user.is_active,
+            "roles": user.roles or "",
+            "created_at": user.created_at,
+            "updated_at": user.updated_at,
+            "confirmed": getattr(user, 'confirmed', False)
+        }
+        
+        return user_response
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in get_current_user_via_api_key: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")

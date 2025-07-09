@@ -377,3 +377,33 @@
       font-size: 0.75rem;
     }
   }
+  
+  /* ADD these styles for better markdown formatting */
+  .prose p {
+    margin-bottom: 1rem;
+    line-height: 1.6;
+  }
+
+  .prose br {
+    line-height: 1.4;
+  }
+
+  .prose p + p {
+    margin-top: 1rem;
+  }
+
+  /* Handle double line breaks */
+  .prose p:empty {
+    margin-bottom: 1rem;
+    height: 1rem;
+  }
+
+  /* Better spacing for lists */
+  .prose ul, .prose ol {
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .prose li {
+    margin-bottom: 0.5rem;
+  }

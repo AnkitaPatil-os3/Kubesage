@@ -2,7 +2,7 @@ import uuid
 import json
 from typing import Dict, List, Any
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import StreamingResponse, JSONResponse 
+from fastapi.responses import StreamingResponse, JSONResponse, PlainTextResponse
 from sqlalchemy.orm import Session
 from datetime import datetime
 
@@ -29,6 +29,17 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 limiter = Limiter(key_func=get_remote_address)
+
+def format_markdown_response(response: str) -> str:
+    """Convert escaped newlines to proper markdown formatting."""
+    if not response:
+        return response
+    
+    # Replace escaped newlines with actual newlines
+    formatted = response.replace('\\n', '\n')
+    
+    # Additional formatting if needed
+    return formatted
 
 @router.post("/chat", response_model=ChatResponse)
 @limiter.limit(f"{settings.RATE_LIMIT_REQUESTS}/{settings.RATE_LIMIT_WINDOW}")
@@ -80,13 +91,29 @@ async def chat_invoke(
         if result["response"]:
             chat_service.add_message(session_id, "assistant", result["response"])
         
-        # Prepare response
+        # Prepare response data
+        final_response = result["response"]
         tools_info = [ToolInfo(**tool) for tool in result.get("tools_info", [])]
         tool_responses = [ToolResponse(**tool) for tool in result.get("tool_responses", [])]
         
+        # CHANGE: Always check for markdown request
+        wants_markdown = (
+            is_markdown_request(request) or 
+            chat_request.format == "markdown" or
+            request.headers.get("accept", "").lower().find("markdown") != -1
+        )
+        
+        if wants_markdown:
+            formatted_response = format_markdown_response(final_response)
+            return PlainTextResponse(
+                content=formatted_response,
+                media_type="text/markdown"
+            )
+        
+        # Otherwise, respond with the default JSON structure
         return ChatResponse(
             session_id=session_id,
-            response=result["response"],
+            response=final_response,
             tools_info=tools_info,
             tool_response=tool_responses
         )
@@ -96,6 +123,23 @@ async def chat_invoke(
     except Exception as e:
         logger.error(f"❌ Error in chat_invoke: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 @router.post("/chat/stream")
 @limiter.limit(f"{int(settings.RATE_LIMIT_REQUESTS/2)}/{settings.RATE_LIMIT_WINDOW}")

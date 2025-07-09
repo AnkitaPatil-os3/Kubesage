@@ -89,7 +89,7 @@ const UploadKubeconfig: React.FC = () => {
 const generateDynamicScript = () => {
   const clusterName = formData.cluster_name ;
   // return `curl -O http://10.0.34.169/onboard.sh && bash onboard.sh "${clusterName}" --webhook-endpoint "https://10.0.32.106:8004/remediation/webhook/incidents""`;
-  return `curl -O http://10.0.34.169/all-in-one.sh && bash all-in-one.sh "${clusterName}" "${username}"  --webhook-endpoint "https://10.0.32.103:8004/remediation/webhook/incidents""`;
+  return `curl -O http://10.0.34.169/onboarding.sh && bash onboarding.sh "${clusterName}" "${username}" "https://10.0.32.103:8004/remediation/webhook/incidents"`;
   
 };
 
