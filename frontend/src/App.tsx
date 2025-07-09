@@ -20,6 +20,8 @@ import { SecurityPage } from "./components/security-page";
 import { UsersAndRBAC } from "./components/UsersAndRBAC";
 import { SecOpsDashboard } from "./components/SecOpsDashboard";
 import { Policies } from "./pages/policies";
+import { WorkloadDashboard } from "./pages/workload-dashboard";
+
  
 export default function App() {
   const { theme, setTheme } = useTheme();
@@ -68,6 +70,8 @@ export default function App() {
     { path: "/dashboard/security", permission: "security", component: SecurityPage },
     { path: "/dashboard/observability", permission: "observability", component: ObservabilityDashboard },
     { path: "/dashboard/analyze", permission: "analyze", component: ClusterAnalyze },
+    { path: "/dashboard/workloads", permission: "workloads", component: WorkloadDashboard },
+
     // Special case for /dashboard/users route
     { path: "/dashboard/remediations", permission: "remediations", component: Remediations },
     { path: "/dashboard/users", permission: "users_only", component: UsersAndRBAC },

@@ -42,20 +42,6 @@ const md = new MarkdownIt({
   typographer: true,
   breaks: true,
 });
-// ADD this after the markdown initialization:
-md.renderer.rules.paragraph_open = function (tokens, idx, options, env, self) {
-  return '<p class="mb-2">';
-};
-
-md.renderer.rules.softbreak = function (tokens, idx, options, env, self) {
-  return '<br class="leading-relaxed">\n';
-};
-
-md.renderer.rules.hardbreak = function (tokens, idx, options, env, self) {
-  return '<br class="mb-2">\n';
-};
-
-
 
 const defaultFence = md.renderer.rules.fence || function (tokens, idx, options, env, self) {
   return self.renderToken(tokens, idx, options);
@@ -119,11 +105,8 @@ md.renderer.rules.fence = function (tokens, idx, options, env, self) {
   `;
 };
 
-// Enhanced message content renderer
-const RenderMessageContent: React.FC<{ content: string; isStreaming?: boolean }> = ({
-  content,
-  isStreaming = false
-}) => {
+// Enhanced message content renderer with better formatting
+const RenderMessageContent: React.FC<{ content: string }> = ({ content }) => {
   const parts = React.useMemo(() => {
     const bashCodeBlockRegex = /```bash\n([\s\S]*?)```/g;
     const result = [];
@@ -155,34 +138,17 @@ const RenderMessageContent: React.FC<{ content: string; isStreaming?: boolean }>
     }
 
     return result;
-  }, [content]); // Re-compute when content changes (important for streaming)
-
-  const preprocessContent = (text: string) => {
-    // Convert double line breaks to proper markdown paragraphs
-    let processed = text.replace(/\n\n/g, '\n\n');
-
-    // Ensure proper spacing around headers
-    processed = processed.replace(/\n(#{1,6})/g, '\n\n$1');
-    processed = processed.replace(/(#{1,6}.*)\n([^#\n])/g, '$1\n\n$2');
-
-    // Handle list items properly
-    processed = processed.replace(/\n(\*|-|\d+\.)/g, '\n\n$1');
-
-    return processed;
-  };
+  }, [content]);
 
   return (
     <div className="prose prose-sm dark:prose-invert max-w-none">
       {parts.map((part, idx) => {
         if (part.type === 'text') {
-          // Preprocess content before rendering
-          const processedContent = preprocessContent(part.content);
-          const htmlContent = md.render(processedContent);
-
+          const htmlContent = md.render(part.content);
           return (
             <div
-              key={`${idx}-${isStreaming ? 'streaming' : 'static'}`} // CHANGE: Add streaming key
-              className="mb-2 leading-relaxed"
+              key={idx}
+              className="mb-2"
               dangerouslySetInnerHTML={{ __html: htmlContent }}
               style={{
                 '--tw-prose-body': 'rgb(var(--nextui-foreground))',
@@ -191,8 +157,9 @@ const RenderMessageContent: React.FC<{ content: string; isStreaming?: boolean }>
                 '--tw-prose-bold': 'rgb(var(--nextui-foreground))',
                 '--tw-prose-code': 'rgb(var(--nextui-foreground))',
                 '--tw-prose-pre-bg': 'rgb(var(--nextui-content2))',
-                lineHeight: '1.6',
-                '--tw-prose-p': 'margin-bottom: 1rem',
+                '--tw-prose-pre-code': 'rgb(var(--nextui-foreground))',
+                '--tw-prose-th-borders': 'rgb(var(--nextui-divider))',
+                '--tw-prose-td-borders': 'rgb(var(--nextui-divider))',
               } as React.CSSProperties}
             />
           );
@@ -203,7 +170,7 @@ const RenderMessageContent: React.FC<{ content: string; isStreaming?: boolean }>
             .filter(line => line.length > 0);
 
           return (
-            <div key={`${idx}-code-${isStreaming ? 'streaming' : 'static'}`} className="mb-4">
+            <div key={idx} className="mb-4">
               <div className="mb-2 font-semibold text-foreground">Commands</div>
               <div className="relative rounded-lg border border-divider bg-content2 overflow-hidden">
                 <div className="flex items-center justify-between bg-content3 px-3 py-2 border-b border-divider">
@@ -233,14 +200,9 @@ const RenderMessageContent: React.FC<{ content: string; isStreaming?: boolean }>
         }
         return null;
       })}
-      {/* CHANGE: Add streaming indicator for incomplete content */}
-      {isStreaming && (
-        <span className="inline-block w-2 h-4 bg-primary animate-pulse ml-1" />
-      )}
     </div>
   );
 };
-
 
 // Types
 interface Message {
@@ -287,50 +249,14 @@ class ChatAPI {
     };
   }
 
-async sendMessage(message: string, sessionId?: string, enableToolResponse: boolean = false): Promise<ChatResponse> {
-  const response = await fetch(`${API_BASE_URL}/chat`, {
-    method: 'POST',
-    headers: {
-      ...this.getAuthHeaders(),
-      'Accept': 'text/markdown', // CHANGE: Always request markdown
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      message,
-      session_id: sessionId,
-      enable_tool_response: enableToolResponse,
-      format: 'markdown' // ADD: Explicitly request markdown format
-    })
-  });
-
-  if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
-  }
-
-  // CHANGE: Handle both text and JSON responses
-  const contentType = response.headers.get('content-type');
-  if (contentType && contentType.includes('text/markdown')) {
-    const markdownContent = await response.text();
-    return {
-      session_id: sessionId || '',
-      response: markdownContent,
-      tools_info: [],
-      tool_response: []
-    };
-  }
-
-  return response.json();
-}
-
-
-
-  async streamMessage(message: string, sessionId?: string): Promise<Response> {
-    const response = await fetch(`${API_BASE_URL}/chat/stream`, {
+  async sendMessage(message: string, sessionId?: string, enableToolResponse: boolean = false): Promise<ChatResponse> {
+    const response = await fetch(`${API_BASE_URL}/chat`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
       body: JSON.stringify({
         message,
-        session_id: sessionId
+        session_id: sessionId,
+        enable_tool_response: enableToolResponse
       })
     });
 
@@ -338,7 +264,7 @@ async sendMessage(message: string, sessionId?: string, enableToolResponse: boole
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    return response;
+    return response.json();
   }
 
   async getSessions(): Promise<{ sessions: Session[] }> {
@@ -641,14 +567,11 @@ const getUserRole = (): UserRole => {
   return 'developer';
 };
 
-
 export default function ChatOpsPage() {
   // State management
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isStreaming, setIsStreaming] = useState(false);
-  const [streamingMessage, setStreamingMessage] = useState('');
   const [sessions, setSessions] = useState<Session[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [enableToolResponse, setEnableToolResponse] = useState(false);
@@ -674,7 +597,7 @@ export default function ChatOpsPage() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, streamingMessage]);
+  }, [messages]);
 
   // Load sessions and user role on component mount
   useEffect(() => {
@@ -710,25 +633,19 @@ export default function ChatOpsPage() {
   };
 
   const loadSessionHistory = async (sessionId: string) => {
-  try {
-    const history = await chatAPI.getSessionHistory(sessionId);
-    // CHANGE: Ensure all messages are treated as markdown
-    const formattedMessages = history.messages.map(msg => ({
-      ...msg,
-      content: msg.content // Content is already in markdown format
-    }));
-    setMessages(formattedMessages);
-    setCurrentSessionId(sessionId);
-  } catch (error) {
-    console.error('Failed to load session history:', error);
-    addToast({
-      title: 'Error',
-      description: 'Failed to load session history',
-      color: 'danger'
-    });
-  }
-};
-
+    try {
+      const history = await chatAPI.getSessionHistory(sessionId);
+      setMessages(history.messages);
+      setCurrentSessionId(sessionId);
+    } catch (error) {
+      console.error('Failed to load session history:', error);
+      addToast({
+        title: 'Error',
+        description: 'Failed to load session history',
+        color: 'danger'
+      });
+    }
+  };
 
   const createNewSession = async (title?: string) => {
     try {
@@ -774,7 +691,7 @@ export default function ChatOpsPage() {
     }
   };
 
-  const sendMessage = async (message: string, useStreaming: boolean = true) => {
+  const sendMessage = async (message: string) => {
     if (!message.trim()) return;
 
     const userMessage: Message = {
@@ -785,135 +702,66 @@ export default function ChatOpsPage() {
 
     setMessages(prev => [...prev, userMessage]);
     setInputMessage('');
-
-    if (useStreaming) {
-      await sendStreamingMessage(message);
-    } else {
-      await sendRegularMessage(message);
-    }
-  };
-
-  const sendRegularMessage = async (message: string) => {
-  try {
     setIsLoading(true);
-    const response = await chatAPI.sendMessage(message, currentSessionId || undefined, enableToolResponse);
 
-    const assistantMessage: Message = {
-      role: 'assistant',
-      content: response.response, // This is now markdown format
-      created_at: new Date().toISOString()
-    };
+    try {
+      const response = await chatAPI.sendMessage(message, currentSessionId || undefined, enableToolResponse);
 
-    setMessages(prev => [...prev, assistantMessage]);
-
-    if (!currentSessionId) {
-      setCurrentSessionId(response.session_id);
-      await loadSessions();
-    }
-
-    // Handle tool responses if enabled
-    if (enableToolResponse && (response.tools_info?.length || response.tool_response?.length)) {
-      let toolInfo = '';
-      if (response.tools_info?.length) {
-        toolInfo += '**Tools Used:**\n';
-        response.tools_info.forEach(tool => {
-          toolInfo += `- ${tool.name}: ${tool.args}\n`;
-        });
-      }
-      if (response.tool_response?.length) {
-        toolInfo += '\n**Tool Responses:**\n';
-        response.tool_response.forEach(tool => {
-          toolInfo += `- ${tool.name}: ${tool.response.substring(0, 200)}...\n`;
-        });
-      }
-
-      const toolMessage: Message = {
-        role: 'assistant',
-        content: toolInfo, // This is markdown format
-        created_at: new Date().toISOString()
-      };
-      setMessages(prev => [...prev, toolMessage]);
-    }
-
-  } catch (error) {
-    console.error('Failed to send message:', error);
-    addToast({
-      title: 'Error',
-      description: 'Failed to send message',
-      color: 'danger'
-    });
-  } finally {
-    setIsLoading(false);
-  }
-};
-
-const sendStreamingMessage = async (message: string) => {
-  try {
-    setIsStreaming(true);
-    setStreamingMessage('');
-
-    const response = await chatAPI.streamMessage(message, currentSessionId || undefined);
-    const reader = response.body?.getReader();
-
-    if (!reader) {
-      throw new Error('No response stream available');
-    }
-
-    let fullResponse = '';
-    let sessionId = currentSessionId;
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      const chunk = new TextDecoder().decode(value);
-      const lines = chunk.split('\n');
-
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6);
-          if (data.trim()) {
-            try {
-              const parsed = JSON.parse(data);
-              if (parsed.session_id && !sessionId) {
-                sessionId = parsed.session_id;
-                setCurrentSessionId(sessionId);
-              }
-            } catch {
-              // CHANGE: Treat streaming data as markdown and update state immediately
-              fullResponse += data;
-              setStreamingMessage(fullResponse); // This will trigger re-render with markdown
-            }
-          }
-        }
-      }
-    }
-
-    if (fullResponse) {
       const assistantMessage: Message = {
         role: 'assistant',
-        content: fullResponse, // This is already markdown
+        content: response.response,
         created_at: new Date().toISOString()
       };
+
       setMessages(prev => [...prev, assistantMessage]);
-    }
 
-    if (!currentSessionId && sessionId) {
-      await loadSessions();
-    }
+      if (!currentSessionId) {
+        setCurrentSessionId(response.session_id);
+        await loadSessions();
+      }
 
-  } catch (error) {
-    console.error('Failed to stream message:', error);
-    addToast({
-      title: 'Error',
-      description: 'Failed to stream message',
-      color: 'danger'
-    });
-  } finally {
-    setIsStreaming(false);
-    setStreamingMessage('');
-  }
-};
+      if (enableToolResponse && (response.tools_info?.length || response.tool_response?.length)) {
+        let toolInfo = '';
+        if (response.tools_info?.length) {
+          toolInfo += '**Tools Used:**\n';
+          response.tools_info.forEach(tool => {
+            toolInfo += `- ${tool.name}: ${tool.args}\n`;
+          });
+        }
+        if (response.tool_response?.length) {
+          toolInfo += '\n**Tool Responses:**\n';
+          response.tool_response.forEach(tool => {
+            toolInfo += `- ${tool.name}: ${tool.response.substring(0, 200)}...\n`;
+          });
+        }
+
+        const toolMessage: Message = {
+          role: 'assistant',
+          content: toolInfo,
+          created_at: new Date().toISOString()
+        };
+        setMessages(prev => [...prev, toolMessage]);
+      }
+
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      
+      const errorMessage: Message = {
+        role: 'assistant',
+        content: `❌ **Error:** Failed to process your request: ${error instanceof Error ? error.message : 'Unknown error'}\n\n💡 **Please try again** or contact support if the issue persists.`,
+        created_at: new Date().toISOString()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+
+      addToast({
+        title: 'Error',
+        description: 'Failed to send message',
+        color: 'danger'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -976,7 +824,7 @@ const sendStreamingMessage = async (message: string) => {
                   isIconOnly
                   size="sm"
                   variant="light"
-                  onPress={loadSessions}
+                                    onPress={loadSessions}
                   isLoading={isLoadingSessions}
                   className="text-default-500 hover:text-default-700"
                 >
@@ -1171,10 +1019,9 @@ const sendStreamingMessage = async (message: string) => {
             className="h-full"
           >
             <div className="p-4">
-              {messages.length === 0 && !isStreaming ? (
+              {messages.length === 0 && !isLoading ? (
                 <div className="flex flex-col items-center justify-center h-full min-h-[60vh] text-center">
                   <div className="mb-8">
-
                     <h3 className="text-2xl font-bold text-foreground mb-2">
                       Welcome to KubeSage
                     </h3>
@@ -1282,35 +1129,6 @@ const sendStreamingMessage = async (message: string) => {
                     ))}
                   </AnimatePresence>
 
-                  {/* Streaming Message */}
-                 {/* Streaming Message - UPDATED to use RenderMessageContent */}
-{isStreaming && streamingMessage && (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    className="flex justify-start"
-  >
-    <div className="max-w-[85%] rounded-2xl p-4 bg-content2 text-foreground mr-12">
-      <div className="flex items-start gap-3">
-        <Avatar
-          icon={<Icon icon="solar:cpu-bolt-bold" width={16} />}
-          size="sm"
-          className="flex-shrink-0 bg-primary-100 text-primary"
-        />
-        <div className="flex-1 min-w-0">
-          {/* CHANGE: Use RenderMessageContent for streaming content */}
-          <RenderMessageContent content={streamingMessage} isStreaming={true} />
-          <div className="flex items-center gap-2 mt-3">
-            <Spinner size="sm" color="primary" />
-            <span className="text-xs text-default-500">Thinking...</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </motion.div>
-)}
-
-
                   {/* Loading Message */}
                   {isLoading && (
                     <motion.div
@@ -1350,7 +1168,7 @@ const sendStreamingMessage = async (message: string) => {
                   minRows={1}
                   maxRows={4}
                   className="w-full"
-                  disabled={isLoading || isStreaming}
+                  disabled={isLoading}
                   classNames={{
                     input: "text-sm",
                     inputWrapper: "bg-content2 border-2 border-divider hover:border-primary focus-within:border-primary transition-colors"
@@ -1361,8 +1179,8 @@ const sendStreamingMessage = async (message: string) => {
                 color="primary"
                 isIconOnly
                 onPress={() => sendMessage(inputMessage)}
-                isDisabled={!inputMessage.trim() || isLoading || isStreaming}
-                isLoading={isLoading || isStreaming}
+                                isDisabled={!inputMessage.trim() || isLoading}
+                isLoading={isLoading}
                 className="h-14 w-14 min-w-14"
                 radius="lg"
               >
@@ -1395,7 +1213,7 @@ const sendStreamingMessage = async (message: string) => {
                     Session Active
                   </Chip>
                 )}
-                {(isLoading || isStreaming) && (
+                {isLoading && (
                   <Chip size="sm" variant="flat" color="warning" className="text-xs">
                     <Spinner size="sm" className="mr-1" />
                     Processing
@@ -1592,6 +1410,5 @@ const sendStreamingMessage = async (message: string) => {
     </div>
   );
 }
-
 
 
