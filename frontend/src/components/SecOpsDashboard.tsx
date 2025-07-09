@@ -77,7 +77,7 @@ export const SecOpsDashboard: React.FC = () => {
                         SecOps Dashboard
                     </h1>
                     <p className="text-sm text-foreground-500 mt-1">
-                        Security vulnerabilities and container insights powered by Trivy Operator
+                        Security vulnerabilities and container insights 
                     </p>
                 </div>
             </div>

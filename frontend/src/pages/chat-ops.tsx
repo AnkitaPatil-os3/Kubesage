@@ -155,7 +155,7 @@ const RenderMessageContent: React.FC<{ content: string; isStreaming?: boolean }>
     }
 
     return result;
-  }, [content]);
+  }, [content]); // Re-compute when content changes (important for streaming)
 
   const preprocessContent = (text: string) => {
     // Convert double line breaks to proper markdown paragraphs
@@ -175,14 +175,14 @@ const RenderMessageContent: React.FC<{ content: string; isStreaming?: boolean }>
     <div className="prose prose-sm dark:prose-invert max-w-none">
       {parts.map((part, idx) => {
         if (part.type === 'text') {
-          // ADD: Preprocess content before rendering
+          // Preprocess content before rendering
           const processedContent = preprocessContent(part.content);
           const htmlContent = md.render(processedContent);
 
           return (
             <div
-              key={idx}
-              className="mb-2 leading-relaxed" // ADD: Better line spacing
+              key={`${idx}-${isStreaming ? 'streaming' : 'static'}`} // CHANGE: Add streaming key
+              className="mb-2 leading-relaxed"
               dangerouslySetInnerHTML={{ __html: htmlContent }}
               style={{
                 '--tw-prose-body': 'rgb(var(--nextui-foreground))',
@@ -191,7 +191,6 @@ const RenderMessageContent: React.FC<{ content: string; isStreaming?: boolean }>
                 '--tw-prose-bold': 'rgb(var(--nextui-foreground))',
                 '--tw-prose-code': 'rgb(var(--nextui-foreground))',
                 '--tw-prose-pre-bg': 'rgb(var(--nextui-content2))',
-                // ADD: Custom line height and spacing
                 lineHeight: '1.6',
                 '--tw-prose-p': 'margin-bottom: 1rem',
               } as React.CSSProperties}
@@ -204,7 +203,7 @@ const RenderMessageContent: React.FC<{ content: string; isStreaming?: boolean }>
             .filter(line => line.length > 0);
 
           return (
-            <div key={idx} className="mb-4">
+            <div key={`${idx}-code-${isStreaming ? 'streaming' : 'static'}`} className="mb-4">
               <div className="mb-2 font-semibold text-foreground">Commands</div>
               <div className="relative rounded-lg border border-divider bg-content2 overflow-hidden">
                 <div className="flex items-center justify-between bg-content3 px-3 py-2 border-b border-divider">
@@ -234,9 +233,14 @@ const RenderMessageContent: React.FC<{ content: string; isStreaming?: boolean }>
         }
         return null;
       })}
+      {/* CHANGE: Add streaming indicator for incomplete content */}
+      {isStreaming && (
+        <span className="inline-block w-2 h-4 bg-primary animate-pulse ml-1" />
+      )}
     </div>
   );
 };
+
 
 // Types
 interface Message {
@@ -843,7 +847,7 @@ export default function ChatOpsPage() {
   }
 };
 
-  const sendStreamingMessage = async (message: string) => {
+const sendStreamingMessage = async (message: string) => {
   try {
     setIsStreaming(true);
     setStreamingMessage('');
@@ -876,9 +880,9 @@ export default function ChatOpsPage() {
                 setCurrentSessionId(sessionId);
               }
             } catch {
-              // CHANGE: Treat streaming data as markdown
+              // CHANGE: Treat streaming data as markdown and update state immediately
               fullResponse += data;
-              setStreamingMessage(fullResponse);
+              setStreamingMessage(fullResponse); // This will trigger re-render with markdown
             }
           }
         }
@@ -910,6 +914,7 @@ export default function ChatOpsPage() {
     setStreamingMessage('');
   }
 };
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -1139,10 +1144,10 @@ export default function ChatOpsPage() {
                   thumb: "w-6 h-6 border-2 shadow-lg group-data-[hover=true]:border-primary group-data-[selected=true]:ml-6 group-data-[pressed=true]:w-7 group-data-[selected]:group-data-[pressed]:ml-4",
                 }}
               >
-                <div className="flex flex-col gap-1">
+                {/* <div className="flex flex-col gap-1">
                   <p className="text-sm text-foreground">Show Tools</p>
                   <p className="text-xs text-default-400">Display tool usage details</p>
-                </div>
+                </div> */}
               </Switch>
               <Tooltip content="Chat Settings">
                 <Button
@@ -1278,30 +1283,33 @@ export default function ChatOpsPage() {
                   </AnimatePresence>
 
                   {/* Streaming Message */}
-                  {isStreaming && streamingMessage && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="flex justify-start"
-                    >
-                      <div className="max-w-[85%] rounded-2xl p-4 bg-content2 text-foreground mr-12">
-                        <div className="flex items-start gap-3">
-                          <Avatar
-                            icon={<Icon icon="solar:cpu-bolt-bold" width={16} />}
-                            size="sm"
-                            className="flex-shrink-0 bg-primary-100 text-primary"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <RenderMessageContent content={streamingMessage} isStreaming={true} />
-                            <div className="flex items-center gap-2 mt-3">
-                              <Spinner size="sm" color="primary" />
-                              <span className="text-xs text-default-500">Thinking...</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
+                 {/* Streaming Message - UPDATED to use RenderMessageContent */}
+{isStreaming && streamingMessage && (
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    className="flex justify-start"
+  >
+    <div className="max-w-[85%] rounded-2xl p-4 bg-content2 text-foreground mr-12">
+      <div className="flex items-start gap-3">
+        <Avatar
+          icon={<Icon icon="solar:cpu-bolt-bold" width={16} />}
+          size="sm"
+          className="flex-shrink-0 bg-primary-100 text-primary"
+        />
+        <div className="flex-1 min-w-0">
+          {/* CHANGE: Use RenderMessageContent for streaming content */}
+          <RenderMessageContent content={streamingMessage} isStreaming={true} />
+          <div className="flex items-center gap-2 mt-3">
+            <Spinner size="sm" color="primary" />
+            <span className="text-xs text-default-500">Thinking...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </motion.div>
+)}
+
 
                   {/* Loading Message */}
                   {isLoading && (

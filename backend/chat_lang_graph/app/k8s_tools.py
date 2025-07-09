@@ -153,10 +153,14 @@ def list_kubernetes_services(namespace: Optional[str] = None) -> str:
     try:
         if namespace:
             services = [svc.metadata.name for svc in v1.list_namespaced_service(namespace=namespace).items]
-            return f"Services in namespace {namespace}: {', '.join(services)}"
+            if not services:
+                return f"No services found in namespace {namespace}."
+            return f"Services in namespace {namespace}:\n" + "\n".join([f"- {svc}" for svc in services])
         else:
             services = [svc.metadata.name for svc in v1.list_service_for_all_namespaces().items]
-            return f"All services: {', '.join(services)}"
+            if not services:
+                return "No services found in any namespace."
+            return "All services:\n" + "\n".join([f"- {svc}" for svc in services])
     except ApiException as e:
         return f"Error listing services: {e}"
 
@@ -165,20 +169,32 @@ def list_kubernetes_deployments(namespace: Optional[str] = None) -> str:
     try:
         if namespace:
             deployments = [dep.metadata.name for dep in apps_v1.list_namespaced_deployment(namespace=namespace).items]
-            return f"Deployments in namespace {namespace}: {', '.join(deployments)}"
+            if not deployments:
+                return f"No deployments found in namespace {namespace}."
+            return f"Deployments in namespace {namespace}:\n" + "\n".join([f"- {dep}" for dep in deployments])
         else:
             deployments = [dep.metadata.name for dep in apps_v1.list_deployment_for_all_namespaces().items]
-            return f"All deployments: {', '.join(deployments)}"
+            if not deployments:
+                return "No deployments found in any namespace."
+            return "All deployments:\n" + "\n".join([f"- {dep}" for dep in deployments])
     except ApiException as e:
         return f"Error listing deployments: {e}"
+
+
 
 def list_kubernetes_namespaces() -> str:
     """List all Kubernetes namespaces."""
     try:
         namespaces = [ns.metadata.name for ns in v1.list_namespace().items]
-        return f"Available namespaces: {', '.join(namespaces)}"
+        if not namespaces:
+            return "No namespaces found."
+        return "Available namespaces:\n" + "\n".join([f"- {ns}" for ns in namespaces])
     except ApiException as e:
         return f"Error listing namespaces: {e}"
+
+
+
+
 
 def get_kubernetes_pod(name: str, namespace: str = "default") -> str:
     """Get details of a specific Kubernetes pod by name and namespace."""
@@ -195,10 +211,14 @@ def list_kubernetes_pods(namespace: Optional[str] = None) -> str:
     try:
         if namespace:
             pods = [pod.metadata.name for pod in v1.list_namespaced_pod(namespace=namespace).items]
-            return f"Pods in namespace {namespace}: {', '.join(pods)}"
+            if not pods:
+                return f"No pods found in namespace {namespace}."
+            return f"Pods in namespace {namespace}:\n" + "\n".join([f"- {pod}" for pod in pods])
         else:
             pods = [pod.metadata.name for pod in v1.list_pod_for_all_namespaces().items]
-            return f"All pods: {', '.join(pods)}"
+            if not pods:
+                return "No pods found in any namespace."
+            return "All pods:\n" + "\n".join([f"- {pod}" for pod in pods])
     except ApiException as e:
         return f"Error listing pods: {e}"
 
@@ -479,10 +499,14 @@ def list_kubernetes_pvcs(namespace: Optional[str] = None) -> str:
     try:
         if namespace:
             pvcs = [pvc.metadata.name for pvc in v1.list_namespaced_persistent_volume_claim(namespace=namespace).items]
-            return f"PVCs in namespace {namespace}: {', '.join(pvcs) if pvcs else 'None'}"
+            if not pvcs:
+                return f"No PVCs found in namespace {namespace}."
+            return f"PVCs in namespace {namespace}:\n" + "\n".join([f"- {pvc}" for pvc in pvcs])
         else:
             pvcs = [pvc.metadata.name for pvc in v1.list_persistent_volume_claim_for_all_namespaces().items]
-            return f"All PVCs: {', '.join(pvcs) if pvcs else 'None'}"
+            if not pvcs:
+                return "No PVCs found in any namespace."
+            return "All PVCs:\n" + "\n".join([f"- {pvc}" for pvc in pvcs])
     except ApiException as e:
         return f"Error listing PVCs: {e}"
 
@@ -526,10 +550,14 @@ def list_kubernetes_hpas(namespace: Optional[str] = None) -> str:
     try:
         if namespace:
             hpas = [hpa.metadata.name for hpa in autoscaling_v1.list_namespaced_horizontal_pod_autoscaler(namespace=namespace).items]
-            return f"HPAs in namespace {namespace}: {', '.join(hpas) if hpas else 'None'}"
+            if not hpas:
+                return f"No HPAs found in namespace {namespace}."
+            return f"HPAs in namespace {namespace}:\n" + "\n".join([f"- {hpa}" for hpa in hpas])
         else:
             hpas = [hpa.metadata.name for hpa in autoscaling_v1.list_horizontal_pod_autoscaler_for_all_namespaces().items]
-            return f"All HPAs: {', '.join(hpas) if hpas else 'None'}"
+            if not hpas:
+                return "No HPAs found in any namespace."
+            return "All HPAs:\n" + "\n".join([f"- {hpa}" for hpa in hpas])
     except ApiException as e:
         return f"Error listing HPAs: {e}"
 
@@ -537,9 +565,12 @@ def list_kubernetes_network_policies(namespace: str) -> str:
     """List all NetworkPolicies in a given namespace."""
     try:
         policies = [p.metadata.name for p in networking_v1.list_namespaced_network_policy(namespace=namespace).items]
-        return f"NetworkPolicies in namespace {namespace}: {', '.join(policies) if policies else 'None'}"
+        if not policies:
+            return f"No NetworkPolicies found in namespace {namespace}."
+        return f"NetworkPolicies in namespace {namespace}:\n" + "\n".join([f"- {policy}" for policy in policies])
     except ApiException as e:
         return f"Error listing NetworkPolicies: {e}"
+
 
 resource_api_map = {
     "pod": (v1, "read_namespaced_pod"),

@@ -38,7 +38,18 @@ def format_markdown_response(response: str) -> str:
     # Replace escaped newlines with actual newlines
     formatted = response.replace('\\n', '\n')
     
-    # Additional formatting if needed
+    # Remove duplicate processing indicators
+    formatted = formatted.replace('**Tool Results:**\n', '')
+    formatted = formatted.replace('**Response:**\n', '')
+    
+    # Clean up excessive newlines
+    import re
+    formatted = re.sub(r'\n{3,}', '\n\n', formatted)
+    
+    # Remove duplicate list patterns (comma-separated followed by bullet list)
+    # This regex looks for patterns like "item1, item2, item3\nHere are...\n- item1\n- item2"
+    formatted = re.sub(r'([a-zA-Z0-9\-_,\s]+): ([a-zA-Z0-9\-_,\s]+)\n+(?:Here are|The following are)[^\n]*:\n((?:- [^\n]+\n?)+)', r'\1:\n\3', formatted)
+    
     return formatted
 
 @router.post("/chat", response_model=ChatResponse)
@@ -123,20 +134,6 @@ async def chat_invoke(
     except Exception as e:
         logger.error(f"❌ Error in chat_invoke: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
