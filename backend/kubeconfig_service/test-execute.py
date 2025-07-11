@@ -12,7 +12,7 @@ import sys
 from datetime import datetime
 
 # Configuration
-API_BASE_URL = "https://10.0.32.103:8002"  # Change to your API URL
+API_BASE_URL = "https://10.0.32.106:8002"  # Change to your API URL
 CLUSTER_ID = 2  # Change to your cluster ID
 NUM_USERS = 50  # Number of concurrent users (start with 50, then increase)
 REQUESTS_PER_USER = 3  # Number of requests each user will make

@@ -29,7 +29,7 @@ class PolicyDatabaseService:
     def __init__(self):
         self.policy_data = self._get_all_policy_data()
         # Get kubeconfig service URL from environment or use default
-        self.kubeconfig_service_url = os.getenv("KUBECONFIG_SERVICE_URL", "https://10.0.32.103:8002")
+        self.kubeconfig_service_url = os.getenv("KUBECONFIG_SERVICE_URL", "https://10.0.32.106:8002")
     
     def _get_all_policy_data(self) -> Dict[str, List[Dict]]:
         """Get all predefined policy data organized by category"""
@@ -49,37 +49,37 @@ class PolicyDatabaseService:
             categories = [
                 {
                     "name": "validation",
-                    "display_name": "🔐 Validation Policies",
+                    "display_name": "Validation Policies",  # editing - removed icon
                     "description": "Ensure resources conform to best practices and standards",
                     "icon": "shield-check"
                 },
                 {
                     "name": "mutation",
-                    "display_name": "🛠️ Mutation Policies", 
+                    "display_name": "Mutation Policies",  # editing - removed icon
                     "description": "Automatically modify resources to apply standards",
                     "icon": "edit"
                 },
                 {
                     "name": "generation",
-                    "display_name": "⚙️ Generation Policies",
+                    "display_name": "Generation Policies",  # editing - removed icon
                     "description": "Automatically create new resources when others are created",
                     "icon": "plus-circle"
                 },
                 {
                     "name": "cleanup",
-                    "display_name": "🧹 Cleanup Policies",
+                    "display_name": "Cleanup Policies",  # editing - removed icon
                     "description": "Automatically delete dependent or temporary resources",
                     "icon": "trash"
                 },
                 {
                     "name": "image_verification",
-                    "display_name": "🔒 Image Verification Policies",
+                    "display_name": "Image Verification Policies",  # editing - removed icon
                     "description": "Verify image signatures to ensure only trusted images are used",
                     "icon": "verified"
                 },
                 {
                     "name": "miscellaneous",
-                    "display_name": "🧩 Miscellaneous Policies",
+                    "display_name": "Miscellaneous Policies",  # editing - removed icon
                     "description": "Helpful or unique policies not falling into other categories",
                     "icon": "puzzle"
                 }
@@ -347,35 +347,62 @@ class PolicyDatabaseService:
         """Get all validation policies data"""
         return [
             {
-                "policy_id": "disallow-any-image",
-                "name": "Disallow Any Image",
-                "description": "Prevent using :latest tag in container ",
-                "purpose": "Prevent using :latest tag in images",
+                "policy_id": "disallow-image",  # editing - updated policy_id
+                "name": "Disallow any image",  # editing - updated name
+                "description": "Prevent using any image",  # editing - updated description
+                "purpose": "Prevent using any image",  # editing - updated purpose
                 "severity": "high",
                 "tags": ["security", "best-practices", "images"],
                 "yaml_content": """apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
-  name: disallow-any-image
+  name: disallow-image
 spec:
   validationFailureAction: Enforce
   rules:
-    - name: disallow-any-image
+    - name: validate-image
       match:
         resources:
           kinds:
             - Pod
       validate:
-        message: "Using image tags is not allowed. Use image digest (e.g., image@sha256:...)."
+        message: "Using the 'latest' tag for images is not allowed."  ##editable
         pattern:
           spec:
             containers:
-              - image: "!*:latest" """,
+              - image: "!*:latest"  ## editable""",  # editing - updated YAML
+                "policy_metadata": {"type": "validation", "kubernetes_resources": ["Pod"]}
+            },
+            {
+                "policy_id": "restrict-hostpath",
+                "name": "Restrict hostPath volumes",  # editing - updated name
+                "description": "Disallow or restrict hostPath usage",  # editing - updated description
+                "purpose": "Disallow or restrict hostPath usage",
+                "severity": "high",
+                "tags": ["security", "volumes"],
+                "yaml_content": """apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: restrict-hostpath
+spec:
+  validationFailureAction: Enforce
+  rules:
+    - name: disallow-hostpath
+      match:
+        resources:
+          kinds:
+            - Pod
+      validate:
+        message: "hostPath volumes are not allowed."
+        pattern:
+          spec:
+            volumes:
+              - =(hostPath): "null" """,
                 "policy_metadata": {"type": "validation", "kubernetes_resources": ["Pod"]}
             },
             {
                 "policy_id": "disallow-privileged",
-                "name": "Disallow Privileged Containers",
+                "name": "Disallow privileged containers",  # editing - updated name
                 "description": "Block pods running with privileged: true",
                 "purpose": "Block pods running with privileged: true",
                 "severity": "critical",
@@ -402,36 +429,9 @@ spec:
                 "policy_metadata": {"type": "validation", "kubernetes_resources": ["Pod"]}
             },
             {
-                "policy_id": "restrict-hostpath",
-                "name": "Restrict HostPath Volumes",
-                "description": "Disallow or restrict hostPath volume usage",
-                "purpose": "Disallow or restrict hostPath usage",
-                "severity": "high",
-                "tags": ["security", "volumes"],
-                "yaml_content": """apiVersion: kyverno.io/v1
-kind: ClusterPolicy
-metadata:
-  name: restrict-hostpath
-spec:
-  validationFailureAction: Enforce
-  rules:
-    - name: disallow-hostpath
-      match:
-        resources:
-          kinds:
-            - Pod
-      validate:
-        message: "hostPath volumes are not allowed."
-        pattern:
-          spec:
-            volumes:
-              - =(hostPath): "null" """,
-                "policy_metadata": {"type": "validation", "kubernetes_resources": ["Pod"]}
-            },
-            {
                 "policy_id": "enforce-readonly-rootfs",
-                "name": "Enforce Read-Only Root Filesystem",
-                "description": "Enforce readOnlyRootFilesystem: true for containers",
+                "name": "Enforce read-only root filesystem",  # editing - updated name
+                "description": "Enforce readOnlyRootFilesystem: true",  # editing - updated description
                 "purpose": "Enforce readOnlyRootFilesystem: true",
                 "severity": "medium",
                 "tags": ["security", "filesystem"],
@@ -458,7 +458,7 @@ spec:
             },
             {
                 "policy_id": "restrict-capabilities",
-                "name": "Restrict Capabilities",
+                "name": "Restrict capabilities",  # editing - updated name
                 "description": "Prevent containers from running with certain Linux capabilities",
                 "purpose": "Prevent containers from running with certain Linux capabilities",
                 "severity": "high",
@@ -488,8 +488,8 @@ spec:
             },
             {
                 "policy_id": "enforce-non-root-user",
-                "name": "Disallow Root User",
-                "description": "Prevent containers from running as root user",
+                "name": "Disallow root user",  # editing - updated name
+                "description": "Prevent containers from running as root",  # editing - updated description
                 "purpose": "Prevent containers from running as root",
                 "severity": "high",
                 "tags": ["security", "user"],
@@ -516,8 +516,8 @@ spec:
             },
             {
                 "policy_id": "restrict-image-registries",
-                "name": "Restrict Image Registries",
-                "description": "Allow only approved container registries",
+                "name": "Restrict image registries",  # editing - updated name
+                "description": "Allow only approved registries",  # editing - updated description
                 "purpose": "Allow only approved registries",
                 "severity": "high",
                 "tags": ["security", "images", "registries"],
@@ -534,42 +534,42 @@ spec:
           kinds:
             - Pod
       validate:
-        message: "Only approved image registries are allowed."
+        message: "Only approved image registries are allowed." ##editable
         anyPattern:
           - spec:
               containers:
-                - image: "registry.mycorp.com/*" """,
+                - image: "registry.mycorp.com/*"  ##editable""",  # editing - updated YAML
                 "policy_metadata": {"type": "validation", "kubernetes_resources": ["Pod"]}
             },
             {
-                "policy_id": "block-default-namespace",
-                "name": "Block Default Namespace",
-                "description": "Prevent deployments to the default namespace",
-                "purpose": "Prevent deployments to the default namespace",
+                "policy_id": "block-namespace",  # editing - updated policy_id
+                "name": "Block any namespace",  # editing - updated name
+                "description": "Prevent deployments to the any selected namespace",  # editing - updated description
+                "purpose": "Prevent deployments to the any selected namespace",  # editing - updated purpose
                 "severity": "medium",
                 "tags": ["best-practices", "namespaces"],
                 "yaml_content": """apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
-  name: block-default-namespace
+  name: block-namespace
 spec:
   validationFailureAction: Enforce
   rules:
-    - name: prevent-default-namespace
+    - name: prevent-namespace
       match:
         resources:
           kinds:
             - Pod
       validate:
-        message: "Resources cannot be created in the default namespace."
+        message: "Resources cannot be created in the default namespace."  ##editable
         pattern:
           metadata:
-            namespace: "!default" """,
+            namespace: "!default"  ##editable""",  # editing - updated YAML
                 "policy_metadata": {"type": "validation", "kubernetes_resources": ["Pod"]}
             },
             {
                 "policy_id": "enforce-resource-requests-limits",
-                "name": "Enforce Resource Requests/Limits",
+                "name": "Enforce resource requests/limits",  # editing - updated name
                 "description": "Require resources.requests and resources.limits",
                 "purpose": "Require resources.requests and resources.limits",
                 "severity": "medium",
@@ -593,17 +593,17 @@ spec:
             containers:
               - resources:
                   requests:
-                    memory: "*"
-                    cpu: "*"
+                    memory: "*"  ##editable
+                    cpu: "*"  ##editable
                   limits:
-                    memory: "*"
-                    cpu: "*" """,
+                    memory: "*"  ##editable
+                    cpu: "*"  ##editable""",  # editing - updated YAML
                 "policy_metadata": {"type": "validation", "kubernetes_resources": ["Pod"]}
             },
             {
                 "policy_id": "validate-labels-annotations",
-                "name": "Validate Labels/Annotations",
-                "description": "Enforce presence and format of required labels",
+                "name": "Validate labels/annotations",  # editing - updated name
+                "description": "Enforce presence/format of labels/annotations",  # editing - updated description
                 "purpose": "Enforce presence/format of labels/annotations",
                 "severity": "low",
                 "tags": ["labels", "governance"],
@@ -620,12 +620,12 @@ spec:
           kinds:
             - Pod
       validate:
-        message: "Labels 'app' and 'team' must be set."
+        message: "Labels 'app' and 'team' must be set."  ##editable
         pattern:
           metadata:
             labels:
-              app: "*"
-              team: "*" """,
+              app: "*"  ##editable
+              team: "*"  ##editable""",  # editing - updated YAML
                 "policy_metadata": {"type": "validation", "kubernetes_resources": ["Pod"]}
             }
         ]
@@ -635,7 +635,7 @@ spec:
         return [
             {
                 "policy_id": "add-default-resource-limits",
-                "name": "Add Default Resource Limits",
+                "name": "Add default resource limits",  # editing - updated name
                 "description": "Inject CPU/memory limits if missing",
                 "purpose": "Inject CPU/memory limits if missing",
                 "severity": "medium",
@@ -655,20 +655,20 @@ spec:
         patchStrategicMerge:
           spec:
             containers:
-              - name: "*"
+              - name: "*" ##editable
                 resources:
                   requests:
-                    memory: "256Mi"
-                    cpu: "250m"
+                    memory: "256Mi"  ##editable
+                    cpu: "250m" ##editable
                   limits:
-                    memory: "512Mi"
-                    cpu: "500m" """,
+                    memory: "512Mi"  ##editable
+                    cpu: "500m"  ##editable""",  # editing - updated YAML
                 "policy_metadata": {"type": "mutation", "kubernetes_resources": ["Pod"]}
             },
             {
                 "policy_id": "add-security-context",
-                "name": "Add Security Context",
-                "description": "Inject standard securityContext settings",
+                "name": "Add security context",  # editing - updated name
+                "description": "Inject standard securityContext",  # editing - updated description
                 "purpose": "Inject standard securityContext",
                 "severity": "high",
                 "tags": ["security", "defaults"],
@@ -696,7 +696,7 @@ spec:
             },
             {
                 "policy_id": "add-labels-annotations",
-                "name": "Add Labels or Annotations",
+                "name": "Add labels or annotations",  # editing - updated name
                 "description": "Add organization-required metadata",
                 "purpose": "Add organization-required metadata",
                 "severity": "low",
@@ -716,13 +716,13 @@ spec:
         patchStrategicMerge:
           metadata:
             labels:
-              organization: "kubesage"
-              environment: "production" """,
+              organization: "kubesage" ##editable
+              environment: "production" ##editable""",  # editing - updated YAML
                 "policy_metadata": {"type": "mutation", "kubernetes_resources": ["Pod"]}
             },
             {
                 "policy_id": "enforce-image-pull-policy",
-                "name": "Enforce ImagePullPolicy",
+                "name": "Enforce imagePullPolicy",  # editing - updated name
                 "description": "Set Always or IfNotPresent automatically",
                 "purpose": "Set Always or IfNotPresent automatically",
                 "severity": "low",
@@ -742,13 +742,13 @@ spec:
         patchStrategicMerge:
           spec:
             containers:
-              - name: "*"
-                imagePullPolicy: Always""",
+              - name: "*" ##editable
+                imagePullPolicy: Always ##editable""",  # editing - updated YAML
                 "policy_metadata": {"type": "mutation", "kubernetes_resources": ["Pod"]}
             },
             {
                 "policy_id": "add-default-network-policy",
-                "name": "Add Network Policy",
+                "name": "Add network policy",  # editing - updated name
                 "description": "Automatically apply a default NetworkPolicy",
                 "purpose": "Automatically apply a default NetworkPolicy",
                 "severity": "medium",
@@ -784,7 +784,7 @@ spec:
             },
             {
                 "policy_id": "set-default-namespace",
-                "name": "Set Default Namespace",
+                "name": "Set default namespace",  # editing - updated name
                 "description": "Default to a specific namespace if none provided",
                 "purpose": "Default to a specific namespace if none provided",
                 "severity": "low",
@@ -817,8 +817,8 @@ spec:
         """Get all generation policies data"""
         return [
             {
-                "policy_id": "generate-configmap",
-                "name": "Create ConfigMap/Secret",
+                "policy_id": "generate-configmap-example",  # editing - updated policy_id
+                "name": "Create ConfigMap/Secret",  # editing - updated name
                 "description": "Generate a ConfigMap when a resource is created",
                 "purpose": "Generate a ConfigMap when a resource is created",
                 "severity": "low",
@@ -840,12 +840,12 @@ spec:
         namespace: "{{request.object.metadata.name}}"
         data:
           data:
-            key: "value" """,
-                "metadata": {"type": "generation", "kubernetes_resources": ["Namespace"]}
+            key: "value"  ##editable""",  # editing - updated YAML
+                "policy_metadata": {"type": "generation", "kubernetes_resources": ["Namespace"]}  # editing - updated metadata key
             },
             {
                 "policy_id": "generate-rolebinding",
-                "name": "Create RBAC RoleBinding",
+                "name": "Create RBAC RoleBinding",  # editing - updated name
                 "description": "Auto-create RBAC bindings with namespace",
                 "purpose": "Auto-create RBAC bindings with namespace",
                 "severity": "medium",
@@ -875,13 +875,13 @@ spec:
             apiGroup: rbac.authorization.k8s.io
           subjects:
             - kind: User
-              name: dev-user
-              apiGroup: rbac.authorization.k8s.io""",
-                "metadata": {"type": "generation", "kubernetes_resources": ["Namespace"]}
+              name: dev-user ##editable
+              apiGroup: rbac.authorization.k8s.io""",  # editing - updated YAML
+                "policy_metadata": {"type": "generation", "kubernetes_resources": ["Namespace"]}  # editing - updated metadata key
             },
             {
                 "policy_id": "generate-network-policy",
-                "name": "Generate NetworkPolicy",
+                "name": "Generate NetworkPolicy",  # editing - updated name
                 "description": "Ensure every namespace has a default NetworkPolicy",
                 "purpose": "Ensure every namespace has a default NetworkPolicy",
                 "severity": "high",
@@ -907,7 +907,7 @@ spec:
             policyTypes:
               - Ingress
               - Egress""",
-                "metadata": {"type": "generation", "kubernetes_resources": ["Namespace"]}
+                "policy_metadata": {"type": "generation", "kubernetes_resources": ["Namespace"]}  # editing - updated metadata key
             }
         ]
 
@@ -915,8 +915,8 @@ spec:
         """Get all cleanup policies data"""
         return [
             {
-                "policy_id": "cleanup-test-resources",
-                "name": "Cleanup Test Resources",
+                "policy_id": "cleanup-resources",  # editing - updated policy_id
+                "name": "Cleanup test resources",  # editing - updated name
                 "description": "Auto-delete test pods or temporary resources",
                 "purpose": "Auto-delete test pods or temporary resources",
                 "severity": "medium",
@@ -924,17 +924,17 @@ spec:
                 "yaml_content": """apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
-  name: cleanup-test-resources
+  name: cleanup-resources
 spec:
   rules:
-    - name: cleanup-test-pods
+    - name: cleanup-pods
       match:
         any:
           - resources:
               kinds:
                 - Pod
               labels:
-                app: test
+                app: test ##editable
       preconditions:
         all:
           - key: "{{request.operation}}"
@@ -944,12 +944,12 @@ spec:
         patchStrategicMerge:
           metadata:
             annotations:
-              cleanup.kyverno.io/ttl: "1h" """,
-                "metadata": {"type": "cleanup", "kubernetes_resources": ["Pod"]}
+              cleanup.kyverno.io/ttl: "1h" """,  # editing - updated YAML
+                "policy_metadata": {"type": "cleanup", "kubernetes_resources": ["Pod"]}  # editing - updated metadata key
             },
             {
                 "policy_id": "cleanup-orphaned-pvcs",
-                "name": "Remove Orphaned Resources",
+                "name": "Remove orphaned resources",  # editing - updated name
                 "description": "Clean up resources no longer in use",
                 "purpose": "Clean up resources no longer in use",
                 "severity": "medium",
@@ -975,11 +975,11 @@ spec:
           metadata:
             annotations:
               cleanup.kyverno.io/ttl: "24h" """,
-                "metadata": {"type": "cleanup", "kubernetes_resources": ["PersistentVolumeClaim"]}
+                "policy_metadata": {"type": "cleanup", "kubernetes_resources": ["PersistentVolumeClaim"]}  # editing - updated metadata key
             },
             {
                 "policy_id": "cleanup-expired-secrets",
-                "name": "Auto-delete Expired Secrets",
+                "name": "Auto-delete expired Secrets",  # editing - updated name
                 "description": "Clean up secrets after a TTL",
                 "purpose": "Clean up secrets after a TTL",
                 "severity": "low",
@@ -1003,7 +1003,7 @@ spec:
           metadata:
             annotations:
               cleanup.kyverno.io/ttl: "6h" """,
-                "metadata": {"type": "cleanup", "kubernetes_resources": ["Secret"]}
+                "policy_metadata": {"type": "cleanup", "kubernetes_resources": ["Secret"]}  # editing - updated metadata key
             }
         ]
 
@@ -1012,7 +1012,7 @@ spec:
         return [
             {
                 "policy_id": "verify-image-signature-cosign",
-                "name": "Verify Image Signature (cosign)",
+                "name": "Verify image signature (cosign)",  # editing - updated name
                 "description": "Only allow signed images",
                 "purpose": "Only allow signed images",
                 "severity": "critical",
@@ -1031,13 +1031,13 @@ spec:
           kinds:
             - Pod
       verifyImages:
-        - image: "registry.mycorp.com/*"
-          key: https://mykeyserver.com/cosign.pub""",
-                "metadata": {"type": "image_verification", "kubernetes_resources": ["Pod"]}
+        - image: "registry.mycorp.com/*" ##editable
+          key: https://mykeyserver.com/cosign.pub  ##editable""",  # editing - updated YAML
+                "policy_metadata": {"type": "image_verification", "kubernetes_resources": ["Pod"]}  # editing - updated metadata key
             },
             {
                 "policy_id": "enforce-keyless-signing",
-                "name": "Enforce Keyless Signing",
+                "name": "Enforce keyless signing",  # editing - updated name
                 "description": "Use keyless verification (Sigstore)",
                 "purpose": "Use keyless verification (Sigstore)",
                 "severity": "critical",
@@ -1056,14 +1056,14 @@ spec:
           kinds:
             - Pod
       verifyImages:
-        - image: "ghcr.io/myorg/*"
-          issuer: "https://token.actions.githubusercontent.com"
-          subject: "myorg/*" """,
-                "metadata": {"type": "image_verification", "kubernetes_resources": ["Pod"]}
+        - image: "ghcr.io/myorg/*" ##editable
+          issuer: https://token.actions.githubusercontent.com  ##editable
+          subject: "myorg/*" ##editable""",  # editing - updated YAML
+                "policy_metadata": {"type": "image_verification", "kubernetes_resources": ["Pod"]}  # editing - updated metadata key
             },
             {
                 "policy_id": "disallow-unsigned-images",
-                "name": "Disallow Unsigned Images",
+                "name": "Disallow unsigned images",  # editing - updated name
                 "description": "Block any unsigned container image",
                 "purpose": "Block any unsigned container image",
                 "severity": "critical",
@@ -1082,9 +1082,9 @@ spec:
           kinds:
             - Pod
       verifyImages:
-        - image: "docker.io/myorg/*"
-          key: https://mykeyserver.com/cosign.pub""",
-                "metadata": {"type": "image_verification", "kubernetes_resources": ["Pod"]}
+        - image: "docker.io/myorg/*" ##editable
+          key: https://mykeyserver.com/cosign.pub  ##editable""",  # editing - updated YAML
+                "policy_metadata": {"type": "image_verification", "kubernetes_resources": ["Pod"]}  # editing - updated metadata key
             }
         ]
 
@@ -1092,8 +1092,8 @@ spec:
         """Get all miscellaneous policies data"""
         return [
             {
-                "policy_id": "block-kube-system-deployments",
-                "name": "Block Deployment in kube-system",
+                "policy_id": "block-any-deployments",  # editing - updated policy_id
+                "name": "Block deployment in any namespace",  # editing - updated name
                 "description": "Protect critical namespaces",
                 "purpose": "Protect critical namespaces",
                 "severity": "high",
@@ -1101,25 +1101,25 @@ spec:
                 "yaml_content": """apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
-  name: block-kube-system-deployments
+  name: block-any-deployments
 spec:
   validationFailureAction: Enforce
   rules:
-    - name: deny-kube-system
+    - name: deny-deployment  ##editable
       match:
         resources:
           kinds:
             - Pod
       validate:
-        message: "Deployments in 'kube-system' namespace are not allowed."
+        message: "Deployments in  namespace are not allowed."
         pattern:
           metadata:
-            namespace: "!kube-system" """,
-                "metadata": {"type": "miscellaneous", "kubernetes_resources": ["Pod"]}
+            namespace: "!kube-system" ##editable""",  # editing - updated YAML
+                "policy_metadata": {"type": "miscellaneous", "kubernetes_resources": ["Pod"]}  # editing - updated metadata key
             },
             {
                 "policy_id": "require-pdb",
-                "name": "Require PodDisruptionBudget",
+                "name": "Require PodDisruptionBudget",  # editing - updated name
                 "description": "Enforce application availability rules",
                 "purpose": "Enforce application availability rules",
                 "severity": "medium",
@@ -1144,11 +1144,11 @@ spec:
               - key: "{{ request.object.metadata.name }}"
                 operator: NotIn
                 value: "{{ kube.pdb[*].metadata.ownerReferences[?(@.name==request.object.metadata.name)] }}" """,
-                "metadata": {"type": "miscellaneous", "kubernetes_resources": ["Deployment"]}
+                "policy_metadata": {"type": "miscellaneous", "kubernetes_resources": ["Deployment"]}  # editing - updated metadata key
             },
             {
                 "policy_id": "ingress-name-format",
-                "name": "Enforce Ingress Naming Conventions",
+                "name": "Enforce ingress naming conventions",  # editing - updated name
                 "description": "Require ingress names follow format",
                 "purpose": "Require ingress names follow format",
                 "severity": "low",
@@ -1166,15 +1166,15 @@ spec:
           kinds:
             - Ingress
       validate:
-        message: "Ingress name must start with 'ing-' and follow naming convention."
+        message: "Ingress name must start with 'ing-' and follow naming convention." ##editable
         pattern:
           metadata:
-            name: "ing-*" """,
-                "metadata": {"type": "miscellaneous", "kubernetes_resources": ["Ingress"]}
+            name: "ing-*" ##editable""",  # editing - updated YAML
+                "policy_metadata": {"type": "miscellaneous", "kubernetes_resources": ["Ingress"]}  # editing - updated metadata key
             },
             {
                 "policy_id": "validate-crd-k8s-version",
-                "name": "Validate Kubernetes Version in CRDs",
+                "name": "Validate Kubernetes version in CRDs",  # editing - updated name
                 "description": "Ensure CRDs target supported API versions",
                 "purpose": "Ensure CRDs target supported API versions",
                 "severity": "medium",
@@ -1195,7 +1195,7 @@ spec:
         message: "Only apiextensions.k8s.io/v1 CRDs are supported."
         pattern:
           apiVersion: "apiextensions.k8s.io/v1" """,
-                "metadata": {"type": "miscellaneous", "kubernetes_resources": ["CustomResourceDefinition"]}
+                "policy_metadata": {"type": "miscellaneous", "kubernetes_resources": ["CustomResourceDefinition"]}  # editing - updated metadata key
             }
         ]
 
@@ -1297,15 +1297,18 @@ spec:
         if not policy:
             raise Exception(f"Policy '{request.policy_id}' not found")
         
-        # 3. Create application record
+        # 3. Use edited YAML if provided, otherwise use original
+        yaml_to_apply = request.edited_yaml if request.edited_yaml else policy.yaml_content
+        
+        # 4. Create application record
         application = PolicyApplicationModel(
             user_id=user_id,
             cluster_id=cluster_info["cluster_id"],
             cluster_name=request.cluster_name,
             policy_id=policy.id,
             status=ApplicationStatus.PENDING,
-            kubernetes_namespace=request.kubernetes_namespace or "cluster-wide",  # Set to cluster-wide if no namespace
-            applied_yaml=policy.yaml_content
+            kubernetes_namespace=request.kubernetes_namespace or "cluster-wide",
+            applied_yaml=yaml_to_apply  # Store the actual YAML that was applied
         )
         
         db.add(application)
@@ -1313,33 +1316,33 @@ spec:
         db.refresh(application)
         
         try:
-            # 4. Update status to applying
+            # 5. Update status to applying
             application.status = ApplicationStatus.APPLYING
             db.commit()
             
-            # 5. Apply policy using cluster credentials
+            # 6. Apply policy using cluster credentials with edited YAML
             result = self.apply_kyverno_policy(
                 api_server_url=cluster_info["server_url"],
                 token=cluster_info["token"],
-                policy_yaml=policy.yaml_content,
+                policy_yaml=yaml_to_apply,  # Use the edited YAML
                 namespace=request.kubernetes_namespace or "default"
             )
             
-            # 6. Extract resource name from result
+            # 7. Extract resource name from result
             resource_name = result.get("metadata", {}).get("name", "unknown")
             
-            # 7. Update application record with success
+            # 8. Update application record with success
             application.status = ApplicationStatus.APPLIED
             application.applied_at = datetime.now()
             application.kubernetes_name = resource_name
-            application.application_log = f"Successfully applied policy to cluster {request.cluster_name}"
+            application.application_log = f"Successfully applied {'edited ' if request.edited_yaml else ''}policy to cluster {request.cluster_name}"
             
             db.commit()
             
-            logger.info(f"Successfully applied policy {request.policy_id} to cluster {request.cluster_name}")
+            logger.info(f"Successfully applied {'edited ' if request.edited_yaml else ''}policy {request.policy_id} to cluster {request.cluster_name}")
             
         except Exception as e:
-            # 8. Update application record with failure
+            # 9. Update application record with failure
             application.status = ApplicationStatus.FAILED
             application.error_message = str(e)
             application.application_log = f"Failed to apply policy: {str(e)}"
@@ -1349,8 +1352,10 @@ spec:
             logger.error(f"Failed to apply policy {request.policy_id} to cluster {request.cluster_name}: {e}")
             raise
         
-        # 9. Return response
+        # 10. Return response
         return self._convert_application_to_response(db, application)
+
+
 
     def get_policy_applications(
         self, 
@@ -1630,3 +1635,4 @@ spec:
 
 # Global policy service instance
 policy_db_service = PolicyDatabaseService()
+

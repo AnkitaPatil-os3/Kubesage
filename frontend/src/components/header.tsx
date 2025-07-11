@@ -61,7 +61,7 @@ export const Header: React.FC<HeaderProps> = ({ toggleChat }) => {
   const fetchApiKeys = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch('https://10.0.32.103:8001/api-keys/', {
+      const response = await fetch('https://10.0.32.106:8001/api-keys/', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -83,7 +83,7 @@ export const Header: React.FC<HeaderProps> = ({ toggleChat }) => {
     setIsCreating(true);
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch('https://10.0.32.103:8001/api-keys/', {
+      const response = await fetch('https://10.0.32.106:8001/api-keys/', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -112,7 +112,7 @@ export const Header: React.FC<HeaderProps> = ({ toggleChat }) => {
   const regenerateApiKey = async (keyId: number) => {
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch(`https://10.0.32.103:8001/api-keys//${keyId}/regenerate`, {
+      const response = await fetch(`https://10.0.32.106:8001/api-keys//${keyId}/regenerate`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

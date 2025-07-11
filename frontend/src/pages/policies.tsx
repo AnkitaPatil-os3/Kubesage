@@ -158,6 +158,10 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
     const [totalPages, setTotalPages] = useState(1);
     const pageSize = 12;
 
+    // Add these new state variables at the top with other state declarations
+    const [editableFields, setEditableFields] = useState<{ [key: string]: string }>({});
+    const [originalYaml, setOriginalYaml] = useState('');
+
     // Stats
     const [stats, setStats] = useState({
         totalPolicies: 0,
@@ -169,7 +173,7 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
 
     // API Base URLs
     const KUBECONFIG_API = '/kubeconfig';
-    const POLICIES_API = 'https://10.0.32.103:8005/api/v1/policies';
+    const POLICIES_API = 'https://10.0.32.106:8005/api/v1/policies';
 
 
     // Make this function available globally for the modal
@@ -196,6 +200,53 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
             console.error('Error removing policy:', error);
             showToast('Failed to remove policy from cluster', 'error');
         }
+    };
+
+    // Add this helper function to extract editable fields from YAML
+    const extractEditableFields = (yamlContent: string) => {
+        const lines = yamlContent.split('\n');
+        const fields: { [key: string]: string } = {};
+
+        lines.forEach((line, index) => {
+            if (line.includes('##editable')) {
+                // Extract the field name and value
+                const cleanLine = line.replace(/##editable.*$/, '').trim();
+                const colonIndex = cleanLine.lastIndexOf(':');
+                if (colonIndex !== -1) {
+                    const fieldName = cleanLine.substring(0, colonIndex).trim();
+                    const fieldValue = cleanLine.substring(colonIndex + 1).trim().replace(/['"]/g, '');
+                    const fieldKey = `line_${index}_${fieldName.replace(/\s+/g, '_')}`;
+                    fields[fieldKey] = fieldValue;
+                }
+            }
+        });
+
+        return fields;
+    };
+
+    // Add this helper function to reconstruct YAML with edited values
+    const reconstructYamlWithEdits = (originalYaml: string, editedFields: { [key: string]: string }) => {
+        const lines = originalYaml.split('\n');
+
+        lines.forEach((line, index) => {
+            if (line.includes('##editable')) {
+                const cleanLine = line.replace(/##editable.*$/, '').trim();
+                const colonIndex = cleanLine.lastIndexOf(':');
+                if (colonIndex !== -1) {
+                    const fieldName = cleanLine.substring(0, colonIndex).trim();
+                    const fieldKey = `line_${index}_${fieldName.replace(/\s+/g, '_')}`;
+
+                    if (editedFields[fieldKey] !== undefined) {
+                        // Preserve indentation
+                        const indentation = line.match(/^\s*/)?.[0] || '';
+                        const comment = line.match(/##editable.*$/)?.[0] || '';
+                        lines[index] = `${indentation}${fieldName}: "${editedFields[fieldKey]}" ${comment}`;
+                    }
+                }
+            }
+        });
+
+        return lines.join('\n');
     };
 
 
@@ -800,9 +851,12 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
         }
     }, [selectedClusterName, statusFilter, selectedCategory]);
 
+    // Update the useEffect for selectedPolicy
     useEffect(() => {
         if (selectedPolicy) {
+            setOriginalYaml(selectedPolicy.yaml_content);
             setEditedYaml(selectedPolicy.yaml_content);
+            setEditableFields(extractEditableFields(selectedPolicy.yaml_content));
         }
     }, [selectedPolicy]);
 
@@ -1001,65 +1055,6 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                     )}
                 </motion.div>
 
-                {/* Applied Policies for Selected Cluster */}
-                {/* {appliedPoliciesForCluster.length > 0 && selectedClusterName && (
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.4 }}
-                        className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-xl border border-gray-200/50 dark:border-gray-700/50 p-6 mb-6"
-                    >
-                        <div className="flex items-center justify-between mb-6">
-                            <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-                                Applied Policies for {selectedClusterName}
-                            </h3>
-                            <span className="text-sm text-gray-500 dark:text-gray-400">
-                                {appliedPoliciesForCluster.length} policies applied
-                            </span>
-                        </div>
-
-                        <div className="space-y-3">
-                            {appliedPoliciesForCluster.map((app, index) => (
-                                <motion.div
-                                    key={app.id}
-                                    initial={{ opacity: 0, x: -20 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: index * 0.1 }}
-                                    className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl"
-                                >
-                                    <div className="flex items-center space-x-4">
-                                        <div className={`p-2 rounded-lg ${getStatusColor(app.status)}`}>
-                                            {getStatusIcon(app.status)}
-                                        </div>
-                                        <div>
-                                            <h4 className="font-medium text-gray-900 dark:text-white">
-                                                {app.policy_name || app.policy_id}
-                                            </h4>
-                                            <p className="text-sm text-gray-600 dark:text-gray-400">
-                                                {app.kubernetes_namespace} • Applied: {new Date(app.applied_at).toLocaleDateString()}
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex items-center space-x-3">
-                                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(app.status)}`}>
-                                            {app.status}
-                                        </span>
-                                        {app.status === 'APPLIED' && (
-                                            <button
-                                                onClick={() => removePolicyFromCluster(app.id)}
-                                                className="flex items-center space-x-1 px-3 py-1 text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                                <span className="text-sm">Remove</span>
-                                            </button>
-                                        )}
-                                    </div>
-                                </motion.div>
-                            ))}
-                        </div>
-                    </motion.div>
-                )} */}
 
                 {/* Policies Grid */}
                 {selectedCategory && (
@@ -1411,6 +1406,11 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                     </motion.div>
                 )}
 
+                
+                
+                
+                
+                
                 {/* Recent Applications */}
                 {applications.filter(app => app.status !== 'REMOVED' && app.status !== 'removed').length > 0 && (
                     <motion.div
@@ -1657,9 +1657,11 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
 
                                         {/* Actions */}
                                         <div className="space-y-3">
+                                            
                                             <button
                                                 onClick={() => {
-                                                    navigator.clipboard.writeText(selectedPolicy.yaml_content);
+                                                    const finalYaml = reconstructYamlWithEdits(originalYaml, editableFields);
+                                                    navigator.clipboard.writeText(finalYaml);
                                                     showToast('YAML copied to clipboard', 'success');
                                                 }}
                                                 className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-colors"
@@ -1667,6 +1669,7 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                                                 <Copy className="w-4 h-4" />
                                                 <span>Copy YAML</span>
                                             </button>
+
 
                                             <button
                                                 onClick={() => {
@@ -1739,7 +1742,8 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                                         <div className="flex items-center space-x-2">
                                             <button
                                                 onClick={() => {
-                                                    navigator.clipboard.writeText(selectedPolicy.yaml_content);
+                                                    const finalYaml = reconstructYamlWithEdits(originalYaml, editableFields);
+                                                    navigator.clipboard.writeText(finalYaml);
                                                     showToast('YAML copied to clipboard', 'success');
                                                 }}
                                                 className="flex items-center space-x-2 px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
@@ -1752,31 +1756,92 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
 
                                     <div className="flex-1 overflow-hidden">
                                         {showYamlEditor ? (
-                                            <Editor
-                                                height="100%"
-                                                defaultLanguage="yaml"
-                                                value={editedYaml}
-                                                onChange={(value) => setEditedYaml(value || '')}
-                                                theme="vs-dark"
-                                                options={{
-                                                    readOnly: true,
-                                                    minimap: { enabled: false },
-                                                    scrollBeyondLastLine: false,
-                                                    fontSize: 14,
-                                                    lineNumbers: 'on',
-                                                    wordWrap: 'on',
-                                                    automaticLayout: true
-                                                }}
-                                            />
+                                            <div className="h-full flex">
+                                                {/* YAML Display (Read-only) */}
+                                                <div className="flex-1">
+                                                    <Editor
+                                                        height="100%"
+                                                        defaultLanguage="yaml"
+                                                        value={reconstructYamlWithEdits(originalYaml, editableFields)}
+                                                        theme="vs-dark"
+                                                        options={{
+                                                            readOnly: true,
+                                                            minimap: { enabled: false },
+                                                            scrollBeyondLastLine: false,
+                                                            fontSize: 14,
+                                                            lineNumbers: 'on',
+                                                            wordWrap: 'on',
+                                                            automaticLayout: true
+                                                        }}
+                                                    />
+                                                </div>
+
+                                                {/* Editable Fields Panel */}
+                                                <div className="w-80 border-l border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 overflow-y-auto">
+                                                    <div className="p-4">
+                                                        <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                                                            <Edit3 className="w-4 h-4 mr-2" />
+                                                            Editable Fields
+                                                        </h4>
+
+                                                        {Object.keys(editableFields).length === 0 ? (
+                                                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                                                                No editable fields found in this policy.
+                                                            </p>
+                                                        ) : (
+                                                            <div className="space-y-4">
+                                                                {Object.entries(editableFields).map(([fieldKey, fieldValue]) => {
+                                                                    // Extract readable field name
+                                                                    const fieldName = fieldKey.replace(/^line_\d+_/, '').replace(/_/g, ' ');
+
+                                                                    return (
+                                                                        <div key={fieldKey} className="space-y-2">
+                                                                            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 capitalize">
+                                                                                {fieldName}
+                                                                            </label>
+                                                                            <input
+                                                                                type="text"
+                                                                                value={fieldValue}
+                                                                                onChange={(e) => {
+                                                                                    setEditableFields(prev => ({
+                                                                                        ...prev,
+                                                                                        [fieldKey]: e.target.value
+                                                                                    }));
+                                                                                }}
+                                                                                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                                                placeholder="Enter value..."
+                                                                            />
+                                                                        </div>
+                                                                    );
+                                                                })}
+
+                                                                <div className="pt-4 border-t border-gray-200 dark:border-gray-600">
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            setEditableFields(extractEditableFields(originalYaml));
+                                                                            showToast('Fields reset to original values', 'success');
+                                                                        }}
+                                                                        className="w-full flex items-center justify-center space-x-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                                                                    >
+                                                                        <RefreshCw className="w-4 h-4" />
+                                                                        <span>Reset to Original</span>
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
                                         ) : (
                                             <div className="h-full overflow-auto p-4 bg-gray-50 dark:bg-gray-900">
                                                 <pre className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap font-mono">
-                                                    {selectedPolicy.yaml_content}
+                                                    {reconstructYamlWithEdits(originalYaml, editableFields)}
                                                 </pre>
                                             </div>
                                         )}
                                     </div>
                                 </div>
+
                             </div>
                         </motion.div>
                     </motion.div>

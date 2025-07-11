@@ -290,13 +290,21 @@ async def apply_policy_to_cluster(
         user_id = current_user.get('user_id', current_user.get('id', 1))
         user_token = get_user_token(request)
         
-        logger.info(f"User {current_user.get('username', 'unknown')} applying policy {policy_request.policy_id} to cluster {policy_request.cluster_name}")
-        
+        # Log whether edited YAML is being used
+        yaml_type = "edited" if policy_request.edited_yaml else "original"
+        logger.info(f"User {current_user.get('username', 'unknown')} applying {yaml_type} policy {policy_request.policy_id} to cluster {policy_request.cluster_name}")
+
         application = await policy_db_service.apply_policy_to_cluster(db, policy_request, user_id, user_token)
+        
+        # Print the applied YAML data (edited or original)
+        print(f"Applied {yaml_type.upper()} YAML data for policy {policy_request.policy_id}:")
+        print("=" * 50)
+        print(application.applied_yaml)
+        print("=" * 50)
         
         return APIResponse(
             success=True,
-            message=f"Policy '{policy_request.policy_id}' applied successfully to cluster '{policy_request.cluster_name}'",
+            message=f"Policy '{policy_request.policy_id}' ({yaml_type}) applied successfully to cluster '{policy_request.cluster_name}'",
             data=application,
             timestamp=datetime.now().isoformat()
         )

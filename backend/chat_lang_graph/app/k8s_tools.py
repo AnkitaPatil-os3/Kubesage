@@ -3,24 +3,249 @@ from kubernetes.client.rest import ApiException
 from typing import Optional
 import yaml # For describe_kubernetes_resource
 import base64 # For secret data encoding/decoding
+import urllib3
+
+# Disable SSL warnings for development
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+# Global variables to store cluster connection info
+_cluster_server_url = None
+_cluster_token = None
+_cluster_name = None
+_configured_client = None
+
+def configure_cluster_connection(server_url: str, token: str, cluster_name: Optional[str] = None):
+    """Configure Kubernetes client with server URL and token instead of kubeconfig."""
+    global _cluster_server_url, _cluster_token, _cluster_name, _configured_client
+    global v1, apps_v1, autoscaling_v1, networking_v1
+    
+    try:
+        print(f"🔧 Configuring cluster connection...")
+        print(f"   Cluster Name: {cluster_name}")
+        print(f"   Server URL: {server_url}")
+        print(f"   Token: {token[:20]}...{token[-10:] if len(token) > 30 else token}")
+        
+        _cluster_server_url = server_url
+        _cluster_token = token
+        _cluster_name = cluster_name
+        
+        # Create configuration
+        configuration = client.Configuration()
+        configuration.host = server_url
+        
+        # Try different authentication methods
+        # Method 1: Bearer token in Authorization header
+        configuration.api_key = {"authorization": token}
+        configuration.api_key_prefix = {"authorization": "Bearer"}
+        
+        # Method 2: Alternative - set the token directly
+        # configuration.api_key = {"authorization": f"Bearer {token}"}
+        
+        # Disable SSL verification for development
+        configuration.verify_ssl = False
+        configuration.ssl_ca_cert = None
+        
+        print(f"🔧 Configuration created with host: {configuration.host}")
+        print(f"🔧 Auth method: Bearer token")
+        
+        # Create API client with the configuration
+        api_client = client.ApiClient(configuration)
+        
+        # Update global API instances
+        v1 = client.CoreV1Api(api_client)
+        apps_v1 = client.AppsV1Api(api_client)
+        autoscaling_v1 = client.AutoscalingV1Api(api_client)
+        networking_v1 = client.NetworkingV1Api(api_client)
+        
+        _configured_client = api_client
+        
+        print(f"✅ Kubernetes client configured successfully for cluster: {cluster_name or 'Unknown'}")
+        print(f"   Server: {server_url}")
+        
+        # Test the connection with more detailed error handling
+        try:
+            print("🧪 Testing connection by listing namespaces...")
+            
+            # Add custom headers for debugging
+            print(f"🔍 Testing with token: {token}")
+            
+            # Try to list namespaces with limit to test connection
+            namespaces = v1.list_namespace(limit=1)
+            print(f"✅ Connection test successful! Found {len(namespaces.items)} namespace(s)")
+            
+            # Print first namespace for verification
+            if namespaces.items:
+                first_ns = namespaces.items[0]
+                print(f"   First namespace: {first_ns.metadata.name}")
+                
+        except ApiException as test_error:
+            print(f"❌ Connection test failed with ApiException:")
+            print(f"   Status: {test_error.status}")
+            print(f"   Reason: {test_error.reason}")
+            print(f"   Headers: {test_error.headers}")
+            print(f"   Body: {test_error.body}")
+            
+            # Try alternative authentication method
+            print("🔄 Trying alternative authentication method...")
+            try:
+                # Method 2: Set token differently
+                configuration.api_key = {}
+                configuration.api_key_prefix = {}
+                
+                # Set the authorization header manually
+                if not hasattr(configuration, 'default_headers'):
+                    configuration.default_headers = {}
+                configuration.default_headers['Authorization'] = f'Bearer {token}'
+                
+                # Recreate API client
+                api_client = client.ApiClient(configuration)
+                v1 = client.CoreV1Api(api_client)
+                apps_v1 = client.AppsV1Api(api_client)
+                autoscaling_v1 = client.AutoscalingV1Api(api_client)
+                networking_v1 = client.NetworkingV1Api(api_client)
+                
+                print("🧪 Testing alternative authentication...")
+                namespaces = v1.list_namespace(limit=1)
+                print(f"✅ Alternative auth successful! Found {len(namespaces.items)} namespace(s)")
+                
+            except Exception as alt_error:
+                print(f"❌ Alternative auth also failed: {alt_error}")
+                
+                # Try Method 3: Manual token format
+                print("🔄 Trying manual token format...")
+                try:
+                    configuration.default_headers['Authorization'] = token  # Without Bearer prefix
+                    
+                    # Recreate API client again
+                    api_client = client.ApiClient(configuration)
+                    v1 = client.CoreV1Api(api_client)
+                    apps_v1 = client.AppsV1Api(api_client)
+                    autoscaling_v1 = client.AutoscalingV1Api(api_client)
+                    networking_v1 = client.NetworkingV1Api(api_client)
+                    
+                    print("🧪 Testing manual token format...")
+                    namespaces = v1.list_namespace(limit=1)
+                    print(f"✅ Manual token format successful! Found {len(namespaces.items)} namespace(s)")
+                    
+                except Exception as manual_error:
+                    print(f"❌ Manual token format also failed: {manual_error}")
+                    raise test_error  # Raise the original error
+        
+        except Exception as test_error:
+            print(f"❌ Connection test failed with general exception: {test_error}")
+            print(f"   Error type: {type(test_error)}")
+            raise test_error
+        
+    except Exception as e:
+        print(f"❌ Error configuring Kubernetes client: {e}")
+        print(f"   Error type: {type(e)}")
+        raise
+
+# Alternative configuration function to try different auth methods
+def configure_cluster_connection_alt(server_url: str, token: str, cluster_name: Optional[str] = None):
+    """Alternative cluster connection configuration with different auth approach."""
+    global _cluster_server_url, _cluster_token, _cluster_name, _configured_client
+    global v1, apps_v1, autoscaling_v1, networking_v1
+    
+    try:
+        print(f"🔧 Trying alternative cluster connection configuration...")
+        
+        # Create a custom configuration
+        configuration = client.Configuration()
+        configuration.host = server_url
+        configuration.verify_ssl = False
+        configuration.ssl_ca_cert = None
+        
+        # Set up authentication using a custom approach
+        configuration.api_key = {}
+        configuration.api_key_prefix = {}
+        
+        # Initialize default headers if not present
+        if not hasattr(configuration, 'default_headers'):
+            configuration.default_headers = {}
+        
+        # Try different token formats
+        auth_methods = [
+            f"Bearer {token}",
+            token,
+            f"Token {token}",
+        ]
+        
+        for i, auth_header in enumerate(auth_methods):
+            try:
+                print(f"🧪 Trying auth method {i+1}: {auth_header[:30]}...")
+                
+                configuration.default_headers['Authorization'] = auth_header
+                
+                # Create API client
+                api_client = client.ApiClient(configuration)
+                test_v1 = client.CoreV1Api(api_client)
+                
+                # Test the connection
+                namespaces = test_v1.list_namespace(limit=1)
+                
+                # If we get here, it worked!
+                print(f"✅ Auth method {i+1} successful!")
+                
+                # Update global variables
+                _cluster_server_url = server_url
+                _cluster_token = token
+                _cluster_name = cluster_name
+                _configured_client = api_client
+                
+                # Update global API instances
+                v1 = test_v1
+                apps_v1 = client.AppsV1Api(api_client)
+                autoscaling_v1 = client.AutoscalingV1Api(api_client)
+                networking_v1 = client.NetworkingV1Api(api_client)
+                
+                print(f"✅ Alternative configuration successful for cluster: {cluster_name}")
+                return
+                
+            except Exception as auth_error:
+                print(f"❌ Auth method {i+1} failed: {auth_error}")
+                continue
+        
+        # If we get here, all methods failed
+        raise Exception("All authentication methods failed")
+        
+    except Exception as e:
+        print(f"❌ Alternative configuration failed: {e}")
+        raise
 
 # Load Kubernetes configuration.
 # This will load the configuration from the default location (~/.kube/config)
 # or from the in-cluster service account environment.
 try:
     config.load_kube_config()
+    print("✅ Default kubeconfig loaded successfully")
 except config.ConfigException:
     try:
         config.load_incluster_config()
+        print("✅ In-cluster config loaded successfully")
     except config.ConfigException as e:
-        raise Exception("Could not configure kubernetes client") from e
+        print("⚠️ Warning: Could not configure kubernetes client with default config")
+        print(f"   Error: {e}")
 
-
+# Initialize API clients (will be overridden when configure_cluster_connection is called)
 v1 = client.CoreV1Api()
 apps_v1 = client.AppsV1Api()
 autoscaling_v1 = client.AutoscalingV1Api() # For HPA resources
-networking_v1 = client.NetworkingV1Api() # For Ingress resources
+networking_v1 = client.NetworkingV1Api() 
 
+# Test function to verify connection
+def test_cluster_connection() -> str:
+    """Test the current cluster connection."""
+    try:
+        print("🧪 Testing current cluster connection...")
+        namespaces = v1.list_namespace(limit=1)
+        result = f"✅ Connection successful! Cluster has {len(namespaces.items)} namespace(s)"
+        print(result)
+        return result
+    except Exception as e:
+        error_msg = f"❌ Connection test failed: {e}"
+        print(error_msg)
+        return error_msg
 
 def create_kubernetes_pod(name: str, image: str, namespace: str = "default", port: Optional[int] = None) -> str:
     """Create a Kubernetes Pod with the given name, image, namespace, and optional port."""
@@ -185,12 +410,31 @@ def list_kubernetes_deployments(namespace: Optional[str] = None) -> str:
 def list_kubernetes_namespaces() -> str:
     """List all Kubernetes namespaces."""
     try:
-        namespaces = [ns.metadata.name for ns in v1.list_namespace().items]
+        print("📋 Attempting to list namespaces...")
+        print(f"   Using cluster: {_cluster_name or 'default'}")
+        print(f"   Server URL: {_cluster_server_url or 'default'}")
+        
+        namespaces = v1.list_namespace().items
         if not namespaces:
-            return "No namespaces found."
-        return "Available namespaces:\n" + "\n".join([f"- {ns}" for ns in namespaces])
+            result = "No namespaces found."
+        else:
+            result = "Available namespaces:\n" + "\n".join([f"- {ns.metadata.name}" for ns in namespaces])
+        
+        print(f"✅ Successfully listed {len(namespaces)} namespaces")
+        return result
+        
     except ApiException as e:
-        return f"Error listing namespaces: {e}"
+        error_msg = f"❌ API Exception listing namespaces: {e}"
+        print(error_msg)
+        print(f"   Status: {e.status}")
+        print(f"   Reason: {e.reason}")
+        print(f"   Body: {e.body}")
+        return error_msg
+    except Exception as e:
+        error_msg = f"❌ General error listing namespaces: {e}"
+        print(error_msg)
+        print(f"   Error type: {type(e)}")
+        return error_msg
 
 
 

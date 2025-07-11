@@ -28,7 +28,7 @@ export const ObservabilityDashboard: React.FC<ObservabilityDashboardProps> = ({ 
     const fetchClusters = async () => {
         setIsLoadingClusters(true);
         try {
-            const response = await fetch("https://10.0.32.103:8002/kubeconfig/clusters", {
+            const response = await fetch("https://10.0.32.106:8002/kubeconfig/clusters", {
                 method: "GET",
                 headers: {
                     "Content-Type": "application/json",
@@ -67,7 +67,7 @@ export const ObservabilityDashboard: React.FC<ObservabilityDashboardProps> = ({ 
     const dashboardUrl = React.useMemo(() => {
         if (!selectedClusterName) return "";
         
-        const baseUrl = "https://10.0.32.103:3000/grafana-monitoring/d/ddonjajttscn4e/kub-cluster-details";
+        const baseUrl = "https://10.0.32.106:3000/grafana-monitoring/d/ddonjajttscn4e/kub-cluster-details";
         
         // Calculate time range (last 6 hours)
         const now = Date.now();

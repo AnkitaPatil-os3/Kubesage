@@ -14,8 +14,8 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
     
     # User service integration
-    USER_SERVICE_URL: str = os.getenv("USER_SERVICE_URL", "https://10.0.32.103:8001")
-    KUBECONFIG_SERVICE_URL: str = os.getenv("KUBECONFIG_SERVICE_URL", "https://10.0.32.103:8002")
+    USER_SERVICE_URL: str = os.getenv("USER_SERVICE_URL", "https://10.0.32.106:8001")
+    KUBECONFIG_SERVICE_URL: str = os.getenv("KUBECONFIG_SERVICE_URL", "https://10.0.32.106:8002")
     
     # PostgreSQL Database configuration
     POSTGRES_USER: str = os.getenv("POSTGRES_USER", "kubesage")

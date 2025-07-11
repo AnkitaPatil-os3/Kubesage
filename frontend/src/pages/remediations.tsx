@@ -162,7 +162,7 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
   const [showRemediationModal, setShowRemediationModal] = useState(false);
 
   // API Base URL
-  const API_BASE = 'https://10.0.32.103:8004/remediation';
+  const API_BASE = 'https://10.0.32.106:8004/remediation';
 
   // Fetch data functions
 const fetchIncidents = async () => {
@@ -262,11 +262,11 @@ const fetchIncidents = async () => {
 
       if (executeDirectly) {
         // Direct execution - single API call
-        endpoint = `https://10.0.32.103:8004/remediation/incidents/${incidentId}/remediate?execute=true`;
+        endpoint = `https://10.0.32.106:8004/remediation/incidents/${incidentId}/remediate?execute=true`;
         method = 'POST';
       } else {
         // Just generate solution
-        endpoint = `https://10.0.32.103:8004/remediation/incidents/${incidentId}/remediate`;
+        endpoint = `https://10.0.32.106:8004/remediation/incidents/${incidentId}/remediate`;
         method = 'POST';
       }
 
@@ -323,7 +323,7 @@ const fetchIncidents = async () => {
     setExecutingRemediation(true);
     // setHasExecuted(true); // ADD THIS LINE
     try {
-      const response = await fetch(`https://10.0.32.103:8004/remediation/incidents/${incidentId}/execute`, {
+      const response = await fetch(`https://10.0.32.106:8004/remediation/incidents/${incidentId}/execute`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

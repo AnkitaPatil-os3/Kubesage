@@ -1,3 +1,4 @@
+// hi
 import React, { useState, useEffect, useCallback } from "react";
 import { useHistory } from "react-router-dom";
 import { Icon } from "@iconify/react";
@@ -37,7 +38,7 @@ import {
 } from "@heroui/react";
 import { motion, AnimatePresence } from "framer-motion";
 
-const API_BASE_URL = "https://10.0.32.103:8002/kubeconfig";
+const API_BASE_URL = "https://10.0.32.106:8002/kubeconfig";
 
 interface ClusterInfo {
   id: number;
@@ -90,14 +91,19 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [sortBy, setSortBy] = useState<'name' | 'status' | 'age'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  const [showStats, setShowStats] = useState(true);
+const [showStats, setShowStats] = useState(true);
 
   // Events State
   const [selectedWorkloadEvents, setSelectedWorkloadEvents] = useState<any[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
   const [selectedWorkloadName, setSelectedWorkloadName] = useState<string>("");
   const [selectedWorkloadType, setSelectedWorkloadType] = useState<string>("");
-  
+
+  // Logs State
+  const [isLogsOpen, setIsLogsOpen] = useState(false);
+  const [logsLoading, setLogsLoading] = useState(false);
+  const [selectedLogs, setSelectedLogs] = useState<string>("");
+
   // Modal States
   const { isOpen: isDetailsOpen, onOpen: onDetailsOpen, onClose: onDetailsClose } = useDisclosure();
   const { isOpen: isStatsOpen, onOpen: onStatsOpen, onClose: onStatsClose } = useDisclosure();
@@ -508,6 +514,7 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
           <TableColumn>NAME</TableColumn>
           <TableColumn>READY</TableColumn>
           <TableColumn>STATUS</TableColumn>
+          <TableColumn>STATE</TableColumn>
           <TableColumn>RESTARTS</TableColumn>
           <TableColumn>AGE</TableColumn>
           <TableColumn>NODE</TableColumn>
@@ -523,6 +530,20 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
             const age = formatAge(pod.metadata?.creationTimestamp);
             const node = pod.spec?.nodeName || 'Unknown';
 
+            // Determine state and error message
+            let state = 'Active';
+            let errorMsg = '';
+            if (status.toLowerCase() === 'failed') {
+              state = 'Failed';
+              // Try to get error message from containerStatuses or conditions
+              const containerStatus = pod.status?.containerStatuses?.find((c: any) => c.state?.terminated?.exitCode !== 0);
+              if (containerStatus && containerStatus.state?.terminated?.message) {
+                errorMsg = containerStatus.state.terminated.message;
+              } else if (pod.status?.message) {
+                errorMsg = pod.status.message;
+              }
+            }
+
             return (
               <TableRow key={index}>
                 <TableCell>
@@ -533,6 +554,19 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
                   <Chip color={getStatusColor(status)} size="sm" variant="flat">
                     {status}
                   </Chip>
+                </TableCell>
+                <TableCell>
+                  {state === 'Failed' ? (
+                    <Tooltip content={errorMsg || 'Failed'}>
+                      <Chip color="danger" size="sm" variant="flat">
+                        {state}
+                      </Chip>
+                    </Tooltip>
+                  ) : (
+                    <Chip color="success" size="sm" variant="flat">
+                      {state}
+                    </Chip>
+                  )}
                 </TableCell>
                 <TableCell>
                   {restarts > 0 ? (
@@ -575,6 +609,7 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
                         size="sm"
                         variant="light"
                         color="warning"
+                        onPress={() => handleViewLogsClick(pod)}
                       >
                         <Icon icon="lucide:file-text" />
                       </Button>
@@ -599,6 +634,7 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
           <TableColumn>READY</TableColumn>
           <TableColumn>UP-TO-DATE</TableColumn>
           <TableColumn>AVAILABLE</TableColumn>
+          <TableColumn>STATE</TableColumn>
           <TableColumn>AGE</TableColumn>
           <TableColumn>ACTIONS</TableColumn>
         </TableHeader>
@@ -611,6 +647,19 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
             const available = deployment.status?.availableReplicas || 0;
             const age = formatAge(deployment.metadata?.creationTimestamp);
 
+            // Determine state and error message
+            let state = 'Active';
+            let errorMsg = '';
+            if (available < desired) {
+              state = 'Failed';
+              if (deployment.status?.conditions) {
+                const failedCondition = deployment.status.conditions.find((c: any) => c.status === 'False' && c.type === 'Available');
+                if (failedCondition && failedCondition.message) {
+                  errorMsg = failedCondition.message;
+                }
+              }
+            }
+
             return (
               <TableRow key={index}>
                 <TableCell>
@@ -619,6 +668,19 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
                 <TableCell>{ready}/{desired}</TableCell>
                 <TableCell>{upToDate}</TableCell>
                 <TableCell>{available}</TableCell>
+                <TableCell>
+                  {state === 'Failed' ? (
+                    <Tooltip content={errorMsg || 'Failed'}>
+                      <Chip color="danger" size="sm" variant="flat">
+                        {state}
+                      </Chip>
+                    </Tooltip>
+                  ) : (
+                    <Chip color="success" size="sm" variant="flat">
+                      {state}
+                    </Chip>
+                  )}
+                </TableCell>
                 <TableCell>{age}</TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
@@ -955,16 +1017,17 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
                         <Icon icon="lucide:calendar" />
                       </Button>
                     </Tooltip>
-                    <Tooltip content="View Logs">
-                      <Button
-                        isIconOnly
-                        size="sm"
-                        variant="light"
-                        color="warning"
-                      >
-                        <Icon icon="lucide:file-text" />
-                      </Button>
-                    </Tooltip>
+                <Tooltip content="View Logs">
+                  <Button
+                    isIconOnly
+                    size="sm"
+                    variant="light"
+                    color="warning"
+                    onPress={() => handleViewLogsClick(job)}
+                  >
+                    <Icon icon="lucide:file-text" />
+                  </Button>
+                </Tooltip>
                   </div>
                 </TableCell>
               </TableRow>
@@ -1059,6 +1122,42 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
     );
   };
 
+  // Handler for View Logs button
+  const handleViewLogsClick = async (workload: any) => {
+    setLogsLoading(true);
+    setIsLogsOpen(true);
+    setSelectedLogs("");
+
+    try {
+      // Fetch logs for the workload - example command, adjust as needed
+      const response = await fetch(`${API_BASE_URL}/execute-kubectl-direct/${selectedClusterId}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${getAuthToken()}`
+        },
+        body: JSON.stringify({
+          command: `kubectl logs ${workload.metadata?.name} -n ${selectedNamespace} --tail=100`
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch logs: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      if (data.success && data.output) {
+        setSelectedLogs(data.output);
+      } else {
+        setSelectedLogs("No logs available.");
+      }
+    } catch (err: any) {
+      setSelectedLogs(`Error fetching logs: ${err.message}`);
+    } finally {
+      setLogsLoading(false);
+    }
+  };
+
   // Main tab content renderer
   const renderTabContent = () => {
     switch (selectedTab) {
@@ -1143,8 +1242,8 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
     );
   };
 
-  // Workload type cards renderer
-  const renderWorkloadTypeCards = () => {
+  // Workload type cards renderer pods, deployments, services, statefulsets, daemonsets, jobs, cronjobs
+const renderWorkloadTypeCards = () => {
     const workloadTypes = [
       { key: 'pods', label: 'Pods', icon: 'lucide:box', color: 'primary' },
       { key: 'deployments', label: 'Deployments', icon: 'lucide:layers', color: 'secondary' },
@@ -1160,25 +1259,24 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-6"
+        className="grid grid-cols-3 md:grid-cols-6 lg:grid-cols-7 gap-2 mb-6"
+
+
       >
         {workloadTypes.map((type) => (
-          <motion.div key={type.key} variants={itemVariants}>
+          <motion.div key={type.key} variants={itemVariants} className="w-full max-w-[120px]">
             <Card 
-              className={`cursor-pointer transition-all duration-200 hover:scale-105 ${
+              className={`cursor-pointer transition-all duration-200 ${
                 selectedTab === type.key ? 'ring-2 ring-primary' : ''
               }`}
               isPressable
               onPress={() => setSelectedTab(type.key)}
+              style={{ width: '100%', height: '100px'  }}
             >
-              <CardBody className="text-center p-4">
-                <div className="flex flex-col items-center gap-2">
-                  <Icon icon={type.icon} className={`text-3xl text-${type.color}`} />
-                  <div>
-                    <p className="text-2xl font-bold">{getWorkloadCount(type.key)}</p>
-                    <p className="text-sm text-foreground-500">{type.label}</p>
-                  </div>
-                </div>
+              <CardBody className="text-center p-3 flex flex-col items-center justify-center gap-1">
+                <Icon icon={type.icon} className={`text-2xl text-${type.color}`} />
+                <p className="text-xl font-bold">{getWorkloadCount(type.key)}</p>
+                <p className="text-xs text-foreground-500">{type.label}</p>
               </CardBody>
             </Card>
           </motion.div>
@@ -1285,7 +1383,7 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
                       const cluster = clusters.find(c => c.id.toString() === item.key);
                       return (
                         <div key={item.key} className="flex items-center gap-2">
-                          <Icon icon={getProviderIcon(cluster?.provider_name || "")} className="text-lg" />
+                          {/* <Icon icon={getProviderIcon(cluster?.provider_name || "")} className="text-lg" /> */}
                           <span className="font-medium">{cluster?.cluster_name}</span>
                         </div>
                       );
@@ -1323,7 +1421,7 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
                   renderValue={(items) => {
                     return items.map((item) => (
                       <div key={item.key} className="flex items-center gap-2">
-                        <Icon icon="lucide:folder" className="text-warning" />
+                        {/* <Icon icon="lucide:folder" className="text-warning" /> */}
 
                         <span>{item.key.toString()}</span>
                       </div>
@@ -1365,14 +1463,14 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
                   </Button>
                 </Tooltip>
                 <Tooltip content="Grid View">
-                  <Button
+                  {/* <Button
                     isIconOnly
                     variant={viewMode === 'grid' ? 'solid' : 'light'}
                     color="primary"
                     onPress={() => setViewMode('grid')}
                   >
                     <Icon icon="lucide:grid-3x3" />
-                  </Button>
+                  </Button> */}
                 </Tooltip>
               </div>
 
@@ -1695,6 +1793,46 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
         </ModalContent>
       </Modal>
 
+      {/* Logs Modal */}
+      <Modal
+        isOpen={isLogsOpen}
+        onClose={() => setIsLogsOpen(false)}
+        size="5xl"
+        scrollBehavior="inside"
+        backdrop="blur"
+      >
+        <ModalContent>
+          <ModalHeader className="flex items-center gap-3">
+            <Icon icon="lucide:file-text" className="text-2xl text-primary" />
+            <div>
+              <h3 className="text-xl font-semibold">Workload Logs</h3>
+              <p className="text-sm text-foreground-500">
+                Logs for selected workload in {selectedNamespace}
+              </p>
+            </div>
+          </ModalHeader>
+          <ModalBody>
+            {logsLoading ? (
+              <div className="flex items-center justify-center h-64">
+                <div className="text-center">
+                  <Spinner size="lg" color="primary" />
+                  <p className="mt-4 text-foreground-500">Loading logs...</p>
+                </div>
+              </div>
+            ) : (
+              <pre className="text-sm bg-content2 p-4 rounded overflow-auto whitespace-pre-wrap">
+                {selectedLogs}
+              </pre>
+            )}
+          </ModalBody>
+          <ModalFooter>
+            <Button color="danger" variant="light" onPress={() => setIsLogsOpen(false)}>
+              Close
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
       {/* Workload Details Modal */}
       <Modal
         isOpen={isDetailsOpen}
@@ -1865,7 +2003,12 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
                   <h4 className="text-lg font-semibold">Overall Statistics</h4>
                 </CardHeader>
                 <CardBody>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <motion.div
+                    variants={containerVariants}
+                    initial="hidden"
+                    animate="visible"
+                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6"
+                  >
                     {(() => {
                       const stats = getWorkloadStats();
                       return [
@@ -1873,15 +2016,26 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
                         { label: 'Running', value: stats.running, color: 'success', icon: 'lucide:play-circle' },
                         { label: 'Pending', value: stats.pending, color: 'warning', icon: 'lucide:clock' },
                         { label: 'Failed', value: stats.failed, color: 'danger', icon: 'lucide:x-circle' }
-                      ].map((stat) => (
-                        <div key={stat.label} className="text-center">
-                          <Icon icon={stat.icon} className={`text-3xl text-${stat.color} mb-2`} />
-                          <p className={`text-2xl font-bold text-${stat.color}`}>{stat.value}</p>
-                          <p className="text-sm text-foreground-500">{stat.label}</p>
-                        </div>
+                      ].map((stat, index) => (
+                        <motion.div
+                          key={stat.label}
+                          variants={itemVariants}
+                          style={{ animationDelay: `${index * 0.1}s` }}
+                          className="text-center"
+                        >
+                          <Card className={`border-l-4 border-l-${stat.color}`}>
+                            <CardBody className="flex flex-row items-center justify-between p-4">
+                              <div>
+                                <p className="text-sm text-foreground-500">{stat.label}</p>
+                                <p className={`text-2xl font-bold text-${stat.color}`}>{stat.value}</p>
+                              </div>
+                              <Icon icon={stat.icon} className={`text-3xl text-${stat.color}`} />
+                            </CardBody>
+                          </Card>
+                        </motion.div>
                       ));
                     })()}
-                  </div>
+                  </motion.div>
                 </CardBody>
               </Card>
 

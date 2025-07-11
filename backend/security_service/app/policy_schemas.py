@@ -82,6 +82,7 @@ class PolicyApplicationRequest(BaseModel):
     cluster_name: str
     policy_id: str  # The policy's policy_id (not database id)
     kubernetes_namespace: Optional[str] = None  # Make it optional for cluster-level policies
+    edited_yaml: Optional[str] = None  # Add this field for edited YAML content
 
 class PolicyApplicationResponse(BaseModel):
     id: int

@@ -50,7 +50,7 @@ export const LoginPage: React.FC<{ onLogin?: (username: string, password: string
     setIsLoading(true);
  
     try {
-      const response = await fetch("https://10.0.32.103:8001/auth/token", {
+      const response = await fetch("https://10.0.32.106:8001/auth/token", {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded"
@@ -67,7 +67,7 @@ export const LoginPage: React.FC<{ onLogin?: (username: string, password: string
         localStorage.setItem("refresh_token", data.refresh_token);
 
         // Fetch user info to get roles
-        const userRes = await fetch("https://10.0.32.103:8001/users/me", {
+        const userRes = await fetch("https://10.0.32.106:8001/users/me", {
           headers: {
             "Authorization": `Bearer ${data.access_token}`,
             "accept": "application/json"
