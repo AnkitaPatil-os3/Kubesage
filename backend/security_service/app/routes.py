@@ -18,7 +18,7 @@ from typing import Optional, List
 from app.policy_schemas import (
     PolicyResponse, PolicyCreate, PolicyUpdate, PolicyCategoryResponse,
     PolicyListResponse, PolicyApplicationRequest, PolicyApplicationResponse,
-    PolicyApplicationListResponse, ClusterPolicyOverview
+    PolicyApplicationListResponse, ClusterPolicyOverview, PolicyEditableResponse
 )
 from app.policy_service import policy_db_service
 from app.database import get_db
@@ -562,3 +562,131 @@ async def get_applied_policies_for_cluster(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@policy_router.get("/{policy_id}/editable", response_model=APIResponse)
+async def get_policy_for_editing(
+    policy_id: str = Path(..., description="Policy ID"),
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Get policy with editable fields highlighted for editing"""
+    try:
+        logger.info(f"User {current_user.get('username', 'unknown')} requested editable policy: {policy_id}")
+        
+        policy_editable = policy_db_service.get_policy_for_editing(db, policy_id)
+        
+        if not policy_editable:
+            raise HTTPException(status_code=404, detail="Policy not found")
+        
+        return APIResponse(
+            success=True,
+            message=f"Retrieved editable policy '{policy_id}' with {len(policy_editable.editable_fields)} editable fields",
+            data=policy_editable,
+            timestamp=datetime.now().isoformat()
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting editable policy: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@policy_router.get("/applications/edited", response_model=APIResponse)
+async def get_edited_policy_applications(
+    cluster_name: Optional[str] = Query(None, description="Filter by cluster name"),
+    page: int = Query(1, ge=1, description="Page number"),
+    size: int = Query(10, ge=1, le=100, description="Page size"),
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Get only edited policy applications for the current user"""
+    try:
+        user_id = current_user.get('user_id', current_user.get('id', 1))
+        
+        logger.info(f"User {current_user.get('username', 'unknown')} requested edited policy applications")
+        
+        # Build query for edited policies only
+        query = db.query(PolicyApplicationModel).filter(
+            and_(
+                PolicyApplicationModel.user_id == user_id,
+                PolicyApplicationModel.is_edited == True
+            )
+        )
+        
+        # Apply cluster filter if provided
+        if cluster_name:
+            query = query.filter(PolicyApplicationModel.cluster_name == cluster_name)
+        
+        total = query.count()
+        applications = query.offset((page - 1) * size).limit(size).all()
+        
+        application_responses = []
+        for app in applications:
+            try:
+                response = policy_db_service._convert_application_to_response(db, app)
+                application_responses.append(response)
+            except Exception as e:
+                logger.error(f"Error converting application {app.id} to response: {e}")
+                continue
+        
+        total_pages = (total + size - 1) // size if total > 0 else 0
+        
+        result = {
+            "applications": application_responses,
+            "total": len(application_responses),
+            "page": page,
+            "size": size,
+            "total_pages": total_pages
+        }
+        
+        return APIResponse(
+            success=True,
+            message=f"Retrieved {len(application_responses)} edited policy applications",
+            data=result,
+            timestamp=datetime.now().isoformat()
+        )
+        
+    except Exception as e:
+        logger.error(f"Error getting edited policy applications: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@policy_router.get("/applications/{application_id}/yaml-comparison", response_model=APIResponse)
+async def get_yaml_comparison(
+    application_id: int = Path(..., description="Policy application ID"),
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Get comparison between original and edited YAML for a policy application"""
+    try:
+        user_id = current_user.get('user_id', current_user.get('id', 1))
+        
+        application = db.query(PolicyApplicationModel).filter(
+            and_(
+                PolicyApplicationModel.id == application_id,
+                PolicyApplicationModel.user_id == user_id
+            )
+        ).first()
+        
+        if not application:
+            raise HTTPException(status_code=404, detail="Policy application not found")
+        
+        comparison_data = {
+            "application_id": application_id,
+            "policy_id": application.policy_id,
+            "cluster_name": application.cluster_name,
+            "is_edited": getattr(application, 'is_edited', False),
+            "original_yaml": getattr(application, 'original_yaml', ''),
+            "applied_yaml": application.applied_yaml,
+            "status": application.status.value if hasattr(application.status, 'value') else str(application.status)
+        }
+        
+        return APIResponse(
+            success=True,
+            message=f"Retrieved YAML comparison for application {application_id}",
+            data=comparison_data,
+            timestamp=datetime.now().isoformat()
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting YAML comparison: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

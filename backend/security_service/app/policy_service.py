@@ -11,6 +11,7 @@ from datetime import datetime
 import tempfile
 import base64
 import os
+import re
 from fastapi import Request
 
 from app.models import (
@@ -21,7 +22,8 @@ from app.policy_schemas import (
     PolicyApplicationRequest, PolicyApplicationResponse, 
     PolicyApplicationListResponse, ClusterInfo, ClusterPolicyOverview,
     ApplicationStatus as SchemaApplicationStatus,
-    PolicyCategoryResponse, PolicyResponse, PolicyCreate, PolicyUpdate
+    PolicyCategoryResponse, PolicyResponse, PolicyCreate, PolicyUpdate,
+    PolicyEditableResponse, EditableField
 )
 from app.logger import logger
 
@@ -30,6 +32,56 @@ class PolicyDatabaseService:
         self.policy_data = self._get_all_policy_data()
         # Get kubeconfig service URL from environment or use default
         self.kubeconfig_service_url = os.getenv("KUBECONFIG_SERVICE_URL", "https://10.0.32.106:8002")
+
+    def extract_editable_fields(self, yaml_content: str) -> List[EditableField]:
+        """Extract editable fields from YAML content marked with ##editable"""
+        editable_fields = []
+        lines = yaml_content.split('\n')
+        
+        for i, line in enumerate(lines):
+            if '##editable' in line:
+                # Remove the ##editable comment to get the actual line
+                clean_line = line.split('##editable')[0].strip()
+                
+                # Extract field name and value
+                if ':' in clean_line:
+                    parts = clean_line.split(':', 1)
+                    field_name = parts[0].strip()
+                    current_value = parts[1].strip().strip('"\'')
+                    
+                    # Determine field type
+                    field_type = "string"
+                    if current_value.lower() in ['true', 'false']:
+                        field_type = "boolean"
+                    elif current_value.startswith('[') and current_value.endswith(']'):
+                        field_type = "array"
+                    elif current_value.isdigit():
+                        field_type = "number"
+                    
+                    editable_fields.append(EditableField(
+                        line_number=i + 1,
+                        field_name=field_name,
+                        current_value=current_value,
+                        field_type=field_type
+                    ))
+        
+        return editable_fields
+    
+    def get_policy_for_editing(self, db: Session, policy_id: str) -> Optional[PolicyEditableResponse]:
+        """Get policy with editable fields highlighted"""
+        policy = db.query(PolicyModel).filter(PolicyModel.policy_id == policy_id).first()
+        
+        if not policy:
+            return None
+        
+        editable_fields = self.extract_editable_fields(policy.yaml_content)
+        
+        return PolicyEditableResponse(
+            policy_id=policy.policy_id,
+            name=policy.name,
+            yaml_content=policy.yaml_content,
+            editable_fields=editable_fields
+        )
     
     def _get_all_policy_data(self) -> Dict[str, List[Dict]]:
         """Get all predefined policy data organized by category"""
@@ -370,7 +422,7 @@ spec:
         pattern:
           spec:
             containers:
-              - image: "!*:latest"  ## editable""",  # editing - updated YAML
+              - image: "!*:latest" """,  # editing - updated YAML
                 "policy_metadata": {"type": "validation", "kubernetes_resources": ["Pod"]}
             },
             {
@@ -1299,6 +1351,7 @@ spec:
         
         # 3. Use edited YAML if provided, otherwise use original
         yaml_to_apply = request.edited_yaml if request.edited_yaml else policy.yaml_content
+        is_edited = bool(request.edited_yaml)
         
         # 4. Create application record
         application = PolicyApplicationModel(
@@ -1308,7 +1361,9 @@ spec:
             policy_id=policy.id,
             status=ApplicationStatus.PENDING,
             kubernetes_namespace=request.kubernetes_namespace or "cluster-wide",
-            applied_yaml=yaml_to_apply  # Store the actual YAML that was applied
+            applied_yaml=yaml_to_apply,  # Store the actual YAML that was applied
+            original_yaml=policy.yaml_content,  # Store original YAML
+            is_edited=is_edited  # Track if policy was edited
         )
         
         db.add(application)
@@ -1335,11 +1390,11 @@ spec:
             application.status = ApplicationStatus.APPLIED
             application.applied_at = datetime.now()
             application.kubernetes_name = resource_name
-            application.application_log = f"Successfully applied {'edited ' if request.edited_yaml else ''}policy to cluster {request.cluster_name}"
+            application.application_log = f"Successfully applied {'edited ' if is_edited else ''}policy to cluster {request.cluster_name}"
             
             db.commit()
             
-            logger.info(f"Successfully applied {'edited ' if request.edited_yaml else ''}policy {request.policy_id} to cluster {request.cluster_name}")
+            logger.info(f"Successfully applied {'edited ' if is_edited else ''}policy {request.policy_id} to cluster {request.cluster_name}")
             
         except Exception as e:
             # 9. Update application record with failure
@@ -1348,12 +1403,85 @@ spec:
             application.application_log = f"Failed to apply policy: {str(e)}"
             
             db.commit()
-            
             logger.error(f"Failed to apply policy {request.policy_id} to cluster {request.cluster_name}: {e}")
             raise
         
         # 10. Return response
         return self._convert_application_to_response(db, application)
+
+    def _convert_application_to_response(
+        self, 
+        db: Session, 
+        application: PolicyApplicationModel
+    ) -> PolicyApplicationResponse:
+        """Convert database model to response schema with proper error handling"""
+        
+        try:
+            # Get policy details
+            policy = db.query(PolicyModel).filter(PolicyModel.id == application.policy_id).first()
+            policy_response = None
+            
+            if policy:
+                # Get category safely
+                category = None
+                if hasattr(policy, 'category') and policy.category:
+                    category = PolicyCategoryResponse(
+                        id=policy.category.id,
+                        name=policy.category.name,
+                        display_name=policy.category.display_name,
+                        description=policy.category.description,
+                        icon=policy.category.icon,
+                        created_at=policy.category.created_at,
+                        updated_at=policy.category.updated_at,
+                        policy_count=0
+                    )
+                
+                policy_response = PolicyResponse(
+                    id=policy.id,
+                    policy_id=policy.policy_id,
+                    name=policy.name,
+                    description=policy.description,
+                    purpose=policy.purpose,
+                    severity=policy.severity,
+                    yaml_content=policy.yaml_content,
+                    policy_metadata=policy.policy_metadata,
+                    tags=policy.tags,
+                    is_active=policy.is_active,
+                    category_id=policy.category_id,
+                    category=category,
+                    created_at=policy.created_at,
+                    updated_at=policy.updated_at
+                )
+            
+            # Convert enum status safely
+            status_value = application.status.value if hasattr(application.status, 'value') else str(application.status)
+            
+            return PolicyApplicationResponse(
+                id=application.id,
+                user_id=application.user_id,
+                cluster_id=application.cluster_id,
+                cluster_name=application.cluster_name,
+                policy_id=application.policy_id,
+                policy=policy_response,
+                status=SchemaApplicationStatus(status_value),
+                applied_yaml=application.applied_yaml,
+                application_log=application.application_log,
+                error_message=application.error_message,
+                kubernetes_name=application.kubernetes_name,
+                kubernetes_namespace=application.kubernetes_namespace,
+                is_edited=getattr(application, 'is_edited', False),  # Add this field
+                created_at=application.created_at,
+                applied_at=application.applied_at,
+                updated_at=application.updated_at
+            )
+            
+        except Exception as e:
+            logger.error(f"Error converting application {application.id}: {str(e)}")
+            raise Exception(f"Policy not found for application {application.id}")
+
+
+
+
 
 
 

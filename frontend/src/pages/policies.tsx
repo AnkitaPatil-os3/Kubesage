@@ -12,12 +12,14 @@ import {
     Filter,
     ChevronDown,
     ChevronRight,
+    ChevronLeft,
     X,
     Check,
     AlertTriangle,
     Info,
     Loader2,
     FileText,
+    Edit,
     Edit3,
     Save,
     Copy,
@@ -103,25 +105,51 @@ interface Policy {
     category_id: number;
     created_at: string;
     updated_at: string;
+    category?: PolicyCategory;
 }
 
 interface PolicyApplication {
     id: number;
+    user_id: number;
+    cluster_id: number;
     cluster_name: string;
-    policy_id: string;
-    policy_name: string;
-    status: 'PENDING' | 'APPLYING' | 'APPLIED' | 'FAILED';
-    kubernetes_namespace: string;
-    applied_at: string;
-    error_message?: string;
+    policy_id: number;
+    policy?: Policy;
+    status: 'PENDING' | 'APPLYING' | 'APPLIED' | 'FAILED' | 'REMOVED' | 'pending' | 'applying' | 'applied' | 'failed' | 'removed';
+    applied_yaml?: string;
+    original_yaml?: string;
+    is_edited?: boolean;
     application_log?: string;
+    error_message?: string;
+    kubernetes_name?: string;
+    kubernetes_namespace: string;
+    created_at: string;
+    applied_at?: string;
+    updated_at?: string;
+    policy_name?: string;
+    policy_severity?: string;
+}
+
+interface ClusterOverview {
+    cluster: {
+        id: number;
+        cluster_name: string;
+        server_url: string;
+        provider_name?: string;
+        is_accessible: boolean;
+    };
+    total_applications: number;
+    applied_count: number;
+    failed_count: number;
+    pending_count: number;
+    categories_applied: string[];
 }
 
 interface PoliciesProps {
     selectedCluster: string;
 }
 
-export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
+const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
     // State
     const [clusters, setClusters] = useState<Cluster[]>([]);
     const [categories, setCategories] = useState<PolicyCategory[]>([]);
@@ -136,7 +164,7 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
     const [applyingPolicy, setApplyingPolicy] = useState<string | null>(null);
     const [availablePolicies, setAvailablePolicies] = useState<Policy[]>([]);
     const [appliedPoliciesForCluster, setAppliedPoliciesForCluster] = useState<PolicyApplication[]>([]);
-    const [clusterOverview, setClusterOverview] = useState<any>(null);
+    const [clusterOverview, setClusterOverview] = useState<ClusterOverview[]>([]);
 
     // Modal states
     const [showPolicyModal, setShowPolicyModal] = useState(false);
@@ -144,6 +172,13 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
     const [editedYaml, setEditedYaml] = useState('');
     const [showConfirmDialog, setShowConfirmDialog] = useState(false);
     const [showStatsModal, setShowStatsModal] = useState(false);
+    const [showYamlModal, setShowYamlModal] = useState(false);
+    const [selectedYamlContent, setSelectedYamlContent] = useState<string>('');
+    const [showRemoveModal, setShowRemoveModal] = useState(false);
+    const [removeModalData, setRemoveModalData] = useState<{ applicationId: number, policyName: string } | null>(null);
+    const [removingPolicy, setRemovingPolicy] = useState(false);
+    const [showYamlComparisonModal, setShowYamlComparisonModal] = useState(false);
+    const [selectedApplicationForComparison, setSelectedApplicationForComparison] = useState<PolicyApplication | null>(null);
 
     // Search and filters
     const [searchTerm, setSearchTerm] = useState('');
@@ -158,9 +193,16 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
     const [totalPages, setTotalPages] = useState(1);
     const pageSize = 12;
 
-    // Add these new state variables at the top with other state declarations
+    // Editable fields state
     const [editableFields, setEditableFields] = useState<{ [key: string]: string }>({});
     const [originalYaml, setOriginalYaml] = useState('');
+
+
+    const [applicationsLoading, setApplicationsLoading] = useState(false);
+    const [filteredApplications, setFilteredApplications] = useState<PolicyApplication[]>([]);
+    const [totalPolicies, setTotalPolicies] = useState(0);
+
+    const [refreshing, setRefreshing] = useState(false);
 
     // Stats
     const [stats, setStats] = useState({
@@ -176,40 +218,29 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
     const POLICIES_API = 'https://10.0.32.106:8005/api/v1/policies';
 
 
-    // Make this function available globally for the modal
-    window.handleRemovePolicyConfirmed = async (applicationId: number) => {
-        try {
-            const response = await fetch(`${POLICIES_API}/applications/${applicationId}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-                    'Content-Type': 'application/json'
-                }
-            });
 
-            const data = await response.json();
-
-            if (data.success) {
-                showToast('Policy removed successfully from cluster', 'success');
-                // Refresh the applications list
-                fetchApplications();
-            } else {
-                showToast(data.message || 'Failed to remove policy', 'error');
+    // Helper functions
+    const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+        const toast = document.createElement('div');
+        toast.className = `fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg ${type === 'success' ? 'bg-green-500 text-white' :
+            type === 'error' ? 'bg-red-500 text-white' :
+                'bg-blue-500 text-white'
+            }`;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        setTimeout(() => {
+            if (document.body.contains(toast)) {
+                document.body.removeChild(toast);
             }
-        } catch (error) {
-            console.error('Error removing policy:', error);
-            showToast('Failed to remove policy from cluster', 'error');
-        }
+        }, 3000);
     };
 
-    // Add this helper function to extract editable fields from YAML
     const extractEditableFields = (yamlContent: string) => {
         const lines = yamlContent.split('\n');
         const fields: { [key: string]: string } = {};
 
         lines.forEach((line, index) => {
             if (line.includes('##editable')) {
-                // Extract the field name and value
                 const cleanLine = line.replace(/##editable.*$/, '').trim();
                 const colonIndex = cleanLine.lastIndexOf(':');
                 if (colonIndex !== -1) {
@@ -224,7 +255,6 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
         return fields;
     };
 
-    // Add this helper function to reconstruct YAML with edited values
     const reconstructYamlWithEdits = (originalYaml: string, editedFields: { [key: string]: string }) => {
         const lines = originalYaml.split('\n');
 
@@ -237,7 +267,6 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                     const fieldKey = `line_${index}_${fieldName.replace(/\s+/g, '_')}`;
 
                     if (editedFields[fieldKey] !== undefined) {
-                        // Preserve indentation
                         const indentation = line.match(/^\s*/)?.[0] || '';
                         const comment = line.match(/##editable.*$/)?.[0] || '';
                         lines[index] = `${indentation}${fieldName}: "${editedFields[fieldKey]}" ${comment}`;
@@ -249,235 +278,68 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
         return lines.join('\n');
     };
 
+    const showYamlModalHandler = (application: PolicyApplication) => {
+        setSelectedYamlContent(application.applied_yaml || '');
+        setShowYamlModal(true);
+    };
 
     const showRemoveConfirmModal = (applicationId: number, policyName: string) => {
-        const modal = document.createElement('div');
-        modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
-        modal.innerHTML = `
-        <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
-            <div class="flex items-center mb-4">
-                <div class="flex-shrink-0 w-10 h-10 mx-auto bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center">
-                    <svg class="w-6 h-6 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
-                    </svg>
-                </div>
-            </div>
-            <div class="text-center">
-                <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">Remove Policy</h3>
-                <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">
-                    Are you sure you want to remove the policy "<strong>${policyName}</strong>" from the cluster? This action cannot be undone.
-                </p>
-                <div class="flex space-x-3">
-                    <button 
-                        onclick="this.closest('.fixed').remove()" 
-                        class="flex-1 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                    >
-                        Cancel
-                    </button>
-                    <button 
-                        onclick="handleRemovePolicyConfirmed(${applicationId}); this.closest('.fixed').remove()" 
-                        class="flex-1 px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                    >
-                        Remove
-                    </button>
-                </div>
-            </div>
-        </div>
-    `;
-        document.body.appendChild(modal);
+        setRemoveModalData({ applicationId, policyName });
+        setShowRemoveModal(true);
     };
 
-
-
-
-    const showYamlModal = (app: PolicyApplication & { yaml?: string }) => {
-        // Create a modal to show YAML content
-        const modal = document.createElement('div');
-        modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
-
-        // Get YAML content - try different possible field names
-        const yamlContent = app.applied_yaml || app.yaml || 'YAML content not available';
-
-        modal.innerHTML = `
-        <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-4xl max-h-[80vh] overflow-auto">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Applied YAML - ${app.policy?.name || app.policy_name}</h3>
-                <button class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" onclick="this.closest('.fixed').remove()">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                </button>
-            </div>
-            <pre class="bg-gray-100 dark:bg-gray-900 p-4 rounded-lg overflow-auto text-sm font-mono whitespace-pre-wrap"><code>${yamlContent}</code></pre>
-        </div>
-    `;
-        document.body.appendChild(modal);
-    };
-
-
-    // Fetch functions
-    const fetchAvailablePoliciesForCluster = async (clusterName: string) => {
-        if (!clusterName) return;
-
+    const showYamlComparisonModalHandler = async (application: PolicyApplication) => {
         try {
-            const params = new URLSearchParams({
-                page: '1',
-                size: '50'
-            });
-            if (selectedCategory) {
-                params.append('category', selectedCategory);
-            }
-
-            const response = await fetch(`${POLICIES_API}/clusters/${clusterName}/available-policies?${params}`, {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-                }
-            });
-
-            const contentType = response.headers.get('content-type');
-            if (!contentType || !contentType.includes('application/json')) {
-                console.warn('Available policies service not available');
-                return;
-            }
-
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-
-            const data = await response.json();
-            if (data.success && data.data) {
-                setAvailablePolicies(data.data.policies);
+            const comparisonData = await fetchYamlComparison(application.id);
+            if (comparisonData) {
+                setSelectedApplicationForComparison({
+                    ...application,
+                    original_yaml: comparisonData.original_yaml,
+                    applied_yaml: comparisonData.applied_yaml
+                });
+                setShowYamlComparisonModal(true);
             }
         } catch (error) {
-            console.error('Error fetching available policies:', error);
+            console.error('Error fetching YAML comparison:', error);
+            showToast('Failed to load YAML comparison', 'error');
         }
     };
 
-    const fetchAppliedPoliciesForCluster = async (clusterName: string) => {
-        if (!clusterName) return;
+    const handleRemovePolicy = async () => {
+        if (!removeModalData) return;
 
+        setRemovingPolicy(true);
         try {
-            const params = new URLSearchParams({
-                page: '1',
-                size: '50'
-            });
-            if (statusFilter) {
-                params.append('status', statusFilter);
-            }
-
-            const response = await fetch(`${POLICIES_API}/clusters/${clusterName}/applied-policies?${params}`, {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-                }
-            });
-
-            const contentType = response.headers.get('content-type');
-            if (!contentType || !contentType.includes('application/json')) {
-                console.warn('Applied policies service not available');
-                return;
-            }
-
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-
-            const data = await response.json();
-            if (data.success && data.data) {
-                setAppliedPoliciesForCluster(data.data.applications);
-            }
-        } catch (error) {
-            console.error('Error fetching applied policies:', error);
-        }
-    };
-
-    const fetchClusterOverview = async () => {
-        try {
-            const response = await fetch(`${POLICIES_API}/clusters/overview`, {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-                }
-            });
-
-            const contentType = response.headers.get('content-type');
-            if (!contentType || !contentType.includes('application/json')) {
-                console.warn('Cluster overview service not available');
-                return;
-            }
-
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-
-            const data = await response.json();
-            if (data.success && data.data) {
-                setClusterOverview(data.data);
-            }
-        } catch (error) {
-            console.error('Error fetching cluster overview:', error);
-        }
-    };
-
-    const fetchPolicyApplicationDetails = async (applicationId: number) => {
-        try {
-            const response = await fetch(`${POLICIES_API}/applications/${applicationId}`, {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-                }
-            });
-
-            const contentType = response.headers.get('content-type');
-            if (!contentType || !contentType.includes('application/json')) {
-                throw new Error('Policy application service not available');
-            }
-
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-
-            const data = await response.json();
-            if (data.success && data.data) {
-                return data.data;
-            }
-        } catch (error) {
-            console.error('Error fetching policy application details:', error);
-            throw error;
-        }
-    };
-
-    const removePolicyFromCluster = async (applicationId: number) => {
-        try {
-            const response = await fetch(`${POLICIES_API}/applications/${applicationId}`, {
+            const response = await fetch(`${POLICIES_API}/applications/${removeModalData.applicationId}`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
                 }
             });
 
-            const contentType = response.headers.get('content-type');
-            if (!contentType || !contentType.includes('application/json')) {
-                throw new Error('Policy removal service not available');
-            }
-
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-
             const data = await response.json();
+
             if (data.success) {
-                showToast('Policy removed successfully', 'success');
-                fetchAppliedPoliciesForCluster(selectedClusterName);
-                fetchAvailablePoliciesForCluster(selectedClusterName);
-                return data.data;
+                showToast('Policy removed successfully from cluster', 'success');
+                fetchApplications();
+                if (selectedClusterName) {
+                    fetchAvailablePoliciesForCluster(selectedClusterName);
+                    fetchAppliedPoliciesForCluster(selectedClusterName);
+                }
+                setShowRemoveModal(false);
+                setRemoveModalData(null);
             } else {
-                throw new Error(data.message || 'Failed to remove policy');
+                showToast(data.message || 'Failed to remove policy', 'error');
             }
         } catch (error) {
             console.error('Error removing policy:', error);
-            showToast('Failed to remove policy', 'error');
-            throw error;
+            showToast('Failed to remove policy from cluster', 'error');
+        } finally {
+            setRemovingPolicy(false);
         }
     };
 
+    // API Functions
     const fetchClusters = async () => {
         try {
             const response = await fetch(`${KUBECONFIG_API}/clusters`, {
@@ -507,7 +369,6 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                 }
             });
 
-            // Check if response is HTML (404 page)
             const contentType = response.headers.get('content-type');
             if (!contentType || !contentType.includes('application/json')) {
                 throw new Error('Security service not available. Please ensure the backend is running on port 8005.');
@@ -539,6 +400,11 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                     'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
                 }
             });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
             const data = await response.json();
             if (data.success && data.data) {
                 setPolicies(data.data.policies);
@@ -554,18 +420,14 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
     };
 
     const fetchApplications = async () => {
+        setApplicationsLoading(true);
         try {
             const requestBody = {
                 page: 1,
-                size: 100
+                size: 100,
+                cluster_name: selectedClusterName || undefined,
+                status: statusFilter || undefined
             };
-
-            if (selectedClusterName) {
-                requestBody.cluster_name = selectedClusterName;
-            }
-            if (statusFilter) {
-                requestBody.status = statusFilter;
-            }
 
             const response = await fetch(`${POLICIES_API}/applications/list`, {
                 method: 'POST',
@@ -576,11 +438,10 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                 body: JSON.stringify(requestBody)
             });
 
-            // Check if response is HTML (404 page)
             const contentType = response.headers.get('content-type');
             if (!contentType || !contentType.includes('application/json')) {
                 console.warn('Policy applications service not available');
-                return; // Don't show error for applications as it's optional
+                return;
             }
 
             if (!response.ok) {
@@ -590,13 +451,142 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
             const data = await response.json();
             if (data.success && data.data) {
                 setApplications(data.data.applications);
+                setFilteredApplications(data.data.applications);
             }
         } catch (error) {
             console.error('Error fetching applications:', error);
-            // Don't show toast for applications as it's not critical
+        } finally {
+            setApplicationsLoading(false);
         }
     };
 
+
+    const fetchPolicyById = async (policyId: string) => {
+        try {
+            const response = await fetch(`${POLICIES_API}/${policyId}`, {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            if (data.success && data.data) {
+                return data.data;
+            }
+            return null;
+        } catch (error) {
+            console.error('Error fetching policy by ID:', error);
+            return null;
+        }
+    };
+
+    const fetchEditablePolicy = async (policyId: string) => {
+        try {
+            const response = await fetch(`${POLICIES_API}/${policyId}/editable`, {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            if (data.success && data.data) {
+                return data.data;
+            }
+            return null;
+        } catch (error) {
+            console.error('Error fetching editable policy:', error);
+            return null;
+        }
+    };
+
+    const fetchEditedApplications = async () => {
+        try {
+            const params = new URLSearchParams({
+                page: '1',
+                size: '50'
+            });
+            if (selectedClusterName) {
+                params.append('cluster_name', selectedClusterName);
+            }
+
+            const response = await fetch(`${POLICIES_API}/applications/edited?${params}`, {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            if (data.success && data.data) {
+                return data.data.applications;
+            }
+            return [];
+        } catch (error) {
+            console.error('Error fetching edited applications:', error);
+            return [];
+        }
+    };
+
+    const fetchYamlComparison = async (applicationId: number) => {
+        try {
+            const response = await fetch(`${POLICIES_API}/applications/${applicationId}/yaml-comparison`, {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            if (data.success && data.data) {
+                return data.data;
+            }
+            return null;
+        } catch (error) {
+            console.error('Error fetching YAML comparison:', error);
+            return null;
+        }
+    };
+
+    const fetchClusterOverview = async () => {
+        try {
+            const response = await fetch(`${POLICIES_API}/clusters/overview`, {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+                }
+            });
+
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                console.warn('Cluster overview service not available');
+                return;
+            }
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            if (data.success && data.data) {
+                setClusterOverview(data.data);
+            }
+        } catch (error) {
+            console.error('Error fetching cluster overview:', error);
+        }
+    };
 
     const fetchCategoryStats = async (categoryName: string) => {
         try {
@@ -605,6 +595,11 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                     'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
                 }
             });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
             const data = await response.json();
             if (data.success && data.data) {
                 setStats(data.data);
@@ -614,61 +609,122 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
         }
     };
 
-    const initializePolicies = async () => {
+    const fetchAvailablePoliciesForCluster = async (clusterName: string) => {
         try {
-            const response = await fetch(`${POLICIES_API}/initialize`, {
-                method: 'POST',
+            const response = await fetch(`${POLICIES_API}/clusters/${clusterName}/available-policies?page=1&size=100`, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-                    'Content-Type': 'application/json'
                 }
             });
-
-            // Check if response is HTML (404 page)
-            const contentType = response.headers.get('content-type');
-            if (!contentType || !contentType.includes('application/json')) {
-                throw new Error('Security service not available. Please ensure the backend is running on port 8005.');
-            }
 
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
 
             const data = await response.json();
-            if (data.success) {
-                showToast('Policy database initialized successfully', 'success');
-                fetchCategories();
-            } else {
-                throw new Error(data.message || 'Failed to initialize policies');
+            if (data.success && data.data) {
+                setAvailablePolicies(data.data.policies);
             }
         } catch (error) {
-            console.error('Error initializing policies:', error);
-            showToast('Failed to initialize policies. Please check if the security service is running.', 'error');
+            console.error('Error fetching available policies:', error);
         }
     };
 
-    // Helper function to check if policy is already applied
-    const isPolicyApplied = (policyId: string) => {
-        return appliedPoliciesForCluster.some(
-            app => app.policy_id === policyId &&
-                ['APPLIED', 'APPLYING', 'PENDING'].includes(app.status)
-        );
+    const fetchAppliedPoliciesForCluster = async (clusterName: string) => {
+        try {
+            const response = await fetch(`${POLICIES_API}/clusters/${clusterName}/applied-policies?page=1&size=100`, {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            if (data.success && data.data) {
+                setAppliedPoliciesForCluster(data.data.applications);
+            }
+        } catch (error) {
+            console.error('Error fetching applied policies:', error);
+        }
     };
 
-    const applyPolicy = async (policy: Policy) => {
+    const fetchPolicyApplicationDetails = async (applicationId: number) => {
+        try {
+            const response = await fetch(`${POLICIES_API}/applications/${applicationId}`, {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            if (data.success && data.data) {
+                return data.data;
+            }
+            return null;
+        } catch (error) {
+            console.error('Error fetching policy application details:', error);
+            return null;
+        }
+    };
+
+    const applyPolicy = async (policy: Policy, editedYaml?: string) => {
         if (!selectedClusterName) {
             showToast('Please select a cluster first', 'error');
             return;
         }
 
-        // Check if policy is already applied to this cluster
-        const isAlreadyApplied = appliedPoliciesForCluster.some(
-            app => app.policy_id === policy.policy_id &&
-                ['APPLIED', 'APPLYING', 'PENDING'].includes(app.status)
-        );
+        setApplyingPolicy(policy.policy_id);
+        try {
+            const requestBody = {
+                cluster_name: selectedClusterName,
+                policy_id: policy.policy_id,
+                kubernetes_namespace: "cluster-wide",
+                edited_yaml: editedYaml || undefined
+            };
 
-        if (isAlreadyApplied) {
-            showToast(`Policy "${policy.name}" is already applied or being applied to this cluster`, 'error');
+            const response = await fetch(`${POLICIES_API}/apply`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestBody)
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                showToast(`Policy "${policy.name}" applied successfully to ${selectedClusterName}`, 'success');
+                fetchApplications();
+                fetchAvailablePoliciesForCluster(selectedClusterName);
+                fetchAppliedPoliciesForCluster(selectedClusterName);
+            } else {
+                // Handle specific error cases
+                if (data.message && data.message.includes('already applied')) {
+                    showToast(`Policy "${policy.name}" is already applied to this cluster`, 'error');
+                } else {
+                    showToast(data.message || 'Failed to apply policy', 'error');
+                }
+            }
+        } catch (error) {
+            console.error('Error applying policy:', error);
+            showToast('Failed to apply policy to cluster', 'error');
+        } finally {
+            setApplyingPolicy(null);
+        }
+    };
+
+
+    const applyPolicyWithEdits = async (policy: Policy, editedYaml: string) => {
+        if (!selectedClusterName) {
+            showToast('Please select a cluster first', 'error');
             return;
         }
 
@@ -683,18 +739,18 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                 body: JSON.stringify({
                     cluster_name: selectedClusterName,
                     policy_id: policy.policy_id,
-                    kubernetes_namespace: 'cluster-wide'
+                    kubernetes_namespace: null,
+                    edited_yaml: editedYaml
                 })
             });
 
-            const contentType = response.headers.get('content-type');
-            if (!contentType || !contentType.includes('application/json')) {
-                throw new Error('Policy application service not available');
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
 
             const data = await response.json();
             if (data.success) {
-                showToast(`Policy "${policy.name}" applied successfully!`, 'success');
+                showToast(`Edited policy "${policy.name}" applied successfully!`, 'success');
                 fetchApplications();
                 fetchAppliedPoliciesForCluster(selectedClusterName);
                 fetchAvailablePoliciesForCluster(selectedClusterName);
@@ -703,152 +759,73 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                 if (data.message && data.message.includes('already applied')) {
                     showToast(`Policy "${policy.name}" is already applied to this cluster`, 'error');
                 } else {
-                    showToast(data.message || 'Failed to apply policy', 'error');
+                    showToast(data.message || 'Failed to apply edited policy', 'error');
                 }
             }
         } catch (error) {
-            console.error('Error applying policy:', error);
-            if (error.message.includes('already applied')) {
-                showToast(`Policy "${policy.name}" is already applied to this cluster`, 'error');
-            } else {
-                showToast('Failed to apply policy. Please check if the cluster is accessible.', 'error');
-            }
+
+            console.error('Error applying edited policy:', error);
+            showToast('Failed to apply edited policy', 'error');
         } finally {
             setApplyingPolicy(null);
-            setShowConfirmDialog(false);
         }
     };
-
-    // Add this new function after line 733
-    const applyPolicyToCluster = async (policy: Policy, editedYaml?: string) => {
-        if (!selectedClusterName) {
-            showToast('Please select a cluster first', 'error');
-            return;
-        }
-
-        setApplyingPolicy(policy.policy_id);
-
-        try {
-            const requestBody = {
-                cluster_name: selectedClusterName,
-                policy_id: policy.policy_id,
-                kubernetes_namespace: null,
-                ...(editedYaml && { edited_yaml: editedYaml }) // Include edited YAML if provided
-            };
-
-            const response = await fetch('https://10.0.32.106:8005/api/v1/policies/apply', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-                },
-                body: JSON.stringify(requestBody)
-            });
-
-            if (!response.ok) {
-                throw new Error(`Failed to apply policy: ${response.statusText}`);
-            }
-
-            const result = await response.json();
-
-            if (result.success) {
-                showToast(`Policy "${policy.name}" applied successfully!`, 'success');
-                fetchApplications(); // Refresh applications
-                fetchAppliedPoliciesForCluster(selectedClusterName);
-                fetchAvailablePoliciesForCluster(selectedClusterName);
-            } else {
-                throw new Error(result.message || 'Failed to apply policy');
-            }
-        } catch (error: any) {
-            console.error('Error applying policy:', error);
-            showToast(`Failed to apply policy: ${error.message}`, 'error');
-        } finally {
-            setApplyingPolicy(null);
-            setShowConfirmDialog(false);
-        }
-    };
-
 
     // Utility functions
-    const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
-        // Simple toast implementation - you can replace with your preferred toast library
-        const toast = document.createElement('div');
-        toast.className = `fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg ${type === 'success' ? 'bg-green-500 text-white' :
-            type === 'error' ? 'bg-red-500 text-white' :
-                'bg-blue-500 text-white'
-            }`;
-        toast.textContent = message;
-        document.body.appendChild(toast);
-        setTimeout(() => {
-            document.body.removeChild(toast);
-        }, 3000);
-    };
-
     const calculateStats = (policiesList: Policy[]) => {
-        const total = policiesList.length;
-        const applied = applications.filter(app => app.status === 'APPLIED').length;
-        const failed = applications.filter(app => app.status === 'FAILED').length;
-        const pending = applications.filter(app => app.status === 'PENDING').length;
-
-        const severityBreakdown = policiesList.reduce((acc, policy) => {
-            acc[policy.severity] = (acc[policy.severity] || 0) + 1;
-            return acc;
-        }, { critical: 0, high: 0, medium: 0, low: 0 });
+        const severityBreakdown = { critical: 0, high: 0, medium: 0, low: 0 };
+        policiesList.forEach(policy => {
+            if (policy.severity in severityBreakdown) {
+                severityBreakdown[policy.severity as keyof typeof severityBreakdown]++;
+            }
+        });
 
         setStats({
-            totalPolicies: total,
-            appliedPolicies: applied,
-            failedPolicies: failed,
-            pendingPolicies: pending,
+            totalPolicies: policiesList.length,
+            appliedPolicies: applications.filter(app => app.status === 'applied' || app.status === 'APPLIED').length,
+            failedPolicies: applications.filter(app => app.status === 'failed' || app.status === 'FAILED').length,
+            pendingPolicies: applications.filter(app => app.status === 'pending' || app.status === 'PENDING').length,
             severityBreakdown
         });
     };
 
     const getSeverityColor = (severity: string) => {
         switch (severity) {
-            case 'critical': return 'text-red-600 bg-red-100 border-red-200 dark:text-red-400 dark:bg-red-900/30 dark:border-red-700';
-            case 'high': return 'text-orange-600 bg-orange-100 border-orange-200 dark:text-orange-400 dark:bg-orange-900/30 dark:border-orange-700';
-            case 'medium': return 'text-yellow-600 bg-yellow-100 border-yellow-200 dark:text-yellow-400 dark:bg-yellow-900/30 dark:border-yellow-700';
-            case 'low': return 'text-green-600 bg-green-100 border-green-200 dark:text-green-400 dark:bg-green-900/30 dark:border-green-700';
-            default: return 'text-gray-600 bg-gray-100 border-gray-200 dark:text-gray-400 dark:bg-gray-900/30 dark:border-gray-700';
+            case 'critical': return 'text-red-600 bg-red-100 dark:bg-red-900/20';
+            case 'high': return 'text-orange-600 bg-orange-100 dark:bg-orange-900/20';
+            case 'medium': return 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900/20';
+            case 'low': return 'text-green-600 bg-green-100 dark:bg-green-900/20';
+            default: return 'text-gray-600 bg-gray-100 dark:bg-gray-900/20';
         }
     };
 
     const getStatusColor = (status: string) => {
-        switch (status) {
-            case 'APPLIED': return 'text-green-600 bg-green-100 border-green-200 dark:text-green-400 dark:bg-green-900/30 dark:border-green-700';
-            case 'APPLYING': return 'text-blue-600 bg-blue-100 border-blue-200 dark:text-blue-400 dark:bg-blue-900/30 dark:border-blue-700';
-            case 'PENDING': return 'text-yellow-600 bg-yellow-100 border-yellow-200 dark:text-yellow-400 dark:bg-yellow-900/30 dark:border-yellow-700';
-            case 'FAILED': return 'text-red-600 bg-red-100 border-red-200 dark:text-red-400 dark:bg-red-900/30 dark:border-red-700';
-            default: return 'text-gray-600 bg-gray-100 border-gray-200 dark:text-gray-400 dark:bg-gray-900/30 dark:border-gray-700';
+        const normalizedStatus = status.toLowerCase();
+        switch (normalizedStatus) {
+            case 'applied': return 'text-green-600 bg-green-100 dark:bg-green-900/20';
+            case 'failed': return 'text-red-600 bg-red-100 dark:bg-red-900/20';
+            case 'pending': return 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900/20';
+            case 'applying': return 'text-blue-600 bg-blue-100 dark:bg-blue-900/20';
+            case 'removed': return 'text-gray-600 bg-gray-100 dark:bg-gray-900/20';
+            default: return 'text-gray-600 bg-gray-100 dark:bg-gray-900/20';
         }
     };
 
-    const getStatusIcon = (status: string) => {
-        switch (status) {
-            case 'APPLIED': return <CheckCircle className="w-4 h-4" />;
-            case 'APPLYING': return <Loader2 className="w-4 h-4 animate-spin" />;
-            case 'PENDING': return <Clock className="w-4 h-4" />;
-            case 'FAILED': return <XCircle className="w-4 h-4" />;
-            default: return <Info className="w-4 h-4" />;
+    const getCategoryIcon = (categoryName: string) => {
+        switch (categoryName) {
+            case 'validation': return Shield;
+            case 'mutation': return Edit3;
+            case 'generation': return Plus;
+            case 'cleanup': return Trash2;
+            case 'image_verification': return Lock;
+            case 'miscellaneous': return Settings;
+            default: return Shield;
         }
-    };
-
-    const getCategoryIcon = (iconName: string) => {
-        const iconMap = {
-            'shield-check': <Shield className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />,
-            'edit': <Edit3 className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />,
-            'plus-circle': <Plus className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />,
-            'trash': <Trash2 className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />,
-            'verified': <CheckCircle className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />,
-            'puzzle': <Layers className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-        };
-        return iconMap[iconName] || <FileText className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />;
     };
 
     const filteredPolicies = policies.filter(policy => {
         const matchesSearch = policy.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            policy.description?.toLowerCase().includes(searchTerm.toLowerCase());
+            policy.description.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesSeverity = !severityFilter || policy.severity === severityFilter;
         return matchesSearch && matchesSeverity;
     });
@@ -861,23 +838,132 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                 break;
             case 'severity':
                 const severityOrder = { critical: 4, high: 3, medium: 2, low: 1 };
-                comparison = severityOrder[b.severity] - severityOrder[a.severity];
+                comparison = (severityOrder[a.severity as keyof typeof severityOrder] || 0) -
+                    (severityOrder[b.severity as keyof typeof severityOrder] || 0);
                 break;
             case 'created_at':
-                comparison = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+                comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
                 break;
         }
         return sortOrder === 'asc' ? comparison : -comparison;
     });
 
+    // Event handlers
+    const handlePolicyClick = async (policy: Policy) => {
+        setSelectedPolicy(policy);
+        setOriginalYaml(policy.yaml_content);
+        setEditedYaml(policy.yaml_content);
+
+        // Extract editable fields
+        const fields = extractEditableFields(policy.yaml_content);
+        setEditableFields(fields);
+
+        setShowPolicyModal(true);
+    };
+
+    const handleApplyPolicy = () => {
+        if (!selectedPolicy) return;
+
+        if (showYamlEditor && editedYaml !== originalYaml) {
+            // Apply with edited YAML
+            applyPolicyWithEdits(selectedPolicy, editedYaml);
+        } else {
+            // Apply original policy
+            applyPolicy(selectedPolicy);
+        }
+        setShowPolicyModal(false);
+    };
+    const initializePolicies = async () => {
+        try {
+            setLoading(true);
+            const response = await fetch(`${POLICIES_API}/initialize`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                showToast('Policy initialized successfully!', 'success');
+                // Refresh the categories and policies after initialization
+                await fetchCategories();
+                if (selectedCategory) {
+                    await fetchPoliciesByCategory(selectedCategory);
+                }
+            } else {
+                showToast(data.message || 'Failed to initialize policies', 'error');
+            }
+        } catch (error) {
+            console.error('Error initializing policies:', error);
+            showToast('Failed to initialize policy database', 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+
+    const handleFieldChange = (fieldKey: string, value: string) => {
+        setEditableFields(prev => ({
+            ...prev,
+            [fieldKey]: value
+        }));
+
+        // Update YAML with new field values
+        const updatedYaml = reconstructYamlWithEdits(originalYaml, {
+            ...editableFields,
+            [fieldKey]: value
+        });
+        setEditedYaml(updatedYaml);
+    };
+
+    const handleClusterChange = (clusterName: string) => {
+        setSelectedClusterName(clusterName);
+        fetchAvailablePoliciesForCluster(clusterName);
+        fetchAppliedPoliciesForCluster(clusterName);
+    };
+
+    const handleCategorySelect = (categoryName: string) => {
+        setSelectedCategory(categoryName);
+        setCurrentPage(1);
+        fetchPoliciesByCategory(categoryName);
+        fetchCategoryStats(categoryName);
+    };
+
+
+    // Effects
+    useEffect(() => {
+        const initializeData = async () => {
+            setLoading(true);
+            try {
+                await Promise.all([
+                    fetchClusters(),
+                    fetchCategories(),
+                    fetchClusterOverview()
+                ]);
+            } catch (error) {
+                console.error('Error initializing data:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        initializeData();
+    }, []);
+
     const loadData = async () => {
-        setLoading(true);
-        await Promise.all([
-            fetchClusters(),
-            fetchCategories(),
-            fetchApplications()
-        ]);
-        setLoading(false);
+        setRefreshing(true);
+        try {
+            await Promise.all([
+                fetchClusters(),
+                fetchCategories(),
+                fetchApplications()
+            ]);
+        } finally {
+            setRefreshing(false);
+        }
     };
 
     // Effects
@@ -887,193 +973,188 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
     }, []);
 
     useEffect(() => {
-        if (selectedCategory) {
-            fetchPoliciesByCategory(selectedCategory);
-            fetchCategoryStats(selectedCategory);
+        if (statusFilter) {
+            setFilteredApplications(applications.filter(app => app.status === statusFilter));
+        } else {
+            setFilteredApplications(applications);
         }
-    }, [selectedCategory, currentPage]);
+    }, [applications, statusFilter]);
+
+
+    useEffect(() => {
+        if (selectedCluster && selectedCluster !== selectedClusterName) {
+            setSelectedClusterName(selectedCluster);
+        }
+    }, [selectedCluster]);
 
     useEffect(() => {
         if (selectedClusterName) {
             fetchApplications();
-            fetchAppliedPoliciesForCluster(selectedClusterName);
             fetchAvailablePoliciesForCluster(selectedClusterName);
+            fetchAppliedPoliciesForCluster(selectedClusterName);
         }
-    }, [selectedClusterName, statusFilter, selectedCategory]);
+    }, [selectedClusterName, statusFilter]);
 
-    // Update the useEffect for selectedPolicy
     useEffect(() => {
-        if (selectedPolicy) {
-            setOriginalYaml(selectedPolicy.yaml_content);
-            setEditedYaml(selectedPolicy.yaml_content);
-            setEditableFields(extractEditableFields(selectedPolicy.yaml_content));
+        if (selectedCategory) {
+            fetchPoliciesByCategory(selectedCategory);
         }
-    }, [selectedPolicy]);
+    }, [currentPage, selectedCategory]);
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-gray-900 dark:via-blue-900/20 dark:to-indigo-900/20 flex items-center justify-center">
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="text-center"
-                >
-                    <div className="relative">
-                        <div className="w-20 h-20 border-4 border-blue-200 dark:border-blue-800 rounded-full animate-spin border-t-blue-600 dark:border-t-blue-400 mx-auto mb-4"></div>
-                        <div className="absolute inset-0 w-20 h-20 border-4 border-transparent rounded-full animate-ping border-t-blue-400 mx-auto"></div>
-                    </div>
-                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Loading Policies</h3>
-                    <p className="text-gray-600 dark:text-gray-400">Fetching security policies and configurations...</p>
-                </motion.div>
+            <div className="flex items-center justify-center h-64">
+                <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                <span className="ml-2 text-gray-600 dark:text-gray-400">Loading security policies...</span>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-gray-900 dark:via-blue-900/20 dark:to-indigo-900/20">
-            <div className="container mx-auto px-6 py-8">
-                {/* Header */}
-                <motion.div
-                    initial={{ opacity: 0, y: -20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="mb-8"
-                >
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                            <div className="p-3 bg-gradient-to-r from-blue-500 to-cyan-600 rounded-2xl shadow-lg">
-                                <Shield className="w-8 h-8 text-white" />
+        <div className="space-y-6">
+            {/* Header */}
+            {/* Header */}
+            <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                    <div className="p-3 bg-gradient-to-r from-blue-500 to-cyan-600 rounded-2xl shadow-lg">
+                        <Shield className="w-8 h-8 text-white" />
+                    </div>
+                    <div>
+                        <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
+                            Security Policies
+                        </h1>
+                        <p className="text-gray-600 dark:text-gray-400 mt-1">
+                            Manage and apply Kubernetes security policies across your clusters
+                        </p>
+                    </div>
+                </div>
+
+                <div className="flex items-center space-x-4">
+                    <button
+                        onClick={() => setShowStatsModal(true)}
+                        className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white font-medium rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
+                    >
+                        <BarChart3 className="w-4 h-4" />
+                        <span>Statistics</span>
+                    </button>
+                    <button
+                        onClick={initializePolicies}
+                        className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-medium rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
+                    >
+                        <Database className="w-4 h-4" />
+                        <span>Initialize Policies</span>
+                    </button>
+                    <button
+                        onClick={loadData}
+                        disabled={refreshing}
+                        className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white font-medium rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50"
+                    >
+                        <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                        <span>{refreshing ? 'Refreshing...' : 'Refresh'}</span>
+                    </button>
+
+                </div>
+            </div>
+
+
+            {/* Cluster Selection */}
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-xl border border-gray-200/50 dark:border-gray-700/50 p-6 mb-6"
+            >
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center">
+                        <Server className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400" />
+                        Select Target Cluster
+                    </h3>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                        {clusters.length} clusters available
+                    </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {clusters.map((cluster) => (
+                        <motion.div
+                            key={cluster.id}
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            onClick={() => handleClusterChange(cluster.cluster_name)}
+                            className={`p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${selectedClusterName === cluster.cluster_name
+                                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 shadow-lg'
+                                : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 bg-gray-50 dark:bg-gray-700/50'
+                                }`}
+                        >
+                            <div className="flex items-center justify-between mb-2">
+                                <h4 className="font-semibold text-gray-900 dark:text-white">
+                                    {cluster.cluster_name}
+                                </h4>
+                                {cluster.is_operator_installed && (
+                                    <CheckCircle className="w-4 h-4 text-green-500" />
+                                )}
                             </div>
-                            <div>
-                                <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
-                                    Security Policies
-                                </h1>
-                                <p className="text-gray-600 dark:text-gray-400 mt-1">
-                                    Manage and apply Kubernetes security policies across your clusters
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="flex items-center space-x-4">
-                            <button
-                                onClick={() => setShowStatsModal(true)}
-                                className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white font-medium rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
-                            >
-                                <BarChart3 className="w-4 h-4" />
-                                <span>Statistics</span>
-                            </button>
-                            <button
-                                onClick={initializePolicies}
-                                className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-medium rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
-                            >
-                                <Database className="w-4 h-4" />
-                                <span>Initialize Policies</span>
-                            </button>
-                            <button
-                                onClick={loadData}
-                                className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white font-medium rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
-                            >
-                                <RefreshCw className="w-4 h-4" />
-                                <span>Refresh</span>
-                            </button>
-                        </div>
-                    </div>
-                </motion.div>
-
-                {/* Cluster Selection */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-xl border border-gray-200/50 dark:border-gray-700/50 p-6 mb-6"
-                >
-                    <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center">
-                            <Server className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400" />
-                            Select Target Cluster
-                        </h3>
-                        <span className="text-sm text-gray-500 dark:text-gray-400">
-                            {clusters.length} clusters available
-                        </span>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {clusters.map((cluster) => (
-                            <motion.div
-                                key={cluster.id}
-                                whileHover={{ scale: 1.02 }}
-                                whileTap={{ scale: 0.98 }}
-                                onClick={() => setSelectedClusterName(cluster.cluster_name)}
-                                className={`p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${selectedClusterName === cluster.cluster_name
-                                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 shadow-lg'
-                                    : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 bg-gray-50 dark:bg-gray-700/50'
-                                    }`}
-                            >
-                                <div className="flex items-center justify-between mb-2">
-                                    <h4 className="font-semibold text-gray-900 dark:text-white">
-                                        {cluster.cluster_name}
-                                    </h4>
-                                    {cluster.is_operator_installed && (
-                                        <CheckCircle className="w-4 h-4 text-green-500" />
-                                    )}
-                                </div>
-                                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                                    {cluster.provider_name}
-                                </p>
-                                <div className="flex items-center justify-between text-xs">
-                                    <span className="text-gray-500 dark:text-gray-400">
-                                        {cluster.server_url}
-                                    </span>
-                                    {selectedClusterName === cluster.cluster_name && (
-                                        <Check className="w-4 h-4 text-blue-500" />
-                                    )}
-                                </div>
-                            </motion.div>
-                        ))}
-                    </div>
-                </motion.div>
-
-                {/* Policy Categories */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-xl border border-gray-200/50 dark:border-gray-700/50 p-6 mb-6"
-                >
-                    <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center">
-                            <Layers className="w-5 h-5 mr-2 text-purple-600 dark:text-purple-400" />
-                            Policy Categories
-                        </h3>
-                        {categoriesLoading && (
-                            <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
-                        )}
-                    </div>
-
-                    {categories.length === 0 ? (
-                        <div className="text-center py-12">
-                            <Shield className="w-16 h-16 text-gray-400 dark:text-gray-600 mx-auto mb-4" />
-                            <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                                No Policy Categories Found
-                            </h4>
-                            <p className="text-gray-600 dark:text-gray-400 mb-4">
-                                Initialize the policy database to load predefined security policies.
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                                {cluster.provider_name}
                             </p>
-                            <button
-                                onClick={initializePolicies}
-                                className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white font-medium rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl mx-auto"
-                            >
-                                <Database className="w-4 h-4" />
-                                <span>Initialize Policy Database</span>
-                            </button>
-                        </div>
-                    ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {categories.map((category) => (
+                            <div className="flex items-center justify-between text-xs">
+                                <span className="text-gray-500 dark:text-gray-400">
+                                    {cluster.server_url}
+                                </span>
+                                {selectedClusterName === cluster.cluster_name && (
+                                    <Check className="w-4 h-4 text-blue-500" />
+                                )}
+                            </div>
+                        </motion.div>
+                    ))}
+                </div>
+            </motion.div>
+
+
+            {/* Policy Categories */}
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-xl border border-gray-200/50 dark:border-gray-700/50 p-6 mb-6"
+            >
+                <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center">
+                        <Layers className="w-5 h-5 mr-2 text-purple-600 dark:text-purple-400" />
+                        Policy Categories
+                    </h3>
+                    {categoriesLoading && (
+                        <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
+                    )}
+                </div>
+
+                {categories.length === 0 ? (
+                    <div className="text-center py-12">
+                        <Shield className="w-16 h-16 text-gray-400 dark:text-gray-600 mx-auto mb-4" />
+                        <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                            No Policy Categories Found
+                        </h4>
+                        <p className="text-gray-600 dark:text-gray-400 mb-4">
+                            Initialize the policy database to load predefined security policies.
+                        </p>
+                        <button
+                            onClick={initializePolicies}
+                            className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white font-medium rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl mx-auto"
+                        >
+                            <Database className="w-4 h-4" />
+                            <span>Initialize Policy Database</span>
+                        </button>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {categories.map((category) => {
+                            const IconComponent = getCategoryIcon(category.name);
+                            return (
                                 <motion.div
                                     key={category.id}
                                     whileHover={{ scale: 1.02 }}
                                     whileTap={{ scale: 0.98 }}
-                                    onClick={() => setSelectedCategory(category.name)}
+                                    onClick={() => handleCategorySelect(category.name)}
                                     className={`p-6 rounded-xl border-2 cursor-pointer transition-all duration-200 ${selectedCategory === category.name
                                         ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/30 shadow-lg'
                                         : 'border-gray-200 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-600 bg-gray-50 dark:bg-gray-700/50'
@@ -1081,7 +1162,7 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                                 >
                                     <div className="flex items-center justify-between mb-3">
                                         <div className="flex items-center space-x-3">
-                                            {getCategoryIcon(category.icon)}
+                                            <IconComponent className="w-6 h-6 text-purple-600 dark:text-purple-400" />
                                             <h4 className="font-semibold text-gray-900 dark:text-white">
                                                 {category.display_name}
                                             </h4>
@@ -1100,400 +1181,326 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                                         </div>
                                     )}
                                 </motion.div>
-                            ))}
-                        </div>
-                    )}
-                </motion.div>
+                            );
+                        })}
+                    </div>
+                )}
+            </motion.div>
 
 
-                {/* Policies Grid */}
-                {selectedCategory && (
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.3 }}
-                        className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-xl border border-gray-200/50 dark:border-gray-700/50 p-6 mb-6"
-                    >
-                        {/* Search and Filters */}
-                        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
-                            <div className="flex items-center space-x-4">
-                                <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                                    <input
-                                        type="text"
-                                        placeholder="Search policies..."
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                        className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    />
-                                </div>
-
-                                <select
-                                    value={severityFilter}
-                                    onChange={(e) => setSeverityFilter(e.target.value)}
-                                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                >
-                                    <option value="">All Severities</option>
-                                    <option value="critical">Critical</option>
-                                    <option value="high">High</option>
-                                    <option value="medium">Medium</option>
-                                    <option value="low">Low</option>
-                                </select>
+            {/* Policies Grid */}
+            {selectedCategory && (
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-xl border border-gray-200/50 dark:border-gray-700/50 p-6 mb-6"
+                >
+                    {/* Search and Filters */}
+                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
+                        <div className="flex items-center space-x-4">
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                                <input
+                                    type="text"
+                                    placeholder="Search policies..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
                             </div>
 
-                            <div className="flex items-center space-x-4">
-                                <div className="flex items-center space-x-2">
-                                    <button
-                                        onClick={() => setViewMode('grid')}
-                                        className={`p-2 rounded-lg ${viewMode === 'grid' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
-                                    >
-                                        <Grid className="w-4 h-4" />
-                                    </button>
-                                    <button
-                                        onClick={() => setViewMode('list')}
-                                        className={`p-2 rounded-lg ${viewMode === 'list' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
-                                    >
-                                        <List className="w-4 h-4" />
-                                    </button>
-                                </div>
-
-                                <select
-                                    value={`${sortBy}-${sortOrder}`}
-                                    onChange={(e) => {
-                                        const [field, order] = e.target.value.split('-');
-                                        setSortBy(field as 'name' | 'severity' | 'created_at');
-                                        setSortOrder(order as 'asc' | 'desc');
-                                    }}
-                                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                >
-                                    <option value="name-asc">Name A-Z</option>
-                                    <option value="name-desc">Name Z-A</option>
-                                    <option value="severity-desc">Severity High-Low</option>
-                                    <option value="severity-asc">Severity Low-High</option>
-                                    <option value="created_at-desc">Newest First</option>
-                                    <option value="created_at-asc">Oldest First</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        {/* Policies Loading */}
-                        {policiesLoading ? (
-                            <div className="flex items-center justify-center py-12">
-                                <Loader2 className="w-8 h-8 animate-spin text-blue-500 mr-3" />
-                                <span className="text-gray-600 dark:text-gray-400">Loading policies...</span>
-                            </div>
-                        ) : sortedPolicies.length === 0 ? (
-                            <div className="text-center py-12">
-                                <FileText className="w-16 h-16 text-gray-400 dark:text-gray-600 mx-auto mb-4" />
-                                <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                                    No Policies Found
-                                </h4>
-                                <p className="text-gray-600 dark:text-gray-400">
-                                    {searchTerm || severityFilter ? 'Try adjusting your search criteria.' : 'No policies available in this category.'}
-                                </p>
-                            </div>
-                        ) : (
-                            <>
-                                {/* Policies Grid/List */}
-                                <div className={viewMode === 'grid'
-                                    ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-                                    : "space-y-4"
-                                }>
-{sortedPolicies.map((policy, index) => {
-    const isApplied = applications.some(app =>
-        app.policy?.policy_id === policy.policy_id &&
-        app.cluster_name === selectedClusterName &&
-        app.status === 'applied'
-    );
-
-    return (
-        <motion.div
-            key={policy.id}
-            layout
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ 
-                delay: index * 0.1,
-                duration: 0.4,
-                layout: { duration: 0.3 }
-            }}
-            whileHover={{ 
-                scale: 1.02,
-                transition: { duration: 0.2 }
-            }}
-            className={`bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 hover:shadow-xl transition-all duration-300 ${
-                viewMode === 'list' ? 'flex items-center p-4' : 'p-6'
-            }`}
-        >
-            {viewMode === 'grid' ? (
-                <div className="h-full flex flex-col">
-                    {/* Grid View */}
-                    <div className="flex items-start justify-between mb-4">
-                        <div className="flex items-center space-x-3 flex-1 min-w-0">
-                            <motion.div 
-                                whileHover={{ rotate: 360 }}
-                                transition={{ duration: 0.5 }}
-                                className="p-2 bg-gradient-to-r from-blue-500 to-cyan-600 rounded-lg flex-shrink-0"
+                            <select
+                                value={severityFilter}
+                                onChange={(e) => setSeverityFilter(e.target.value)}
+                                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             >
-                                <Shield className="w-4 h-4 text-white" />
-                            </motion.div>
-                            <div className="min-w-0 flex-1">
-                                <h4 className="font-semibold text-gray-900 dark:text-white text-sm truncate">
-                                    {policy.name}
-                                </h4>
-                                <motion.span 
-                                    initial={{ scale: 0.8 }}
-                                    animate={{ scale: 1 }}
-                                    className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border mt-1 ${getSeverityColor(policy.severity)}`}
-                                >
-                                    {policy.severity.toUpperCase()}
-                                </motion.span>
-                            </div>
+                                <option value="">All Severities</option>
+                                <option value="critical">Critical</option>
+                                <option value="high">High</option>
+                                <option value="medium">Medium</option>
+                                <option value="low">Low</option>
+                            </select>
                         </div>
-                        <motion.button
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            onClick={() => {
-                                setSelectedPolicy(policy);
-                                setShowPolicyModal(true);
-                            }}
-                            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex-shrink-0"
-                        >
-                            <Eye className="w-4 h-4" />
-                        </motion.button>
-                    </div>
 
-                    <div className="flex-1 mb-4">
-                        <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-3">
-                            {policy.description || policy.purpose}
-                        </p>
-                    </div>
-
-                    {policy.tags && policy.tags.length > 0 && (
-                        <motion.div 
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ delay: 0.2 }}
-                            className="flex flex-wrap gap-1 mb-4"
-                        >
-                            {policy.tags.slice(0, 3).map((tag, tagIndex) => (
-                                <motion.span
-                                    key={tagIndex}
-                                    initial={{ scale: 0 }}
-                                    animate={{ scale: 1 }}
-                                    transition={{ delay: tagIndex * 0.1 }}
-                                    className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
+                        <div className="flex items-center space-x-4">
+                            <div className="flex items-center space-x-2">
+                                <button
+                                    onClick={() => setViewMode('grid')}
+                                    className={`p-2 rounded-lg ${viewMode === 'grid' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
                                 >
-                                    <Tag className="w-3 h-3 mr-1" />
-                                    {tag}
-                                </motion.span>
-                            ))}
-                            {policy.tags.length > 3 && (
-                                <motion.span 
-                                    initial={{ scale: 0 }}
-                                    animate={{ scale: 1 }}
-                                    transition={{ delay: 0.3 }}
-                                    className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
+                                    <Grid className="w-4 h-4" />
+                                </button>
+                                <button
+                                    onClick={() => setViewMode('list')}
+                                    className={`p-2 rounded-lg ${viewMode === 'list' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
                                 >
-                                    +{policy.tags.length - 3}
-                                </motion.span>
-                            )}
-                        </motion.div>
-                    )}
+                                    <List className="w-4 h-4" />
+                                </button>
+                            </div>
 
-                    <div className="flex items-center justify-between mt-auto">
-                        <div className="flex items-center space-x-2">
-                            <motion.button
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                                onClick={() => {
-                                    setSelectedPolicy(policy);
-                                    setShowPolicyModal(true);
+                            <select
+                                value={`${sortBy}-${sortOrder}`}
+                                onChange={(e) => {
+                                    const [field, order] = e.target.value.split('-');
+                                    setSortBy(field as 'name' | 'severity' | 'created_at');
+                                    setSortOrder(order as 'asc' | 'desc');
                                 }}
-                                className="flex items-center space-x-2 px-3 py-2 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
+                                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             >
-                                <Eye className="w-4 h-4" />
-                                <span className="text-sm">View</span>
-                            </motion.button>
-                            <motion.button
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                                onClick={() => {
-                                    navigator.clipboard.writeText(policy.yaml_content);
-                                    showToast('YAML copied to clipboard', 'success');
-                                }}
-                                className="flex items-center space-x-2 px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors"
-                            >
-                                <Copy className="w-4 h-4" />
-                                <span className="text-sm">Copy</span>
-                            </motion.button>
+                                <option value="name-asc">Name A-Z</option>
+                                <option value="name-desc">Name Z-A</option>
+                                <option value="severity-desc">Severity High-Low</option>
+                                <option value="severity-asc">Severity Low-High</option>
+                                <option value="created_at-desc">Newest First</option>
+                                <option value="created_at-asc">Oldest First</option>
+                            </select>
                         </div>
-
-                        <motion.button
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() => {
-                                if (!selectedClusterName) {
-                                    showToast('Please select a cluster first', 'error');
-                                    return;
-                                }
-                                if (isApplied) {
-                                    showToast(`Policy "${policy.name}" is already applied to this cluster`, 'error');
-                                    return;
-                                }
-                                setSelectedPolicy(policy);
-                                setShowConfirmDialog(true);
-                            }}
-                            disabled={!selectedClusterName || applyingPolicy === policy.policy_id || isApplied}
-                            className={`flex items-center space-x-2 px-4 py-2 font-medium rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl ${
-                                isApplied
-                                    ? 'bg-gray-400 text-white cursor-not-allowed'
-                                    : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white disabled:opacity-50 disabled:cursor-not-allowed'
-                            }`}
-                        >
-                            {applyingPolicy === policy.policy_id ? (
-                                <>
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                    <span className="text-sm">Applying...</span>
-                                </>
-                            ) : isApplied ? (
-                                <>
-                                    <Check className="w-4 h-4" />
-                                    <span className="text-sm">Applied</span>
-                                </>
-                            ) : (
-                                <>
-                                    <Play className="w-4 h-4" />
-                                    <span className="text-sm">Apply</span>
-                                </>
-                            )}
-                        </motion.button>
                     </div>
-                </div>
-            ) : (
-                <>
-                    {/* List View */}
-                    <div className="flex items-center space-x-4 flex-1">
-                        <motion.div 
-                            whileHover={{ rotate: 360 }}
-                            transition={{ duration: 0.5 }}
-                            className="p-2 bg-gradient-to-r from-blue-500 to-cyan-600 rounded-lg flex-shrink-0"
-                        >
-                            <Shield className="w-4 h-4 text-white" />
-                        </motion.div>
-                        <div className="flex-1 min-w-0">
-                            <div className="flex items-center space-x-3 mb-1">
-                                <h4 className="font-semibold text-gray-900 dark:text-white truncate">
-                                    {policy.name}
-                                </h4>
-                                <motion.span 
-                                    initial={{ scale: 0.8 }}
-                                    animate={{ scale: 1 }}
-                                    className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border flex-shrink-0 ${getSeverityColor(policy.severity)}`}
-                                >
-                                    {policy.severity.toUpperCase()}
-                                </motion.span>
-                            </div>
-                            <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
-                                {policy.description || policy.purpose}
+
+                    {/* Policies Loading */}
+                    {policiesLoading ? (
+                        <div className="flex items-center justify-center py-12">
+                            <Loader2 className="w-8 h-8 animate-spin text-blue-500 mr-3" />
+                            <span className="text-gray-600 dark:text-gray-400">Loading policies...</span>
+                        </div>
+                    ) : sortedPolicies.length === 0 ? (
+                        <div className="text-center py-12">
+                            <FileText className="w-16 h-16 text-gray-400 dark:text-gray-600 mx-auto mb-4" />
+                            <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                                No Policies Found
+                            </h4>
+                            <p className="text-gray-600 dark:text-gray-400">
+                                {searchTerm || severityFilter ? 'Try adjusting your search criteria.' : 'No policies available in this category.'}
                             </p>
                         </div>
-                    </div>
+                    ) : (
+                        <>
+                            {/* Policies Grid/List */}
+                            <div className={viewMode === 'grid'
+                                ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                                : "space-y-4"
+                            }>
+                                {sortedPolicies.map((policy, index) => {
+                                    const isApplied = applications.some(app =>
+                                        app.policy?.policy_id === policy.policy_id &&
+                                        app.cluster_name === selectedClusterName &&
+                                        app.status === 'applied'
+                                    );
 
-                    <div className="flex items-center space-x-2 flex-shrink-0">
-                        <motion.button
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() => {
-                                setSelectedPolicy(policy);
-                                setShowPolicyModal(true);
-                            }}
-                            className="flex items-center space-x-2 px-3 py-2 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
-                        >
-                            <Eye className="w-4 h-4" />
-                            <span className="text-sm">View</span>
-                        </motion.button>
-                        <motion.button
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() => {
-                                navigator.clipboard.writeText(policy.yaml_content);
-                                showToast('YAML copied to clipboard', 'success');
-                            }}
-                            className="flex items-center space-x-2 px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors"
-                        >
-                            <Copy className="w-4 h-4" />
-                            <span className="text-sm">Copy</span>
-                        </motion.button>
-                        <motion.button
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() => {
-                                if (!selectedClusterName) {
-                                    showToast('Please select a cluster first', 'error');
-                                    return;
-                                }
-                                if (isApplied) {
-                                    showToast(`Policy "${policy.name}" is already applied to this cluster`, 'error');
-                                    return;
-                                }
-                                setSelectedPolicy(policy);
-                                setShowConfirmDialog(true);
-                            }}
-                            disabled={!selectedClusterName || applyingPolicy === policy.policy_id || isApplied}
-                            className={`flex items-center space-x-2 px-4 py-2 font-medium rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl ${
-                                isApplied
-                                    ? 'bg-gray-400 text-white cursor-not-allowed'
-                                    : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white disabled:opacity-50 disabled:cursor-not-allowed'
-                            }`}
-                        >
-                            {applyingPolicy === policy.policy_id ? (
-                                <>
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                    <span className="text-sm">Applying...</span>
-                                </>
-                            ) : isApplied ? (
-                                <>
-                                    <Check className="w-4 h-4" />
-                                    <span className="text-sm">Applied</span>
-                                </>
-                            ) : (
-                                <>
-                                    <Play className="w-4 h-4" />
-                                    <span className="text-sm">Apply</span>
-                                </>
-                            )}
-                        </motion.button>
-                    </div>
-                </>
-            )}
-        </motion.div>
-    );
-})}
+                                    return (
+                                        <motion.div
+                                            key={policy.id}
+                                            initial={{ opacity: 0, y: 20 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            transition={{ delay: index * 0.1 }}
+                                            className={`bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 hover:shadow-xl transition-all duration-300 ${viewMode === 'list' ? 'flex items-center p-4' : 'p-6'
+                                                }`}
+                                        >
+                                            {viewMode === 'grid' ? (
+                                                <>
+                                                    {/* Grid View */}
+                                                    <div className="flex items-start justify-between mb-4">
+                                                        <div className="flex items-center space-x-3">
+                                                            <div className="p-2 bg-gradient-to-r from-blue-500 to-cyan-600 rounded-lg">
+                                                                <Shield className="w-4 h-4 text-white" />
+                                                            </div>
+                                                            <div>
+                                                                <h4 className="font-semibold text-gray-900 dark:text-white text-sm">
+                                                                    {policy.name}
+                                                                </h4>
+                                                                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getSeverityColor(policy.severity)}`}>
+                                                                    {policy.severity.toUpperCase()}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => handlePolicyClick(policy)}
+                                                            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                                                        >
+                                                            <Eye className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
 
-                                </div>
+                                                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-3">
+                                                        {policy.description}
+                                                    </p>
 
-                                {/* Pagination */}
-                                {totalPages > 1 && (
-                                    <div className="flex items-center justify-center space-x-2 mt-8">
+                                                    {policy.tags && policy.tags.length > 0 && (
+                                                        <div className="flex flex-wrap gap-1 mb-4">
+                                                            {policy.tags.slice(0, 3).map((tag, tagIndex) => (
+                                                                <span
+                                                                    key={tagIndex}
+                                                                    className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
+                                                                >
+                                                                    <Tag className="w-3 h-3 mr-1" />
+                                                                    {tag}
+                                                                </span>
+                                                            ))}
+                                                            {policy.tags.length > 3 && (
+                                                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
+                                                                    +{policy.tags.length - 3}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    )}
+
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="flex items-center space-x-2">
+                                                            <button
+                                                                onClick={() => handlePolicyClick(policy)}
+                                                                className="flex items-center space-x-2 px-3 py-2 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
+                                                            >
+                                                                <Eye className="w-4 h-4" />
+                                                                <span className="text-sm">View</span>
+                                                            </button>
+                                                            <button
+                                                                onClick={() => {
+                                                                    navigator.clipboard.writeText(policy.yaml_content);
+                                                                    showToast('YAML copied to clipboard', 'success');
+                                                                }}
+                                                                className="flex items-center space-x-2 px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors"
+                                                            >
+                                                                <Copy className="w-4 h-4" />
+                                                                <span className="text-sm">Copy</span>
+                                                            </button>
+                                                        </div>
+
+                                                        <button
+                                                            onClick={() => {
+                                                                if (!selectedClusterName) {
+                                                                    showToast('Please select a cluster first', 'error');
+                                                                    return;
+                                                                }
+                                                                if (isApplied) {
+                                                                    showToast(`Policy "${policy.name}" is already applied to this cluster`, 'error');
+                                                                    return;
+                                                                }
+                                                                applyPolicy(policy);
+                                                            }}
+                                                            disabled={!selectedClusterName || applyingPolicy === policy.policy_id || isApplied}
+                                                            className={`flex items-center space-x-2 px-4 py-2 font-medium rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl ${isApplied
+                                                                ? 'bg-gray-400 text-white cursor-not-allowed'
+                                                                : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white disabled:opacity-50 disabled:cursor-not-allowed'
+                                                                }`}
+                                                        >
+                                                            {applyingPolicy === policy.policy_id ? (
+                                                                <>
+                                                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                                                    <span className="text-sm">Applying...</span>
+                                                                </>
+                                                            ) : isApplied ? (
+                                                                <>
+                                                                    <Check className="w-4 h-4" />
+                                                                    <span className="text-sm">Applied</span>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <Play className="w-4 h-4" />
+                                                                    <span className="text-sm">Apply</span>
+                                                                </>
+                                                            )}
+                                                        </button>
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    {/* List View */}
+                                                    <div className="flex items-center space-x-4 flex-1">
+                                                        <div className="p-2 bg-gradient-to-r from-blue-500 to-cyan-600 rounded-lg">
+                                                            <Shield className="w-4 h-4 text-white" />
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <div className="flex items-center space-x-3 mb-1">
+                                                                <h4 className="font-semibold text-gray-900 dark:text-white">
+                                                                    {policy.name}
+                                                                </h4>
+                                                                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getSeverityColor(policy.severity)}`}>
+                                                                    {policy.severity.toUpperCase()}
+                                                                </span>
+                                                            </div>
+                                                            <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
+                                                                {policy.description}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex items-center space-x-2">
+                                                        <button
+                                                            onClick={() => handlePolicyClick(policy)}
+                                                            className="flex items-center space-x-2 px-3 py-2 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
+                                                        >
+                                                            <Eye className="w-4 h-4" />
+                                                            <span className="text-sm">View</span>
+                                                        </button>
+
+                                                        <button
+                                                            onClick={() => {
+                                                                if (!selectedClusterName) {
+                                                                    showToast('Please select a cluster first', 'error');
+                                                                    return;
+                                                                }
+                                                                if (isApplied) {
+                                                                    showToast(`Policy "${policy.name}" is already applied to this cluster`, 'error');
+                                                                    return;
+                                                                }
+                                                                applyPolicy(policy);
+                                                            }}
+                                                            disabled={!selectedClusterName || applyingPolicy === policy.policy_id || isApplied}
+                                                            className={`flex items-center space-x-2 px-4 py-2 font-medium rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl ${isApplied
+                                                                ? 'bg-gray-400 text-white cursor-not-allowed'
+                                                                : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white disabled:opacity-50 disabled:cursor-not-allowed'
+                                                                }`}
+                                                        >
+                                                            {applyingPolicy === policy.policy_id ? (
+                                                                <>
+                                                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                                                    <span className="text-sm">Applying...</span>
+                                                                </>
+                                                            ) : isApplied ? (
+                                                                <>
+                                                                    <Check className="w-4 h-4" />
+                                                                    <span className="text-sm">Applied</span>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <Play className="w-4 h-4" />
+                                                                    <span className="text-sm">Apply</span>
+                                                                </>
+                                                            )}
+                                                        </button>
+                                                    </div>
+                                                </>
+                                            )}
+                                        </motion.div>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Pagination */}
+                            {totalPages > 1 && (
+                                <div className="flex items-center justify-between mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+                                    <div className="text-sm text-gray-600 dark:text-gray-400">
+                                        Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalPolicies)} of {totalPolicies} policies
+                                    </div>
+                                    <div className="flex items-center space-x-2">
                                         <button
                                             onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                                             disabled={currentPage === 1}
-                                            className="px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            className="px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                                         >
                                             <ChevronLeft className="w-4 h-4" />
                                         </button>
 
                                         {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                                            const pageNum = Math.max(1, Math.min(currentPage - 2 + i, totalPages - 4 + i));
+                                            const pageNum = i + 1;
                                             return (
                                                 <button
                                                     key={pageNum}
                                                     onClick={() => setCurrentPage(pageNum)}
-                                                    className={`px-3 py-2 rounded-lg ${currentPage === pageNum
-                                                        ? 'bg-blue-500 text-white'
-                                                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                                                    className={`px-3 py-2 rounded-lg transition-colors ${currentPage === pageNum
+                                                        ? 'bg-blue-600 text-white'
+                                                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
                                                         }`}
                                                 >
                                                     {pageNum}
@@ -1504,152 +1511,154 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                                         <button
                                             onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                                             disabled={currentPage === totalPages}
-                                            className="px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            className="px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                                         >
                                             <ChevronRight className="w-4 h-4" />
                                         </button>
                                     </div>
-                                )}
-                            </>
-                        )}
-                    </motion.div>
-                )}
+                                </div>
+                            )}
+                        </>
+                    )}
+                </motion.div>
+            )}
 
+            {/* Applied Policies Section */}
+            {selectedClusterName && (
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.4 }}
+                    className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-xl border border-gray-200/50 dark:border-gray-700/50 p-6"
+                >
+                    <div className="flex items-center justify-between mb-6">
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center">
+                            <CheckCircle className="w-5 h-5 mr-2 text-green-600 dark:text-green-400" />
+                            Applied Policies - {selectedClusterName}
+                        </h3>
+                        <div className="flex items-center space-x-4">
+                            <select
+                                value={statusFilter}
+                                onChange={(e) => setStatusFilter(e.target.value)}
+                                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            >
+                                <option value="">All Status</option>
+                                <option value="applied">Applied</option>
+                                <option value="failed">Failed</option>
+                                <option value="pending">Pending</option>
+                                <option value="applying">Applying</option>
+                                <option value="removed">Removed</option>
+                            </select>
+                            {applicationsLoading && (
+                                <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
+                            )}
+                        </div>
+                    </div>
 
-
-
-
-
-                {/* Recent Applications */}
-                {applications.filter(app => app.status !== 'REMOVED' && app.status !== 'removed').length > 0 && (
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.4 }}
-                        className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-xl border border-gray-200/50 dark:border-gray-700/50 p-6 mb-6"
-                    >
-                        <div className="flex items-center justify-between mb-6">
-                            <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center">
-                                <Activity className="w-5 h-5 mr-2 text-green-600 dark:text-green-400" />
-                                Recent Applications
-                            </h3>
-                            <div className="flex items-center space-x-4">
-                                <select
-                                    value={statusFilter}
-                                    onChange={(e) => setStatusFilter(e.target.value)}
-                                    className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    {applicationsLoading ? (
+                        <div className="flex items-center justify-center py-12">
+                            <Loader2 className="w-8 h-8 animate-spin text-blue-500 mr-3" />
+                            <span className="text-gray-600 dark:text-gray-400">Loading applied policies...</span>
+                        </div>
+                    ) : filteredApplications.length === 0 ? (
+                        <div className="text-center py-12">
+                            <Shield className="w-16 h-16 text-gray-400 dark:text-gray-600 mx-auto mb-4" />
+                            <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                                No Applied Policies
+                            </h4>
+                            <p className="text-gray-600 dark:text-gray-400">
+                                {statusFilter ? 'No policies match the selected status filter.' : `No policies have been applied to ${selectedClusterName} yet.`}
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {filteredApplications.map((application, index) => (
+                                <motion.div
+                                    key={application.id}
+                                    initial={{ opacity: 0, x: -20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: index * 0.1 }}
+                                    className="bg-gradient-to-r from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-xl p-6 border border-gray-200/50 dark:border-gray-700/50 shadow-lg hover:shadow-xl transition-all duration-300"
                                 >
-                                    <option value="">All Status</option>
-                                    <option value="APPLIED">Applied</option>
-                                    <option value="APPLYING">Applying</option>
-                                    <option value="PENDING">Pending</option>
-                                    <option value="FAILED">Failed</option>
-                                </select>
-                                <span className="text-sm text-gray-500 dark:text-gray-400">
-                                    {applications.filter(app => app.status !== 'REMOVED' && app.status !== 'removed').length} applications
-                                </span>
-
-                            </div>
-                        </div>
-
-                        <div className="space-y-3">
-                            {applications
-                                .filter(app => app.status !== 'REMOVED' && app.status !== 'removed') // Filter out removed policies (both cases)
-                                .slice(0, 10)
-                                .map((app, index) => {
-                                    // Debug logging - remove this after testing
-                                    console.log('App data:', app, 'Status:', app.status, 'Is APPLIED:', app.status === 'APPLIED');
-
-                                    return (
-                                        <motion.div
-                                            key={app.id}
-                                            initial={{ opacity: 0, x: -20 }}
-                                            animate={{ opacity: 1, x: 0 }}
-                                            transition={{ delay: index * 0.1 }}
-                                            className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                                        >
-                                            <div className="flex items-center space-x-4">
-                                                <div className={`p-2 rounded-lg ${getStatusColor(app.status)}`}>
-                                                    {getStatusIcon(app.status)}
-                                                </div>
-                                                <div>
-                                                    <h4 className="font-medium text-gray-900 dark:text-white">
-                                                        {app.policy?.name || app.policy_name || app.policy_id}
-                                                    </h4>
-                                                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                                                        {app.cluster_name} • {app.kubernetes_namespace}
-                                                    </p>
-                                                    {app.status === 'FAILED' && app.error_message && (
-                                                        <p className="text-sm text-red-600 dark:text-red-400 mt-1">
-                                                            <AlertTriangle className="w-3 h-3 inline mr-1" />
-                                                            {app.error_message}
-                                                        </p>
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center space-x-4">
+                                            <div className="p-2 bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg">
+                                                <Shield className="w-5 h-5 text-white" />
+                                            </div>
+                                            <div>
+                                                <h4 className="font-semibold text-gray-900 dark:text-white">
+                                                    {application.policy?.name || 'Unknown Policy'}
+                                                </h4>
+                                                <div className="flex items-center space-x-3 mt-1">
+                                                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(application.status)}`}>
+                                                        {application.status.toUpperCase()}
+                                                    </span>
+                                                    {application.policy?.severity && (
+                                                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getSeverityColor(application.policy.severity)}`}>
+                                                            {application.policy.severity.toUpperCase()}
+                                                        </span>
                                                     )}
+                                                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                                                        Applied: {new Date(application.created_at).toLocaleDateString()}
+                                                    </span>
                                                 </div>
                                             </div>
+                                        </div>
 
-                                            <div className="flex items-center space-x-3">
-                                                <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(app.status)}`}>
-                                                    {app.status}
-                                                </span>
-                                                <span className="text-sm text-gray-500 dark:text-gray-400">
-                                                    {new Date(app.applied_at).toLocaleDateString()}
-                                                </span>
+                                        <div className="flex items-center space-x-2">
+                                            <button
+                                                onClick={() => {
+                                                    setSelectedYamlContent(application.applied_yaml || '');
+                                                    setShowYamlModal(true);
+                                                }}
+                                                className="flex items-center space-x-2 px-3 py-2 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
+                                            >
+                                                <FileText className="w-4 h-4" />
+                                                <span className="text-sm">View YAML</span>
+                                            </button>
 
-                                                {/* YAML View Icon */}
+                                            {application.status === 'applied' && (
                                                 <button
-                                                    onClick={() => showYamlModal(app)}
-                                                    className="p-1 text-blue-500 hover:text-blue-700 dark:hover:text-blue-400"
-                                                    title="View Applied YAML"
+                                                    onClick={() => {
+                                                        setRemoveModalData({
+                                                            applicationId: application.id,
+                                                            policyName: application.policy?.name || 'Unknown Policy'
+                                                        });
+                                                        setShowRemoveModal(true);
+                                                    }}
+                                                    className="flex items-center space-x-2 px-3 py-2 text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
                                                 >
-                                                    <FileText className="w-4 h-4" />
+                                                    <Trash2 className="w-4 h-4" />
+                                                    <span className="text-sm">Remove</span>
                                                 </button>
+                                            )}
+                                        </div>
+                                    </div>
 
-                                                {/* Remove Policy Button - Show for APPLIED policies */}
-                                                {(app.status === 'APPLIED' || app.status === 'applied') && (
-                                                    <button
-                                                        onClick={() => {
-                                                            console.log('Remove button clicked for app:', app.id);
-                                                            showRemoveConfirmModal(app.id, app.policy?.name || app.policy_name || app.policy_id);
-                                                        }}
-                                                        className="p-1 text-red-500 hover:text-red-700 dark:hover:text-red-400"
-                                                        title="Remove Policy from Cluster"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
-                                                )}
+                                    {application.error_message && (
+                                        <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                                            <p className="text-sm text-red-600 dark:text-red-400">
+                                                <strong>Error:</strong> {application.error_message}
+                                            </p>
+                                        </div>
+                                    )}
 
-                                                {/* Error Icon for Failed Policies */}
-                                                {app.status === 'FAILED' && app.error_message && (
-                                                    <button
-                                                        onClick={() => showToast(app.error_message, 'error')}
-                                                        className="p-1 text-red-500 hover:text-red-700 dark:hover:text-red-400"
-                                                        title="View Error Details"
-                                                    >
-                                                        <AlertTriangle className="w-4 h-4" />
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </motion.div>
-                                    );
-                                })}
+                                    {application.application_log && (
+                                        <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg">
+                                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                                                <strong>Log:</strong> {application.application_log}
+                                            </p>
+                                        </div>
+                                    )}
+                                </motion.div>
+                            ))}
                         </div>
-
-                        {applications.filter(app => app.status !== 'REMOVED' && app.status !== 'removed').length > 10 && (
-                            <div className="mt-4 text-center">
-                                <button className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-sm font-medium">
-                                    View All Applications
-                                </button>
-                            </div>
-                        )}
-
-                    </motion.div>
-                )}
+                    )}
+                </motion.div>
+            )}
 
 
 
-
-            </div>
 
             {/* Policy Detail Modal */}
             <AnimatePresence>
@@ -1766,7 +1775,6 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
 
                                         {/* Actions */}
                                         <div className="space-y-3">
-
                                             <button
                                                 onClick={() => {
                                                     const finalYaml = reconstructYamlWithEdits(originalYaml, editableFields);
@@ -1779,22 +1787,32 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                                                 <span>Copy YAML</span>
                                             </button>
 
-
                                             <button
                                                 onClick={() => {
                                                     if (!selectedClusterName) {
                                                         showToast('Please select a cluster first', 'error');
                                                         return;
                                                     }
-                                                    if (isPolicyApplied(selectedPolicy.policy_id)) {
+                                                    const isApplied = applications.some(app =>
+                                                        app.policy?.policy_id === selectedPolicy.policy_id &&
+                                                        app.cluster_name === selectedClusterName &&
+                                                        app.status === 'applied'
+                                                    );
+                                                    if (isApplied) {
                                                         showToast(`Policy "${selectedPolicy.name}" is already applied to this cluster`, 'error');
                                                         return;
                                                     }
-                                                    setShowConfirmDialog(true);
+                                                    // Apply policy with edited YAML
+                                                    const finalYaml = reconstructYamlWithEdits(originalYaml, editableFields);
+                                                    applyPolicy(selectedPolicy, finalYaml);
                                                     setShowPolicyModal(false);
                                                 }}
-                                                disabled={!selectedClusterName || applyingPolicy === selectedPolicy.policy_id || isPolicyApplied(selectedPolicy.policy_id)}
-                                                className={`w-full flex items-center justify-center space-x-2 px-4 py-3 font-medium rounded-lg transition-all duration-200 ${isPolicyApplied(selectedPolicy.policy_id)
+                                                disabled={!selectedClusterName || applyingPolicy === selectedPolicy.policy_id}
+                                                className={`w-full flex items-center justify-center space-x-2 px-4 py-3 font-medium rounded-lg transition-all duration-200 ${applications.some(app =>
+                                                    app.policy?.policy_id === selectedPolicy.policy_id &&
+                                                    app.cluster_name === selectedClusterName &&
+                                                    app.status === 'applied'
+                                                )
                                                     ? 'bg-gray-400 text-white cursor-not-allowed'
                                                     : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white disabled:opacity-50 disabled:cursor-not-allowed'
                                                     }`}
@@ -1804,7 +1822,11 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                                                         <Loader2 className="w-4 h-4 animate-spin" />
                                                         <span>Applying...</span>
                                                     </>
-                                                ) : isPolicyApplied(selectedPolicy.policy_id) ? (
+                                                ) : applications.some(app =>
+                                                    app.policy?.policy_id === selectedPolicy.policy_id &&
+                                                    app.cluster_name === selectedClusterName &&
+                                                    app.status === 'applied'
+                                                ) ? (
                                                     <>
                                                         <Check className="w-4 h-4" />
                                                         <span>Already Applied</span>
@@ -1863,198 +1885,167 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                                         </div>
                                     </div>
 
-                                    <div className="flex-1 overflow-hidden">
-                                        {showYamlEditor ? (
-                                            <div className="h-full flex">
-                                                {/* YAML Display (Read-only) */}
-                                                <div className="flex-1">
-                                                    <Editor
-                                                        height="100%"
-                                                        defaultLanguage="yaml"
-                                                        value={reconstructYamlWithEdits(originalYaml, editableFields)}
-                                                        theme="vs-dark"
-                                                        options={{
-                                                            readOnly: true,
-                                                            minimap: { enabled: false },
-                                                            scrollBeyondLastLine: false,
-                                                            fontSize: 14,
-                                                            lineNumbers: 'on',
-                                                            wordWrap: 'on',
-                                                            automaticLayout: true
-                                                        }}
-                                                    />
-                                                </div>
+                                    <div className="flex-1 flex">
+                                        {/* Editable Fields Panel */}
+                                        {Object.keys(editableFields).length > 0 && (
+                                            <div className="w-80 p-4 border-r border-gray-200 dark:border-gray-700 overflow-y-auto bg-gray-50 dark:bg-gray-900/50">
+                                                <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                                                    <Edit className="w-4 h-4 mr-2" />
+                                                    Editable Fields
+                                                </h4>
+                                                <div className="space-y-4">
+                                                    {Object.entries(editableFields).map(([fieldKey, value]) => {
+                                                        const lineIndex = parseInt(fieldKey.split('_')[1]);
+                                                        const yamlLines = originalYaml.split('\n');
+                                                        const contextLine = yamlLines[lineIndex] || '';
+                                                        const fieldName = contextLine.split(':')[0]?.trim() || `Field ${lineIndex}`;
 
-                                                {/* Editable Fields Panel */}
-                                                <div className="w-80 border-l border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 overflow-y-auto">
-                                                    <div className="p-4">
-                                                        <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-                                                            <Edit3 className="w-4 h-4 mr-2" />
-                                                            Editable Fields
-                                                        </h4>
-
-                                                        {Object.keys(editableFields).length === 0 ? (
-                                                            <p className="text-sm text-gray-500 dark:text-gray-400">
-                                                                No editable fields found in this policy.
-                                                            </p>
-                                                        ) : (
-                                                            <div className="space-y-4">
-                                                                {Object.entries(editableFields).map(([fieldKey, fieldValue]) => {
-                                                                    // Extract readable field name
-                                                                    const fieldName = fieldKey.replace(/^line_\d+_/, '').replace(/_/g, ' ');
-
-                                                                    return (
-                                                                        <div key={fieldKey} className="space-y-2">
-                                                                            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 capitalize">
-                                                                                {fieldName}
-                                                                            </label>
-                                                                            <input
-                                                                                type="text"
-                                                                                value={fieldValue}
-                                                                                onChange={(e) => {
-                                                                                    setEditableFields(prev => ({
-                                                                                        ...prev,
-                                                                                        [fieldKey]: e.target.value
-                                                                                    }));
-                                                                                }}
-                                                                                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                                                                placeholder="Enter value..."
-                                                                            />
-                                                                        </div>
-                                                                    );
-                                                                })}
-
-                                                                <div className="pt-4 border-t border-gray-200 dark:border-gray-600">
-                                                                    <button
-                                                                        onClick={() => {
-                                                                            setEditableFields(extractEditableFields(originalYaml));
-                                                                            showToast('Fields reset to original values', 'success');
-                                                                        }}
-                                                                        className="w-full flex items-center justify-center space-x-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-colors"
-                                                                    >
-                                                                        <RefreshCw className="w-4 h-4" />
-                                                                        <span>Reset to Original</span>
-                                                                    </button>
-                                                                </div>
+                                                        return (
+                                                            <div key={fieldKey} className="space-y-2">
+                                                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                                    {fieldName}
+                                                                </label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={editableFields[fieldKey]}
+                                                                    onChange={(e) => {
+                                                                        setEditableFields(prev => ({
+                                                                            ...prev,
+                                                                            [fieldKey]: e.target.value
+                                                                        }));
+                                                                    }}
+                                                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                                                                    placeholder={value}
+                                                                />
+                                                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                                    Line {lineIndex + 1}: {contextLine.trim()}
+                                                                </p>
                                                             </div>
-                                                        )}
-                                                    </div>
+                                                        );
+                                                    })}
                                                 </div>
-                                            </div>
-                                        ) : (
-                                            <div className="h-full overflow-auto p-4 bg-gray-50 dark:bg-gray-900">
-                                                <pre className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap font-mono">
-                                                    {reconstructYamlWithEdits(originalYaml, editableFields)}
-                                                </pre>
                                             </div>
                                         )}
-                                    </div>
-                                </div>
 
-                            </div>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
-            {/* Confirmation Dialog */}
-            <AnimatePresence>
-                {showConfirmDialog && selectedPolicy && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-                        onClick={() => setShowConfirmDialog(false)}
-                    >
-                        <motion.div
-                            initial={{ scale: 0.9, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.9, opacity: 0 }}
-                            className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full p-6"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <div className="flex items-center space-x-4 mb-6">
-                                <div className="p-3 bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl">
-                                    <Play className="w-6 h-6 text-white" />
-                                </div>
-                                <div>
-                                    <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-                                        Apply Policy
-                                    </h3>
-                                    <p className="text-gray-600 dark:text-gray-400">
-                                        Confirm policy application
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="space-y-4 mb-6">
-                                <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Policy:</span>
-                                        <span className="text-sm font-semibold text-gray-900 dark:text-white">
-                                            {selectedPolicy.name}
-                                        </span>
-                                    </div>
-                                    <div className="flex items-center justify-between mb-2">
-                                        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Cluster:</span>
-                                        <span className="text-sm font-semibold text-gray-900 dark:text-white">
-                                            {selectedClusterName}
-                                        </span>
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Severity:</span>
-                                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getSeverityColor(selectedPolicy.severity)}`}>
-                                            {selectedPolicy.severity.toUpperCase()}
-                                        </span>
-                                    </div>
-                                </div>
-
-                                <div className="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-xl border border-blue-200 dark:border-blue-700">
-                                    <div className="flex items-start space-x-3">
-                                        <Info className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" />
-                                        <div>
-                                            <p className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-1">
-                                                Policy Application
-                                            </p>
-                                            <p className="text-sm text-blue-700 dark:text-blue-300">
-                                                This policy will be applied cluster-wide and will take effect immediately.
-                                                Make sure you understand the policy's impact before proceeding.
-                                            </p>
+                                        {/* YAML Display */}
+                                        <div className="flex-1">
+                                            {showYamlEditor ? (
+                                                <Editor
+                                                    height="100%"
+                                                    language="yaml"
+                                                    value={reconstructYamlWithEdits(originalYaml, editableFields)}
+                                                    options={{
+                                                        readOnly: true,
+                                                        minimap: { enabled: false },
+                                                        scrollBeyondLastLine: false,
+                                                        fontSize: 12,
+                                                        lineNumbers: 'on',
+                                                        wordWrap: 'on',
+                                                        folding: true,
+                                                        renderLineHighlight: 'none'
+                                                    }}
+                                                    theme="vs-dark"
+                                                />
+                                            ) : (
+                                                <div className="h-full overflow-auto p-4 bg-gray-900 text-gray-100 font-mono text-sm">
+                                                    <pre className="whitespace-pre-wrap">
+                                                        {reconstructYamlWithEdits(originalYaml, editableFields)}
+                                                    </pre>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="flex items-center justify-end space-x-4">
-                                <button
-                                    onClick={() => setShowConfirmDialog(false)}
-                                    className="px-6 py-3 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors font-medium"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={() => applyPolicy(selectedPolicy)}
-                                    disabled={applyingPolicy === selectedPolicy.policy_id}
-                                    className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-medium rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    {applyingPolicy === selectedPolicy.policy_id ? (
-                                        <>
-                                            <Loader2 className="w-4 h-4 animate-spin" />
-                                            <span>Applying...</span>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Play className="w-4 h-4" />
-                                            <span>Apply Policy</span>
-                                        </>
+                            {/* Modal Footer */}
+                            <div className="flex items-center justify-between p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
+                                <div className="flex items-center space-x-4">
+                                    <div className="text-sm text-gray-600 dark:text-gray-400">
+                                        {Object.keys(editableFields).length > 0 ? (
+                                            <span className="flex items-center">
+                                                <Edit className="w-4 h-4 mr-1" />
+                                                {Object.keys(editableFields).length} editable field(s) found
+                                            </span>
+                                        ) : (
+                                            <span>No editable fields in this policy</span>
+                                        )}
+                                    </div>
+                                    {selectedClusterName && (
+                                        <div className="text-sm text-blue-600 dark:text-blue-400">
+                                            Target: {selectedClusterName}
+                                        </div>
                                     )}
-                                </button>
+                                </div>
+                                <div className="flex items-center space-x-3">
+                                    <button
+                                        onClick={() => setShowPolicyModal(false)}
+                                        className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                                    >
+                                        Close
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            if (!selectedClusterName) {
+                                                showToast('Please select a cluster first', 'error');
+                                                return;
+                                            }
+                                            const isApplied = applications.some(app =>
+                                                app.policy?.policy_id === selectedPolicy.policy_id &&
+                                                app.cluster_name === selectedClusterName &&
+                                                app.status === 'applied'
+                                            );
+                                            if (isApplied) {
+                                                showToast(`Policy "${selectedPolicy.name}" is already applied to this cluster`, 'error');
+                                                return;
+                                            }
+                                            // Apply policy with edited YAML
+                                            const finalYaml = reconstructYamlWithEdits(originalYaml, editableFields);
+                                            applyPolicy(selectedPolicy, finalYaml);
+                                            setShowPolicyModal(false);
+                                        }}
+                                        disabled={!selectedClusterName || applyingPolicy === selectedPolicy.policy_id}
+                                        className={`px-6 py-2 font-medium rounded-lg transition-all duration-200 ${applications.some(app =>
+                                            app.policy?.policy_id === selectedPolicy.policy_id &&
+                                            app.cluster_name === selectedClusterName &&
+                                            app.status === 'applied'
+                                        )
+                                            ? 'bg-gray-400 text-white cursor-not-allowed'
+                                            : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white disabled:opacity-50 disabled:cursor-not-allowed'
+                                            }`}
+                                    >
+                                        {applyingPolicy === selectedPolicy.policy_id ? (
+                                            <span className="flex items-center space-x-2">
+                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                <span>Applying...</span>
+                                            </span>
+                                        ) : applications.some(app =>
+                                            app.policy?.policy_id === selectedPolicy.policy_id &&
+                                            app.cluster_name === selectedClusterName &&
+                                            app.status === 'applied'
+                                        ) ? (
+                                            <span className="flex items-center space-x-2">
+                                                <Check className="w-4 h-4" />
+                                                <span>Already Applied</span>
+                                            </span>
+                                        ) : (
+                                            <span className="flex items-center space-x-2">
+                                                <Play className="w-4 h-4" />
+                                                <span>Apply Policy</span>
+                                            </span>
+                                        )}
+                                    </button>
+                                </div>
                             </div>
                         </motion.div>
                     </motion.div>
                 )}
             </AnimatePresence>
+
+
+
+
+
 
             {/* Statistics Modal */}
             <AnimatePresence>
@@ -2106,7 +2097,7 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                                                 <FileText className="w-5 h-5 text-white" />
                                             </div>
                                             <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                                                {policies.length}
+                                                {stats.totalPolicies}
                                             </span>
                                         </div>
                                         <h3 className="font-semibold text-blue-900 dark:text-blue-100">Total Policies</h3>
@@ -2122,7 +2113,7 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                                             <span className="text-2xl font-bold text-green-600 dark:text-green-400">
                                                 {selectedClusterName
                                                     ? applications.filter(app => app.cluster_name === selectedClusterName && app.status === 'applied').length
-                                                    : applications.filter(app => app.status === 'applied').length
+                                                    : stats.appliedPolicies
                                                 }
                                             </span>
                                         </div>
@@ -2139,7 +2130,7 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                                             <span className="text-2xl font-bold text-red-600 dark:text-red-400">
                                                 {selectedClusterName
                                                     ? applications.filter(app => app.cluster_name === selectedClusterName && app.status === 'failed').length
-                                                    : applications.filter(app => app.status === 'failed').length
+                                                    : stats.failedPolicies
                                                 }
                                             </span>
                                         </div>
@@ -2156,7 +2147,7 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                                             <span className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
                                                 {selectedClusterName
                                                     ? applications.filter(app => app.cluster_name === selectedClusterName && ['pending', 'applying'].includes(app.status)).length
-                                                    : applications.filter(app => ['pending', 'applying'].includes(app.status)).length
+                                                    : stats.pendingPolicies
                                                 }
                                             </span>
                                         </div>
@@ -2173,37 +2164,25 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                         <div className="text-center">
                                             <div className="text-2xl font-bold text-red-600 dark:text-red-400 mb-1">
-                                                {selectedClusterName
-                                                    ? applications.filter(app => app.cluster_name === selectedClusterName && app.policy?.severity === 'critical').length
-                                                    : policies.filter(policy => policy.severity === 'critical').length
-                                                }
+                                                {stats.severityBreakdown?.critical || 0}
                                             </div>
                                             <div className="text-sm text-red-700 dark:text-red-300 font-medium">Critical</div>
                                         </div>
                                         <div className="text-center">
                                             <div className="text-2xl font-bold text-orange-600 dark:text-orange-400 mb-1">
-                                                {selectedClusterName
-                                                    ? applications.filter(app => app.cluster_name === selectedClusterName && app.policy?.severity === 'high').length
-                                                    : policies.filter(policy => policy.severity === 'high').length
-                                                }
+                                                {stats.severityBreakdown?.high || 0}
                                             </div>
                                             <div className="text-sm text-orange-700 dark:text-orange-300 font-medium">High</div>
                                         </div>
                                         <div className="text-center">
                                             <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400 mb-1">
-                                                {selectedClusterName
-                                                    ? applications.filter(app => app.cluster_name === selectedClusterName && app.policy?.severity === 'medium').length
-                                                    : policies.filter(policy => policy.severity === 'medium').length
-                                                }
+                                                {stats.severityBreakdown?.medium || 0}
                                             </div>
                                             <div className="text-sm text-yellow-700 dark:text-yellow-300 font-medium">Medium</div>
                                         </div>
                                         <div className="text-center">
                                             <div className="text-2xl font-bold text-green-600 dark:text-green-400 mb-1">
-                                                {selectedClusterName
-                                                    ? applications.filter(app => app.cluster_name === selectedClusterName && app.policy?.severity === 'low').length
-                                                    : policies.filter(policy => policy.severity === 'low').length
-                                                }
+                                                {stats.severityBreakdown?.low || 0}
                                             </div>
                                             <div className="text-sm text-green-700 dark:text-green-300 font-medium">Low</div>
                                         </div>
@@ -2211,27 +2190,18 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                                 </div>
 
                                 {/* Cluster Overview */}
-                                {clusters.length > 0 && (
+                                {clusterOverview.length > 0 && (
                                     <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6">
                                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                                             {selectedClusterName ? `${selectedClusterName} Policy Overview` : 'Cluster Policy Overview'}
                                         </h3>
                                         <div className="space-y-4">
                                             {(selectedClusterName
-                                                ? clusters.filter(cluster => cluster.cluster_name === selectedClusterName)
-                                                : clusters
-                                            ).map((cluster, index) => {
-                                                const clusterApplications = applications.filter(app => app.cluster_name === cluster.cluster_name);
-                                                const appliedCount = clusterApplications.filter(app => app.status === 'applied').length;
-                                                const failedCount = clusterApplications.filter(app => app.status === 'failed').length;
-                                                const pendingCount = clusterApplications.filter(app => ['pending', 'applying'].includes(app.status)).length;
-
+                                                ? clusterOverview.filter(cluster => cluster.cluster.cluster_name === selectedClusterName)
+                                                : clusterOverview
+                                            ).map((overview, index) => {
                                                 // Get unique categories applied to this cluster
-                                                const categoriesApplied = [...new Set(
-                                                    clusterApplications
-                                                        .filter(app => app.policy && app.status === 'applied')
-                                                        .map(app => app.policy.category?.name || 'Unknown')
-                                                )];
+                                                const categoriesApplied = overview.categories_applied || [];
 
                                                 return (
                                                     <div key={index} className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
@@ -2240,28 +2210,28 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                                                                 <Server className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                                                                 <div>
                                                                     <h4 className="font-semibold text-gray-900 dark:text-white">
-                                                                        {cluster.cluster_name}
+                                                                        {overview.cluster.cluster_name}
                                                                     </h4>
                                                                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                                                                        {cluster.provider_name || 'Unknown Provider'}
+                                                                        {overview.cluster.provider_name || 'Unknown Provider'}
                                                                     </p>
                                                                 </div>
                                                             </div>
                                                             <div className="flex items-center space-x-4 text-sm">
                                                                 <span className="text-green-600 dark:text-green-400 font-medium">
-                                                                    {appliedCount} Applied
+                                                                    {overview.applied_count} Applied
                                                                 </span>
                                                                 <span className="text-red-600 dark:text-red-400 font-medium">
-                                                                    {failedCount} Failed
+                                                                    {overview.failed_count} Failed
                                                                 </span>
                                                                 <span className="text-yellow-600 dark:text-yellow-400 font-medium">
-                                                                    {pendingCount} Pending
+                                                                    {overview.pending_count} Pending
                                                                 </span>
                                                             </div>
                                                         </div>
                                                         <div className="flex items-center justify-between">
                                                             <div className="text-sm text-gray-600 dark:text-gray-400">
-                                                                Total Applications: {clusterApplications.length}
+                                                                Total Applications: {overview.total_applications}
                                                             </div>
                                                             {categoriesApplied.length > 0 && (
                                                                 <div className="flex items-center space-x-2">
@@ -2297,14 +2267,264 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
             </AnimatePresence>
 
 
+            {/* YAML View Modal */}
+            <AnimatePresence>
+                {showYamlModal && selectedYamlContent && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+                        onClick={() => setShowYamlModal(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-4xl w-full max-h-[80vh] overflow-auto"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="flex items-center justify-between mb-6">
+                                <div className="flex items-center gap-3">
+                                    <FileText className="w-6 h-6 text-blue-600" />
+                                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">Applied YAML</h2>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(selectedYamlContent);
+                                            showToast('YAML copied to clipboard', 'success');
+                                        }}
+                                        className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                                    >
+                                        <Copy className="w-4 h-4" />
+                                        Copy
+                                    </button>
+                                    <button
+                                        onClick={() => setShowYamlModal(false)}
+                                        className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                                    >
+                                        <X className="w-6 h-6" />
+                                    </button>
+                                </div>
+                            </div>
 
+                            <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                                <Editor
+                                    height="500px"
+                                    language="yaml"
+                                    value={selectedYamlContent}
+                                    options={{
+                                        readOnly: true,
+                                        minimap: { enabled: false },
+                                        scrollBeyondLastLine: false,
+                                        fontSize: 12,
+                                        lineNumbers: 'on',
+                                        wordWrap: 'on'
+                                    }}
+                                    theme="vs-dark"
+                                />
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
+            {/* YAML Comparison Modal */}
+            <AnimatePresence>
+                {showYamlComparisonModal && selectedApplicationForComparison && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+                        onClick={() => setShowYamlComparisonModal(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-7xl w-full max-h-[90vh] overflow-auto"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="flex items-center justify-between mb-6">
+                                <div className="flex items-center gap-3">
+                                    <GitBranch className="w-6 h-6 text-purple-600" />
+                                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">YAML Comparison</h2>
+                                </div>
+                                <button
+                                    onClick={() => setShowYamlComparisonModal(false)}
+                                    className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                                >
+                                    <X className="w-6 h-6" />
+                                </button>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-6">
+                                <div>
+                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                                        <FileText className="w-5 h-5 text-blue-600" />
+                                        Original YAML
+                                    </h3>
+                                    <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                                        <Editor
+                                            height="500px"
+                                            language="yaml"
+                                            value={selectedApplicationForComparison.original_yaml || ''}
+                                            options={{
+                                                readOnly: true,
+                                                minimap: { enabled: false },
+                                                scrollBeyondLastLine: false,
+                                                fontSize: 12,
+                                                lineNumbers: 'on',
+                                                wordWrap: 'on'
+                                            }}
+                                            theme="vs-dark"
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                                        <Edit3 className="w-5 h-5 text-green-600" />
+                                        Applied YAML (Edited)
+                                    </h3>
+                                    <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                                        <Editor
+                                            height="500px"
+                                            language="yaml"
+                                            value={selectedApplicationForComparison.applied_yaml || ''}
+                                            options={{
+                                                readOnly: true,
+                                                minimap: { enabled: false },
+                                                scrollBeyondLastLine: false,
+                                                fontSize: 12,
+                                                lineNumbers: 'on',
+                                                wordWrap: 'on'
+                                            }}
+                                            theme="vs-dark"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Remove Confirmation Modal */}
+            <AnimatePresence>
+                {showRemoveModal && removeModalData && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+                        onClick={() => setShowRemoveModal(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="w-10 h-10 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center">
+                                    <AlertTriangle className="w-5 h-5 text-red-600" />
+                                </div>
+                                <h2 className="text-lg font-bold text-gray-900 dark:text-white">Remove Policy</h2>
+                            </div>
+
+                            <p className="text-gray-600 dark:text-gray-400 mb-6">
+                                Are you sure you want to remove the policy "{removeModalData.policyName}" from the cluster?
+                                This action cannot be undone.
+                            </p>
+
+                            <div className="flex items-center justify-end gap-3">
+                                <button
+                                    onClick={() => setShowRemoveModal(false)}
+                                    className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleRemovePolicy}
+                                    disabled={removingPolicy}
+                                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                                >
+                                    {removingPolicy ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                        <Trash2 className="w-4 h-4" />
+                                    )}
+                                    Remove Policy
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Confirm Apply Dialog */}
+            <AnimatePresence>
+                {showConfirmDialog && selectedPolicy && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+                        onClick={() => setShowConfirmDialog(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center">
+                                    <Shield className="w-5 h-5 text-blue-600" />
+                                </div>
+                                <h2 className="text-lg font-bold text-gray-900 dark:text-white">Apply Policy</h2>
+                            </div>
+
+                            <p className="text-gray-600 dark:text-gray-400 mb-6">
+                                Are you sure you want to apply the policy "{selectedPolicy.name}" to cluster "{selectedClusterName}"?
+                            </p>
+
+                            <div className="flex items-center justify-end gap-3">
+                                <button
+                                    onClick={() => setShowConfirmDialog(false)}
+                                    className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        if (selectedPolicy) {
+                                            applyPolicy(selectedPolicy);
+                                        }
+                                    }}
+                                    disabled={applyingPolicy === selectedPolicy.policy_id}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                                >
+                                    {applyingPolicy === selectedPolicy.policy_id ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                        <Play className="w-4 h-4" />
+                                    )}
+                                    Apply Policy
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };
 
 export default Policies;
-
-
 
 

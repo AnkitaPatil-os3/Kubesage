@@ -3,6 +3,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 from enum import Enum
 from fastapi import Request
+import re
 
 class ApplicationStatus(str, Enum):
     PENDING = "pending"
@@ -36,6 +37,19 @@ class PolicyCategoryResponse(PolicyCategoryBase):
     
     class Config:
         from_attributes = True
+
+# Add this new schema for editable fields
+class EditableField(BaseModel):
+    line_number: int
+    field_name: str
+    current_value: str
+    field_type: str = "string"  # string, boolean, array, etc.
+
+class PolicyEditableResponse(BaseModel):
+    policy_id: str
+    name: str
+    yaml_content: str
+    editable_fields: List[EditableField]
 
 class PolicyBase(BaseModel):
     policy_id: str
@@ -100,6 +114,7 @@ class PolicyApplicationResponse(BaseModel):
     created_at: datetime
     applied_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+    is_edited: Optional[bool] = False  # Add this field to track if policy was edited
     
     # Add these fields for when policy is missing
     policy_name: Optional[str] = None

@@ -61,13 +61,14 @@ class PolicyApplicationModel(Base):
     # Application details
     status = Column(Enum(ApplicationStatus), default=ApplicationStatus.PENDING)
     applied_yaml = Column(Text)
+    original_yaml = Column(Text)  # Add this column
+    is_edited = Column(Boolean, default=False)  # Add this column
     application_log = Column(Text)
     error_message = Column(Text)
     
     # Kubernetes details
     kubernetes_name = Column(String(200))
     kubernetes_namespace = Column(String(100), default="cluster-wide")
-    # is_cluster_wide = Column(Boolean, default=True)
     
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
