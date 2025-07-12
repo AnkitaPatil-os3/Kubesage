@@ -719,6 +719,56 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
         }
     };
 
+    // Add this new function after line 733
+    const applyPolicyToCluster = async (policy: Policy, editedYaml?: string) => {
+        if (!selectedClusterName) {
+            showToast('Please select a cluster first', 'error');
+            return;
+        }
+
+        setApplyingPolicy(policy.policy_id);
+
+        try {
+            const requestBody = {
+                cluster_name: selectedClusterName,
+                policy_id: policy.policy_id,
+                kubernetes_namespace: null,
+                ...(editedYaml && { edited_yaml: editedYaml }) // Include edited YAML if provided
+            };
+
+            const response = await fetch('https://10.0.32.106:8005/api/v1/policies/apply', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+                },
+                body: JSON.stringify(requestBody)
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to apply policy: ${response.statusText}`);
+            }
+
+            const result = await response.json();
+
+            if (result.success) {
+                showToast(`Policy "${policy.name}" applied successfully!`, 'success');
+                fetchApplications(); // Refresh applications
+                fetchAppliedPoliciesForCluster(selectedClusterName);
+                fetchAvailablePoliciesForCluster(selectedClusterName);
+            } else {
+                throw new Error(result.message || 'Failed to apply policy');
+            }
+        } catch (error: any) {
+            console.error('Error applying policy:', error);
+            showToast(`Failed to apply policy: ${error.message}`, 'error');
+        } finally {
+            setApplyingPolicy(null);
+            setShowConfirmDialog(false);
+        }
+    };
+
+
     // Utility functions
     const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
         // Simple toast implementation - you can replace with your preferred toast library
@@ -1149,220 +1199,279 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                                     ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
                                     : "space-y-4"
                                 }>
-                                    {sortedPolicies.map((policy, index) => {
-                                        const isApplied = applications.some(app =>
-                                            app.policy?.policy_id === policy.policy_id &&
-                                            app.cluster_name === selectedClusterName &&
-                                            app.status === 'applied'
-                                        );
+{sortedPolicies.map((policy, index) => {
+    const isApplied = applications.some(app =>
+        app.policy?.policy_id === policy.policy_id &&
+        app.cluster_name === selectedClusterName &&
+        app.status === 'applied'
+    );
 
-                                        return (
-                                            <motion.div
-                                                key={policy.id}
-                                                initial={{ opacity: 0, y: 20 }}
-                                                animate={{ opacity: 1, y: 0 }}
-                                                transition={{ delay: index * 0.1 }}
-                                                className={`bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 hover:shadow-xl transition-all duration-300 ${viewMode === 'list' ? 'flex items-center p-4' : 'p-6'
-                                                    }`}
-                                            >
-                                                {viewMode === 'grid' ? (
-                                                    <>
-                                                        {/* Grid View */}
-                                                        <div className="flex items-start justify-between mb-4">
-                                                            <div className="flex items-center space-x-3">
-                                                                <div className="p-2 bg-gradient-to-r from-blue-500 to-cyan-600 rounded-lg">
-                                                                    <Shield className="w-4 h-4 text-white" />
-                                                                </div>
-                                                                <div>
-                                                                    <h4 className="font-semibold text-gray-900 dark:text-white text-sm">
-                                                                        {policy.name}
-                                                                    </h4>
-                                                                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getSeverityColor(policy.severity)}`}>
-                                                                        {policy.severity.toUpperCase()}
-                                                                    </span>
-                                                                </div>
-                                                            </div>
-                                                            <button
-                                                                onClick={() => {
-                                                                    setSelectedPolicy(policy);
-                                                                    setShowPolicyModal(true);
-                                                                }}
-                                                                className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                                                            >
-                                                                <Eye className="w-4 h-4" />
-                                                            </button>
-                                                        </div>
+    return (
+        <motion.div
+            key={policy.id}
+            layout
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ 
+                delay: index * 0.1,
+                duration: 0.4,
+                layout: { duration: 0.3 }
+            }}
+            whileHover={{ 
+                scale: 1.02,
+                transition: { duration: 0.2 }
+            }}
+            className={`bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 hover:shadow-xl transition-all duration-300 ${
+                viewMode === 'list' ? 'flex items-center p-4' : 'p-6'
+            }`}
+        >
+            {viewMode === 'grid' ? (
+                <div className="h-full flex flex-col">
+                    {/* Grid View */}
+                    <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center space-x-3 flex-1 min-w-0">
+                            <motion.div 
+                                whileHover={{ rotate: 360 }}
+                                transition={{ duration: 0.5 }}
+                                className="p-2 bg-gradient-to-r from-blue-500 to-cyan-600 rounded-lg flex-shrink-0"
+                            >
+                                <Shield className="w-4 h-4 text-white" />
+                            </motion.div>
+                            <div className="min-w-0 flex-1">
+                                <h4 className="font-semibold text-gray-900 dark:text-white text-sm truncate">
+                                    {policy.name}
+                                </h4>
+                                <motion.span 
+                                    initial={{ scale: 0.8 }}
+                                    animate={{ scale: 1 }}
+                                    className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border mt-1 ${getSeverityColor(policy.severity)}`}
+                                >
+                                    {policy.severity.toUpperCase()}
+                                </motion.span>
+                            </div>
+                        </div>
+                        <motion.button
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => {
+                                setSelectedPolicy(policy);
+                                setShowPolicyModal(true);
+                            }}
+                            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex-shrink-0"
+                        >
+                            <Eye className="w-4 h-4" />
+                        </motion.button>
+                    </div>
 
-                                                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-3">
-                                                            {policy.description || policy.purpose}
-                                                        </p>
+                    <div className="flex-1 mb-4">
+                        <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-3">
+                            {policy.description || policy.purpose}
+                        </p>
+                    </div>
 
-                                                        {policy.tags && policy.tags.length > 0 && (
-                                                            <div className="flex flex-wrap gap-1 mb-4">
-                                                                {policy.tags.slice(0, 3).map((tag, tagIndex) => (
-                                                                    <span
-                                                                        key={tagIndex}
-                                                                        className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
-                                                                    >
-                                                                        <Tag className="w-3 h-3 mr-1" />
-                                                                        {tag}
-                                                                    </span>
-                                                                ))}
-                                                                {policy.tags.length > 3 && (
-                                                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
-                                                                        +{policy.tags.length - 3}
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                        )}
+                    {policy.tags && policy.tags.length > 0 && (
+                        <motion.div 
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: 0.2 }}
+                            className="flex flex-wrap gap-1 mb-4"
+                        >
+                            {policy.tags.slice(0, 3).map((tag, tagIndex) => (
+                                <motion.span
+                                    key={tagIndex}
+                                    initial={{ scale: 0 }}
+                                    animate={{ scale: 1 }}
+                                    transition={{ delay: tagIndex * 0.1 }}
+                                    className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
+                                >
+                                    <Tag className="w-3 h-3 mr-1" />
+                                    {tag}
+                                </motion.span>
+                            ))}
+                            {policy.tags.length > 3 && (
+                                <motion.span 
+                                    initial={{ scale: 0 }}
+                                    animate={{ scale: 1 }}
+                                    transition={{ delay: 0.3 }}
+                                    className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
+                                >
+                                    +{policy.tags.length - 3}
+                                </motion.span>
+                            )}
+                        </motion.div>
+                    )}
 
-                                                        <div className="flex items-center justify-between">
-                                                            <div className="flex items-center space-x-2">
-                                                                <button
-                                                                    onClick={() => {
-                                                                        setSelectedPolicy(policy);
-                                                                        setShowPolicyModal(true);
-                                                                    }}
-                                                                    className="flex items-center space-x-2 px-3 py-2 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
-                                                                >
-                                                                    <Eye className="w-4 h-4" />
-                                                                    <span className="text-sm">View</span>
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => {
-                                                                        navigator.clipboard.writeText(policy.yaml_content);
-                                                                        showToast('YAML copied to clipboard', 'success');
-                                                                    }}
-                                                                    className="flex items-center space-x-2 px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors"
-                                                                >
-                                                                    <Copy className="w-4 h-4" />
-                                                                    <span className="text-sm">Copy</span>
-                                                                </button>
-                                                            </div>
+                    <div className="flex items-center justify-between mt-auto">
+                        <div className="flex items-center space-x-2">
+                            <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                onClick={() => {
+                                    setSelectedPolicy(policy);
+                                    setShowPolicyModal(true);
+                                }}
+                                className="flex items-center space-x-2 px-3 py-2 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
+                            >
+                                <Eye className="w-4 h-4" />
+                                <span className="text-sm">View</span>
+                            </motion.button>
+                            <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                onClick={() => {
+                                    navigator.clipboard.writeText(policy.yaml_content);
+                                    showToast('YAML copied to clipboard', 'success');
+                                }}
+                                className="flex items-center space-x-2 px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors"
+                            >
+                                <Copy className="w-4 h-4" />
+                                <span className="text-sm">Copy</span>
+                            </motion.button>
+                        </div>
 
-                                                            <button
-                                                                onClick={() => {
-                                                                    if (!selectedClusterName) {
-                                                                        showToast('Please select a cluster first', 'error');
-                                                                        return;
-                                                                    }
-                                                                    if (isApplied) {
-                                                                        showToast(`Policy "${policy.name}" is already applied to this cluster`, 'error');
-                                                                        return;
-                                                                    }
-                                                                    setSelectedPolicy(policy);
-                                                                    setShowConfirmDialog(true);
-                                                                }}
-                                                                disabled={!selectedClusterName || applyingPolicy === policy.policy_id || isApplied}
-                                                                className={`flex items-center space-x-2 px-4 py-2 font-medium rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl ${isApplied
-                                                                    ? 'bg-gray-400 text-white cursor-not-allowed'
-                                                                    : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white disabled:opacity-50 disabled:cursor-not-allowed'
-                                                                    }`}
-                                                            >
-                                                                {applyingPolicy === policy.policy_id ? (
-                                                                    <>
-                                                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                                                        <span className="text-sm">Applying...</span>
-                                                                    </>
-                                                                ) : isApplied ? (
-                                                                    <>
-                                                                        <Check className="w-4 h-4" />
-                                                                        <span className="text-sm">Applied</span>
-                                                                    </>
-                                                                ) : (
-                                                                    <>
-                                                                        <Play className="w-4 h-4" />
-                                                                        <span className="text-sm">Apply</span>
-                                                                    </>
-                                                                )}
-                                                            </button>
-                                                        </div>
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        {/* List View */}
-                                                        <div className="flex items-center space-x-4 flex-1">
-                                                            <div className="p-2 bg-gradient-to-r from-blue-500 to-cyan-600 rounded-lg">
-                                                                <Shield className="w-4 h-4 text-white" />
-                                                            </div>
-                                                            <div className="flex-1">
-                                                                <div className="flex items-center space-x-3 mb-1">
-                                                                    <h4 className="font-semibold text-gray-900 dark:text-white">
-                                                                        {policy.name}
-                                                                    </h4>
-                                                                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getSeverityColor(policy.severity)}`}>
-                                                                        {policy.severity.toUpperCase()}
-                                                                    </span>
-                                                                </div>
-                                                                <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
-                                                                    {policy.description || policy.purpose}
-                                                                </p>
-                                                            </div>
-                                                        </div>
+                        <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => {
+                                if (!selectedClusterName) {
+                                    showToast('Please select a cluster first', 'error');
+                                    return;
+                                }
+                                if (isApplied) {
+                                    showToast(`Policy "${policy.name}" is already applied to this cluster`, 'error');
+                                    return;
+                                }
+                                setSelectedPolicy(policy);
+                                setShowConfirmDialog(true);
+                            }}
+                            disabled={!selectedClusterName || applyingPolicy === policy.policy_id || isApplied}
+                            className={`flex items-center space-x-2 px-4 py-2 font-medium rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl ${
+                                isApplied
+                                    ? 'bg-gray-400 text-white cursor-not-allowed'
+                                    : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white disabled:opacity-50 disabled:cursor-not-allowed'
+                            }`}
+                        >
+                            {applyingPolicy === policy.policy_id ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    <span className="text-sm">Applying...</span>
+                                </>
+                            ) : isApplied ? (
+                                <>
+                                    <Check className="w-4 h-4" />
+                                    <span className="text-sm">Applied</span>
+                                </>
+                            ) : (
+                                <>
+                                    <Play className="w-4 h-4" />
+                                    <span className="text-sm">Apply</span>
+                                </>
+                            )}
+                        </motion.button>
+                    </div>
+                </div>
+            ) : (
+                <>
+                    {/* List View */}
+                    <div className="flex items-center space-x-4 flex-1">
+                        <motion.div 
+                            whileHover={{ rotate: 360 }}
+                            transition={{ duration: 0.5 }}
+                            className="p-2 bg-gradient-to-r from-blue-500 to-cyan-600 rounded-lg flex-shrink-0"
+                        >
+                            <Shield className="w-4 h-4 text-white" />
+                        </motion.div>
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center space-x-3 mb-1">
+                                <h4 className="font-semibold text-gray-900 dark:text-white truncate">
+                                    {policy.name}
+                                </h4>
+                                <motion.span 
+                                    initial={{ scale: 0.8 }}
+                                    animate={{ scale: 1 }}
+                                    className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border flex-shrink-0 ${getSeverityColor(policy.severity)}`}
+                                >
+                                    {policy.severity.toUpperCase()}
+                                </motion.span>
+                            </div>
+                            <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
+                                {policy.description || policy.purpose}
+                            </p>
+                        </div>
+                    </div>
 
-                                                        <div className="flex items-center space-x-2">
-                                                            <button
-                                                                onClick={() => {
-                                                                    setSelectedPolicy(policy);
-                                                                    setShowPolicyModal(true);
-                                                                }}
-                                                                className="flex items-center space-x-2 px-3 py-2 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
-                                                            >
-                                                                <Eye className="w-4 h-4" />
-                                                                <span className="text-sm">View</span>
-                                                            </button>
-                                                            <button
-                                                                onClick={() => {
-                                                                    navigator.clipboard.writeText(policy.yaml_content);
-                                                                    showToast('YAML copied to clipboard', 'success');
-                                                                }}
-                                                                className="flex items-center space-x-2 px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors"
-                                                            >
-                                                                <Copy className="w-4 h-4" />
-                                                                <span className="text-sm">Copy</span>
-                                                            </button>
-                                                            <button
-                                                                onClick={() => {
-                                                                    if (!selectedClusterName) {
-                                                                        showToast('Please select a cluster first', 'error');
-                                                                        return;
-                                                                    }
-                                                                    if (isApplied) {
-                                                                        showToast(`Policy "${policy.name}" is already applied to this cluster`, 'error');
-                                                                        return;
-                                                                    }
-                                                                    setSelectedPolicy(policy);
-                                                                    setShowConfirmDialog(true);
-                                                                }}
-                                                                disabled={!selectedClusterName || applyingPolicy === policy.policy_id || isApplied}
-                                                                className={`flex items-center space-x-2 px-4 py-2 font-medium rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl ${isApplied
-                                                                    ? 'bg-gray-400 text-white cursor-not-allowed'
-                                                                    : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white disabled:opacity-50 disabled:cursor-not-allowed'
-                                                                    }`}
-                                                            >
-                                                                {applyingPolicy === policy.policy_id ? (
-                                                                    <>
-                                                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                                                        <span className="text-sm">Applying...</span>
-                                                                    </>
-                                                                ) : isApplied ? (
-                                                                    <>
-                                                                        <Check className="w-4 h-4" />
-                                                                        <span className="text-sm">Applied</span>
-                                                                    </>
-                                                                ) : (
-                                                                    <>
-                                                                        <Play className="w-4 h-4" />
-                                                                        <span className="text-sm">Apply</span>
-                                                                    </>
-                                                                )}
-                                                            </button>
-                                                        </div>
-                                                    </>
-                                                )}
-                                            </motion.div>
-                                        );
-                                    })}
+                    <div className="flex items-center space-x-2 flex-shrink-0">
+                        <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => {
+                                setSelectedPolicy(policy);
+                                setShowPolicyModal(true);
+                            }}
+                            className="flex items-center space-x-2 px-3 py-2 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
+                        >
+                            <Eye className="w-4 h-4" />
+                            <span className="text-sm">View</span>
+                        </motion.button>
+                        <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => {
+                                navigator.clipboard.writeText(policy.yaml_content);
+                                showToast('YAML copied to clipboard', 'success');
+                            }}
+                            className="flex items-center space-x-2 px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors"
+                        >
+                            <Copy className="w-4 h-4" />
+                            <span className="text-sm">Copy</span>
+                        </motion.button>
+                        <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => {
+                                if (!selectedClusterName) {
+                                    showToast('Please select a cluster first', 'error');
+                                    return;
+                                }
+                                if (isApplied) {
+                                    showToast(`Policy "${policy.name}" is already applied to this cluster`, 'error');
+                                    return;
+                                }
+                                setSelectedPolicy(policy);
+                                setShowConfirmDialog(true);
+                            }}
+                            disabled={!selectedClusterName || applyingPolicy === policy.policy_id || isApplied}
+                            className={`flex items-center space-x-2 px-4 py-2 font-medium rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl ${
+                                isApplied
+                                    ? 'bg-gray-400 text-white cursor-not-allowed'
+                                    : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white disabled:opacity-50 disabled:cursor-not-allowed'
+                            }`}
+                        >
+                            {applyingPolicy === policy.policy_id ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    <span className="text-sm">Applying...</span>
+                                </>
+                            ) : isApplied ? (
+                                <>
+                                    <Check className="w-4 h-4" />
+                                    <span className="text-sm">Applied</span>
+                                </>
+                            ) : (
+                                <>
+                                    <Play className="w-4 h-4" />
+                                    <span className="text-sm">Apply</span>
+                                </>
+                            )}
+                        </motion.button>
+                    </div>
+                </>
+            )}
+        </motion.div>
+    );
+})}
+
                                 </div>
 
                                 {/* Pagination */}
@@ -1406,11 +1515,11 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                     </motion.div>
                 )}
 
-                
-                
-                
-                
-                
+
+
+
+
+
                 {/* Recent Applications */}
                 {applications.filter(app => app.status !== 'REMOVED' && app.status !== 'removed').length > 0 && (
                     <motion.div
@@ -1657,7 +1766,7 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
 
                                         {/* Actions */}
                                         <div className="space-y-3">
-                                            
+
                                             <button
                                                 onClick={() => {
                                                     const finalYaml = reconstructYamlWithEdits(originalYaml, editableFields);
