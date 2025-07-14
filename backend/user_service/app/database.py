@@ -15,7 +15,8 @@ engine = create_engine(
 
 def create_db_and_tables():
     logger.info("Creating database and tables if they don't exist")
-    SQLModel.metadata.create_all(engine)
+    SQLModel.metadata.drop_all(engine)  # Drop existing tables
+    SQLModel.metadata.create_all(engine) 
 
 def get_session():
     try:

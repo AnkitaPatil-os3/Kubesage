@@ -20,8 +20,8 @@ import { SecurityPage } from "./components/security-page";
 import { UsersAndRBAC } from "./components/UsersAndRBAC";
 import { SecOpsDashboard } from "./components/SecOpsDashboard";
 import { Policies } from "./pages/policies";
-import { WorkloadDashboard } from "./pages/workload-dashboard";
-
+import WorkloadDashboard from "./pages/workload-dashboard";
+import Applications from "./pages/applications";
  
 export default function App() {
   const { theme, setTheme } = useTheme();
@@ -66,13 +66,14 @@ export default function App() {
     { path: "/dashboard/overview", permission: "dashboard", component: ClusterHealth },
     { path: "/dashboard/chatops", permission: "chatops", component: ChatOps },
     { path: "/dashboard/upload", permission: "dashboard", component: UploadKubeconfig },
+    { path: "/dashboard/applications", permission: "applications", component: Applications },
+    { path: "/dashboard/workloads", permission: "workloads", component: WorkloadDashboard },
     { path: "/dashboard/cost", permission: "cost", component: CostAnalysis },
     { path: "/dashboard/security", permission: "security", component: SecurityPage },
     { path: "/dashboard/observability", permission: "observability", component: ObservabilityDashboard },
     { path: "/dashboard/analyze", permission: "analyze", component: ClusterAnalyze },
-    { path: "/dashboard/workloads", permission: "workloads", component: WorkloadDashboard },
-
     // Special case for /dashboard/users route
+    
     { path: "/dashboard/remediations", permission: "remediations", component: Remediations },
     { path: "/dashboard/users", permission: "users_only", component: UsersAndRBAC },
     { path: "/dashboard/security-dashboard", permission: "security", component: SecOpsDashboard },

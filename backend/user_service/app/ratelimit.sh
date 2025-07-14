@@ -4,11 +4,11 @@
 TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZXhwIjoxNzQ3OTgwNTc4fQ.lEDkD7Z6NKXzFiP8bOkuo6wz8J9VBNL-0t0zASJT-1Q"
 
 # URL to test
-URL="https://10.0.32.103:8001/users/me"
+URL="https://10.0.32.105:8001/users/me"
 
 # Check if server is reachable
 echo "Checking if server is reachable..."
-health_check=$(curl -k -s -o /dev/null -w "%{http_code}" https://10.0.32.103:8001/health)
+health_check=$(curl -k -s -o /dev/null -w "%{http_code}" https://10.0.32.105:8001/health)
 if [ "$health_check" != "200" ]; then
   echo "Error: Server is not reachable. Health check returned: $health_check"
   echo "Please make sure the server is running and accessible."

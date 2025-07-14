@@ -1,13 +1,42 @@
+import asyncio
 from fastapi import FastAPI
+from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware  # Import CORSMiddleware
 from app.routes import auth_router, user_router, api_key_router
 from app.database import create_db_and_tables
 from app.consumer import start_consumers
 from app.logger import logger
+from app.background_tasks import cleanup_expired_tokens_task, cleanup_inactive_sessions_task
 import uvicorn
 import uuid, ssl
 
-app = FastAPI(title="KubeSage User Service")
+# Background tasks
+background_tasks = []
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Start background tasks
+    cleanup_task = asyncio.create_task(cleanup_expired_tokens_task())
+    inactive_cleanup_task = asyncio.create_task(cleanup_inactive_sessions_task())
+    
+    background_tasks.extend([cleanup_task, inactive_cleanup_task])
+    
+    yield
+    
+    # Cancel background tasks on shutdown
+    for task in background_tasks:
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+app = FastAPI(
+    title="User Service API",
+    description="Enhanced user authentication with multi-session support",
+    version="2.0.0",
+    lifespan=lifespan
+)
 
 # Allow frontend requests
 
@@ -33,9 +62,9 @@ def health_check():
     return {"status": "healthy"}
 
 # Include routers
-app.include_router(auth_router, prefix="/auth", tags=["auth"])
-app.include_router(user_router, prefix="/users", tags=["users"])
-app.include_router(api_key_router, prefix="/api-keys", tags=["api-keys"])  
+app.include_router(auth_router, prefix="/auth", tags=["Authentication"])
+app.include_router(user_router, prefix="/users", tags=["Users"])
+app.include_router(api_key_router, prefix="/api-keys", tags=["API Keys"])  
 
 
 if __name__ == "__main__":

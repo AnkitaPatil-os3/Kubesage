@@ -1,8 +1,6 @@
-from sqlmodel import SQLModel, Field
-from typing import Optional
-import datetime
-from datetime import datetime  # Import the datetime class directly, not the module
-
+from sqlmodel import SQLModel, Field, Relationship
+from typing import Optional, List
+from datetime import datetime
 
 class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -11,29 +9,62 @@ class User(SQLModel, table=True):
     hashed_password: str
     first_name: Optional[str] = None
     last_name: Optional[str] = None
-    is_active: bool = Field(default=True)
-    is_admin: bool = Field(default=False)
-    confirmed: bool = Field(default=False)
-    roles: Optional[str] = Field(default="")
+    is_active: bool = True
+    is_admin: bool = False  # Keep this for backward compatibility
+    confirmed: bool = False
+    roles: Optional[str] = None  # New role-based system
     created_at: datetime = Field(default_factory=datetime.now)
-    updated_at: datetime = Field(default_factory=datetime.now)
+    updated_at: Optional[datetime] = None
+    
+    # Relationships
+    tokens: List["UserToken"] = Relationship(back_populates="user")
+    refresh_tokens: List["RefreshToken"] = Relationship(back_populates="user")
+    api_keys: List["ApiKey"] = Relationship(back_populates="user")
 
 class UserToken(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    token: str = Field(default_factory=lambda: str(uuid.uuid4()), index=True)
-    user_id: int = Field(foreign_key="user.id", index=True)
+    token: str = Field(unique=True, index=True)
+    user_id: int = Field(foreign_key="user.id")
+    session_id: Optional[str] = Field(default=None, index=True)
     expires_at: datetime
-    is_revoked: bool = Field(default=False)
     created_at: datetime = Field(default_factory=datetime.now)
+    is_active: bool = Field(default=True)
+    
+    # Device information
+    device_info: Optional[str] = None
+    ip_address: Optional[str] = None
+    user_agent: Optional[str] = None
+    last_used_at: Optional[datetime] = None
+    
+    # Relationships
+    user: Optional[User] = Relationship(back_populates="tokens")
 
+class RefreshToken(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    token: str = Field(unique=True, index=True)
+    user_id: int = Field(foreign_key="user.id")
+    session_id: str = Field(index=True)
+    expires_at: datetime
+    created_at: datetime = Field(default_factory=datetime.now)
+    is_revoked: bool = Field(default=False)
+    
+    # Device information
+    device_info: Optional[str] = None
+    ip_address: Optional[str] = None
+    
+    # Relationships
+    user: Optional[User] = Relationship(back_populates="refresh_tokens")
 
 class ApiKey(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    key_name: str = Field(index=True)  # Human-readable name for the API key
-    api_key: str = Field(unique=True, index=True)  # The actual API key
-    user_id: int = Field(foreign_key="user.id", index=True)
+    key_name: str
+    api_key: str = Field(unique=True, index=True)
+    user_id: int = Field(foreign_key="user.id")
     is_active: bool = Field(default=True)
-    expires_at: Optional[datetime] = None  # CHANGE: Remove .datetime
-    last_used_at: Optional[datetime] = None  # CHANGE: Remove .datetime
-    created_at: datetime = Field(default_factory=datetime.now)  # CHANGE: Remove .datetime
-    updated_at: datetime = Field(default_factory=datetime.now)  # CHANGE: Remove .datetime
+    expires_at: Optional[datetime] = None
+    last_used_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
+    
+    # Relationships
+    user: Optional[User] = Relationship(back_populates="api_keys")

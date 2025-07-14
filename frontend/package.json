@@ -17,6 +17,7 @@
     "axios": "^1.9.0",
     "framer-motion": "^11.18.2",
     "highlight.js": "^11.11.1",
+    "js-yaml": "^4.1.0",
     "jwt-decode": "^4.0.0",
     "lucide-react": "^0.525.0",
     "markdown-it": "^14.1.0",

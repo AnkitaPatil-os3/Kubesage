@@ -25,7 +25,12 @@ from collections import defaultdict
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
-
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import JSONResponse, PlainTextResponse  # ✅ Add PlainTextResponse
+import yaml  # ✅ Add yaml import
+import datetime 
+import re
+ 
 
 cluster_router = APIRouter()
 
@@ -2666,6 +2671,7 @@ async def get_security(username: str):
 
 # changes related to workload api
  
+ 
 @cluster_router.get("/clusters/{cluster_id}/workloads/{namespace}",
                    summary="Get Workloads in Namespace",
                    description="Retrieves all workloads (pods, deployments, services, etc.) from specified namespace")
@@ -2858,7 +2864,7 @@ async def get_workloads_in_namespace(
                 "cluster_name": cluster.cluster_name,
                 "namespace": namespace,
                 "workload_counts": {k: len(v) for k, v in workloads.items()},
-                "timestamp": datetime.datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat()
             })
         except Exception as queue_error:
             logger.warning(f"Failed to publish workload access event: {str(queue_error)}")
@@ -2872,7 +2878,7 @@ async def get_workloads_in_namespace(
             "namespace": namespace,
             "workloads": workloads,
             "total_workloads": sum(len(v) for v in workloads.values()),
-            "retrieved_at": datetime.datetime.now().isoformat()
+            "retrieved_at": datetime.now().isoformat()
         }, status_code=200)
     
     except client.rest.ApiException as e:
@@ -2888,5 +2894,740 @@ async def get_workloads_in_namespace(
             status_code=500,
             detail=f"Error fetching workloads: {str(e)}"
         )
+ 
+ 
+ 
+@cluster_router.get("/clusters/{cluster_id}/apps",
+                   summary="Get Applications from Cluster",
+                   description="Retrieves applications from the specified cluster")
+async def get_cluster_applications(
+    cluster_id: int,
+    namespace: str = Query(None, description="Filter by namespace"),
+    app_type: str = Query(None, description="Filter by application type"),
+    session: Session = Depends(get_session),
+    current_user: Dict = Depends(get_current_user)
+):
+    """
+    Get applications from the specified cluster.
+    Supports Helm, Rancher, ArgoCD, and regular Deployments.
+    """
+    logger.info(f"Getting applications from cluster {cluster_id} for user {current_user['id']}")
+    
+    # Get the specified cluster
+    cluster = session.exec(
+        select(ClusterConfig).where(
+            ClusterConfig.id == cluster_id,
+            ClusterConfig.user_id == current_user["id"]
+        )
+    ).first()
+    
+    if not cluster:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Cluster with ID '{cluster_id}' not found or you don't have access to it"
+        )
+ 
+    try:
+        # Create Kubernetes configuration
+        from kubernetes.client import Configuration, ApiClient
+        
+        configuration = Configuration()
+        configuration.host = cluster.server_url
+        configuration.api_key = {"authorization": f"Bearer {cluster.token}"}
+        configuration.api_key_prefix = {"authorization": ""}
+        configuration.verify_ssl = cluster.use_secure_tls
+        
+        # Configure TLS if needed
+        if cluster.use_secure_tls and cluster.ca_data:
+            import tempfile
+            import base64
+            
+            with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.crt') as ca_file:
+                try:
+                    ca_content = base64.b64decode(cluster.ca_data).decode('utf-8')
+                except:
+                    ca_content = cluster.ca_data
+                ca_file.write(ca_content)
+                configuration.ssl_ca_cert = ca_file.name
+        
+        # Create API clients
+        api_client = ApiClient(configuration)
+        core_v1 = client.CoreV1Api(api_client)
+        apps_v1 = client.AppsV1Api(api_client)
+        
+        # Get applications from different sources
+        applications = []
+        
+        # 1. Get Helm applications
+        try:
+            helm_apps = await get_helm_applications(api_client, namespace)
+            applications.extend(helm_apps)
+        except Exception as e:
+            logger.warning(f"Failed to get Helm applications: {str(e)}")
+        
+        # 2. Get Rancher applications
+        try:
+            rancher_apps = await get_rancher_applications(api_client, namespace)
+            applications.extend(rancher_apps)
+        except Exception as e:
+            logger.warning(f"Failed to get Rancher applications: {str(e)}")
+        
+        # 3. Get ArgoCD applications
+        try:
+            argocd_apps = await get_argocd_applications(api_client, namespace)
+            applications.extend(argocd_apps)
+        except Exception as e:
+            logger.warning(f"Failed to get ArgoCD applications: {str(e)}")
+        
+        # 4. Get regular Deployments as fallback
+        try:
+            deployment_apps = await get_deployment_applications(apps_v1, namespace)
+            applications.extend(deployment_apps)
+        except Exception as e:
+            logger.warning(f"Failed to get Deployment applications: {str(e)}")
+        
+        # Filter by app_type if specified
+        if app_type and app_type != 'all':
+            applications = [app for app in applications if app['type'] == app_type]
+        
+        logger.info(f"Retrieved {len(applications)} applications from cluster {cluster.cluster_name}")
+        
+        return JSONResponse(content={
+            "success": True,
+            "cluster_id": cluster_id,
+            "cluster_name": cluster.cluster_name,
+            "namespace": namespace or "all",
+            "app_type": app_type or "all",
+            "total_apps": len(applications),
+            "apps": applications
+        }, status_code=200)
+    
+    except client.rest.ApiException as e:
+        logger.error(f"Kubernetes API error for cluster {cluster_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Kubernetes API error: {str(e)}")
+    except Exception as e:
+        logger.error(f"Error getting applications from cluster {cluster_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error getting applications: {str(e)}")
+ 
+ 
+@cluster_router.get("/clusters/{cluster_id}/apps/{app_name}/details",
+                   summary="Get Application Details",
+                   description="Get detailed information about a specific application")
+async def get_application_details(
+    cluster_id: int,
+    app_name: str,
+    namespace: str = Query(..., description="Application namespace"),
+    app_type: str = Query(..., description="Application type"),
+    session: Session = Depends(get_session),
+    current_user: Dict = Depends(get_current_user)
+):
+    """
+    Get detailed information about a specific application including related resources.
+    """
+    logger.info(f"Getting details for app {app_name} in cluster {cluster_id}")
+    
+    # Get the specified cluster
+    cluster = session.exec(
+        select(ClusterConfig).where(
+            ClusterConfig.id == cluster_id,
+            ClusterConfig.user_id == current_user["id"]
+        )
+    ).first()
+    
+    if not cluster:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Cluster with ID '{cluster_id}' not found or you don't have access to it"
+        )
+ 
+    try:
+        # Create Kubernetes configuration
+        from kubernetes.client import Configuration, ApiClient
+        
+        configuration = Configuration()
+        configuration.host = cluster.server_url
+        configuration.api_key = {"authorization": f"Bearer {cluster.token}"}
+        configuration.api_key_prefix = {"authorization": ""}
+        configuration.verify_ssl = cluster.use_secure_tls
+        
+        # Create API clients
+        api_client = ApiClient(configuration)
+        core_v1 = client.CoreV1Api(api_client)
+        apps_v1 = client.AppsV1Api(api_client)
+        
+        # Get related resources
+        related_resources = {
+            "pods": [],
+            "services": [],
+            "configmaps": [],
+            "secrets": []
+        }
+        
+        try:
+            # Get pods with app label
+            pods = core_v1.list_namespaced_pod(
+                namespace=namespace,
+                label_selector=f"app={app_name}"
+            )
+            related_resources["pods"] = [pod.to_dict() for pod in pods.items]
+        except:
+            pass
+        
+        try:
+            # Get services with app label
+            services = core_v1.list_namespaced_service(
+                namespace=namespace,
+                label_selector=f"app={app_name}"
+            )
+            related_resources["services"] = [svc.to_dict() for svc in services.items]
+        except:
+            pass
+        
+        try:
+            # Get configmaps with app label
+            configmaps = core_v1.list_namespaced_config_map(
+                namespace=namespace,
+                label_selector=f"app={app_name}"
+            )
+            related_resources["configmaps"] = [cm.to_dict() for cm in configmaps.items]
+        except:
+            pass
+        
+        try:
+            # Get secrets with app label
+            secrets = core_v1.list_namespaced_secret(
+                namespace=namespace,
+                label_selector=f"app={app_name}"
+            )
+            related_resources["secrets"] = [secret.to_dict() for secret in secrets.items]
+        except:
+            pass
+        
+        return JSONResponse(content={
+            "success": True,
+            "cluster_id": cluster_id,
+            "app_name": app_name,
+            "namespace": namespace,
+            "app_type": app_type,
+            "related_resources": related_resources
+        }, status_code=200)
+    
+    except Exception as e:
+        logger.error(f"Error getting application details: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error getting application details: {str(e)}")
+ 
+ 
+# Helper functions for different application types
+async def get_helm_applications(api_client, namespace_filter=None):
+    """Get Helm applications from the cluster"""
+    applications = []
+    
+    try:
+        # Try different Helm CRD versions
+        custom_api = client.CustomObjectsApi(api_client)
+        
+        # Try Helm v3 releases
+        try:
+            if namespace_filter and namespace_filter != 'all':
+                releases = custom_api.list_namespaced_custom_object(
+                    group="helm.cattle.io",
+                    version="v1",
+                    namespace=namespace_filter,
+                    plural="helmreleases"
+                )
+            else:
+                releases = custom_api.list_cluster_custom_object(
+                    group="helm.cattle.io",
+                    version="v1",
+                    plural="helmreleases"
+                )
+            
+            for release in releases.get('items', []):
+                app = parse_helm_release(release)
+                if app:
+                    applications.append(app)
+        except:
+            pass
+        
+        # Try alternative Helm CRDs
+        try:
+            if namespace_filter and namespace_filter != 'all':
+                releases = custom_api.list_namespaced_custom_object(
+                    group="helm.fluxcd.io",
+                    version="v1",
+                    namespace=namespace_filter,
+                    plural="helmreleases"
+                )
+            else:
+                releases = custom_api.list_cluster_custom_object(
+                    group="helm.fluxcd.io",
+                    version="v1",
+                    plural="helmreleases"
+                )
+            
+            for release in releases.get('items', []):
+                app = parse_helm_release(release)
+                if app:
+                    applications.append(app)
+        except:
+            pass
+            
+    except Exception as e:
+        logger.debug(f"Helm CRDs not available: {str(e)}")
+    
+    return applications
+ 
+ 
+async def get_rancher_applications(api_client, namespace_filter=None):
+    """Get Rancher applications from the cluster"""
+    applications = []
+    
+    try:
+        custom_api = client.CustomObjectsApi(api_client)
+        
+        # Try Rancher apps
+        try:
+            if namespace_filter and namespace_filter != 'all':
+                apps = custom_api.list_namespaced_custom_object(
+                    group="catalog.cattle.io",
+                    version="v1",
+                    namespace=namespace_filter,
+                    plural="apps"
+                )
+            else:
+                apps = custom_api.list_cluster_custom_object(
+                    group="catalog.cattle.io",
+                    version="v1",
+                    plural="apps"
+                )
+            
+            for app in apps.get('items', []):
+                parsed_app = parse_rancher_app(app)
+                if parsed_app:
+                    applications.append(parsed_app)
+        except:
+            pass
+            
+    except Exception as e:
+        logger.debug(f"Rancher CRDs not available: {str(e)}")
+    
+    return applications
+ 
+ 
+async def get_argocd_applications(api_client, namespace_filter=None):
+    """Get ArgoCD applications from the cluster"""
+    applications = []
+    
+    try:
+        custom_api = client.CustomObjectsApi(api_client)
+        
+        # Try ArgoCD applications
+        try:
+            if namespace_filter and namespace_filter != 'all':
+                apps = custom_api.list_namespaced_custom_object(
+                    group="argoproj.io",
+                    version="v1alpha1",
+                    namespace=namespace_filter,
+                    plural="applications"
+                )
+            else:
+                apps = custom_api.list_cluster_custom_object(
+                    group="argoproj.io",
+                    version="v1alpha1",
+                    plural="applications"
+                )
+            
+            for app in apps.get('items', []):
+                parsed_app = parse_argocd_app(app)
+                if parsed_app:
+                    applications.append(parsed_app)
+        except:
+            pass
+            
+    except Exception as e:
+        logger.debug(f"ArgoCD CRDs not available: {str(e)}")
+    
+    return applications
+ 
+ 
+async def get_deployment_applications(apps_v1, namespace_filter=None):
+    """Get regular Kubernetes deployments as applications"""
+    applications = []
+    
+    try:
+        if namespace_filter and namespace_filter != 'all':
+            deployments = apps_v1.list_namespaced_deployment(namespace=namespace_filter)
+        else:
+            deployments = apps_v1.list_deployment_for_all_namespaces()
+        
+        for deployment in deployments.items:
+            app = parse_deployment_app(deployment)
+            if app:
+                applications.append(app)
+                
+    except Exception as e:
+        logger.debug(f"Error getting deployments: {str(e)}")
+    
+    return applications
+ 
+ 
+def parse_helm_release(release):
+    """Parse Helm release into application format"""
+    try:
+        metadata = release.get('metadata', {})
+        spec = release.get('spec', {})
+        status = release.get('status', {})
+        
+        return {
+            "name": metadata.get('name', 'unknown'),
+            "namespace": metadata.get('namespace', 'default'),
+            "type": "helm",
+            "source": "helm",
+                        "chart": spec.get('chart', {}).get('spec', {}).get('chart', 'unknown'),
+            "version": spec.get('chart', {}).get('spec', {}).get('version', 'unknown'),
+            "app_version": status.get('appVersion', 'unknown'),
+            "status": status.get('status', 'unknown').lower(),
+            "created": metadata.get('creationTimestamp', ''),
+            "updated": status.get('lastDeployed', ''),
+            "description": spec.get('chart', {}).get('spec', {}).get('description', ''),
+            "icon": get_app_icon("helm"),
+            "labels": metadata.get('labels', {}),
+            "annotations": metadata.get('annotations', {}),
+            "replicas": None
+        }
+    except Exception as e:
+        logger.debug(f"Error parsing Helm release: {str(e)}")
+        return None
+ 
+ 
+def parse_rancher_app(app):
+    """Parse Rancher app into application format"""
+    try:
+        metadata = app.get('metadata', {})
+        spec = app.get('spec', {})
+        status = app.get('status', {})
+        
+        return {
+            "name": metadata.get('name', 'unknown'),
+            "namespace": metadata.get('namespace', 'default'),
+            "type": "rancher",
+            "source": "rancher",
+            "chart": spec.get('chart', {}).get('chartName', 'unknown'),
+            "version": spec.get('chart', {}).get('version', 'unknown'),
+            "app_version": status.get('appVersion', 'unknown'),
+            "status": status.get('summary', {}).get('state', 'unknown').lower(),
+            "created": metadata.get('creationTimestamp', ''),
+            "updated": status.get('lastUpdate', ''),
+            "description": spec.get('info', {}).get('description', ''),
+            "icon": get_app_icon("rancher"),
+            "labels": metadata.get('labels', {}),
+            "annotations": metadata.get('annotations', {}),
+            "replicas": None
+        }
+    except Exception as e:
+        logger.debug(f"Error parsing Rancher app: {str(e)}")
+        return None
+ 
+ 
+def parse_argocd_app(app):
+    """Parse ArgoCD application into application format"""
+    try:
+        metadata = app.get('metadata', {})
+        spec = app.get('spec', {})
+        status = app.get('status', {})
+        
+        source = spec.get('source', {})
+        
+        return {
+            "name": metadata.get('name', 'unknown'),
+            "namespace": metadata.get('namespace', 'argocd'),
+            "type": "argocd",
+            "source": "argocd",
+            "chart": source.get('chart', source.get('path', 'unknown')),
+            "version": source.get('targetRevision', 'HEAD'),
+            "app_version": status.get('summary', {}).get('images', ['unknown'])[0] if status.get('summary', {}).get('images') else 'unknown',
+            "status": status.get('sync', {}).get('status', 'unknown').lower(),
+            "created": metadata.get('creationTimestamp', ''),
+            "updated": status.get('operationState', {}).get('finishedAt', ''),
+            "description": metadata.get('annotations', {}).get('argocd.argoproj.io/description', ''),
+            "icon": get_app_icon("argocd"),
+            "labels": metadata.get('labels', {}),
+            "annotations": metadata.get('annotations', {}),
+            "repo_url": source.get('repoURL', ''),
+            "path": source.get('path', ''),
+            "replicas": None
+        }
+    except Exception as e:
+        logger.debug(f"Error parsing ArgoCD app: {str(e)}")
+        return None
+ 
+ 
+def parse_deployment_app(deployment):
+    """Parse Kubernetes deployment into application format"""
+    try:
+        metadata = deployment.metadata
+        spec = deployment.spec
+        status = deployment.status
+        
+        # Skip system deployments
+        if metadata.namespace in ['kube-system', 'kube-public', 'kube-node-lease']:
+            return None
+        
+        # Get replica information
+        replicas = {
+            "desired": spec.replicas or 0,
+            "ready": status.ready_replicas or 0,
+            "available": status.available_replicas or 0
+        }
+        
+        # Determine status based on replicas
+        if replicas["ready"] == replicas["desired"] and replicas["desired"] > 0:
+            app_status = "deployed"
+        elif replicas["ready"] == 0:
+            app_status = "failed"
+        else:
+            app_status = "pending"
+        
+        return {
+            "name": metadata.name,
+            "namespace": metadata.namespace,
+            "type": "deployment",
+            "source": "kubernetes",
+            "chart": "deployment",
+            "version": metadata.labels.get('version', 'unknown') if metadata.labels else 'unknown',
+            "app_version": get_image_version(spec.template.spec.containers[0].image) if spec.template.spec.containers else 'unknown',
+            "status": app_status,
+            "created": metadata.creation_timestamp.isoformat() if metadata.creation_timestamp else '',
+            "updated": metadata.creation_timestamp.isoformat() if metadata.creation_timestamp else '',
+            "description": metadata.annotations.get('description', '') if metadata.annotations else '',
+            "icon": get_app_icon("deployment"),
+            "labels": dict(metadata.labels) if metadata.labels else {},
+            "annotations": dict(metadata.annotations) if metadata.annotations else {},
+            "replicas": replicas
+        }
+    except Exception as e:
+        logger.debug(f"Error parsing deployment: {str(e)}")
+        return None
+ 
+ 
+def get_app_icon(app_type):
+    """Get icon for application type"""
+    icons = {
+        "helm": "simple-icons:helm",
+        "rancher": "simple-icons:rancher",
+        "argocd": "simple-icons:argo",
+        "deployment": "lucide:box"
+    }
+    return icons.get(app_type, "lucide:package")
+ 
+ 
+def get_image_version(image_name):
+    """Extract version from container image name"""
+    try:
+        if ':' in image_name:
+            return image_name.split(':')[-1]
+        return 'latest'
+    except:
+        return 'unknown'
+ 
+
+ 
+@cluster_router.get("/clusters/{cluster_id}/yaml/{namespace}/{resource_type}/{name}",
+                   response_class=PlainTextResponse,
+                   summary="Get Resource YAML",
+                   description="Fetch YAML configuration of a Kubernetes resource")
+async def get_resource_yaml(
+    cluster_id: int,
+    namespace: str,
+    resource_type: str,
+    name: str,
+    session: Session = Depends(get_session),
+    current_user: Dict = Depends(get_current_user)
+):
+    """Get YAML configuration of a Kubernetes resource"""
+    # Get cluster
+    cluster = session.exec(
+        select(ClusterConfig).where(
+            ClusterConfig.id == cluster_id,
+            ClusterConfig.user_id == current_user["id"]
+        )
+    ).first()
+    
+    if not cluster:
+        raise HTTPException(status_code=404, detail="Cluster not found")
+    
+    try:
+        # Setup Kubernetes client
+        configuration = Configuration()
+        configuration.host = cluster.server_url
+        configuration.api_key = {"authorization": f"Bearer {cluster.token}"}
+        configuration.api_key_prefix = {"authorization": ""}
+        configuration.verify_ssl = cluster.use_secure_tls
+        
+        api_client = ApiClient(configuration)
+        
+        # Get resource based on type
+        if resource_type.lower() == "deployment":
+            apps_v1 = client.AppsV1Api(api_client)
+            obj = apps_v1.read_namespaced_deployment(name, namespace)
+        elif resource_type.lower() == "service":
+            core_v1 = client.CoreV1Api(api_client)
+            obj = core_v1.read_namespaced_service(name, namespace)
+        elif resource_type.lower() == "pod":
+            core_v1 = client.CoreV1Api(api_client)
+            obj = core_v1.read_namespaced_pod(name, namespace)
+        else:
+            raise HTTPException(status_code=400, detail=f"Unsupported resource type: {resource_type}")
+        
+        # Convert to dict and remove managed fields
+        obj_dict = obj.to_dict()
+        if 'metadata' in obj_dict and 'managed_fields' in obj_dict['metadata']:
+            del obj_dict['metadata']['managed_fields']
+        if 'metadata' in obj_dict and 'resource_version' in obj_dict['metadata']:
+            del obj_dict['metadata']['resource_version']
+        
+        # Convert to YAML
+        yaml_content = yaml.safe_dump(obj_dict, default_flow_style=False)
+        return yaml_content
+        
+    except client.rest.ApiException as e:
+        raise HTTPException(status_code=e.status, detail=f"Kubernetes API error: {e.reason}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+ 
+ 
+import warnings
+from urllib3.exceptions import InsecureRequestWarning
+ 
+# Suppress only the single InsecureRequestWarning from urllib3 needed.
+warnings.simplefilter('ignore', InsecureRequestWarning)
+ 
+@cluster_router.put("/clusters/{cluster_id}/yaml/{namespace}/{resource_type}/{name}")
+async def update_yaml_resource(
+    cluster_id: int,
+    namespace: str,
+    resource_type: str,
+    name: str,
+    request: Request,
+    session: Session = Depends(get_session),
+    current_user: Dict = Depends(get_current_user),
+):
+    def clean_deployment_yaml(yaml_obj):
+        # Remove fields that are not allowed or should not be sent in update
+        def clean_dict(d):
+            keys_to_remove = [
+                "api_version", "creation_timestamp", "deletion_grace_period_seconds", "deletion_timestamp",
+                "finalizers", "generate_name", "generation", "labels", "owner_references", "self_link", "uid",
+                "resource_version", "managed_fields", "status"
+            ]
+            for key in keys_to_remove:
+                if key in d:
+                    del d[key]
+            # Recursively clean nested dicts
+            for k, v in d.items():
+                if isinstance(v, dict):
+                    clean_dict(v)
+                elif isinstance(v, list):
+                    for item in v:
+                        if isinstance(item, dict):
+                            clean_dict(item)
+        clean_dict(yaml_obj)
+        # Fix container ports keys to camelCase 'containerPort'
+        try:
+            containers = yaml_obj.get("spec", {}).get("template", {}).get("spec", {}).get("containers", [])
+            for container in containers:
+                if "ports" in container:
+                    for port in container["ports"]:
+                        # Fix keys if they are snake_case
+                        if "container_port" in port:
+                            port["containerPort"] = port.pop("container_port")
+                        if "host_ip" in port:
+                            port.pop("host_ip")
+                        if "host_port" in port:
+                            port.pop("host_port")
+        except Exception:
+            pass
+        return yaml_obj
+ 
+    try:
+        yaml_text = await request.body()
+        if not yaml_text or yaml_text == b'':
+            # Instead of raising HTTPException here, return JSON error response
+            return JSONResponse(status_code=400, content={"detail": "Empty request body"})
+        yaml_obj = yaml.safe_load(yaml_text)
+        if yaml_obj is None:
+            return JSONResponse(status_code=400, content={"detail": "Empty YAML content"})
+ 
+        # Ensure metadata.name matches the URL parameter 'name'
+        if 'metadata' not in yaml_obj:
+            yaml_obj['metadata'] = {}
+        yaml_obj['metadata']['name'] = name
+        yaml_obj['metadata']['namespace'] = namespace
+ 
+        # Clean the YAML to remove invalid fields
+        yaml_obj = clean_deployment_yaml(yaml_obj)
+ 
+        # Load cluster info
+        cluster = session.exec(
+            select(ClusterConfig).where(
+                ClusterConfig.id == cluster_id,
+                ClusterConfig.user_id == current_user["id"]
+            )
+        ).first()
+        if not cluster:
+            raise HTTPException(status_code=404, detail="Cluster not found")
+ 
+        # Configure Kubernetes API client
+        configuration = Configuration()
+        configuration.host = cluster.server_url
+        configuration.api_key = {"authorization": f"Bearer {cluster.token}"}
+        configuration.verify_ssl = cluster.use_secure_tls
+        api_client = ApiClient(configuration)
+ 
+        if resource_type == "deployment":
+            apps_api = client.AppsV1Api(api_client)
+            # Fetch existing deployment
+            existing_deployment = apps_api.read_namespaced_deployment(name=name, namespace=namespace)
+            # Preserve immutable fields from existing deployment
+            if 'spec' not in yaml_obj:
+                yaml_obj['spec'] = {}
+            # Preserve selector
+            selector_dict = {}
+            if existing_deployment.spec and existing_deployment.spec.selector:
+                selector_dict = existing_deployment.spec.selector.to_dict()
+                # Check if matchLabels and matchExpressions are both empty or missing
+                match_labels = selector_dict.get('matchLabels')
+                match_expressions = selector_dict.get('matchExpressions')
+                if (match_labels is None or (isinstance(match_labels, dict) and len(match_labels) == 0)) and (match_expressions is None or (isinstance(match_expressions, list) and len(match_expressions) == 0)):
+                    selector_dict = {}
+            # If selector is empty after cleanup, fallback to original labels
+            if not selector_dict and existing_deployment.spec and existing_deployment.spec.template and existing_deployment.spec.template.metadata:
+                selector_dict = {'matchLabels': existing_deployment.spec.template.metadata.labels}
+            yaml_obj['spec']['selector'] = selector_dict
+            # Preserve template metadata labels
+            if 'template' not in yaml_obj['spec']:
+                yaml_obj['spec']['template'] = {}
+            if 'metadata' not in yaml_obj['spec']['template']:
+                yaml_obj['spec']['template']['metadata'] = {}
+            yaml_obj['spec']['template']['metadata']['labels'] = existing_deployment.spec.template.metadata.labels
+            # Preserve template spec containers if not provided in update
+            if 'spec' not in yaml_obj['spec']['template']:
+                yaml_obj['spec']['template']['spec'] = {}
+            if 'containers' not in yaml_obj['spec']['template']['spec']:
+                yaml_obj['spec']['template']['spec']['containers'] = [container.to_dict() for container in existing_deployment.spec.template.spec.containers]
+            apps_api.replace_namespaced_deployment(name=name, namespace=namespace, body=yaml_obj)
+        else:
+            raise HTTPException(status_code=400, detail="Unsupported resource type")
+ 
+        return {"success": True}
+ 
+    except yaml.YAMLError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid YAML: {str(e)}")
+    except Exception as e:
+        import traceback
+        import logging
+        logging.error(f"Error updating YAML resource: {str(e)}")
+        logging.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
  
  
