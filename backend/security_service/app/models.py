@@ -48,6 +48,22 @@ class PolicyModel(Base):
     category = relationship("PolicyCategoryModel", back_populates="policies")
     applications = relationship("PolicyApplicationModel", back_populates="policy")
 
+class UserEditedPolicyModel(Base):
+    __tablename__ = "user_edited_policies"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    original_policy_id = Column(Integer, ForeignKey("policies.id"), nullable=False)
+    edited_yaml_content = Column(Text, nullable=False)
+    edited_name = Column(String(300))
+    edited_description = Column(Text)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    # Relationship
+    original_policy = relationship("PolicyModel")
+
 # NEW MODEL: Policy Applications
 class PolicyApplicationModel(Base):
     __tablename__ = "policy_applications"
@@ -61,8 +77,10 @@ class PolicyApplicationModel(Base):
     # Application details
     status = Column(Enum(ApplicationStatus), default=ApplicationStatus.PENDING)
     applied_yaml = Column(Text)
-    original_yaml = Column(Text)  # Add this column
-    is_edited = Column(Boolean, default=False)  # Add this column
+    original_yaml = Column(Text)
+    is_edited = Column(Boolean, default=False)
+    user_edited_policy_id = Column(Integer, ForeignKey("user_edited_policies.id"))
+    is_edited_policy = Column(Boolean, default=False)
     application_log = Column(Text)
     error_message = Column(Text)
     
@@ -77,3 +95,4 @@ class PolicyApplicationModel(Base):
     
     # Relationships
     policy = relationship("PolicyModel", back_populates="applications")
+    user_edited_policy = relationship("UserEditedPolicyModel")

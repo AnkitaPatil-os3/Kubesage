@@ -19,6 +19,11 @@ class PolicyCategoryEnum(str, Enum):
     CLEANUP = "cleanup"
     IMAGE_VERIFICATION = "image_verification"
     MISCELLANEOUS = "miscellaneous"
+    # NEW CATEGORIES
+    FILE_BASED = "file_based"
+    PROCESS_BASED = "process_based"
+    NETWORK_BASED = "network_based"
+    CAPABILITIES_PERMISSIONS = "capabilities_permissions"
 
 class PolicyCategoryBase(BaseModel):
     name: str
@@ -51,6 +56,20 @@ class PolicyEditableResponse(BaseModel):
     yaml_content: str
     editable_fields: List[EditableField]
 
+class UserEditedPolicyResponse(BaseModel):
+    id: int
+    user_id: int
+    original_policy_id: int
+    edited_yaml_content: str
+    edited_name: Optional[str] = None
+    edited_description: Optional[str] = None
+    is_active: bool
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    
+    class Config:
+        from_attributes = True
+
 class PolicyBase(BaseModel):
     policy_id: str
     name: str
@@ -81,6 +100,8 @@ class PolicyResponse(PolicyBase):
     category: Optional[PolicyCategoryResponse] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
+    is_edited: Optional[bool] = False
+    user_edited_policy: Optional[UserEditedPolicyResponse] = None
     
     class Config:
         from_attributes = True
@@ -97,6 +118,7 @@ class PolicyApplicationRequest(BaseModel):
     policy_id: str  # The policy's policy_id (not database id)
     kubernetes_namespace: Optional[str] = None  # Make it optional for cluster-level policies
     edited_yaml: Optional[str] = None  # Add this field for edited YAML content
+    save_edited_policy: Optional[bool] = False  # Add this field to save edited policy
 
 class PolicyApplicationResponse(BaseModel):
     id: int
@@ -105,16 +127,18 @@ class PolicyApplicationResponse(BaseModel):
     cluster_name: str
     policy_id: int
     policy: Optional[PolicyResponse] = None  # Make this optional
+    user_edited_policy_id: Optional[int] = None
+    user_edited_policy: Optional[UserEditedPolicyResponse] = None
     status: ApplicationStatus
     applied_yaml: Optional[str] = None
     application_log: Optional[str] = None
     error_message: Optional[str] = None
     kubernetes_name: Optional[str] = None
     kubernetes_namespace: str
+    is_edited_policy: Optional[bool] = False
     created_at: datetime
     applied_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
-    is_edited: Optional[bool] = False  # Add this field to track if policy was edited
     
     # Add these fields for when policy is missing
     policy_name: Optional[str] = None
@@ -150,8 +174,6 @@ class PolicyApplicationListRequest(BaseModel):
     status: Optional[str] = None
     page: int = 1
     size: int = 10
-
-# Add this class to your existing policy_schemas.py file:
 
 class APIResponse(BaseModel):
     success: bool

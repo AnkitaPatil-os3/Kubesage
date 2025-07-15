@@ -221,12 +221,32 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
 
     // Helper functions
     const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+        // Format error messages to be user-friendly
+        let displayMessage = message;
+        if (type === 'error') {
+            if (message.includes('404') || message.includes('Not Found')) {
+                displayMessage = 'Policy or resource not found. Please check if the policy exists.';
+            } else if (message.includes('500') || message.includes('Internal Server Error')) {
+                displayMessage = 'Server error occurred. Please try again later.';
+            } else if (message.includes('403') || message.includes('Forbidden')) {
+                displayMessage = 'Access denied. You do not have permission to perform this action.';
+            } else if (message.includes('401') || message.includes('Unauthorized')) {
+                displayMessage = 'Authentication failed. Please log in again.';
+            } else if (message.includes('timeout') || message.includes('network')) {
+                displayMessage = 'Network connection failed. Please check your connection.';
+            } else if (message.includes('HTTP response headers') || message.includes('HTTPHeaderDict')) {
+                displayMessage = 'Policy application failed. Please try again or contact support.';
+            } else if (message.length > 100) {
+                displayMessage = 'An error occurred while processing your request. Please try again.';
+            }
+        }
+
         const toast = document.createElement('div');
         toast.className = `fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg ${type === 'success' ? 'bg-green-500 text-white' :
             type === 'error' ? 'bg-red-500 text-white' :
                 'bg-blue-500 text-white'
             }`;
-        toast.textContent = message;
+        toast.textContent = displayMessage;
         document.body.appendChild(toast);
         setTimeout(() => {
             if (document.body.contains(toast)) {
@@ -234,6 +254,7 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
             }
         }, 3000);
     };
+
 
     const extractEditableFields = (yamlContent: string) => {
         const lines = yamlContent.split('\n');
@@ -288,22 +309,7 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
         setShowRemoveModal(true);
     };
 
-    const showYamlComparisonModalHandler = async (application: PolicyApplication) => {
-        try {
-            const comparisonData = await fetchYamlComparison(application.id);
-            if (comparisonData) {
-                setSelectedApplicationForComparison({
-                    ...application,
-                    original_yaml: comparisonData.original_yaml,
-                    applied_yaml: comparisonData.applied_yaml
-                });
-                setShowYamlComparisonModal(true);
-            }
-        } catch (error) {
-            console.error('Error fetching YAML comparison:', error);
-            showToast('Failed to load YAML comparison', 'error');
-        }
-    };
+   
 
     const handleRemovePolicy = async () => {
         if (!removeModalData) return;
@@ -333,7 +339,7 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
             }
         } catch (error) {
             console.error('Error removing policy:', error);
-            showToast('Failed to remove policy from cluster', 'error');
+            showToast('Failed to remove policy. Please try again.', 'error');
         } finally {
             setRemovingPolicy(false);
         }
@@ -455,6 +461,7 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
             }
         } catch (error) {
             console.error('Error fetching applications:', error);
+            showToast('Failed to load policy applications. Please refresh the page.', 'error');
         } finally {
             setApplicationsLoading(false);
         }
@@ -674,6 +681,7 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
         }
     };
 
+    
     const applyPolicy = async (policy: Policy, editedYaml?: string) => {
         if (!selectedClusterName) {
             showToast('Please select a cluster first', 'error');
@@ -701,13 +709,13 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
             const data = await response.json();
 
             if (data.success) {
-                showToast(`Policy "${policy.name}" applied successfully to ${selectedClusterName}`, 'success');
+                showToast(`Policy "${policy.name}" ${editedYaml ? '(edited)' : ''} applied successfully to ${selectedClusterName}`, 'success');
                 fetchApplications();
                 fetchAvailablePoliciesForCluster(selectedClusterName);
                 fetchAppliedPoliciesForCluster(selectedClusterName);
             } else {
-                // Handle specific error cases
-                if (data.message && data.message.includes('already applied')) {
+                // Only show "already applied" error if no edited YAML is provided
+                if (data.message && data.message.includes('already applied') && !editedYaml) {
                     showToast(`Policy "${policy.name}" is already applied to this cluster`, 'error');
                 } else {
                     showToast(data.message || 'Failed to apply policy', 'error');
@@ -715,61 +723,13 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
             }
         } catch (error) {
             console.error('Error applying policy:', error);
-            showToast('Failed to apply policy to cluster', 'error');
+            showToast('Failed to apply policy. Please check your connection and try again.', 'error');
         } finally {
             setApplyingPolicy(null);
         }
     };
 
-
-    const applyPolicyWithEdits = async (policy: Policy, editedYaml: string) => {
-        if (!selectedClusterName) {
-            showToast('Please select a cluster first', 'error');
-            return;
-        }
-
-        setApplyingPolicy(policy.policy_id);
-        try {
-            const response = await fetch(`${POLICIES_API}/apply`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-                },
-                body: JSON.stringify({
-                    cluster_name: selectedClusterName,
-                    policy_id: policy.policy_id,
-                    kubernetes_namespace: null,
-                    edited_yaml: editedYaml
-                })
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-
-            const data = await response.json();
-            if (data.success) {
-                showToast(`Edited policy "${policy.name}" applied successfully!`, 'success');
-                fetchApplications();
-                fetchAppliedPoliciesForCluster(selectedClusterName);
-                fetchAvailablePoliciesForCluster(selectedClusterName);
-            } else {
-                // Handle specific error cases
-                if (data.message && data.message.includes('already applied')) {
-                    showToast(`Policy "${policy.name}" is already applied to this cluster`, 'error');
-                } else {
-                    showToast(data.message || 'Failed to apply edited policy', 'error');
-                }
-            }
-        } catch (error) {
-
-            console.error('Error applying edited policy:', error);
-            showToast('Failed to apply edited policy', 'error');
-        } finally {
-            setApplyingPolicy(null);
-        }
-    };
+        
 
     // Utility functions
     const calculateStats = (policiesList: Policy[]) => {
@@ -905,19 +865,21 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
     };
 
 
-    const handleFieldChange = (fieldKey: string, value: string) => {
-        setEditableFields(prev => ({
-            ...prev,
-            [fieldKey]: value
-        }));
+   // In the modal, update the field change handler:
+const handleFieldChange = (fieldKey: string, value: string) => {
+    setEditableFields(prev => ({
+        ...prev,
+        [fieldKey]: value
+    }));
 
-        // Update YAML with new field values
-        const updatedYaml = reconstructYamlWithEdits(originalYaml, {
-            ...editableFields,
-            [fieldKey]: value
-        });
-        setEditedYaml(updatedYaml);
-    };
+    // Update YAML with new field values
+    const updatedYaml = reconstructYamlWithEdits(originalYaml, {
+        ...editableFields,
+        [fieldKey]: value
+    });
+    setEditedYaml(updatedYaml);
+};
+
 
     const handleClusterChange = (clusterName: string) => {
         setSelectedClusterName(clusterName);
@@ -1003,16 +965,26 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-64">
-                <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-                <span className="ml-2 text-gray-600 dark:text-gray-400">Loading security policies...</span>
+            <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-gray-900 dark:via-blue-900/20 dark:to-indigo-900/20 flex items-center justify-center">
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="text-center"
+                >
+                    <div className="relative">
+                        <div className="w-20 h-20 border-4 border-blue-200 dark:border-blue-800 rounded-full animate-spin border-t-blue-600 dark:border-t-blue-400 mx-auto mb-4"></div>
+                        <div className="absolute inset-0 w-20 h-20 border-4 border-transparent rounded-full animate-ping border-t-blue-400 mx-auto"></div>
+                    </div>
+                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Loading Policies</h3>
+                    <p className="text-gray-600 dark:text-gray-400">Fetching security policies and configurations...</p>
+                </motion.div>
             </div>
         );
     }
 
+
     return (
         <div className="space-y-6">
-            {/* Header */}
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
@@ -1523,8 +1495,8 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                 </motion.div>
             )}
 
-            {/* Applied Policies Section */}
-            {selectedClusterName && (
+                       {/* Applied Policies Section */}
+            {selectedClusterName && applications.filter(app => app.status !== 'removed').length > 0 && (
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -1547,7 +1519,6 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                                 <option value="failed">Failed</option>
                                 <option value="pending">Pending</option>
                                 <option value="applying">Applying</option>
-                                <option value="removed">Removed</option>
                             </select>
                             {applicationsLoading && (
                                 <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
@@ -1560,7 +1531,7 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                             <Loader2 className="w-8 h-8 animate-spin text-blue-500 mr-3" />
                             <span className="text-gray-600 dark:text-gray-400">Loading applied policies...</span>
                         </div>
-                    ) : filteredApplications.length === 0 ? (
+                    ) : filteredApplications.filter(app => app.status !== 'removed').length === 0 ? (
                         <div className="text-center py-12">
                             <Shield className="w-16 h-16 text-gray-400 dark:text-gray-600 mx-auto mb-4" />
                             <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
@@ -1572,7 +1543,7 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                         </div>
                     ) : (
                         <div className="space-y-4">
-                            {filteredApplications.map((application, index) => (
+                            {filteredApplications.filter(app => app.status !== 'removed').map((application, index) => (
                                 <motion.div
                                     key={application.id}
                                     initial={{ opacity: 0, x: -20 }}
@@ -1580,6 +1551,7 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                                     transition={{ delay: index * 0.1 }}
                                     className="bg-gradient-to-r from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-xl p-6 border border-gray-200/50 dark:border-gray-700/50 shadow-lg hover:shadow-xl transition-all duration-300"
                                 >
+                                    {/* Rest of the application card content remains the same */}
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center space-x-4">
                                             <div className="p-2 bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg">
@@ -1638,15 +1610,51 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                                     {application.error_message && (
                                         <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
                                             <p className="text-sm text-red-600 dark:text-red-400">
-                                                <strong>Error:</strong> {application.error_message}
+                                                <strong>Error:</strong> {(() => {
+                                                    const errorMsg = application.error_message;
+                                                    if (errorMsg.includes('404') || errorMsg.includes('Not Found')) {
+                                                        return 'Policy or resource not found';
+                                                    } else if (errorMsg.includes('500') || errorMsg.includes('Internal Server Error')) {
+                                                        return 'Server error occurred during policy application';
+                                                    } else if (errorMsg.includes('403') || errorMsg.includes('Forbidden')) {
+                                                        return 'Access denied - insufficient permissions';
+                                                    } else if (errorMsg.includes('401') || errorMsg.includes('Unauthorized')) {
+                                                        return 'Authentication failed - please log in again';
+                                                    } else if (errorMsg.includes('timeout') || errorMsg.includes('network')) {
+                                                        return 'Network connection failed';
+                                                    } else if (errorMsg.includes('HTTP response headers') || errorMsg.includes('HTTPHeaderDict') || errorMsg.includes('Audit-Id')) {
+                                                        return 'Policy application failed - please try again';
+                                                    } else if (errorMsg.includes('already exists') || errorMsg.includes('AlreadyExists')) {
+                                                        return 'Policy already exists in the cluster';
+                                                    } else if (errorMsg.includes('validation failed') || errorMsg.includes('invalid')) {
+                                                        return 'Policy validation failed - check policy configuration';
+                                                    } else if (errorMsg.length > 100) {
+                                                        return 'Policy application failed - contact support if issue persists';
+                                                    } else {
+                                                        return errorMsg;
+                                                    }
+                                                })()}
                                             </p>
                                         </div>
                                     )}
 
-                                    {application.application_log && (
+                                    {application.application_log && !application.application_log.includes('HTTP response headers') && !application.application_log.includes('Audit-Id') && (
                                         <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg">
                                             <p className="text-sm text-gray-600 dark:text-gray-400">
-                                                <strong>Log:</strong> {application.application_log}
+                                                <strong>Log:</strong> {(() => {
+                                                    const logMsg = application.application_log;
+                                                    if (logMsg.includes('404') || logMsg.includes('Not Found')) {
+                                                        return 'Policy application failed - resource not found';
+                                                    } else if (logMsg.includes('500') || logMsg.includes('Internal Server Error')) {
+                                                        return 'Policy application failed - server error';
+                                                    } else if (logMsg.includes('Failed to apply policy')) {
+                                                        return 'Policy application failed - please check cluster connectivity';
+                                                    } else if (logMsg.length > 200) {
+                                                        return 'Policy application completed with warnings';
+                                                    } else {
+                                                        return logMsg;
+                                                    }
+                                                })()}
                                             </p>
                                         </div>
                                     )}
@@ -1656,6 +1664,7 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                     )}
                 </motion.div>
             )}
+
 
 
 
@@ -1787,57 +1796,80 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                                                 <span>Copy YAML</span>
                                             </button>
 
-                                            <button
+                                                                                       <button
                                                 onClick={() => {
-                                                    if (!selectedClusterName) {
-                                                        showToast('Please select a cluster first', 'error');
-                                                        return;
-                                                    }
-                                                    const isApplied = applications.some(app =>
-                                                        app.policy?.policy_id === selectedPolicy.policy_id &&
-                                                        app.cluster_name === selectedClusterName &&
-                                                        app.status === 'applied'
-                                                    );
-                                                    if (isApplied) {
-                                                        showToast(`Policy "${selectedPolicy.name}" is already applied to this cluster`, 'error');
-                                                        return;
-                                                    }
-                                                    // Apply policy with edited YAML
-                                                    const finalYaml = reconstructYamlWithEdits(originalYaml, editableFields);
-                                                    applyPolicy(selectedPolicy, finalYaml);
-                                                    setShowPolicyModal(false);
-                                                }}
+    if (!selectedClusterName) {
+        showToast('Please select a cluster first', 'error');
+        return;
+    }
+    
+    // Check if any field has been edited
+    const hasEditedFields = Object.keys(editableFields).some(fieldKey => {
+        const lineIndex = parseInt(fieldKey.split('_')[1]);
+        const yamlLines = originalYaml.split('\n');
+        const originalLine = yamlLines[lineIndex] || '';
+        const originalValue = originalLine.match(/:\s*"?([^"#\n]+)"?/)?.[1]?.trim();
+        return editableFields[fieldKey] !== originalValue;
+    });
+    
+    // Always apply if fields are edited, regardless of current status
+    const finalYaml = hasEditedFields ? reconstructYamlWithEdits(originalYaml, editableFields) : undefined;
+    applyPolicy(selectedPolicy, finalYaml);
+    setShowPolicyModal(false);
+}}
+
                                                 disabled={!selectedClusterName || applyingPolicy === selectedPolicy.policy_id}
-                                                className={`w-full flex items-center justify-center space-x-2 px-4 py-3 font-medium rounded-lg transition-all duration-200 ${applications.some(app =>
-                                                    app.policy?.policy_id === selectedPolicy.policy_id &&
-                                                    app.cluster_name === selectedClusterName &&
-                                                    app.status === 'applied'
-                                                )
-                                                    ? 'bg-gray-400 text-white cursor-not-allowed'
-                                                    : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white disabled:opacity-50 disabled:cursor-not-allowed'
-                                                    }`}
+                                                className={`w-full flex items-center justify-center space-x-2 px-4 py-3 font-medium rounded-lg transition-all duration-200 ${
+                                                    !selectedClusterName || applyingPolicy === selectedPolicy.policy_id
+                                                        ? 'bg-gray-400 text-white cursor-not-allowed'
+                                                        : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white'
+                                                }`}
                                             >
                                                 {applyingPolicy === selectedPolicy.policy_id ? (
                                                     <>
                                                         <Loader2 className="w-4 h-4 animate-spin" />
                                                         <span>Applying...</span>
                                                     </>
-                                                ) : applications.some(app =>
-                                                    app.policy?.policy_id === selectedPolicy.policy_id &&
-                                                    app.cluster_name === selectedClusterName &&
-                                                    app.status === 'applied'
-                                                ) ? (
-                                                    <>
-                                                        <Check className="w-4 h-4" />
-                                                        <span>Already Applied</span>
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <Play className="w-4 h-4" />
-                                                        <span>Apply to {selectedClusterName || 'Cluster'}</span>
-                                                    </>
-                                                )}
+                                                ) : (() => {
+                                                    const isApplied = applications.some(app =>
+                                                        app.policy?.policy_id === selectedPolicy.policy_id &&
+                                                        app.cluster_name === selectedClusterName &&
+                                                        app.status === 'applied'
+                                                    );
+                                                    
+                                                    const hasEditedFields = Object.keys(editableFields).some(fieldKey => {
+                                                        const lineIndex = parseInt(fieldKey.split('_')[1]);
+                                                        const yamlLines = originalYaml.split('\n');
+                                                        const originalLine = yamlLines[lineIndex] || '';
+                                                        const originalValue = originalLine.match(/:\s*"?([^"#\n]+)"?/)?.[1]?.trim();
+                                                        return editableFields[fieldKey] !== originalValue;
+                                                    });
+                                                    
+                                                    if (isApplied && hasEditedFields) {
+                                                        return (
+                                                            <>
+                                                                <Play className="w-4 h-4" />
+                                                                <span>Apply Edited Policy</span>
+                                                            </>
+                                                        );
+                                                    } else if (isApplied && !hasEditedFields) {
+                                                        return (
+                                                            <>
+                                                                <Check className="w-4 h-4" />
+                                                                <span>Already Applied</span>
+                                                            </>
+                                                        );
+                                                    } else {
+                                                        return (
+                                                            <>
+                                                                <Play className="w-4 h-4" />
+                                                                <span>Apply to {selectedClusterName || 'Cluster'}</span>
+                                                            </>
+                                                        );
+                                                    }
+                                                })()}
                                             </button>
+
                                         </div>
                                     </div>
                                 </div>
@@ -2135,8 +2167,9 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                                             </span>
                                         </div>
                                         <h3 className="font-semibold text-red-900 dark:text-red-100">Failed Policies</h3>
-                                        <p className="text-sm text-red-700 dark:text-red-300">Application failed</p>
+                                        <p className="text-sm text-red-700 dark:text-red-300">Policy application failed due to configuration or cluster issues</p>
                                     </div>
+
 
                                     {/* Pending Policies */}
                                     <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 dark:from-yellow-900/30 dark:to-yellow-800/30 p-6 rounded-xl border border-yellow-200 dark:border-yellow-700">
@@ -2281,38 +2314,42 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                             initial={{ scale: 0.95, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
                             exit={{ scale: 0.95, opacity: 0 }}
-                            className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-4xl w-full max-h-[80vh] overflow-auto"
+                            className="bg-white dark:bg-gray-800 rounded-lg p-4 max-w-4xl w-full max-h-[85vh] overflow-auto"
                             onClick={(e) => e.stopPropagation()}
                         >
-                            <div className="flex items-center justify-between mb-6">
-                                <div className="flex items-center gap-3">
-                                    <FileText className="w-6 h-6 text-blue-600" />
-                                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">Applied YAML</h2>
+
+                            <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center gap-2">
+                                    <FileText className="w-5 h-5 text-blue-600" />
+                                    <h2 className="text-lg font-bold text-gray-900 dark:text-white">Applied YAML</h2>
                                 </div>
-                                <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-2">
                                     <button
                                         onClick={() => {
                                             navigator.clipboard.writeText(selectedYamlContent);
                                             showToast('YAML copied to clipboard', 'success');
                                         }}
-                                        className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                                        className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-1.5"
                                     >
-                                        <Copy className="w-4 h-4" />
+                                        <Copy className="w-3.5 h-3.5" />
                                         Copy
                                     </button>
                                     <button
                                         onClick={() => setShowYamlModal(false)}
                                         className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                                     >
-                                        <X className="w-6 h-6" />
+                                        <X className="w-5 h-5" />
                                     </button>
                                 </div>
                             </div>
 
+
                             <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
                                 <Editor
-                                    height="500px"
+                                    height="40vh"
                                     language="yaml"
+                                    width="100%"
+
                                     value={selectedYamlContent}
                                     options={{
                                         readOnly: true,
@@ -2325,91 +2362,13 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                                     theme="vs-dark"
                                 />
                             </div>
+
                         </motion.div>
                     </motion.div>
                 )}
             </AnimatePresence>
 
-            {/* YAML Comparison Modal */}
-            <AnimatePresence>
-                {showYamlComparisonModal && selectedApplicationForComparison && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-                        onClick={() => setShowYamlComparisonModal(false)}
-                    >
-                        <motion.div
-                            initial={{ scale: 0.95, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.95, opacity: 0 }}
-                            className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-7xl w-full max-h-[90vh] overflow-auto"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <div className="flex items-center justify-between mb-6">
-                                <div className="flex items-center gap-3">
-                                    <GitBranch className="w-6 h-6 text-purple-600" />
-                                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">YAML Comparison</h2>
-                                </div>
-                                <button
-                                    onClick={() => setShowYamlComparisonModal(false)}
-                                    className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                                >
-                                    <X className="w-6 h-6" />
-                                </button>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-6">
-                                <div>
-                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                                        <FileText className="w-5 h-5 text-blue-600" />
-                                        Original YAML
-                                    </h3>
-                                    <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-                                        <Editor
-                                            height="500px"
-                                            language="yaml"
-                                            value={selectedApplicationForComparison.original_yaml || ''}
-                                            options={{
-                                                readOnly: true,
-                                                minimap: { enabled: false },
-                                                scrollBeyondLastLine: false,
-                                                fontSize: 12,
-                                                lineNumbers: 'on',
-                                                wordWrap: 'on'
-                                            }}
-                                            theme="vs-dark"
-                                        />
-                                    </div>
-                                </div>
-                                <div>
-                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                                        <Edit3 className="w-5 h-5 text-green-600" />
-                                        Applied YAML (Edited)
-                                    </h3>
-                                    <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-                                        <Editor
-                                            height="500px"
-                                            language="yaml"
-                                            value={selectedApplicationForComparison.applied_yaml || ''}
-                                            options={{
-                                                readOnly: true,
-                                                minimap: { enabled: false },
-                                                scrollBeyondLastLine: false,
-                                                fontSize: 12,
-                                                lineNumbers: 'on',
-                                                wordWrap: 'on'
-                                            }}
-                                            theme="vs-dark"
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+           
 
             {/* Remove Confirmation Modal */}
             <AnimatePresence>

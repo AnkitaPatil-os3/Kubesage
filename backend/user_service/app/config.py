@@ -44,9 +44,9 @@ class Settings(BaseSettings):
     MAIL_FROM_NAME: str = os.getenv("MAIL_FROM_NAME", "KubeSage Alert System")
     MAIL_STARTTLS: bool = os.getenv("MAIL_TLS", "True").lower() == "true"
     MAIL_SSL_TLS: bool = os.getenv("MAIL_SSL", "False").lower() == "true"
-    SERVER_BASE_URL: str = os.getenv("SERVER_BASE_URL", "https://10.0.32.105:8001")
+    SERVER_BASE_URL: str = os.getenv("SERVER_BASE_URL", "https://10.0.32.103:8001")
     USER_CONFIRMATION_TIMEOUT: int = int(os.getenv("USER_CONFIRMATION_TIMEOUT", "3600"))
-    FRONTEND_BASE_URL: str = os.getenv("FRONTEND_BASE_URL", "https://10.0.32.105:5173")
+    FRONTEND_BASE_URL: str = os.getenv("FRONTEND_BASE_URL", "https://10.0.32.103:5173")
     MAIL_RECIPIENT: str = os.getenv("MAIL_RECIPIENT", "vaishnavii.nathani@os3infotech.com")
 
     # RabbitMQ settings
