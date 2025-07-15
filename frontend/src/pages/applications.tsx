@@ -135,6 +135,7 @@ export const Applications: React.FC<ApplicationsProps> = ({ selectedCluster }) =
   const [applications, setApplications] = useState<Application[]>([]);
   const [applicationLogs, setApplicationLogs] = useState<string>('');
   const [applicationEvents, setApplicationEvents] = useState<any[]>([]);
+  const [copySuccess, setCopySuccess] = useState(false);
   
   // UI State
   const [loading, setLoading] = useState(true);
@@ -535,7 +536,7 @@ export const Applications: React.FC<ApplicationsProps> = ({ selectedCluster }) =
                 color="secondary"
                 onPress={() => {
                   setSelectedApp(app);
-                  fetchApplicationLogs(app);
+                  fetchApplicationLogs(app, setApplicationLogs, setLoading, selectedClusterId);
                   onLogsOpen();
                 }}
                 startContent={<Icon icon="lucide:file-text" />}
@@ -548,7 +549,7 @@ export const Applications: React.FC<ApplicationsProps> = ({ selectedCluster }) =
                 color="default"
                 onPress={() => {
                   setSelectedApp(app);
-                  fetchApplicationEvents(app);
+                  fetchApplicationEvents(app, setApplicationEvents, setLoading, selectedClusterId);
                   onEventsOpen();
                 }}
                 startContent={<Icon icon="lucide:calendar" />}
@@ -630,32 +631,34 @@ export const Applications: React.FC<ApplicationsProps> = ({ selectedCluster }) =
             </Button>
           </Tooltip>
           <Tooltip content="View Logs">
-            <Button
-              isIconOnly
-              size="sm"
-              variant="flat"
-              color="secondary"
-              onPress={() => {
-                setSelectedApp(app);
-                onLogsOpen();
-              }}
-            >
-              <Icon icon="lucide:file-text" />
-            </Button>
+              <Button
+                isIconOnly
+                size="sm"
+                variant="flat"
+                color="secondary"
+                onPress={() => {
+                  setSelectedApp(app);
+                  fetchApplicationLogs(app, setApplicationLogs, setLoading, selectedClusterId);
+                  onLogsOpen();
+                }}
+              >
+                <Icon icon="lucide:file-text" />
+              </Button>
           </Tooltip>
           <Tooltip content="View Events">
-            <Button
-              isIconOnly
-              size="sm"
-              variant="flat"
-              color="default"
-              onPress={() => {
-                setSelectedApp(app);
-                onEventsOpen();
-              }}
-            >
-              <Icon icon="lucide:calendar" />
-            </Button>
+              <Button
+                isIconOnly
+                size="sm"
+                variant="flat"
+                color="default"
+                onPress={() => {
+                  setSelectedApp(app);
+                  fetchApplicationEvents(app, setApplicationEvents, setLoading, selectedClusterId);
+                  onEventsOpen();
+                }}
+              >
+                <Icon icon="lucide:calendar" />
+              </Button>
           </Tooltip>
         </div>
       </TableCell>
@@ -727,7 +730,23 @@ export const Applications: React.FC<ApplicationsProps> = ({ selectedCluster }) =
                   }
                 }}
                 className="w-64"
-                startContent={<Icon icon="lucide:database" />}
+                startContent={
+                  selectedClusterId ? (
+                    <div className="flex items-center gap-2">
+                      <Icon
+                        icon={getProviderIcon(
+                          clusters.find((c) => c.id === selectedClusterId)?.provider_name || ''
+                        )}
+                        className="text-lg"
+                      />
+                      <span>
+                        {clusters.find((c) => c.id === selectedClusterId)?.cluster_name || ''}
+                      </span>
+                    </div>
+                  ) : (
+                    <Icon icon="lucide:database" />
+                  )
+                }
               >
                 {clusters.map((cluster) => (
                   <SelectItem key={cluster.id.toString()}>
@@ -753,9 +772,9 @@ export const Applications: React.FC<ApplicationsProps> = ({ selectedCluster }) =
                     startContent={<Icon icon="lucide:folder" />}
                   >
                     {namespaces.map((namespace) => (
-                      <SelectItem key={namespace} value={namespace}>
-                        {namespace === 'all' ? 'All Namespaces' : namespace}
-                      </SelectItem>
+                  <SelectItem key={namespace}>
+                    {namespace === 'all' ? 'All Namespaces' : namespace}
+                  </SelectItem>
                     ))}
                   </Select>
 
@@ -767,28 +786,52 @@ export const Applications: React.FC<ApplicationsProps> = ({ selectedCluster }) =
                       setSelectedAppType(appType);
                     }}
                     className="w-40"
-                    startContent={<Icon icon="lucide:filter" />}
+                    startContent={
+                      selectedAppType === 'all' ? (
+                        <div className="flex items-center gap-2">
+                          <Icon icon="lucide:filter" />
+                          {/* <span>All Types</span> */}
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <Icon
+                            icon={
+                              selectedAppType === 'helm'
+                                ? 'simple-icons:helm'
+                                : selectedAppType === 'rancher'
+                                ? 'simple-icons:rancher'
+                                : selectedAppType === 'argocd'
+                                ? 'simple-icons:argo'
+                                : selectedAppType === 'deployment'
+                                ? 'lucide:box'
+                                : 'lucide:filter'
+                            }
+                          />
+                          <span>{selectedAppType.charAt(0).toUpperCase() + selectedAppType.slice(1)}</span>
+                        </div>
+                      )
+                    }
                   >
-                    <SelectItem key="all" value="all">All Types</SelectItem>
-                    <SelectItem key="helm" value="helm">
+                    <SelectItem key="all">All Types</SelectItem>
+                    <SelectItem key="helm">
                       <div className="flex items-center gap-2">
                         <Icon icon="simple-icons:helm" />
                         <span>Helm</span>
                       </div>
                     </SelectItem>
-                    <SelectItem key="rancher" value="rancher">
+                    <SelectItem key="rancher">
                       <div className="flex items-center gap-2">
                         <Icon icon="simple-icons:rancher" />
                         <span>Rancher</span>
                       </div>
                     </SelectItem>
-                    <SelectItem key="argocd" value="argocd">
+                    <SelectItem key="argocd">
                       <div className="flex items-center gap-2">
                         <Icon icon="simple-icons:argo" />
                         <span>ArgoCD</span>
                       </div>
                     </SelectItem>
-                    <SelectItem key="deployment" value="deployment">
+                    <SelectItem key="deployment">
                       <div className="flex items-center gap-2">
                         <Icon icon="lucide:box" />
                         <span>Deployment</span>
@@ -1224,22 +1267,29 @@ export const Applications: React.FC<ApplicationsProps> = ({ selectedCluster }) =
                 <Button
                   size="sm"
                   color="primary"
-                  onPress={() => selectedApp && fetchApplicationLogs(selectedApp)}
+                  onPress={() => selectedApp && fetchApplicationLogs(selectedApp, setApplicationLogs, setLoading, selectedClusterId)}
                   startContent={<Icon icon="lucide:refresh-cw" />}
                   isLoading={loading}
                 >
                   Refresh Logs
                 </Button>
-                <Button
-                  size="sm"
-                  variant="flat"
-                  onPress={() => {
-                    navigator.clipboard.writeText(applicationLogs);
-                  }}
-                  startContent={<Icon icon="lucide:copy" />}
-                >
-                  Copy Logs
-                </Button>
+                  <Button
+                    size="sm"
+                    variant="flat"
+                    onPress={() => {
+                      navigator.clipboard.writeText(applicationLogs);
+                      setCopySuccess(true);
+                      setTimeout(() => setCopySuccess(false), 2000);
+                    }}
+                    startContent={<Icon icon="lucide:copy" />}
+                  >
+                    Copy Logs
+                  </Button>
+                  {copySuccess && (
+                    <div className="ml-4 px-3 py-1 bg-green-100 text-green-800 rounded-md text-sm select-none">
+                      Logs copied to clipboard
+                    </div>
+                  )}
               </div>
               
               <div className="bg-content2 rounded-lg p-4 max-h-96 overflow-auto">
@@ -1299,7 +1349,7 @@ export const Applications: React.FC<ApplicationsProps> = ({ selectedCluster }) =
           <Button
             size="sm"
             color="primary"
-            onPress={() => selectedApp && fetchApplicationEvents(selectedApp)}
+            onPress={() => selectedApp && fetchApplicationEvents(selectedApp, setApplicationEvents, setLoading, selectedClusterId)}
             startContent={<Icon icon="lucide:refresh-cw" />}
             isLoading={loading}
           >
@@ -1363,7 +1413,7 @@ export const Applications: React.FC<ApplicationsProps> = ({ selectedCluster }) =
   );
 };
 
-const fetchApplicationLogs = async (app: Application) => {
+const fetchApplicationLogs = async (app: Application, setApplicationLogs: React.Dispatch<React.SetStateAction<string>>, setLoading: React.Dispatch<React.SetStateAction<boolean>>, selectedClusterId: number | null) => {
   if (!selectedClusterId) return;
   
   setLoading(true);
@@ -1393,7 +1443,7 @@ const fetchApplicationLogs = async (app: Application) => {
   }
 };
 
-const fetchApplicationEvents = async (app: Application) => {
+const fetchApplicationEvents = async (app: Application, setApplicationEvents: React.Dispatch<React.SetStateAction<any[]>>, setLoading: React.Dispatch<React.SetStateAction<boolean>>, selectedClusterId: number | null) => {
   if (!selectedClusterId) return;
   
   setLoading(true);

@@ -1,3 +1,4 @@
+////workload-dashbord final 
 //workload-dashboard final
 //hi hihis
 import React, { useState, useEffect, useCallback } from "react";
@@ -105,7 +106,7 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
   const [sortBy, setSortBy] = useState<'name' | 'status' | 'age'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [showStats, setShowStats] = useState(true);
-
+  
   // Events State
   const [selectedWorkloadEvents, setSelectedWorkloadEvents] = useState<any[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
@@ -132,6 +133,9 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
     namespace: "" 
   });
   const [yamlLoading, setYamlLoading] = useState(false);
+
+  // Success message state for styled popup
+  const [successMessage, setSuccessMessage] = useState<string>("");
 
   // YAML Cache for storing fetched YAML content by resource key
   const [yamlCache, setYamlCache] = useState<Record<string, string>>({});
@@ -390,50 +394,66 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
         sanitizedYaml
       );
       
-      if (result.success) {
-        // Success notification
-        console.log('YAML updated successfully');
-        
-        // Cache को update करें ताकि next time updated content दिखे
-        const cacheKey = `${selectedClusterId}-${editingResource.namespace}-${editingResource.type}-${editingResource.name}`;
-        setYamlCache(prev => ({
-          ...prev,
-          [cacheKey]: sanitizedYaml
-        }));
-        
-        // Success message
-        alert('YAML updated successfully!');
-        
-        // Modal close करें
-        setShowYamlModal(false);
+        if (result.success) {
+          // Success notification
+          console.log('YAML updated successfully');
+          
+          // Cache को update करें ताकि next time updated content दिखे
+          const cacheKey = `${selectedClusterId}-${editingResource.namespace}-${editingResource.type}-${editingResource.name}`;
+          setYamlCache(prev => ({
+            ...prev,
+            [cacheKey]: sanitizedYaml
+          }));
+          
+          // Show success message popup
+          setSuccessMessage('YAML updated successfully!');
+          
+          // Modal close करें
+          setShowYamlModal(false);
 
-        // Immediately update workloads state for deployments to reflect new name from YAML
-        try {
-          const parsedYamlObj = yaml.load(sanitizedYaml) as any;
-          const newNameFromYaml = parsedYamlObj?.metadata?.name;
-          if (newNameFromYaml && editingResource.type.toLowerCase() === 'deployment') {
-            setWorkloads(prev => ({
-              ...prev,
-              deployments: prev.deployments.map((dep: any) =>
-                dep.metadata?.name === editingResource.name
-                  ? { ...dep, metadata: { ...dep.metadata, name: newNameFromYaml } }
-                  : dep
-              )
-            }));
+          // Immediately update workloads state for deployments to reflect new name from YAML
+          try {
+            const parsedYamlObj = yaml.load(sanitizedYaml) as any;
+            const newNameFromYaml = parsedYamlObj?.metadata?.name;
+            if (newNameFromYaml && editingResource.type.toLowerCase() === 'deployment') {
+              setWorkloads(prev => ({
+                ...prev,
+                deployments: prev.deployments.map((dep: any) =>
+                  dep.metadata?.name === editingResource.name
+                    ? {
+                        ...dep,
+                        metadata: parsedYamlObj.metadata,
+                        kind: parsedYamlObj.kind,
+                        apiVersion: parsedYamlObj.apiVersion,
+                        // Also update container image if changed
+                        spec: {
+                          ...dep.spec,
+                          template: {
+                            ...dep.spec?.template,
+                            spec: {
+                              ...dep.spec?.template?.spec,
+                              containers: parsedYamlObj.spec?.template?.spec?.containers || dep.spec?.template?.spec?.containers
+                            }
+                          }
+                        }
+                      }
+                    : dep
+                )
+              }));
+            }
+          } catch (e) {
+            console.error('Error updating workloads state from YAML:', e);
           }
-        } catch (e) {
-          console.error('Error parsing sanitized YAML for immediate update:', e);
-        }
-        
-        // Add 2 second delay before refreshing workloads from backend
-        setTimeout(() => {
-          fetchWorkloads(selectedClusterId, editingResource.namespace);
-        },2000);
+          
+          // Add 2 second delay before refreshing workloads from backend
+          // setTimeout(() => {
+          //   fetchWorkloads(selectedClusterId, editingResource.namespace);
+          // }, 2000);
 
-        // Content clear करें
-        setYamlContent("");
-        
-      }
+          // Content clear करें
+          setYamlContent("");
+          
+        }
     } catch (error) {
       console.error('Error updating YAML:', error);
       alert("Failed to update YAML: " + error.message);
@@ -714,7 +734,9 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
             return (
               <TableRow key={index}>
                 <TableCell>
-                  {renderClickableWorkloadName(pod, 'pods', 'lucide:box', 'primary')}
+                  <div className="text-white">
+                    {renderClickableWorkloadName(pod, 'pods', 'lucide:box', 'dark:black')}
+                  </div>
                 </TableCell>
                 <TableCell>{ready}/{total}</TableCell>
                 <TableCell>
@@ -1493,6 +1515,37 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
       animate="visible"
       className="p-6 space-y-6"
     >
+    {/* Success Message Modal */}
+      <Modal
+        isOpen={!!successMessage}
+        onClose={() => {
+          setSuccessMessage("");
+          setShowYamlModal(false);
+        }}
+        size="sm"
+        // Removed isCentered because it's not a valid prop
+        closeOnOverlayClick={false}
+      >
+  <ModalContent>
+    <ModalHeader>Success</ModalHeader>
+    <ModalBody>
+      <p>{successMessage}</p>
+    </ModalBody>
+    <ModalFooter>
+      <Button
+        color="primary"
+        onPress={() => {
+          setSuccessMessage("");
+          setShowYamlModal(false);
+        }}
+      >
+        OK
+      </Button>
+    </ModalFooter>
+  </ModalContent>
+</Modal>
+
+
       {/* Header */}
       <motion.div variants={itemVariants}>
         <Card>
@@ -2261,6 +2314,7 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
         }}
         size="5xl"
         scrollBehavior="inside"
+        // Removed closeOnOverlayClick as it is not a valid prop
       >
         <ModalContent>
           <ModalHeader>

@@ -257,27 +257,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             </div>
             <Divider className="my-3" />
-            <div
+            {/* <div
               className="flex items-center justify-between gap-3 rounded px-2 py-1 transition"
               onClick={() => isAdmin && history.push("/dashboard/admin")}
               title={isAdmin ? "Go to Admin Dashboard" : "Profile not clickable"}
               style={{ cursor: isAdmin ? "pointer" : "default" }}
-            >
+            > */}
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-medium">
                   {userInitials}
                 </div>
-                <div>
+                 <div className="flex-1">     {/*   new  */}
                   <p className="text-sm font-medium">{userName}</p>
                   <p className="text-xs text-foreground-500">{userEmail}</p>
                 </div>
+                <Tooltip content="Logout">
+                  <Button isIconOnly variant="ghost"  color="danger" size="sm" onClick={(e) => { e.stopPropagation(); handleLogout(); }}>
+                    <Icon icon="lucide:log-out"  />
+                  </Button>
+                </Tooltip>
               </div>
-              <Tooltip content="Logout">
-                <Button isIconOnly variant="ghost" color="danger" size="sm" onClick={(e) => { e.stopPropagation(); handleLogout(); }}>
-                  <Icon icon="lucide:log-out" />
-                </Button>
-              </Tooltip>
-            </div>
+            {/* </div> */}
           </>
         ) : (
           <>
