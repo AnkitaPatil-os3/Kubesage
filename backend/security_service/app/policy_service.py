@@ -1661,6 +1661,7 @@ spec:
 kind: KubeArmorPolicy
 metadata:
   name: audit-etc-nginx-access
+  namespace: default ##editable
 spec:
   selector:
     matchLabels:
@@ -1689,6 +1690,7 @@ spec:
 kind: KubeArmorPolicy
 metadata:
   name: block-pkg-mgmt-tools-exec
+  namespace: default ##editable
 spec:
   selector:
     matchLabels:
@@ -1740,6 +1742,7 @@ spec:
 kind: KubeArmorPolicy
 metadata:
   name: only-allow-nginx-exec
+  namespace: default ##editable
 spec:
   selector:
     matchLabels:
@@ -1833,6 +1836,7 @@ spec:
 kind: KubeArmorPolicy
 metadata:
   name: block-service-access-token-access
+  namespace: default ##editable
 spec:
   selector:
     matchLabels:
