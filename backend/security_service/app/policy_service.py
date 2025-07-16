@@ -249,25 +249,25 @@ class PolicyDatabaseService:
                     "name": "file_based",
                     "display_name": "File-Based Security Policies",
                     "description": "Protect against unauthorized file changes and access",
-                    "icon": "file-lock"
+                    "icon": "folder-lock"
                 },
                 {
                     "name": "process_based",
                     "display_name": "Process-Based Security Policies",
                     "description": "Control process execution and behavior",
-                    "icon": "cpu"
+                    "icon": "activity"
                 },
                 {
                     "name": "network_based",
                     "display_name": "Network-Based Security Policies",
                     "description": "Control network access and communications",
-                    "icon": "network"
+                    "icon": "wifi"
                 },
                 {
                     "name": "capabilities_permissions",
                     "display_name": "Capabilities & Permissions",
                     "description": "Manage service account tokens and permissions",
-                    "icon": "key"
+                    "icon": "lock-keyhole"
                 }
             ]
             

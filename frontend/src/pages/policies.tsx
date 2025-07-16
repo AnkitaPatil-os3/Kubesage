@@ -29,6 +29,10 @@ import {
     Zap,
     Target,
     GitBranch,
+    FileLock,  // Changed from file-lock
+    Cpu,       // Changed from cpu
+    Network,   // Changed from network
+    Key,       // Changed from key
     Database,
     Globe,
     CheckCircle,
@@ -62,8 +66,12 @@ import {
     Grid,
     List,
     Maximize2,
-    Minimize2
+    Minimize2,
+    Folder,
+    UserCheck,
+    Wifi
 } from 'lucide-react';
+
 import Editor from '@monaco-editor/react';
 
 // Types
@@ -735,16 +743,21 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
     };
 
     const getCategoryIcon = (categoryName: string) => {
-        switch (categoryName) {
-            case 'validation': return Shield;
-            case 'mutation': return Edit3;
-            case 'generation': return Plus;
-            case 'cleanup': return Trash2;
-            case 'image_verification': return Lock;
-            case 'miscellaneous': return Settings;
-            default: return Shield;
-        }
-    };
+    switch (categoryName) {
+        case 'validation': return Shield;
+        case 'mutation': return Edit3;
+        case 'generation': return Plus;
+        case 'cleanup': return Trash2;
+        case 'image_verification': return Lock;
+        case 'miscellaneous': return Settings;
+        case 'file_based': return FileLock;      // Using FileLock instead of file-lock
+        case 'process_based': return Activity;   // Using Activity instead of cpu
+        case 'network_based': return Wifi;       // Using Wifi instead of network
+        case 'capabilities_permissions': return Key;
+        default: return Shield;
+    }
+};
+
 
     const filteredPolicies = policies.filter(policy => {
         const matchesSearch = policy.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
