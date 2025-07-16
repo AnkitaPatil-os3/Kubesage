@@ -309,7 +309,7 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
         setShowRemoveModal(true);
     };
 
-   
+
 
     const handleRemovePolicy = async () => {
         if (!removeModalData) return;
@@ -681,7 +681,7 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
         }
     };
 
-    
+
     const applyPolicy = async (policy: Policy, editedYaml?: string) => {
         if (!selectedClusterName) {
             showToast('Please select a cluster first', 'error');
@@ -729,7 +729,7 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
         }
     };
 
-        
+
 
     // Utility functions
     const calculateStats = (policiesList: Policy[]) => {
@@ -821,17 +821,59 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
         setShowPolicyModal(true);
     };
 
-    const handleApplyPolicy = () => {
-        if (!selectedPolicy) return;
-
-        if (showYamlEditor && editedYaml !== originalYaml) {
-            // Apply with edited YAML
-            applyPolicyWithEdits(selectedPolicy, editedYaml);
-        } else {
-            // Apply original policy
-            applyPolicy(selectedPolicy);
+    const handleApplyPolicy = async (policyId: string, editedYaml?: string) => {
+        if (!selectedCluster) {
+            toast.error("Please select a cluster first");
+            return;
         }
-        setShowPolicyModal(false);
+
+        try {
+            setApplyingPolicies(prev => ({ ...prev, [policyId]: true }));
+
+            const requestData = {
+                cluster_name: selectedCluster.cluster_name,
+                policy_id: policyId,
+                kubernetes_namespace: "default",
+                edited_yaml: editedYaml || undefined,
+                save_edited_policy: !!editedYaml
+            };
+
+            const response = await fetch(`${API_BASE_URL}/policies/apply`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${userToken}`
+                },
+                body: JSON.stringify(requestData)
+            });
+
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                if (editedYaml) {
+                    toast.success(`Edited policy applied successfully to ${selectedCluster.cluster_name}`);
+                } else {
+                    toast.success(`Policy applied successfully to ${selectedCluster.cluster_name}`);
+                }
+
+                // Refresh applications list
+                if (refreshApplications) {
+                    refreshApplications();
+                }
+            } else {
+                // Handle specific error for already applied policies
+                if (result.message && result.message.includes("already applied")) {
+                    toast.warning(result.message);
+                } else {
+                    toast.error(result.message || 'Failed to apply policy');
+                }
+            }
+        } catch (error) {
+            console.error('Error applying policy:', error);
+            toast.error('Failed to apply policy');
+        } finally {
+            setApplyingPolicies(prev => ({ ...prev, [policyId]: false }));
+        }
     };
     const initializePolicies = async () => {
         try {
@@ -865,20 +907,20 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
     };
 
 
-   // In the modal, update the field change handler:
-const handleFieldChange = (fieldKey: string, value: string) => {
-    setEditableFields(prev => ({
-        ...prev,
-        [fieldKey]: value
-    }));
+    // In the modal, update the field change handler:
+    const handleFieldChange = (fieldKey: string, value: string) => {
+        setEditableFields(prev => ({
+            ...prev,
+            [fieldKey]: value
+        }));
 
-    // Update YAML with new field values
-    const updatedYaml = reconstructYamlWithEdits(originalYaml, {
-        ...editableFields,
-        [fieldKey]: value
-    });
-    setEditedYaml(updatedYaml);
-};
+        // Update YAML with new field values
+        const updatedYaml = reconstructYamlWithEdits(originalYaml, {
+            ...editableFields,
+            [fieldKey]: value
+        });
+        setEditedYaml(updatedYaml);
+    };
 
 
     const handleClusterChange = (clusterName: string) => {
@@ -1495,7 +1537,7 @@ const handleFieldChange = (fieldKey: string, value: string) => {
                 </motion.div>
             )}
 
-                       {/* Applied Policies Section */}
+            {/* Applied Policies Section */}
             {selectedClusterName && applications.filter(app => app.status !== 'removed').length > 0 && (
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
@@ -1796,34 +1838,33 @@ const handleFieldChange = (fieldKey: string, value: string) => {
                                                 <span>Copy YAML</span>
                                             </button>
 
-                                                                                       <button
+                                            <button
                                                 onClick={() => {
-    if (!selectedClusterName) {
-        showToast('Please select a cluster first', 'error');
-        return;
-    }
-    
-    // Check if any field has been edited
-    const hasEditedFields = Object.keys(editableFields).some(fieldKey => {
-        const lineIndex = parseInt(fieldKey.split('_')[1]);
-        const yamlLines = originalYaml.split('\n');
-        const originalLine = yamlLines[lineIndex] || '';
-        const originalValue = originalLine.match(/:\s*"?([^"#\n]+)"?/)?.[1]?.trim();
-        return editableFields[fieldKey] !== originalValue;
-    });
-    
-    // Always apply if fields are edited, regardless of current status
-    const finalYaml = hasEditedFields ? reconstructYamlWithEdits(originalYaml, editableFields) : undefined;
-    applyPolicy(selectedPolicy, finalYaml);
-    setShowPolicyModal(false);
-}}
+                                                    if (!selectedClusterName) {
+                                                        showToast('Please select a cluster first', 'error');
+                                                        return;
+                                                    }
+
+                                                    // Check if any field has been edited
+                                                    const hasEditedFields = Object.keys(editableFields).some(fieldKey => {
+                                                        const lineIndex = parseInt(fieldKey.split('_')[1]);
+                                                        const yamlLines = originalYaml.split('\n');
+                                                        const originalLine = yamlLines[lineIndex] || '';
+                                                        const originalValue = originalLine.match(/:\s*"?([^"#\n]+)"?/)?.[1]?.trim();
+                                                        return editableFields[fieldKey] !== originalValue;
+                                                    });
+
+                                                    // Always apply if fields are edited, regardless of current status
+                                                    const finalYaml = hasEditedFields ? reconstructYamlWithEdits(originalYaml, editableFields) : undefined;
+                                                    applyPolicy(selectedPolicy, finalYaml);
+                                                    setShowPolicyModal(false);
+                                                }}
 
                                                 disabled={!selectedClusterName || applyingPolicy === selectedPolicy.policy_id}
-                                                className={`w-full flex items-center justify-center space-x-2 px-4 py-3 font-medium rounded-lg transition-all duration-200 ${
-                                                    !selectedClusterName || applyingPolicy === selectedPolicy.policy_id
+                                                className={`w-full flex items-center justify-center space-x-2 px-4 py-3 font-medium rounded-lg transition-all duration-200 ${!selectedClusterName || applyingPolicy === selectedPolicy.policy_id
                                                         ? 'bg-gray-400 text-white cursor-not-allowed'
                                                         : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white'
-                                                }`}
+                                                    }`}
                                             >
                                                 {applyingPolicy === selectedPolicy.policy_id ? (
                                                     <>
@@ -1836,7 +1877,7 @@ const handleFieldChange = (fieldKey: string, value: string) => {
                                                         app.cluster_name === selectedClusterName &&
                                                         app.status === 'applied'
                                                     );
-                                                    
+
                                                     const hasEditedFields = Object.keys(editableFields).some(fieldKey => {
                                                         const lineIndex = parseInt(fieldKey.split('_')[1]);
                                                         const yamlLines = originalYaml.split('\n');
@@ -1844,7 +1885,7 @@ const handleFieldChange = (fieldKey: string, value: string) => {
                                                         const originalValue = originalLine.match(/:\s*"?([^"#\n]+)"?/)?.[1]?.trim();
                                                         return editableFields[fieldKey] !== originalValue;
                                                     });
-                                                    
+
                                                     if (isApplied && hasEditedFields) {
                                                         return (
                                                             <>
@@ -2368,7 +2409,7 @@ const handleFieldChange = (fieldKey: string, value: string) => {
                 )}
             </AnimatePresence>
 
-           
+
 
             {/* Remove Confirmation Modal */}
             <AnimatePresence>

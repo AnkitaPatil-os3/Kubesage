@@ -1537,7 +1537,7 @@ spec:
 kind: KubeArmorPolicy
 metadata:
   name: harden-mysql-file-integrity-monitoring
-  namespace: wordpress-mysql
+  namespace: default
 spec:
   action: Block ##editable
   file:
@@ -1563,7 +1563,7 @@ spec:
   message: Detected and prevented compromise to File integrity
   selector:
     matchLabels:
-      app: mysql ##editable
+      app: nginx ##editable
   severity: 1
   tags:
   - NIST
@@ -1585,7 +1585,7 @@ spec:
 kind: KubeArmorPolicy
 metadata:
   name: harden-mysql-trusted-cert-mod
-  namespace: wordpress-mysql
+  namespace: default ##editable
 spec:
   action: Block ##editable
   file:
@@ -1622,7 +1622,7 @@ spec:
 kind: KubeArmorPolicy
 metadata:
   name: harden-wordpress-remote-file-copy
-  namespace: wordpress-mysql
+  namespace: default ##editable
 spec:
   action: Block ##editable
   message: Alert! remote file copy tools execution prevented.
@@ -1686,20 +1686,20 @@ spec:
                 "severity": "high",
                 "tags": ["security", "package-management", "process-control"],
                 "yaml_content": """apiVersion: security.kubearmor.com/v1
-    kind: KubeArmorPolicy
-    metadata:
-      name: block-pkg-mgmt-tools-exec
-    spec:
-      selector:
-        matchLabels:
-          app: nginx ##editable
-      process:
-        matchPaths:
-        - path: /usr/bin/apt
-        - path: /usr/bin/apt-get
-        - path: /usr/bin/yum ##editable
-        - path: /usr/bin/apk ##editable
-      action: Block ##editable""",
+kind: KubeArmorPolicy
+metadata:
+  name: block-pkg-mgmt-tools-exec
+spec:
+  selector:
+    matchLabels:
+      app: nginx ##editable
+  process:
+    matchPaths:
+    - path: /usr/bin/apt
+    - path: /usr/bin/apt-get
+    - path: /usr/bin/yum ##editable
+    - path: /usr/bin/apk ##editable
+  action: Block ##editable""",
                 "policy_metadata": {"type": "process_based", "kubernetes_resources": ["Pod"]}
             },
             {
@@ -1710,23 +1710,23 @@ spec:
                 "severity": "high",
                 "tags": ["security", "tmp-execution", "CIS"],
                 "yaml_content": """apiVersion: security.kubearmor.com/v1
-    kind: KubeArmorPolicy
-    metadata:
-      name: ksp-block-exec-inside-tmp
-      namespace: wordpress-mysql
-    spec:
-      tags:
-      - CIS
-      - CIS-control-1.1.5
-      message: Alert! Execution attempted inside tmp folder
-      selector:
-        matchLabels:
-          app: wordpress ##editable
-      process:
-        matchDirectories:
-        - dir: /tmp/
-          recursive: true
-      action: Block ##editable""",
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-block-exec-inside-tmp
+  namespace: default ##editable
+spec:
+  tags:
+  - CIS
+  - CIS-control-1.1.5
+  message: Alert! Execution attempted inside tmp folder
+  selector:
+    matchLabels:
+      app: wordpress ##editable
+  process:
+    matchDirectories:
+    - dir: /tmp/
+      recursive: true
+  action: Block ##editable""",
                 "policy_metadata": {"type": "process_based", "kubernetes_resources": ["Pod"]}
             },
             {
@@ -1737,26 +1737,25 @@ spec:
                 "severity": "critical",
                 "tags": ["security", "zero-trust", "least-privilege"],
                 "yaml_content": """apiVersion: security.kubearmor.com/v1
-    kind: KubeArmorPolicy
-    metadata:
-      name: only-allow-nginx-exec
-    spec:
-      selector:
-        matchLabels:
-          app: nginx ##editable
-      file:
-        matchDirectories:
-        - dir: /
-          recursive: true
-      process:
-        matchPaths:
-        - path: /usr/sbin/nginx ##editable
-        - path: /bin/bash ##editable
-      action: Allow ##editable""",
+kind: KubeArmorPolicy
+metadata:
+  name: only-allow-nginx-exec
+spec:
+  selector:
+    matchLabels:
+      app: nginx ##editable
+  file:
+    matchDirectories:
+    - dir: /
+      recursive: true
+  process:
+    matchPaths:
+    - path: /usr/sbin/nginx ##editable
+    - path: /bin/bash ##editable
+  action: Allow ##editable""",
                 "policy_metadata": {"type": "process_based", "kubernetes_resources": ["Pod"]}
             }
         ]
-
 
     def _get_network_based_policies(self) -> List[Dict]:
         """Get all network-based security policies"""
@@ -1769,24 +1768,24 @@ spec:
                 "severity": "high",
                 "tags": ["security", "network", "access-control"],
                 "yaml_content": """apiVersion: security.kubearmor.com/v1
-    kind: KubeArmorPolicy
-    metadata:
-      name: restrict-proccess
-      namespace: default
-    spec:
-      severity: 4
-      selector:
-        matchLabels:
-          app: nginx ##editable
-      network:
-        matchProtocols:
-        - protocol: tcp
-          fromSource:
-          - path: /usr/bin/wget
-        - protocol: udp
-          fromSource:
-          - path: /usr/bin/wget
-      action: Allow ##editable""",
+kind: KubeArmorPolicy
+metadata:
+  name: restrict-proccess
+  namespace: default ##editable
+spec:
+  severity: 4
+  selector:
+    matchLabels:
+      app: nginx ##editable
+  network:
+    matchProtocols:
+    - protocol: tcp
+      fromSource:
+      - path: /usr/bin/wget
+    - protocol: udp
+      fromSource:
+      - path: /usr/bin/wget
+  action: Allow ##editable""",
                 "policy_metadata": {"type": "network_based", "kubernetes_resources": ["Pod"]}
             },
             {
@@ -1797,29 +1796,28 @@ spec:
                 "severity": "medium",
                 "tags": ["security", "network", "icmp", "scanning"],
                 "yaml_content": """apiVersion: security.kubearmor.com/v1
-    kind: KubeArmorPolicy
-    metadata:
-      name: restrict-scanning-tools
-      namespace: default
-    spec:
-      severity: 4
-      selector:
-        matchLabels:
-          app: nginx ##editable
-      network:
-        matchProtocols:
-        - protocol: icmp
-          fromSource:
-          - path: /usr/bin/ping
-        - protocol: udp
-          fromSource:
-          - path: /usr/bin/ping
-      action: Allow ##editable
-      message: Scanning tool has been detected""",
+kind: KubeArmorPolicy
+metadata:
+  name: restrict-scanning-tools
+  namespace: default ##editable
+spec:
+  severity: 4
+  selector:
+    matchLabels:
+      app: nginx ##editable
+  network:
+    matchProtocols:
+    - protocol: icmp
+      fromSource:
+      - path: /usr/bin/ping
+    - protocol: udp
+      fromSource:
+      - path: /usr/bin/ping
+  action: Allow ##editable
+  message: Scanning tool has been detected""",
                 "policy_metadata": {"type": "network_based", "kubernetes_resources": ["Pod"]}
             }
         ]
-
 
     def _get_capabilities_permissions_policies(self) -> List[Dict]:
         """Get all capabilities and permissions policies"""
@@ -1832,23 +1830,22 @@ spec:
                 "severity": "high",
                 "tags": ["security", "service-account", "token", "permissions"],
                 "yaml_content": """apiVersion: security.kubearmor.com/v1
-    kind: KubeArmorPolicy
-    metadata:
-      name: block-service-access-token-access
-    spec:
-      selector:
-        matchLabels:
-        app: nginx ##editable
-      file:
-        matchDirectories:
-        - dir: /run/secrets/kubernetes.io/serviceaccount/
-          recursive: true
-      action: Block ##editable""",
+kind: KubeArmorPolicy
+metadata:
+  name: block-service-access-token-access
+spec:
+  selector:
+    matchLabels:
+      app: nginx ##editable
+  file:
+    matchDirectories:
+    - dir: /run/secrets/kubernetes.io/serviceaccount/
+      recursive: true
+  action: Block ##editable""",
                 "policy_metadata": {"type": "capabilities_permissions", "kubernetes_resources": ["Pod"]}
             }
         ]
 
-    
 
 
     def __init__(self):
@@ -1959,30 +1956,46 @@ spec:
         if not policy:
             raise Exception(f"Policy '{request.policy_id}' not found")
         
-        # 3. Determine which YAML to use and handle edited policy saving
+        # 3. Check if policy already exists (only for non-edited policies)
         yaml_to_apply = policy.yaml_content
-        user_edited_policy_id = None
         is_edited_policy = False
         
         if request.edited_yaml and request.edited_yaml.strip() != policy.yaml_content.strip():
             yaml_to_apply = request.edited_yaml
             is_edited_policy = True
+        else:
+            # Check if same policy already applied (only for non-edited policies)
+            existing_application = db.query(PolicyApplicationModel).filter(
+                PolicyApplicationModel.user_id == user_id,
+                PolicyApplicationModel.cluster_name == request.cluster_name,
+                PolicyApplicationModel.policy_id == policy.id,
+                PolicyApplicationModel.status == ApplicationStatus.APPLIED,
+                PolicyApplicationModel.is_edited_policy == False
+            ).first()
             
-            # Save edited policy if requested
-            if request.save_edited_policy:
-                try:
-                    edited_policy = self.save_user_edited_policy(
-                        db=db,
-                        user_id=user_id,
-                        original_policy_id=policy.id,
-                        edited_yaml=request.edited_yaml
-                    )
-                    user_edited_policy_id = edited_policy.id
-                    logger.info(f"Saved edited policy for user {user_id}, policy {request.policy_id}")
-                except Exception as e:
-                    logger.warning(f"Failed to save edited policy: {e}")
+            if existing_application:
+                raise Exception(f"Policy '{policy.name}' is already applied to cluster '{request.cluster_name}'. Please edit the policy to apply a modified version.")
         
-        # 4. Create application record
+        # Parse YAML to get the actual namespace
+        parsed_policy = yaml.safe_load(yaml_to_apply)
+        actual_namespace = parsed_policy.get("metadata", {}).get("namespace", "default")
+
+        # 4. Handle edited policy saving
+        user_edited_policy_id = None
+        if is_edited_policy and request.save_edited_policy:
+            try:
+                edited_policy = self.save_user_edited_policy(
+                    db=db,
+                    user_id=user_id,
+                    original_policy_id=policy.id,
+                    edited_yaml=request.edited_yaml
+                )
+                user_edited_policy_id = edited_policy.id
+                logger.info(f"Saved edited policy for user {user_id}, policy {request.policy_id}")
+            except Exception as e:
+                logger.warning(f"Failed to save edited policy: {e}")
+
+        # 5. Create application record
         application = PolicyApplicationModel(
             user_id=user_id,
             cluster_id=cluster_info["cluster_id"],
@@ -1991,7 +2004,7 @@ spec:
             user_edited_policy_id=user_edited_policy_id,
             is_edited_policy=is_edited_policy,
             status=ApplicationStatus.PENDING,
-            kubernetes_namespace=request.kubernetes_namespace or "cluster-wide",
+            kubernetes_namespace=actual_namespace,
             applied_yaml=yaml_to_apply,
             original_yaml=policy.yaml_content
         )
@@ -2001,11 +2014,11 @@ spec:
         db.refresh(application)
         
         try:
-            # 5. Update status to applying
+            # 6. Update status to applying
             application.status = ApplicationStatus.APPLYING
             db.commit()
             
-            # 6. Determine policy type and apply accordingly
+            # 7. Determine policy type and apply accordingly
             parsed_policy = yaml.safe_load(yaml_to_apply)
             policy_kind = parsed_policy.get("kind", "")
 
@@ -2026,21 +2039,25 @@ spec:
             else:
                 raise Exception(f"Unsupported policy kind: {policy_kind}")
 
-            # 7. Extract resource name from result
+            # 8. Extract resource name from result
             resource_name = result.get("metadata", {}).get("name", "unknown")
             
-            # 8. Update application record with success
+            # 9. Update application record with success
             application.status = ApplicationStatus.APPLIED
             application.applied_at = datetime.now()
             application.kubernetes_name = resource_name
-            application.application_log = f"Successfully applied {'edited ' if is_edited_policy else ''}policy to cluster {request.cluster_name}"
+            
+            if is_edited_policy:
+                application.application_log = f"Successfully applied edited policy to cluster {request.cluster_name}"
+            else:
+                application.application_log = f"Successfully applied policy to cluster {request.cluster_name}"
             
             db.commit()
             
             logger.info(f"Successfully applied {'edited ' if is_edited_policy else ''}policy {request.policy_id} to cluster {request.cluster_name}")
             
         except Exception as e:
-            # 9. Update application record with failure
+            # 10. Update application record with failure
             application.status = ApplicationStatus.FAILED
             application.error_message = str(e)
             application.application_log = f"Failed to apply policy: {str(e)}"
@@ -2050,7 +2067,7 @@ spec:
             logger.error(f"Failed to apply policy {request.policy_id} to cluster {request.cluster_name}: {e}")
             raise
         
-        # 10. Return response
+        # 11. Return response
         return self._convert_application_to_response(db, application)
 
     # Add method to apply KubeArmor policies (similar to Kyverno but for KubeArmor)
@@ -2172,139 +2189,162 @@ spec:
                     total_pages=0
                 )
 
-        async def remove_policy_from_cluster(
-            self, 
-            db: Session, 
-            application_id: int, 
-            user_id: int,
-            user_token: str  # Add user token parameter
-        ) -> PolicyApplicationResponse:
-            """Remove a policy from cluster"""
-            
-            application = db.query(PolicyApplicationModel).filter(
-                and_(
-                    PolicyApplicationModel.id == application_id,
-                    PolicyApplicationModel.user_id == user_id
-                )
-            ).first()
-            
-            if not application:
-                raise Exception("Policy application not found")
-            
-            if application.status != ApplicationStatus.APPLIED:
-                raise Exception("Policy is not currently applied")
-            
-            try:
-                # Get cluster information
-                cluster_info = await self.get_cluster_info(application.cluster_name, user_token)
-                if not cluster_info:
-                    raise Exception(f"Cluster '{application.cluster_name}' not found")
-                
-                # Set up Kubernetes client
-                configuration = client.Configuration()
-                configuration.host = cluster_info["server_url"]
-                configuration.verify_ssl = False
-                configuration.api_key = {"authorization": f"Bearer {cluster_info['token']}"}
-                api_client = client.ApiClient(configuration)
-                custom_api = client.CustomObjectsApi(api_client)
-                
-                # Parse YAML to get resource details
-                policy = yaml.safe_load(application.applied_yaml)
-                kind = policy.get("kind")
-                resource_name = policy.get("metadata", {}).get("name", "")
-                
-                # Remove the resource
-                if kind == "ClusterPolicy":
-                    custom_api.delete_cluster_custom_object(
-                        group="kyverno.io",
-                        version="v1",
-                        plural="clusterpolicies",
-                        name=resource_name
-                    )
-                elif kind == "Policy":
-                    custom_api.delete_namespaced_custom_object(
-                        group="kyverno.io",
-                        version="v1",
-                        namespace=application.kubernetes_namespace,
-                        plural="policies",
-                        name=resource_name
-                    )
-                
-                # Update application status
-                application.status = ApplicationStatus.REMOVED
-                application.application_log += f"\nRemoved policy from cluster {application.cluster_name}"
-                application.updated_at = datetime.now()
-                
-                db.commit()
-                
-                logger.info(f"Successfully removed policy from cluster {application.cluster_name}")
-                
-            except Exception as e:
-                application.error_message = f"Failed to remove policy: {str(e)}"
-                db.commit()
-                logger.error(f"Failed to remove policy from cluster: {e}")
-                raise
-            
-            return self._convert_application_to_response(db, application)
-
-        async def get_cluster_policy_overview(
-            self, 
-            db: Session, 
-            user_id: int,
-            user_token: str  # Add user token parameter
-        ) -> List[ClusterPolicyOverview]:
-            """Get overview of policy applications across all clusters"""
-            
-            # Get all applications for user
-            applications = db.query(PolicyApplicationModel).filter(
+    async def remove_policy_from_cluster(
+        self,
+        db: Session,
+        application_id: int,
+        user_id: int,
+        user_token: str
+    ) -> PolicyApplicationResponse:
+        """Remove a policy from cluster"""
+        
+        application = db.query(PolicyApplicationModel).filter(
+            and_(
+                PolicyApplicationModel.id == application_id,
                 PolicyApplicationModel.user_id == user_id
-            ).all()
+            )
+        ).first()
+        
+        if not application:
+            raise Exception("Policy application not found")
+        
+        if application.status != ApplicationStatus.APPLIED:
+            raise Exception("Policy is not currently applied")
+        
+        try:
+            # Get cluster information
+            cluster_info = await self.get_cluster_info(application.cluster_name, user_token)
+            if not cluster_info:
+                raise Exception(f"Cluster '{application.cluster_name}' not found")
             
-            # Group by cluster
-            cluster_data = {}
-            for app in applications:
-                cluster_name = app.cluster_name
-                if cluster_name not in cluster_data:
-                    cluster_data[cluster_name] = {
-                        'cluster_id': app.cluster_id,
-                        'applications': [],
-                        'categories': set()
-                    }
-                
-                cluster_data[cluster_name]['applications'].append(app)
-                
-                # Get policy category
-                policy = db.query(PolicyModel).filter(PolicyModel.id == app.policy_id).first()
-                if policy and policy.category:
-                    cluster_data[cluster_name]['categories'].add(policy.category.name)
+            # Set up Kubernetes client
+            configuration = client.Configuration()
+            configuration.host = cluster_info["server_url"]
+            configuration.verify_ssl = False
+            configuration.api_key = {"authorization": f"Bearer {cluster_info['token']}"}
+            api_client = client.ApiClient(configuration)
+            custom_api = client.CustomObjectsApi(api_client)
             
-            # Build overview response
-            overviews = []
-            for cluster_name, data in cluster_data.items():
-                apps = data['applications']
-                
-                # Get cluster info
-                cluster_info = await self.get_cluster_info(cluster_name, user_token)
-                
-                cluster_overview = ClusterPolicyOverview(
-                    cluster=ClusterInfo(
-                        id=data['cluster_id'],
-                        cluster_name=cluster_name,
-                        server_url=cluster_info.get('server_url', '') if cluster_info else '',
-                        provider_name=cluster_info.get('provider_name', '') if cluster_info else '',
-                        is_accessible=cluster_info is not None
-                    ),
-                    total_applications=len(apps),
-                    applied_count=len([a for a in apps if a.status == ApplicationStatus.APPLIED]),
-                    failed_count=len([a for a in apps if a.status == ApplicationStatus.FAILED]),
-                    pending_count=len([a for a in apps if a.status == ApplicationStatus.PENDING]),
-                    categories_applied=list(data['categories'])
-                )
-                
-                overviews.append(cluster_overview)
-            
-            return overviews
+            # Parse YAML to get resource details
+            policy = yaml.safe_load(application.applied_yaml)
+            kind = policy.get("kind")
+            resource_name = policy.get("metadata", {}).get("name", "")
 
+            # Get the actual namespace from the YAML metadata, not from the database field
+            yaml_namespace = policy.get("metadata", {}).get("namespace", "default")
+            
+            # Remove the resource based on policy type
+            if kind == "ClusterPolicy":
+                custom_api.delete_cluster_custom_object(
+                    group="kyverno.io",
+                    version="v1",
+                    plural="clusterpolicies",
+                    name=resource_name
+                )
+                logger.info(f"Removing Kyverno ClusterPolicy: {resource_name}")
+            elif kind == "Policy":
+                # Use the namespace from YAML or fallback to database field
+                namespace_to_use = yaml_namespace if yaml_namespace != "default" else application.kubernetes_namespace
+                custom_api.delete_namespaced_custom_object(
+                    group="kyverno.io",
+                    version="v1",
+                    namespace=namespace_to_use,
+                    plural="policies",
+                    name=resource_name
+                )
+                logger.info(f"Removing Kyverno Policy: {resource_name} from namespace: {namespace_to_use}")
+                
+            elif kind == "KubeArmorPolicy":
+                # For KubeArmor policies, always use the namespace from the YAML metadata
+                namespace_to_use = yaml_namespace
+                logger.info(f"Attempting to remove KubeArmorPolicy: {resource_name} from namespace: {namespace_to_use}")
+                
+                custom_api.delete_namespaced_custom_object(
+                    group="security.kubearmor.com",
+                    version="v1",
+                    namespace=namespace_to_use,
+                    plural="kubearmorpolicies",
+                    name=resource_name
+                )
+                logger.info(f"Successfully removed KubeArmorPolicy: {resource_name} from namespace: {namespace_to_use}")
+            else:
+                raise Exception(f"Unsupported policy kind for removal: {kind}")
+            
+            # Update application status
+            application.status = ApplicationStatus.REMOVED
+            application.application_log += f"\nRemoved {kind} policy from cluster {application.cluster_name}"
+            application.error_message = None  # Clear any previous error messages
+            application.updated_at = datetime.now()
+            
+            db.commit()
+            
+            logger.info(f"Successfully removed {kind} policy from cluster {application.cluster_name}")
+            
+        except Exception as e:
+            application.error_message = f"Failed to remove policy: {str(e)}"
+            db.commit()
+            logger.error(f"Failed to remove policy from cluster: {e}")
+            raise
+        
+        return self._convert_application_to_response(db, application)
+
+    async def get_cluster_policy_overview(
+        self,
+        db: Session,
+        user_id: int,
+        user_token: str  # Add user token parameter
+    ) -> List[ClusterPolicyOverview]:
+        """Get overview of policy applications across all clusters"""
+        
+        # Get all applications for user
+        applications = db.query(PolicyApplicationModel).filter(
+            PolicyApplicationModel.user_id == user_id
+        ).all()
+        
+        # Group by cluster
+        cluster_data = {}
+        for app in applications:
+            cluster_name = app.cluster_name
+            if cluster_name not in cluster_data:
+                cluster_data[cluster_name] = {
+                    'cluster_id': app.cluster_id,
+                    'applications': [],
+                    'categories': set()
+                }
+            
+            cluster_data[cluster_name]['applications'].append(app)
+            
+            # Get policy category
+            policy = db.query(PolicyModel).filter(PolicyModel.id == app.policy_id).first()
+            if policy and policy.category:
+                cluster_data[cluster_name]['categories'].add(policy.category.name)
+        
+        # Build overview response
+        overviews = []
+        for cluster_name, data in cluster_data.items():
+            apps = data['applications']
+            
+            # Get cluster info
+            cluster_info = await self.get_cluster_info(cluster_name, user_token)
+            
+            cluster_overview = ClusterPolicyOverview(
+                cluster=ClusterInfo(
+                    id=data['cluster_id'],
+                    cluster_name=cluster_name,
+                    server_url=cluster_info.get('server_url', '') if cluster_info else '',
+                    provider_name=cluster_info.get('provider_name', '') if cluster_info else '',
+                    is_accessible=cluster_info is not None
+                ),
+                total_applications=len(apps),
+                applied_count=len([a for a in apps if a.status == ApplicationStatus.APPLIED]),
+                failed_count=len([a for a in apps if a.status == ApplicationStatus.FAILED]),
+                pending_count=len([a for a in apps if a.status == ApplicationStatus.PENDING]),
+                categories_applied=list(data['categories'])
+            )
+            
+            overviews.append(cluster_overview)
+        
+        return overviews
 
 
     def _convert_application_to_response(
@@ -2384,3 +2424,4 @@ spec:
 policy_db_service = PolicyDatabaseService()
 
        
+   

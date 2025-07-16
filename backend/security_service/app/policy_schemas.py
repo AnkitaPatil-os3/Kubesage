@@ -119,6 +119,7 @@ class PolicyApplicationRequest(BaseModel):
     kubernetes_namespace: Optional[str] = None  # Make it optional for cluster-level policies
     edited_yaml: Optional[str] = None  # Add this field for edited YAML content
     save_edited_policy: Optional[bool] = False  # Add this field to save edited policy
+    force_apply: Optional[bool] = False  # Add this field to force apply even if exists
 
 class PolicyApplicationResponse(BaseModel):
     id: int
