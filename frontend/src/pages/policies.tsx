@@ -187,6 +187,7 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [sortBy, setSortBy] = useState<'name' | 'severity' | 'created_at'>('name');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+    const [applyingInModal, setApplyingInModal] = useState(false);
 
     // Pagination
     const [currentPage, setCurrentPage] = useState(1);
@@ -201,6 +202,8 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
     const [applicationsLoading, setApplicationsLoading] = useState(false);
     const [filteredApplications, setFilteredApplications] = useState<PolicyApplication[]>([]);
     const [totalPolicies, setTotalPolicies] = useState(0);
+    // Add this state around line 120 with other states
+    const [removingFailedPolicy, setRemovingFailedPolicy] = useState<number | null>(null);
 
     const [refreshing, setRefreshing] = useState(false);
 
@@ -298,6 +301,38 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
 
         return lines.join('\n');
     };
+
+    // Add this function around line 300
+    const removeFailedPolicy = async (applicationId: number, policyName: string) => {
+        setRemovingFailedPolicy(applicationId);
+        try {
+            const response = await fetch(`${POLICIES_API}/applications/failed/${applicationId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                showToast(`Failed policy "${policyName}" removed successfully`, 'success');
+                fetchApplications();
+                if (selectedClusterName) {
+                    fetchAvailablePoliciesForCluster(selectedClusterName);
+                    fetchAppliedPoliciesForCluster(selectedClusterName);
+                }
+            } else {
+                showToast(data.message || 'Failed to remove policy', 'error');
+            }
+        } catch (error) {
+            console.error('Error removing failed policy:', error);
+            showToast('Failed to remove policy. Please try again.', 'error');
+        } finally {
+            setRemovingFailedPolicy(null);
+        }
+    };
+
 
     const showYamlModalHandler = (application: PolicyApplication) => {
         setSelectedYamlContent(application.applied_yaml || '');
@@ -491,82 +526,7 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
         }
     };
 
-    const fetchEditablePolicy = async (policyId: string) => {
-        try {
-            const response = await fetch(`${POLICIES_API}/${policyId}/editable`, {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-                }
-            });
 
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-
-            const data = await response.json();
-            if (data.success && data.data) {
-                return data.data;
-            }
-            return null;
-        } catch (error) {
-            console.error('Error fetching editable policy:', error);
-            return null;
-        }
-    };
-
-    const fetchEditedApplications = async () => {
-        try {
-            const params = new URLSearchParams({
-                page: '1',
-                size: '50'
-            });
-            if (selectedClusterName) {
-                params.append('cluster_name', selectedClusterName);
-            }
-
-            const response = await fetch(`${POLICIES_API}/applications/edited?${params}`, {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-                }
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-
-            const data = await response.json();
-            if (data.success && data.data) {
-                return data.data.applications;
-            }
-            return [];
-        } catch (error) {
-            console.error('Error fetching edited applications:', error);
-            return [];
-        }
-    };
-
-    const fetchYamlComparison = async (applicationId: number) => {
-        try {
-            const response = await fetch(`${POLICIES_API}/applications/${applicationId}/yaml-comparison`, {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-                }
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-
-            const data = await response.json();
-            if (data.success && data.data) {
-                return data.data;
-            }
-            return null;
-        } catch (error) {
-            console.error('Error fetching YAML comparison:', error);
-            return null;
-        }
-    };
 
     const fetchClusterOverview = async () => {
         try {
@@ -682,6 +642,7 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
     };
 
 
+    // Update the applyPolicy function (around line 400) to refresh applications immediately
     const applyPolicy = async (policy: Policy, editedYaml?: string) => {
         if (!selectedClusterName) {
             showToast('Please select a cluster first', 'error');
@@ -710,24 +671,26 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
 
             if (data.success) {
                 showToast(`Policy "${policy.name}" ${editedYaml ? '(edited)' : ''} applied successfully to ${selectedClusterName}`, 'success');
-                fetchApplications();
-                fetchAvailablePoliciesForCluster(selectedClusterName);
-                fetchAppliedPoliciesForCluster(selectedClusterName);
             } else {
-                // Only show "already applied" error if no edited YAML is provided
-                if (data.message && data.message.includes('already applied') && !editedYaml) {
-                    showToast(`Policy "${policy.name}" is already applied to this cluster`, 'error');
-                } else {
-                    showToast(data.message || 'Failed to apply policy', 'error');
-                }
+                showToast(data.message || 'Failed to apply policy', 'error');
             }
+
+            // Refresh applications immediately regardless of success/failure
+            await fetchApplications();
+            fetchAvailablePoliciesForCluster(selectedClusterName);
+            fetchAppliedPoliciesForCluster(selectedClusterName);
+
         } catch (error) {
             console.error('Error applying policy:', error);
             showToast('Failed to apply policy. Please check your connection and try again.', 'error');
+            // Refresh applications even on error to show any failed states
+            await fetchApplications();
         } finally {
             setApplyingPolicy(null);
         }
     };
+
+
 
 
 
@@ -821,59 +784,17 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
         setShowPolicyModal(true);
     };
 
-    const handleApplyPolicy = async (policyId: string, editedYaml?: string) => {
-        if (!selectedCluster) {
-            toast.error("Please select a cluster first");
-            return;
+    const handleApplyPolicy = () => {
+        if (!selectedPolicy) return;
+
+        if (showYamlEditor && editedYaml !== originalYaml) {
+            // Apply with edited YAML
+            applyPolicyWithEdits(selectedPolicy, editedYaml);
+        } else {
+            // Apply original policy
+            applyPolicy(selectedPolicy);
         }
-
-        try {
-            setApplyingPolicies(prev => ({ ...prev, [policyId]: true }));
-
-            const requestData = {
-                cluster_name: selectedCluster.cluster_name,
-                policy_id: policyId,
-                kubernetes_namespace: "default",
-                edited_yaml: editedYaml || undefined,
-                save_edited_policy: !!editedYaml
-            };
-
-            const response = await fetch(`${API_BASE_URL}/policies/apply`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${userToken}`
-                },
-                body: JSON.stringify(requestData)
-            });
-
-            const result = await response.json();
-
-            if (response.ok && result.success) {
-                if (editedYaml) {
-                    toast.success(`Edited policy applied successfully to ${selectedCluster.cluster_name}`);
-                } else {
-                    toast.success(`Policy applied successfully to ${selectedCluster.cluster_name}`);
-                }
-
-                // Refresh applications list
-                if (refreshApplications) {
-                    refreshApplications();
-                }
-            } else {
-                // Handle specific error for already applied policies
-                if (result.message && result.message.includes("already applied")) {
-                    toast.warning(result.message);
-                } else {
-                    toast.error(result.message || 'Failed to apply policy');
-                }
-            }
-        } catch (error) {
-            console.error('Error applying policy:', error);
-            toast.error('Failed to apply policy');
-        } finally {
-            setApplyingPolicies(prev => ({ ...prev, [policyId]: false }));
-        }
+        setShowPolicyModal(false);
     };
     const initializePolicies = async () => {
         try {
@@ -1562,6 +1483,7 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                                 <option value="pending">Pending</option>
                                 <option value="applying">Applying</option>
                             </select>
+
                             {applicationsLoading && (
                                 <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
                             )}
@@ -1602,11 +1524,19 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                                             <div>
                                                 <h4 className="font-semibold text-gray-900 dark:text-white">
                                                     {application.policy?.name || 'Unknown Policy'}
+                                                    {application.is_edited && (
+                                                        <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400">
+                                                            <Edit className="w-3 h-3 mr-1" />
+                                                            EDITED
+                                                        </span>
+                                                    )}
                                                 </h4>
+
                                                 <div className="flex items-center space-x-3 mt-1">
                                                     <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(application.status)}`}>
-                                                        {application.status.toUpperCase()}
+                                                        {application.status === 'applied' ? (application.is_edited ? 'EDITED & APPLIED' : 'APPLIED') : application.status.toUpperCase()}
                                                     </span>
+
                                                     {application.policy?.severity && (
                                                         <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getSeverityColor(application.policy.severity)}`}>
                                                             {application.policy.severity.toUpperCase()}
@@ -1646,7 +1576,25 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                                                     <span className="text-sm">Remove</span>
                                                 </button>
                                             )}
+
+                                            {application.status === 'failed' && (
+                                                <button
+                                                    onClick={() => removeFailedPolicy(application.id, application.policy?.name || 'Unknown Policy')}
+                                                    disabled={removingFailedPolicy === application.id}
+                                                    className="flex items-center space-x-2 px-3 py-2 text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors disabled:opacity-50"
+                                                >
+                                                    {removingFailedPolicy === application.id ? (
+                                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                                    ) : (
+                                                        <Trash2 className="w-4 h-4" />
+                                                    )}
+                                                    <span className="text-sm">
+                                                        {removingFailedPolicy === application.id ? 'Removing...' : 'Remove Failed'}
+                                                    </span>
+                                                </button>
+                                            )}
                                         </div>
+
                                     </div>
 
                                     {application.error_message && (
@@ -1680,35 +1628,26 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                                         </div>
                                     )}
 
-                                    {application.application_log && !application.application_log.includes('HTTP response headers') && !application.application_log.includes('Audit-Id') && (
-                                        <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg">
-                                            <p className="text-sm text-gray-600 dark:text-gray-400">
-                                                <strong>Log:</strong> {(() => {
-                                                    const logMsg = application.application_log;
-                                                    if (logMsg.includes('404') || logMsg.includes('Not Found')) {
-                                                        return 'Policy application failed - resource not found';
-                                                    } else if (logMsg.includes('500') || logMsg.includes('Internal Server Error')) {
-                                                        return 'Policy application failed - server error';
-                                                    } else if (logMsg.includes('Failed to apply policy')) {
-                                                        return 'Policy application failed - please check cluster connectivity';
-                                                    } else if (logMsg.length > 200) {
-                                                        return 'Policy application completed with warnings';
+                                    {application.status === 'applied' && (
+                                        <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                                            <p className="text-sm text-green-600 dark:text-green-400">
+                                                <strong>Success:</strong> {(() => {
+                                                    if (application.is_edited) {
+                                                        return `Edited policy "${application.policy?.name || 'Unknown Policy'}" has been successfully applied to cluster ${application.cluster_name}`;
                                                     } else {
-                                                        return logMsg;
+                                                        return `Policy "${application.policy?.name || 'Unknown Policy'}" has been successfully applied to cluster ${application.cluster_name}`;
                                                     }
                                                 })()}
                                             </p>
                                         </div>
                                     )}
+
                                 </motion.div>
                             ))}
                         </div>
                     )}
                 </motion.div>
             )}
-
-
-
 
 
             {/* Policy Detail Modal */}
@@ -1839,34 +1778,50 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                                             </button>
 
                                             <button
-                                                onClick={() => {
+                                                onClick={async () => {
                                                     if (!selectedClusterName) {
                                                         showToast('Please select a cluster first', 'error');
                                                         return;
                                                     }
 
-                                                    // Check if any field has been edited
-                                                    const hasEditedFields = Object.keys(editableFields).some(fieldKey => {
-                                                        const lineIndex = parseInt(fieldKey.split('_')[1]);
-                                                        const yamlLines = originalYaml.split('\n');
-                                                        const originalLine = yamlLines[lineIndex] || '';
-                                                        const originalValue = originalLine.match(/:\s*"?([^"#\n]+)"?/)?.[1]?.trim();
-                                                        return editableFields[fieldKey] !== originalValue;
-                                                    });
+                                                    // Prevent multiple clicks
+                                                    if (applyingInModal) {
+                                                        return;
+                                                    }
 
-                                                    // Always apply if fields are edited, regardless of current status
-                                                    const finalYaml = hasEditedFields ? reconstructYamlWithEdits(originalYaml, editableFields) : undefined;
-                                                    applyPolicy(selectedPolicy, finalYaml);
-                                                    setShowPolicyModal(false);
+                                                    setApplyingInModal(true);
+
+                                                    try {
+                                                        // Check if any field has been edited
+                                                        const hasEditedFields = Object.keys(editableFields).some(fieldKey => {
+                                                            const lineIndex = parseInt(fieldKey.split('_')[1]);
+                                                            const yamlLines = originalYaml.split('\n');
+                                                            const originalLine = yamlLines[lineIndex] || '';
+                                                            const originalValue = originalLine.match(/:\s*"?([^"#\n]+)"?/)?.[1]?.trim();
+                                                            return editableFields[fieldKey] !== originalValue;
+                                                        });
+
+                                                        // Always apply if fields are edited, regardless of current status
+                                                        const finalYaml = hasEditedFields ? reconstructYamlWithEdits(originalYaml, editableFields) : undefined;
+                                                        await applyPolicy(selectedPolicy, finalYaml);
+                                                        setShowPolicyModal(false);
+                                                    } catch (error) {
+                                                        console.error('Error applying policy:', error);
+                                                    } finally {
+                                                        setApplyingInModal(false);
+                                                    }
                                                 }}
 
-                                                disabled={!selectedClusterName || applyingPolicy === selectedPolicy.policy_id}
-                                                className={`w-full flex items-center justify-center space-x-2 px-4 py-3 font-medium rounded-lg transition-all duration-200 ${!selectedClusterName || applyingPolicy === selectedPolicy.policy_id
-                                                        ? 'bg-gray-400 text-white cursor-not-allowed'
-                                                        : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white'
+
+                                                disabled={!selectedClusterName || applyingPolicy === selectedPolicy.policy_id || applyingInModal}
+
+                                                className={`w-full flex items-center justify-center space-x-2 px-4 py-3 font-medium rounded-lg transition-all duration-200 ${!selectedClusterName || applyingPolicy === selectedPolicy.policy_id || applyingInModal
+                                                    ? 'bg-gray-400 text-white cursor-not-allowed'
+                                                    : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white'
                                                     }`}
+
                                             >
-                                                {applyingPolicy === selectedPolicy.policy_id ? (
+                                                {applyingPolicy === selectedPolicy.policy_id || applyingInModal ? (
                                                     <>
                                                         <Loader2 className="w-4 h-4 animate-spin" />
                                                         <span>Applying...</span>

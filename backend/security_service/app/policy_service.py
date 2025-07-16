@@ -2196,7 +2196,7 @@ spec:
         user_id: int,
         user_token: str
     ) -> PolicyApplicationResponse:
-        """Remove a policy from cluster"""
+        """Remove a policy from cluster and database"""
         
         application = db.query(PolicyApplicationModel).filter(
             and_(
@@ -2270,23 +2270,88 @@ spec:
             else:
                 raise Exception(f"Unsupported policy kind for removal: {kind}")
             
-            # Update application status
-            application.status = ApplicationStatus.REMOVED
-            application.application_log += f"\nRemoved {kind} policy from cluster {application.cluster_name}"
-            application.error_message = None  # Clear any previous error messages
-            application.updated_at = datetime.now()
-            
+            # Remove the application record from database
+            db.delete(application)
             db.commit()
             
-            logger.info(f"Successfully removed {kind} policy from cluster {application.cluster_name}")
+            logger.info(f"Successfully removed {kind} policy from cluster {application.cluster_name} and database")
+            
+            # Return a success response since the record is deleted
+            return PolicyApplicationResponse(
+                id=application.id,
+                user_id=application.user_id,
+                cluster_id=application.cluster_id,
+                cluster_name=application.cluster_name,
+                policy_id=application.policy_id,
+                policy=None,
+                status=ApplicationStatus.REMOVED,
+                applied_yaml=application.applied_yaml,
+                application_log=f"Removed {kind} policy from cluster {application.cluster_name} and database",
+                error_message=None,
+                kubernetes_name=application.kubernetes_name,
+                kubernetes_namespace=application.kubernetes_namespace,
+                is_edited_policy=application.is_edited_policy,
+                created_at=application.created_at,
+                applied_at=application.applied_at,
+                updated_at=datetime.now()
+            )
             
         except Exception as e:
+            # Update application status to failed removal
+            application.status = ApplicationStatus.FAILED
             application.error_message = f"Failed to remove policy: {str(e)}"
+            application.application_log += f"\nFailed to remove {kind} policy from cluster {application.cluster_name}"
+            application.updated_at = datetime.now()
             db.commit()
+            
             logger.error(f"Failed to remove policy from cluster: {e}")
             raise
-        
-        return self._convert_application_to_response(db, application)
+
+
+    def remove_failed_policy_by_id(self, db: Session, application_id: int, user_id: int) -> Dict[str, Any]:
+        """Remove a specific failed policy application from database"""
+        try:
+            # Get the specific failed policy application
+            failed_application = db.query(PolicyApplicationModel).filter(
+                and_(
+                    PolicyApplicationModel.id == application_id,
+                    PolicyApplicationModel.user_id == user_id,
+                    PolicyApplicationModel.status == ApplicationStatus.FAILED
+                )
+            ).first()
+            
+            if not failed_application:
+                raise Exception("Failed policy application not found")
+            
+            # Get policy information for response
+            policy = db.query(PolicyModel).filter(PolicyModel.id == failed_application.policy_id).first()
+            
+            removed_policy_info = {
+                "id": failed_application.id,
+                "policy_name": policy.name if policy else "Unknown Policy",
+                "cluster_name": failed_application.cluster_name,
+                "failed_at": failed_application.updated_at,
+                "error_message": failed_application.error_message
+            }
+            
+            # Delete the failed application
+            db.delete(failed_application)
+            db.commit()
+            
+            logger.info(f"Removed failed policy application {application_id} for user {user_id}")
+            
+            return {
+                "removed_count": 1,
+                "message": f"Successfully removed failed policy application",
+                "removed_policy": removed_policy_info
+            }
+            
+        except Exception as e:
+            logger.error(f"Error removing failed policy by ID: {e}")
+            db.rollback()
+            raise Exception(f"Failed to remove failed policy: {str(e)}")
+
+
 
     async def get_cluster_policy_overview(
         self,
