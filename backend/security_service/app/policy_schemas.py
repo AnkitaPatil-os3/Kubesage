@@ -181,3 +181,55 @@ class APIResponse(BaseModel):
     message: str
     data: Optional[Any] = None
     timestamp: str
+
+class PolicyCreateRequest(BaseModel):
+    policy_id: str
+    name: str
+    description: Optional[str] = None
+    purpose: Optional[str] = None
+    severity: str = "medium"
+    yaml_content: str
+    policy_metadata: Optional[Dict[str, Any]] = None
+    tags: Optional[List[str]] = None
+    is_active: bool = True
+
+class CategoryWithPoliciesRequest(BaseModel):
+    category_name: str
+    category_display_name: str
+    category_description: Optional[str] = None
+    category_icon: Optional[str] = "shield"
+    policies: List[PolicyCreateRequest]
+
+class AddPoliciesRequest(BaseModel):
+    # For adding to existing category
+    existing_category_name: Optional[str] = None
+    
+    # For creating new category with policies
+    new_category: Optional[CategoryWithPoliciesRequest] = None
+    
+    # For adding policies to existing category without category info
+    policies: Optional[List[PolicyCreateRequest]] = None
+
+class AddPoliciesResponse(BaseModel):
+    success: bool
+    message: str
+    category_created: Optional[bool] = False
+    category_name: str
+    policies_added: int
+    policies_failed: int
+    added_policies: List[PolicyResponse]
+    failed_policies: List[Dict[str, str]]  # {"policy_id": str, "error": str}
+
+class DeletePolicyRequest(BaseModel):
+    policy_id: str
+
+class DeleteCategoryRequest(BaseModel):
+    category_name: str
+    force_delete: Optional[bool] = False  # If true, deletes category even if it has policies
+
+class DeleteResponse(BaseModel):
+    success: bool
+    message: str
+    deleted_count: int
+    deleted_items: List[str]
+    warnings: Optional[List[str]] = None

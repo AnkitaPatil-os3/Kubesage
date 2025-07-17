@@ -23,7 +23,9 @@ from app.policy_schemas import (
     PolicyApplicationListResponse, ClusterInfo, ClusterPolicyOverview,
     ApplicationStatus as SchemaApplicationStatus,
     PolicyCategoryResponse, PolicyResponse, PolicyCreate, PolicyUpdate,
-    PolicyEditableResponse, EditableField,UserEditedPolicyResponse , 
+    PolicyEditableResponse, EditableField,UserEditedPolicyResponse , AddPoliciesRequest, AddPoliciesResponse,DeletePolicyRequest, DeleteCategoryRequest, DeleteResponse
+
+
 )
 from app.logger import logger
 
@@ -2485,8 +2487,244 @@ spec:
                 logger.error(f"Error converting application {application.id}: {str(e)}")
                 raise Exception(f"Policy not found for application {application.id}")
 
-
+    def add_policies_and_categories(
+        self, 
+        db: Session, 
+        request: AddPoliciesRequest
+    ) -> AddPoliciesResponse:
+        """Add policies to existing category or create new category with policies"""
         
+        try:
+            category_created = False
+            category_name = ""
+            added_policies = []
+            failed_policies = []
+            
+            # Determine target category
+            if request.new_category:
+                # Create new category
+                category_name = request.new_category.category_name
+                
+                # Check if category already exists
+                existing_category = db.query(PolicyCategoryModel).filter(
+                    PolicyCategoryModel.name == category_name
+                ).first()
+                
+                if existing_category:
+                    raise Exception(f"Category '{category_name}' already exists")
+                
+                # Create new category
+                new_category = PolicyCategoryModel(
+                    name=request.new_category.category_name,
+                    display_name=request.new_category.category_display_name,
+                    description=request.new_category.category_description,
+                    icon=request.new_category.category_icon
+                )
+                db.add(new_category)
+                db.commit()
+                db.refresh(new_category)
+                
+                category_created = True
+                target_category_id = new_category.id
+                policies_to_add = request.new_category.policies
+                
+            elif request.existing_category_name:
+                # Use existing category
+                category_name = request.existing_category_name
+                existing_category = db.query(PolicyCategoryModel).filter(
+                    PolicyCategoryModel.name == request.existing_category_name
+                ).first()
+                
+                if not existing_category:
+                    raise Exception(f"Category '{request.existing_category_name}' not found")
+                
+                target_category_id = existing_category.id
+                policies_to_add = request.policies or []
+                
+            else:
+                raise Exception("Either new_category or existing_category_name must be provided")
+            
+            # Add policies to the category
+            for policy_data in policies_to_add:
+                try:
+                    # Check if policy already exists
+                    existing_policy = db.query(PolicyModel).filter(
+                        PolicyModel.policy_id == policy_data.policy_id
+                    ).first()
+                    
+                    if existing_policy:
+                        failed_policies.append({
+                            "policy_id": policy_data.policy_id,
+                            "error": f"Policy '{policy_data.policy_id}' already exists"
+                        })
+                        continue
+                    
+                    # Create new policy
+                    new_policy = PolicyModel(
+                        category_id=target_category_id,
+                        policy_id=policy_data.policy_id,
+                        name=policy_data.name,
+                        description=policy_data.description,
+                        purpose=policy_data.purpose,
+                        severity=policy_data.severity,
+                        yaml_content=policy_data.yaml_content,
+                        policy_metadata=policy_data.policy_metadata,
+                        tags=policy_data.tags,
+                        is_active=policy_data.is_active
+                    )
+                    
+                    db.add(new_policy)
+                    db.commit()
+                    db.refresh(new_policy)
+                    
+                    # Convert to response format
+                    policy_response = PolicyResponse(
+                        id=new_policy.id,
+                        policy_id=new_policy.policy_id,
+                        name=new_policy.name,
+                        description=new_policy.description,
+                        purpose=new_policy.purpose,
+                        severity=new_policy.severity,
+                        yaml_content=new_policy.yaml_content,
+                        policy_metadata=new_policy.policy_metadata,
+                        tags=new_policy.tags,
+                        is_active=new_policy.is_active,
+                        category_id=new_policy.category_id,
+                        created_at=new_policy.created_at,
+                        updated_at=new_policy.updated_at
+                    )
+                    
+                    added_policies.append(policy_response)
+                    
+                except Exception as e:
+                    failed_policies.append({
+                        "policy_id": policy_data.policy_id,
+                        "error": str(e)
+                    })
+                    continue
+            
+            return AddPoliciesResponse(
+                success=True,
+                message=f"Successfully processed policies for category '{category_name}'",
+                category_created=category_created,
+                category_name=category_name,
+                policies_added=len(added_policies),
+                policies_failed=len(failed_policies),
+                added_policies=added_policies,
+                failed_policies=failed_policies
+            )
+            
+        except Exception as e:
+            logger.error(f"Error adding policies and categories: {e}")
+            db.rollback()
+            raise Exception(f"Failed to add policies: {str(e)}")
+
+    def delete_policy_by_id(self, db: Session, policy_id: str) -> DeleteResponse:
+        """Delete a specific policy by policy_id"""
+        try:
+            # Find the policy
+            policy = db.query(PolicyModel).filter(PolicyModel.policy_id == policy_id).first()
+            
+            if not policy:
+                raise Exception(f"Policy '{policy_id}' not found")
+            
+            # Check if policy is currently applied to any cluster
+            active_applications = db.query(PolicyApplicationModel).filter(
+                and_(
+                    PolicyApplicationModel.policy_id == policy.id,
+                    PolicyApplicationModel.status == ApplicationStatus.APPLIED
+                )
+            ).all()
+            
+            warnings = []
+            if active_applications:
+                cluster_names = [app.cluster_name for app in active_applications]
+                warnings.append(f"Policy is currently applied to clusters: {', '.join(set(cluster_names))}")
+            
+            # Delete the policy
+            policy_name = policy.name
+            db.delete(policy)
+            db.commit()
+            
+            logger.info(f"Successfully deleted policy: {policy_id}")
+            
+            return DeleteResponse(
+                success=True,
+                message=f"Policy '{policy_name}' deleted successfully",
+                deleted_count=1,
+                deleted_items=[policy_id],
+                warnings=warnings if warnings else None
+            )
+            
+        except Exception as e:
+            logger.error(f"Error deleting policy: {e}")
+            db.rollback()
+            raise Exception(f"Failed to delete policy: {str(e)}")
+
+    def delete_category_with_policies(self, db: Session, category_name: str, force_delete: bool = False) -> DeleteResponse:
+        """Delete a category and optionally its associated policies"""
+        try:
+            # Find the category
+            category = db.query(PolicyCategoryModel).filter(
+                PolicyCategoryModel.name == category_name
+            ).first()
+            
+            if not category:
+                raise Exception(f"Category '{category_name}' not found")
+            
+            # Get all policies in this category
+            policies = db.query(PolicyModel).filter(PolicyModel.category_id == category.id).all()
+            
+            warnings = []
+            deleted_items = []
+            
+            if policies and not force_delete:
+                raise Exception(f"Category '{category_name}' contains {len(policies)} policies. Use force_delete=true to delete category with all its policies.")
+            
+            # Check for active applications
+            if policies:
+                for policy in policies:
+                    active_applications = db.query(PolicyApplicationModel).filter(
+                        and_(
+                            PolicyApplicationModel.policy_id == policy.id,
+                            PolicyApplicationModel.status == ApplicationStatus.APPLIED
+                        )
+                    ).all()
+                    
+                    if active_applications:
+                        cluster_names = [app.cluster_name for app in active_applications]
+                        warnings.append(f"Policy '{policy.policy_id}' is applied to clusters: {', '.join(set(cluster_names))}")
+            
+            # Delete all policies in the category first
+            deleted_count = 0
+            if policies:
+                for policy in policies:
+                    deleted_items.append(f"policy:{policy.policy_id}")
+                    db.delete(policy)
+                    deleted_count += 1
+            
+            # Delete the category
+            deleted_items.append(f"category:{category_name}")
+            db.delete(category)
+            deleted_count += 1
+            
+            db.commit()
+            
+            logger.info(f"Successfully deleted category '{category_name}' with {len(policies)} policies")
+            
+            return DeleteResponse(
+                success=True,
+                message=f"Category '{category.display_name}' and {len(policies)} associated policies deleted successfully",
+                deleted_count=deleted_count,
+                deleted_items=deleted_items,
+                warnings=warnings if warnings else None
+            )
+            
+        except Exception as e:
+            logger.error(f"Error deleting category: {e}")
+            db.rollback()
+            raise Exception(f"Failed to delete category: {str(e)}")
+              
 
 
 # Global policy service instance

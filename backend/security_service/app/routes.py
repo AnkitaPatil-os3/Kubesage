@@ -5,7 +5,7 @@ from app.auth import get_current_user
 from app.logger import logger
 from datetime import datetime
 from app.models import PolicyApplicationModel, ApplicationStatus,PolicyModel , PolicyCategoryModel
-from app.policy_schemas import PolicyApplicationRequest, PolicyApplicationResponse, PolicyApplicationListRequest
+from app.policy_schemas import PolicyApplicationRequest, PolicyApplicationResponse, PolicyApplicationListRequest,AddPoliciesRequest, AddPoliciesResponse,  DeletePolicyRequest, DeleteCategoryRequest, DeleteResponse
 
 
 
@@ -539,3 +539,134 @@ async def remove_failed_policy_by_id(
     except Exception as e:
         logger.error(f"Error removing failed policy by ID: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# ------------------ Policy Management Endpoints for Super Admin ------------------
+
+@policy_router.delete("/policy/{policy_id}", response_model=APIResponse)
+async def delete_policy(
+    policy_id: str = Path(..., description="Policy ID to delete"),
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete a specific policy (Super Admin only)"""
+    try:
+        # Check if user is Super Admin
+        user_roles = current_user.get('roles', [])
+        if 'Super Admin' not in user_roles:
+            raise HTTPException(status_code=403, detail="Only Super Admin can delete policies")
+        
+        logger.info(f"Super Admin {current_user.get('username', 'unknown')} deleting policy: {policy_id}")
+        
+        result = policy_db_service.delete_policy_by_id(db, policy_id)
+        
+        return APIResponse(
+            success=True,
+            message=result.message,
+            data=result.dict(),
+            timestamp=datetime.now().isoformat()
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting policy: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@policy_router.delete("/category/{category_name}", response_model=APIResponse)
+async def delete_category(
+    category_name: str = Path(..., description="Category name to delete"),
+    force_delete: bool = Query(False, description="Force delete category with all policies"),
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete a category and optionally its policies (Super Admin only)"""
+    try:
+        # Check if user is Super Admin
+        user_roles = current_user.get('roles', [])
+        if 'Super Admin' not in user_roles:
+            raise HTTPException(status_code=403, detail="Only Super Admin can delete categories")
+        
+        logger.info(f"Super Admin {current_user.get('username', 'unknown')} deleting category: {category_name} (force: {force_delete})")
+        
+        result = policy_db_service.delete_category_with_policies(db, category_name, force_delete)
+        
+        return APIResponse(
+            success=True,
+            message=result.message,
+            data=result.dict(),
+            timestamp=datetime.now().isoformat()
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting category: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@policy_router.post("/add-policies", response_model=APIResponse)
+async def add_policies_and_categories(
+    request: AddPoliciesRequest,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Add policies to existing category or create new category with policies"""
+    try:
+        logger.info(f"User {current_user.get('username', 'unknown')} adding policies")
+        
+        result = policy_db_service.add_policies_and_categories(db, request)
+        
+        return APIResponse(
+            success=True,
+            message=result.message,
+            data=result.dict(),
+            timestamp=datetime.now().isoformat()
+        )
+    except Exception as e:
+        logger.error(f"Error adding policies and categories: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ---------------- 1. Create new category with policies: ----------------
+
+"""
+{
+  "new_category": {
+    "category_name": "custom_security",
+    "category_display_name": "Custom Security Policies",
+    "category_description": "Custom security policies for specific use cases",
+    "category_icon": "shield-alert",
+    "policies": [
+      {
+        "policy_id": "custom-policy-1",
+        "name": "Custom Policy 1",
+        "description": "Custom security policy",
+        "purpose": "Enforce custom security rules",
+        "severity": "high",
+        "yaml_content": "apiVersion: kyverno.io/v1\nkind: ClusterPolicy\n...",
+        "tags": ["custom", "security"]
+      }
+    ]
+  }
+}
+
+"""
+
+
+# ---------------- 2. Add policies to existing category: ----------------
+
+"""
+
+{
+  "existing_category_name": "validation",
+  "policies": [
+    {
+      "policy_id": "new-validation-policy",
+      "name": "New Validation Policy",
+      "description": "Additional validation policy",
+      "purpose": "Validate additional resources",
+      "severity": "medium",
+      "yaml_content": "apiVersion: kyverno.io/v1\nkind: ClusterPolicy\n...",
+      "tags": ["validation", "custom"]
+    }
+  ]
+}
+"""
