@@ -743,20 +743,20 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
     };
 
     const getCategoryIcon = (categoryName: string) => {
-    switch (categoryName) {
-        case 'validation': return Shield;
-        case 'mutation': return Edit3;
-        case 'generation': return Plus;
-        case 'cleanup': return Trash2;
-        case 'image_verification': return Lock;
-        case 'miscellaneous': return Settings;
-        case 'file_based': return FileLock;      // Using FileLock instead of file-lock
-        case 'process_based': return Activity;   // Using Activity instead of cpu
-        case 'network_based': return Wifi;       // Using Wifi instead of network
-        case 'capabilities_permissions': return Key;
-        default: return Shield;
-    }
-};
+        switch (categoryName) {
+            case 'validation': return Shield;
+            case 'mutation': return Edit3;
+            case 'generation': return Plus;
+            case 'cleanup': return Trash2;
+            case 'image_verification': return Lock;
+            case 'miscellaneous': return Settings;
+            case 'file_based': return FileLock;      // Using FileLock instead of file-lock
+            case 'process_based': return Activity;   // Using Activity instead of cpu
+            case 'network_based': return Wifi;       // Using Wifi instead of network
+            case 'capabilities_permissions': return Key;
+            default: return Shield;
+        }
+    };
 
 
     const filteredPolicies = policies.filter(policy => {
@@ -911,6 +911,15 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
     }, []);
 
     useEffect(() => {
+        // Auto-select first cluster if none is selected and clusters are available
+        if (clusters.length > 0 && !selectedClusterName) {
+            const firstCluster = clusters[0];
+            setSelectedClusterName(firstCluster.cluster_name);
+            handleClusterChange(firstCluster.cluster_name);
+        }
+    }, [clusters, selectedClusterName]);
+
+    useEffect(() => {
         if (statusFilter) {
             setFilteredApplications(applications.filter(app => app.status === statusFilter));
         } else {
@@ -1022,41 +1031,58 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                     </span>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {clusters.map((cluster) => (
-                        <motion.div
-                            key={cluster.id}
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            onClick={() => handleClusterChange(cluster.cluster_name)}
-                            className={`p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${selectedClusterName === cluster.cluster_name
-                                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 shadow-lg'
-                                : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 bg-gray-50 dark:bg-gray-700/50'
-                                }`}
+                <div className="space-y-4">
+                    <div className="relative">
+                        <select
+                            value={selectedClusterName || ''}
+                            onChange={(e) => handleClusterChange(e.target.value)}
+                            className="w-full px-4 py-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none cursor-pointer"
                         >
-                            <div className="flex items-center justify-between mb-2">
-                                <h4 className="font-semibold text-gray-900 dark:text-white">
-                                    {cluster.cluster_name}
-                                </h4>
-                                {cluster.is_operator_installed && (
-                                    <CheckCircle className="w-4 h-4 text-green-500" />
-                                )}
-                            </div>
-                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                                {cluster.provider_name}
-                            </p>
-                            <div className="flex items-center justify-between text-xs">
-                                <span className="text-gray-500 dark:text-gray-400">
-                                    {cluster.server_url}
-                                </span>
-                                {selectedClusterName === cluster.cluster_name && (
-                                    <Check className="w-4 h-4 text-blue-500" />
-                                )}
+                            <option value="">Select a cluster...</option>
+                            {clusters.map((cluster) => (
+                                <option key={cluster.id} value={cluster.cluster_name}>
+                                    {cluster.cluster_name} - {cluster.provider_name}
+                                    {cluster.is_operator_installed ? ' ✓' : ''}
+                                </option>
+                            ))}
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                    </div>
+
+                    {selectedClusterName && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-xl border border-blue-200 dark:border-blue-700"
+                        >
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-3">
+                                    <div className="p-2 bg-blue-500 rounded-lg">
+                                        <Server className="w-4 h-4 text-white" />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-semibold text-gray-900 dark:text-white">
+                                            {selectedClusterName}
+                                        </h4>
+                                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                                            {clusters.find(c => c.cluster_name === selectedClusterName)?.provider_name}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    {clusters.find(c => c.cluster_name === selectedClusterName)?.is_operator_installed && (
+                                        <CheckCircle className="w-5 h-5 text-green-500" />
+                                    )}
+                                    {/* <span className="text-xs text-gray-500 dark:text-gray-400">
+                                        {clusters.find(c => c.cluster_name === selectedClusterName)?.server_url}
+                                    </span> */}
+                                </div>
                             </div>
                         </motion.div>
-                    ))}
+                    )}
                 </div>
             </motion.div>
+
 
 
             {/* Policy Categories */}
@@ -1074,6 +1100,10 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                     {categoriesLoading && (
                         <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
                     )}
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                        10 policy categories available
+                    </span>
+
                 </div>
 
                 {categories.length === 0 ? (
@@ -1094,46 +1124,60 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                         </button>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {categories.map((category) => {
-                            const IconComponent = getCategoryIcon(category.name);
-                            return (
-                                <motion.div
-                                    key={category.id}
-                                    whileHover={{ scale: 1.02 }}
-                                    whileTap={{ scale: 0.98 }}
-                                    onClick={() => handleCategorySelect(category.name)}
-                                    className={`p-6 rounded-xl border-2 cursor-pointer transition-all duration-200 ${selectedCategory === category.name
-                                        ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/30 shadow-lg'
-                                        : 'border-gray-200 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-600 bg-gray-50 dark:bg-gray-700/50'
-                                        }`}
-                                >
-                                    <div className="flex items-center justify-between mb-3">
-                                        <div className="flex items-center space-x-3">
-                                            <IconComponent className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                    <div className="space-y-4">
+                        <div className="relative">
+                            <select
+                                value={selectedCategory || ''}
+                                onChange={(e) => handleCategorySelect(e.target.value)}
+                                className="w-full px-4 py-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent appearance-none cursor-pointer"
+                            >
+                                <option value="">Select a category...</option>
+                                {categories.map((category) => (
+                                    <option key={category.id} value={category.name}>
+                                        {category.display_name} ({category.policy_count} policies)
+                                    </option>
+                                ))}
+                            </select>
+                            <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                        </div>
+
+                        {selectedCategory && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="p-4 bg-purple-50 dark:bg-purple-900/30 rounded-xl border border-purple-200 dark:border-purple-700"
+                            >
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center space-x-3">
+                                        <div className="p-2 bg-purple-500 rounded-lg">
+                                            {(() => {
+                                                const category = categories.find(c => c.name === selectedCategory);
+                                                const IconComponent = getCategoryIcon(category?.name || '');
+                                                return <IconComponent className="w-4 h-4 text-white" />;
+                                            })()}
+                                        </div>
+                                        <div>
                                             <h4 className="font-semibold text-gray-900 dark:text-white">
-                                                {category.display_name}
+                                                {categories.find(c => c.name === selectedCategory)?.display_name}
                                             </h4>
+                                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                                                {categories.find(c => c.name === selectedCategory)?.description}
+                                            </p>
                                         </div>
-                                        <span className="text-sm font-medium text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/50 px-2 py-1 rounded-full">
-                                            {category.policy_count}
-                                        </span>
                                     </div>
-                                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                                        {category.description}
-                                    </p>
-                                    {selectedCategory === category.name && (
-                                        <div className="flex items-center text-purple-600 dark:text-purple-400">
-                                            <Check className="w-4 h-4 mr-1" />
-                                            <span className="text-sm font-medium">Selected</span>
-                                        </div>
-                                    )}
-                                </motion.div>
-                            );
-                        })}
+                                    <div className="flex items-center space-x-2">
+                                        <span className="text-sm font-medium text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/50 px-2 py-1 rounded-full">
+                                            {categories.find(c => c.name === selectedCategory)?.policy_count} policies
+                                        </span>
+                                        <Check className="w-4 h-4 text-purple-500" />
+                                    </div>
+                                </div>
+                            </motion.div>
+                        )}
                     </div>
                 )}
             </motion.div>
+
 
 
             {/* Policies Grid */}
