@@ -222,7 +222,7 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
         categoryName: '',
         categoryDisplayName: '',
         categoryDescription: '',
-        categoryIcon: '',
+        categoryIcon: 'default',
         existingCategoryName: '',
         policies: [{
             policy_id: '',
