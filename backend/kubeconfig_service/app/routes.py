@@ -3638,4 +3638,71 @@ async def update_yaml_resource(
         logging.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
  
- 
+ # Add these imports at the top of your existing routes.py file
+from app.user_cleanup_service import kubeconfig_cleanup_service
+from typing import Dict, Any, Optional
+
+# Add this new endpoint to your existing router
+@cluster_router.get("/cleanup/{operation_id}/status", 
+                   summary="Get User Cleanup Status", 
+                   description="Get the status of user cleanup operation in kubeconfig service")
+async def get_cleanup_status(
+    operation_id: str,
+    current_user: Dict = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """Get the status of a user cleanup operation"""
+    try:
+        cleanup_status = kubeconfig_cleanup_service.get_cleanup_status(operation_id)
+        
+        if not cleanup_status:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Cleanup operation not found"
+            )
+        
+        return {
+            "success": True,
+            "cleanup_status": cleanup_status
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting cleanup status: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get cleanup status"
+        )
+
+# Add health check endpoint that includes cleanup service status
+@cluster_router.get("/health/detailed")
+def detailed_health_check():
+    """Detailed health check including cleanup service status"""
+    try:
+        # Basic health info
+        health_info = {
+            "status": "healthy",
+            "service": "kubeconfig_service",
+            "timestamp": datetime.now().isoformat(),
+            "cleanup_service": "operational"
+        }
+        
+        # Add database connectivity check
+        try:
+            with Session(engine) as session:
+                # Simple query to test database
+                session.exec(select(ClusterConfig).limit(1)).first()
+            health_info["database"] = "connected"
+        except Exception as e:
+            health_info["database"] = f"error: {str(e)}"
+            health_info["status"] = "degraded"
+        
+        return health_info
+        
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "service": "kubeconfig_service",
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }

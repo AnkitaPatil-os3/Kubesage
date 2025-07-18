@@ -20,11 +20,25 @@ class ClusterConfig(SQLModel, table=True):
     
     # User and status fields
     user_id: int = Field(index=True)
-    # REMOVED: active field completely
     is_operator_installed: bool = Field(default=False, index=True)
     
     # Timestamps
     created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
     updated_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
- 
- 
+
+# New model for tracking user cleanup operations
+class UserCleanupOperation(SQLModel, table=True):
+    """Track user cleanup operations in kubeconfig service"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    operation_id: str = Field(unique=True, index=True)  # From user service
+    user_id: int = Field(index=True)
+    username: str = Field(index=True)
+    status: str = Field(default="pending", index=True)  # pending, in_progress, completed, failed
+    clusters_to_cleanup: str = Field(default="")  # JSON list of cluster IDs
+    clusters_cleaned: str = Field(default="")  # JSON list of cleaned cluster IDs
+    cleanup_details: Optional[str] = Field(default=None)  # JSON details of cleanup
+    error_message: Optional[str] = Field(default=None)
+    retry_count: int = Field(default=0)
+    created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
+    updated_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
+    completed_at: Optional[datetime.datetime] = Field(default=None)

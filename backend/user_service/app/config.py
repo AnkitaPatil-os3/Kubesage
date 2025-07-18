@@ -1,11 +1,11 @@
 from pydantic_settings import BaseSettings
 import os
-from typing import Optional, ClassVar, List    #new classvar, List
+from typing import Optional, ClassVar, List
 from dotenv import load_dotenv
 
 # Load .env file explicitly
-load_dotenv()  # This will load the .env file from the current directory
-# new
+load_dotenv()
+
 ROLE_OPTIONS = [
     "Super Admin",
     "platform_engineer",
@@ -22,7 +22,7 @@ class Settings(BaseSettings):
         "Developer",
         "Security Engineer"
     ]
-# new
+
     # App settings
     APP_NAME: str = os.getenv("APP_NAME", "KubeSage User Authentication Service")
     DEBUG: bool = os.getenv("DEBUG", "False").lower() == "true"
@@ -71,6 +71,16 @@ class Settings(BaseSettings):
     # SSL
     SSL_KEYFILE: Optional[str] = os.getenv("SSL_KEYFILE", "key.pem")
     SSL_CERTFILE: Optional[str] = os.getenv("SSL_CERTFILE", "cert.pem")
+    
+    # User Deletion Settings
+    USER_DELETION_TIMEOUT: int = int(os.getenv("USER_DELETION_TIMEOUT", "300"))  # 5 minutes default
+    USER_DELETION_MAX_RETRIES: int = int(os.getenv("USER_DELETION_MAX_RETRIES", "3"))
+    
+    # Service URLs for cleanup coordination
+    KUBECONFIG_SERVICE_URL: str = os.getenv("KUBECONFIG_SERVICE_URL", "https://10.0.32.103:8002")
+    CHAT_SERVICE_URL: str = os.getenv("CHAT_SERVICE_URL", "https://10.0.32.103:8003")
+    REMEDIATION_SERVICE_URL: str = os.getenv("REMEDIATION_SERVICE_URL", "https://10.0.32.103:8004")
+    SECURITY_SERVICE_URL: str = os.getenv("SECURITY_SERVICE_URL", "https://10.0.32.103:8005")
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

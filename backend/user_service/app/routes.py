@@ -1,15 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException, status ,Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlmodel import Session, select
-from typing import List ,  Dict, Optional
+from typing import List, Dict, Optional
 from pydantic import BaseModel
-# ##
-# import datetime  # Added for timestamp
-##
-from datetime import datetime  # Import the datetime class directly
+from datetime import datetime
 
 from app.database import get_session
-from app.models import User , UserToken
-from app.schemas import UserCreate, UserResponse, UserUpdate, LoginRequest, Token, ChangePasswordRequest
+from app.models import User, UserToken, UserDeletionOperation, ServiceCleanupAck
+from app.schemas import (
+    UserCreate, UserResponse, UserUpdate, LoginRequest, Token, ChangePasswordRequest,
+    UserDeletionRequest, UserDeletionResponse, UserDeletionStatus,
+    ServiceCleanupAckRequest, ServiceCleanupAckResponse
+)
 from app.auth import (
     authenticate_user, 
     create_access_token, 
@@ -23,7 +24,7 @@ from fastapi.responses import HTMLResponse
 from app.config import settings
 from app.logger import logger
 from datetime import timedelta
-from app.queue import publish_message  # Import the queue functionality
+from app.queue import publish_message
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.security import OAuth2PasswordBearer
 from app.models import ApiKey
@@ -33,7 +34,7 @@ from app.rate_limiter import limiter
 from app.email_client import send_confirmation_email, get_confirmation_status, update_confirmation_status
 from app.auth import get_user_from_api_key 
 from app.auth import get_current_user_from_api_key
-
+from app.deletion_service import deletion_service
 
 # Add a new router for API keys
 api_key_router = APIRouter()
@@ -800,8 +801,216 @@ async def update_user(
         user_dict["roles"] = ",".join(user_dict["roles"])
     return user_dict
 
+@user_router.delete("/{user_id}/delete-with-cleanup", response_model=UserDeletionResponse,
+                   summary="Delete User with Cross-Service Cleanup", 
+                   description="Deletes a user and all associated data across all microservices")
+@limiter.limit("5/minute")
+async def delete_user_with_cleanup(
+    request: Request,
+    user_id: int,
+    deletion_request: UserDeletionRequest = UserDeletionRequest(),
+    current_user: User = Depends(get_current_admin_user),
+    session: Session = Depends(get_session)
+):
+    """
+    Delete a user and trigger cleanup across all microservices.
+    
+    This endpoint:
+    1. Initiates a deletion operation with tracking
+    2. Soft deletes the user in the user service
+    3. Revokes all user tokens and API keys
+    4. Publishes deletion events to all relevant microservices
+    5. Tracks cleanup progress and handles failures
+    """
+    try:
+        # Check if user exists
+        user_to_delete = session.exec(select(User).where(User.id == user_id)).first()
+        if not user_to_delete:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Prevent deleting yourself
+        if user_to_delete.id == current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot delete your own account"
+            )
+        
+        # Check if user is already being deleted
+        existing_operation = session.exec(
+            select(UserDeletionOperation).where(
+                UserDeletionOperation.user_id == user_id,
+                UserDeletionOperation.status.in_(["initiated", "in_progress"])
+            )
+        ).first()
+        
+        if existing_operation:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"User deletion already in progress. Operation ID: {existing_operation.operation_id}"
+            )
+        
+        # Initiate deletion process
+        deletion_response = deletion_service.initiate_user_deletion(
+            user_id=user_id,
+            deletion_request=deletion_request,
+            session=session
+        )
+        
+        logger.info(f"User deletion initiated by admin {current_user.username} for user {user_to_delete.username}")
+        
+        return deletion_response
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error initiating user deletion: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to initiate user deletion"
+        )
+
+@user_router.get("/deletion/{operation_id}/status", response_model=UserDeletionStatus,
+                summary="Get User Deletion Status", 
+                description="Get the status of a user deletion operation")
+async def get_deletion_status(
+    operation_id: str,
+    current_user: User = Depends(get_current_admin_user),
+    session: Session = Depends(get_session)
+):
+    """Get the status of a user deletion operation"""
+    try:
+        deletion_status = deletion_service.get_deletion_status(operation_id, session)
+        
+        if not deletion_status:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Deletion operation not found"
+            )
+        
+        return deletion_status
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting deletion status: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get deletion status"
+        )
+
+@user_router.post("/deletion/{operation_id}/retry", response_model=Dict[str, str],
+                 summary="Retry Failed User Deletion", 
+                 description="Retry failed cleanup operations for a user deletion")
+async def retry_user_deletion(
+    operation_id: str,
+    current_user: User = Depends(get_current_admin_user),
+    session: Session = Depends(get_session)
+):
+    """Retry failed cleanup operations for a user deletion"""
+    try:
+        success = deletion_service.retry_failed_cleanup(operation_id, session)
+        
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Failed to retry deletion operation"
+            )
+        
+        return {"message": "Retry initiated successfully", "operation_id": operation_id}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error retrying deletion: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retry deletion"
+        )
+
+@user_router.post("/deletion/callback", response_model=ServiceCleanupAckResponse,
+                 summary="Service Cleanup Callback", 
+                 description="Callback endpoint for services to acknowledge cleanup completion")
+async def service_cleanup_callback(
+    cleanup_ack: ServiceCleanupAckRequest,
+    session: Session = Depends(get_session)
+):
+    """
+    Callback endpoint for services to acknowledge cleanup completion.
+    This endpoint is called by other microservices when they complete user data cleanup.
+    """
+    try:
+        success = deletion_service.handle_service_cleanup_ack(
+            operation_id=cleanup_ack.operation_id,
+            service_name=cleanup_ack.service_name,
+            user_id=cleanup_ack.user_id,
+            status=cleanup_ack.status,
+            cleanup_details=cleanup_ack.cleanup_details,
+            error_message=cleanup_ack.error_message,
+            session=session
+        )
+        
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Failed to process cleanup acknowledgment"
+            )
+        
+        # Get current operation status
+        deletion_status = deletion_service.get_deletion_status(cleanup_ack.operation_id, session)
+        operation_status = deletion_status.status if deletion_status else "unknown"
+        
+        return ServiceCleanupAckResponse(
+            success=True,
+            message="Cleanup acknowledgment processed successfully",
+            operation_status=operation_status
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error processing cleanup callback: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to process cleanup callback"
+        )
+
+@user_router.get("/deletion/operations", response_model=List[UserDeletionStatus],
+                summary="List User Deletion Operations", 
+                description="List all user deletion operations (admin only)")
+async def list_deletion_operations(
+    skip: int = 0,
+    limit: int = 100,
+    status_filter: Optional[str] = None,
+    current_user: User = Depends(get_current_admin_user),
+    session: Session = Depends(get_session)
+):
+    """List all user deletion operations with optional status filtering"""
+    try:
+        query = select(UserDeletionOperation).offset(skip).limit(limit)
+        
+        if status_filter:
+            query = query.where(UserDeletionOperation.status == status_filter)
+        
+        operations = session.exec(query).all()
+        
+        deletion_statuses = []
+        for op in operations:
+            status = deletion_service.get_deletion_status(op.operation_id, session)
+            if status:
+                deletion_statuses.append(status)
+        
+        return deletion_statuses
+        
+    except Exception as e:
+        logger.error(f"Error listing deletion operations: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to list deletion operations"
+        )
+
+# Update the existing delete_user endpoint to use the new deletion service
 @user_router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT, 
-                   summary="Delete User", description="Deletes a user account (admin only)")
+                   summary="Delete User (Legacy)", description="Legacy user deletion endpoint - use delete-with-cleanup instead")
 @limiter.limit("10/minute")
 async def delete_user(
     request: Request, 
@@ -810,76 +1019,21 @@ async def delete_user(
     session: Session = Depends(get_session)
 ):
     """
-    Deletes a user from the system.
-    
-    - Requires admin privileges
-    - Finds the user by ID
-    - Prevents admins from deleting their own account
-
-    - Removes the user's tokens first, then the user from the database
-    - Publishes a user deletion event to the message queue
-    
-    Parameters:
-        user_id: ID of the user to delete
-    
-    Returns:
-        None: Returns 204 No Content on success
-    
-    Raises:
-        HTTPException: 404 error if user not found
-        HTTPException: 400 error if attempting to delete own account
+    Legacy user deletion endpoint. 
+    Recommended to use /users/{user_id}/delete-with-cleanup instead for complete cleanup.
     """
-    db_user = session.exec(select(User).where(User.id == user_id)).first()
-    if not db_user:
-        raise HTTPException(status_code=404, detail="User not found")
+    logger.warning(f"Legacy delete endpoint used by {current_user.username} for user {user_id}")
     
-    # Prevent deleting yourself
-    if db_user.id == current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot delete your own account"
-        )
-
-    try:
-        # Store user info before deletion for event publishing
-        user_info = {
-            "user_id": db_user.id,
-            "username": db_user.username
-        }
-        
-        # First, delete all tokens associated with this user
-        user_tokens = session.exec(select(UserToken).where(UserToken.user_id == user_id)).all()
-        for token in user_tokens:
-            session.delete(token)
-        
-        # Commit the token deletions
-        session.commit()
-        
-        # Now delete the user
-        session.delete(db_user)
-        session.commit()
-        
-        logger.info(f"User {user_info['username']} and associated tokens deleted successfully")
-        
-        # Publish user deletion event
-        publish_message("user_events", {
-            "event_type": "user_deleted",
-            "user_id": user_info["user_id"],
-            "username": user_info["username"],
-            "timestamp": datetime.now()
-        })
-        
-        return None
-        
-    except Exception as e:
-        session.rollback()
-        logger.error(f"Error deleting user {user_id}: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to delete user"
-        )
-
-
+    # Redirect to new deletion service
+    deletion_request = UserDeletionRequest(force_delete=True)
+    deletion_response = deletion_service.initiate_user_deletion(
+        user_id=user_id,
+        deletion_request=deletion_request,
+        session=session
+    )
+    
+    logger.info(f"Legacy deletion converted to new process: {deletion_response.operation_id}")
+    return None
 
 # -------------- api key ------------------
 

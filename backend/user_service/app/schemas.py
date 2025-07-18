@@ -1,27 +1,18 @@
 from pydantic import BaseModel, EmailStr, Field, model_validator, ConfigDict
-from typing import Optional
+from typing import Optional, List, Dict, Any
 from datetime import datetime
  
 # User Schemas
-# class UserBase(BaseModel):
-#     username: str
-#     email: EmailStr
-#     first_name: Optional[str] = None
-#     last_name: Optional[str] = None
-#     is_active: bool = True
-#     is_admin: bool = False
 class UserBase(BaseModel):
     username: str
     email: EmailStr
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     is_active: bool = True
-    # confirmed: bool = False  # Added confirmed field
     roles: str
  
 class UserCreate(UserBase):
     password: str
- 
  
 class UserUpdate(BaseModel):
     username: Optional[str] = None
@@ -29,10 +20,8 @@ class UserUpdate(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     is_active: Optional[bool] = None
-    roles: Optional[str] = None  # <-- Add this line
+    roles: Optional[str] = None
     password: Optional[str] = None
- 
- 
  
 from pydantic import model_validator
  
@@ -40,7 +29,7 @@ class UserResponse(UserBase):
     id: int
     created_at: datetime
     updated_at: Optional[datetime]= None
-    confirmed: Optional[bool] = False  # <-- Add this line
+    confirmed: Optional[bool] = False
     model_config = ConfigDict(from_attributes=True)
  
     @model_validator(mode='before')
@@ -50,24 +39,16 @@ class UserResponse(UserBase):
             values['roles'] = ",".join(roles)
         return values
  
- 
- 
- 
 # Authentication Schemas
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
     expires_at: datetime
  
-# class TokenData(BaseModel):
-#     user_id: Optional[int] = None
-#     username: Optional[str] = None
-#     is_admin: Optional[bool] = None
- 
 class TokenData(BaseModel):
     user_id: Optional[int] = None
     username: Optional[str] = None
-    roles: Optional[str] = None  # <-- Add this line
+    roles: Optional[str] = None
  
 class LoginRequest(BaseModel):
     username: str
@@ -82,9 +63,6 @@ class ChangePasswordRequest(BaseModel):
         if data.get('new_password') != data.get('confirm_password'):
             raise ValueError('Passwords do not match')
         return data
- 
- 
- 
  
 # API Key Schemas
 class ApiKeyCreate(BaseModel):
@@ -122,11 +100,55 @@ class ApiKeyUpdate(BaseModel):
     is_active: Optional[bool] = None
     expires_at: Optional[datetime] = None
  
-from typing import List
-from pydantic import BaseModel
- 
 class UsersListResponse(BaseModel):
     users: List[UserResponse]
     roles_options: List[str]
- 
- 
+
+# New schemas for user deletion operations
+class UserDeletionRequest(BaseModel):
+    """Request to delete a user with optional cleanup options"""
+    force_delete: bool = Field(default=False, description="Force delete even if some services fail")
+    cleanup_timeout: int = Field(default=300, description="Timeout in seconds for cleanup operations")
+    services_to_skip: Optional[List[str]] = Field(default=None, description="Services to skip during cleanup")
+
+class UserDeletionResponse(BaseModel):
+    """Response for user deletion operation"""
+    operation_id: str
+    user_id: int
+    username: str
+    status: str
+    message: str
+    services_to_cleanup: List[str]
+    estimated_completion_time: Optional[datetime] = None
+
+class UserDeletionStatus(BaseModel):
+    """Status of user deletion operation"""
+    operation_id: str
+    user_id: int
+    username: str
+    status: str
+    services_to_cleanup: List[str]
+    services_completed: List[str]
+    services_failed: List[str]
+    error_details: Optional[str] = None
+    retry_count: int
+    max_retries: int
+    created_at: datetime
+    updated_at: datetime
+    completed_at: Optional[datetime] = None
+    progress_percentage: float
+
+class ServiceCleanupAckRequest(BaseModel):
+    """Acknowledgment from service about cleanup completion"""
+    operation_id: str
+    service_name: str
+    user_id: int
+    status: str  # completed, failed
+    cleanup_details: Optional[Dict[str, Any]] = None
+    error_message: Optional[str] = None
+
+class ServiceCleanupAckResponse(BaseModel):
+    """Response to cleanup acknowledgment"""
+    success: bool
+    message: str
+    operation_status: str

@@ -1,46 +1,71 @@
 import threading
+import asyncio
 from app.queue import setup_consumer, start_consuming
 from app.logger import logger
-from app.database import get_session
-from app.models import ClusterConfig
-from sqlmodel import select, Session
-import os
+from app.user_cleanup_service import kubeconfig_cleanup_service
+import time
 
 def handle_user_event(message):
     """Handle events from user service"""
-    event_type = message.get("event_type")
-    logger.info(f"Received user event: {event_type}")
-    
-    if event_type == "user_created":
-        # A new user was created - you might want to set up default cluster configurations
-        user_id = message.get("user_id")
-        username = message.get("username")
-        logger.info(f"New user created: {username} (ID: {user_id})")
+    try:
+        event_type = message.get("event_type")
+        logger.info(f"📨 Received user event: {event_type}")
         
-        # You could create default resources or permissions if needed
-        # For example, create a default cluster configuration or set up user-specific settings
-        
-    elif event_type == "user_deleted":
-        # A user was deleted - clean up their cluster configurations
-        user_id = message.get("user_id")
-        
-        with Session(engine) as session:
-            # Get all cluster configurations for the user
-            cluster_configs = session.exec(
-                select(ClusterConfig).where(ClusterConfig.user_id == user_id)
-            ).all()
+        if event_type == "user_created":
+            # A new user was created - you might want to set up default cluster configurations
+            user_id = message.get("user_id")
+            username = message.get("username")
+            logger.info(f"👤 New user created: {username} (ID: {user_id})")
             
-            # Remove all cluster configurations for the user
-            for cluster_config in cluster_configs:
-                session.delete(cluster_config)
+            # You could create default resources or permissions if needed
+            # For example, create a default cluster configuration or set up user-specific settings
             
-            session.commit()
-            logger.info(f"Deleted {len(cluster_configs)} cluster configurations for user {user_id}")
+        elif event_type == "user_deleted":
+            # Legacy user deletion event - redirect to new deletion system
+            user_id = message.get("user_id")
+            username = message.get("username")
+            
+            logger.warning(f"⚠️ Received legacy user_deleted event for user {username} (ID: {user_id})")
+            logger.info("This should now be handled by the new user_deletion_initiated event")
+            
+        elif event_type in ["user_deletion_initiated", "user_deletion_retry"]:
+            # New user deletion events
+            logger.info(f"🗑️ Processing {event_type} event")
+            
+            # Run async cleanup in a new event loop
+            def run_cleanup():
+                try:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    loop.run_until_complete(kubeconfig_cleanup_service.handle_user_deletion_event(message))
+                    loop.close()
+                except Exception as e:
+                    logger.error(f"❌ Error in cleanup thread: {str(e)}")
+            
+            # Run in separate thread to avoid blocking the consumer
+            cleanup_thread = threading.Thread(target=run_cleanup)
+            cleanup_thread.daemon = True
+            cleanup_thread.start()
+            
+        elif event_type == "user_deletion_completed":
+            # User deletion process completed
+            operation_id = message.get("operation_id")
+            user_id = message.get("user_id")
+            username = message.get("username")
+            status = message.get("status")
+            
+            logger.info(f"✅ User deletion completed for {username} (ID: {user_id}), operation: {operation_id}, status: {status}")
+            
+        else:
+            logger.info(f"ℹ️ Ignoring user event type: {event_type}")
+            
+    except Exception as e:
+        logger.error(f"❌ Error processing user event: {str(e)}")
 
 def handle_cluster_event(message):
     """Handle events from cluster operations"""
     event_type = message.get("event_type")
-    logger.info(f"Received cluster event: {event_type}")
+    logger.info(f"🔧 Received cluster event: {event_type}")
     
     if event_type == "cluster_onboarded":
         cluster_id = message.get("cluster_id")
@@ -138,7 +163,7 @@ def handle_audit_event(message):
     username = message.get("username", "unknown")
     timestamp = message.get("timestamp")
     
-    logger.info(f"Audit event: {event_type} by user {username} ({user_id}) at {timestamp}")
+    logger.info(f"📋 Audit event: {event_type} by user {username} ({user_id}) at {timestamp}")
     
     # You could implement audit logging here, such as:
     # - Store in audit database
@@ -147,39 +172,47 @@ def handle_audit_event(message):
 
 def start_consumers():
     """Start background consumers for different event queues"""
+    def consumer_thread_function():
+        while True:
+            try:
+                # Set up consumers for different services
+                consumers = [
+                    ("user_events", handle_user_event),
+                    ("cluster_events", handle_cluster_event),
+                    ("audit_events", handle_audit_event),
+                ]
+                
+                for queue_name, handler in consumers:
+                    if setup_consumer(queue_name, handler):
+                        logger.info(f"✅ Set up consumer for {queue_name}")
+                    else:
+                        logger.warning(f"⚠️ Failed to set up consumer for {queue_name}")
+                
+                # Start consuming if at least one consumer was set up successfully
+                start_consuming()
+                
+            except Exception as e:
+                logger.error(f"❌ Consumer thread error: {str(e)}")
+                time.sleep(5)  # Wait before trying to reconnect
+    
     try:
-        # Set up consumer for user events
-        setup_consumer("user_events", handle_user_event)
-        logger.info("Set up consumer for user_events")
-        
-        # Set up consumer for cluster events
-        setup_consumer("cluster_events", handle_cluster_event)
-        logger.info("Set up consumer for cluster_events")
-        
-        # Set up consumer for audit events (optional)
-        setup_consumer("audit_events", handle_audit_event)
-        logger.info("Set up consumer for audit_events")
-        
         # Start consuming in background thread
-        consumer_thread = threading.Thread(target=start_consuming, daemon=True)
+        consumer_thread = threading.Thread(target=consumer_thread_function, daemon=True)
         consumer_thread.start()
-        logger.info("Event consumers started in background thread")
+        logger.info("🚀 Event consumers started in background thread")
         
     except Exception as e:
-        logger.error(f"Failed to start consumers: {str(e)}")
+        logger.error(f"❌ Failed to start consumers: {str(e)}")
         raise
 
 def stop_consumers():
     """Stop all consumers gracefully"""
     try:
-        # This function can be called during application shutdown
-        # to gracefully stop all consumers
-        logger.info("Stopping event consumers...")
+        logger.info("🛑 Stopping event consumers...")
         # Implementation depends on your queue system
-        # For example, you might need to call a stop method on your queue consumer
         
     except Exception as e:
-        logger.error(f"Error stopping consumers: {str(e)}")
+        logger.error(f"❌ Error stopping consumers: {str(e)}")
 
 # Import the database engine for session creation
 from app.database import engine
