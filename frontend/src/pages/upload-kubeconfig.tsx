@@ -31,6 +31,7 @@ import {
 
 import { addToast } from "../components/toast-manager";
 
+
 interface ClusterConfig {
   id: number;
   cluster_name: string;
@@ -65,7 +66,7 @@ const UploadKubeconfig: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [onboarding, setOnboarding] = useState(false);
   const [removing, setRemoving] = useState<number | null>(null);
-  
+
   // Modal states
   const { isOpen: isOnboardOpen, onOpen: onOnboardOpen, onClose: onOnboardClose } = useDisclosure();
   const { isOpen: isDeleteOpen, onOpen: onDeleteOpen, onClose: onDeleteClose } = useDisclosure();
@@ -85,30 +86,31 @@ const UploadKubeconfig: React.FC = () => {
 
   const username = localStorage.getItem("username");
 
-  // Add these functions after the existing helper functions
-const generateDynamicScript = () => {
-  const clusterName = formData.cluster_name ;
-  // return `curl -O http://10.0.34.169/onboard.sh && bash onboard.sh "${clusterName}" --webhook-endpoint "https://10.0.32.106:8004/remediation/webhook/incidents""`;
-  return `curl -O http://10.0.34.169/onboarding.sh && bash onboarding.sh "${clusterName}" "${username}" "https://10.0.32.106:8004/remediation/webhook/incidents"`;
-  
-};
+  // Optimized functions
+  const generateDynamicScript = () => {
+    const clusterName = formData.cluster_name;
+    return `curl -O http://10.0.34.169/onboarding.sh && bash onboarding.sh "${clusterName}" "${username}" "https://10.0.32.106:8004/remediation/webhook/incidents"`;
+  };
 
-const copyToClipboard = (text: string) => {
-  navigator.clipboard.writeText(text).then(() => {
-    addToast({
-      title: "Copied!",
-      description: "Script copied to clipboard",
-      color: "success"
-    });
-  }).catch(() => {
-    addToast({
-      title: "Copy Failed",
-      description: "Failed to copy to clipboard",
-      color: "danger"
-    });
-  });
-};
+  const [copied, setCopied] = useState(false);
 
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000); // Reset after 2 seconds
+      addToast({
+        title: "Copied!",
+        description: "Script copied to clipboard",
+        color: "success"
+      });
+    }).catch(() => {
+      addToast({
+        title: "Copy Failed",
+        description: "Failed to copy to clipboard",
+        color: "danger"
+      });
+    });
+  };
 
   // Provider options
   const providers = [
@@ -227,27 +229,27 @@ const copyToClipboard = (text: string) => {
           description: "Cluster onboarded successfully! You can now manage your Kubernetes cluster.",
           color: "success"
         });
-        
+
         // Reset form
         setFormData({
           cluster_name: '',
           server_url: '',
           token: '',
-          provider_name: 'AWS EKS',
+          provider_name: 'AWS EKS', // Reset to default
           tags: [],
           use_secure_tls: false,
           ca_data: '',
           tls_key: '',
           tls_cert: ''
         });
-        
+
         onOnboardClose();
         fetchClusters(); // Refresh the list
       } else {
         // Handle API error response
         console.error('API Error Response:', data);
         let errorMessage = 'Failed to onboard cluster';
-        
+
         if (data.detail) {
           if (typeof data.detail === 'string') {
             errorMessage = data.detail;
@@ -264,7 +266,7 @@ const copyToClipboard = (text: string) => {
         } else if (data.message) {
           errorMessage = data.message;
         }
-        
+
         addToast({
           title: "Error",
           description: errorMessage,
@@ -344,7 +346,7 @@ const copyToClipboard = (text: string) => {
       cluster_name: '',
       server_url: '',
       token: '',
-      provider_name: 'AWS EKS',
+      provider_name: 'AWS EKS', // Reset to default
       tags: [],
       use_secure_tls: false,
       ca_data: '',
@@ -354,6 +356,7 @@ const copyToClipboard = (text: string) => {
     onOnboardClose();
   };
 
+
   // Load clusters on component mount
   useEffect(() => {
     fetchClusters();
@@ -361,8 +364,8 @@ const copyToClipboard = (text: string) => {
 
   // Get provider icon
   const getProviderIcon = (provider?: string) => {
-    if (!provider) return "lucide:server";
-    
+    if (!provider) return "logos:kubernetes";
+
     const providerLower = provider.toLowerCase();
     if (providerLower.includes('aws') || providerLower.includes('eks')) return "logos:aws";
     if (providerLower.includes('google') || providerLower.includes('gke')) return "logos:google-cloud";
@@ -371,7 +374,7 @@ const copyToClipboard = (text: string) => {
     if (providerLower.includes('minikube')) return "logos:kubernetes";
     if (providerLower.includes('kind')) return "logos:kubernetes";
     if (providerLower.includes('k3s')) return "logos:rancher";
-    return "lucide:server";
+    return "logos:kubernetes";
   };
 
   // Format date
@@ -390,499 +393,730 @@ const copyToClipboard = (text: string) => {
   };
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className="p-6 max-w-7xl mx-auto space-y-6"
-    >
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Cluster Management</h1>
-          <p className="text-foreground-600 mt-1">
-            Manage your Kubernetes clusters and their configurations
-          </p>
+    <div className="min-h-screen ">
+      {/* Simple Background */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-green-400/10 rounded-full blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-emerald-400/10 rounded-full blur-3xl" />
+      </div>
+
+      <div className="relative z-10 container mx-auto px-4 py-8 space-y-8">
+        {/* Header */}
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+          <div className="space-y-3">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl shadow-lg">
+                <Icon icon="mdi:kubernetes" className="text-3xl text-white" />
+              </div>
+              <div>
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                  Cluster Management Hub
+                </h1>
+                <p className="text-slate-600 dark:text-slate-300 text-lg font-medium flex items-center gap-2">
+                  <Icon icon="mdi:cog" className="text-green-500" />
+                  Orchestrate your Kubernetes infrastructure with precision
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <Button
+            color="success"
+            size="lg"
+            radius="lg"
+            startContent={<Icon icon="mdi:plus-circle" className="text-xl" />}
+            onPress={onOnboardOpen}
+            className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 shadow-lg hover:shadow-xl transition-all duration-200 font-semibold px-8 py-3"
+          >
+            Onboard New Cluster
+          </Button>
         </div>
-        <Button
-          color="primary"
-          startContent={<Icon icon="lucide:plus" />}
-          onPress={onOnboardOpen}
-          size="lg"
-          className="w-full sm:w-auto"
-        >
-          Onboard Cluster
-        </Button>
-      </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.1 }}
-        >
-          <Card>
-            <CardBody className="flex flex-row items-center gap-4">
-              <div className="p-3 bg-primary/10 rounded-lg">
-                <Icon icon="lucide:server" className="text-2xl text-primary" />
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-green-200 dark:border-green-700 hover:shadow-lg transition-all duration-200">
+            <CardBody className="flex flex-row items-center gap-4 p-6">
+              <div className="p-4 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl shadow-lg">
+                <Icon icon="mdi:server-network" className="text-3xl text-white" />
               </div>
               <div>
-                <p className="text-small text-foreground-600">Total Clusters</p>
-                <p className="text-2xl font-bold">{clusters.length}</p>
+                <p className="text-sm text-slate-600 dark:text-slate-400 font-medium">Total Clusters</p>
+                <p className="text-3xl font-bold text-green-600">{clusters.length}</p>
               </div>
             </CardBody>
           </Card>
-        </motion.div>
-        
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.2 }}
-        >
-          <Card>
-            <CardBody className="flex flex-row items-center gap-4">
-              <div className="p-3 bg-success/10 rounded-lg">
-                <Icon icon="lucide:check-circle" className="text-2xl text-success" />
+
+          <Card className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-emerald-200 dark:border-emerald-700 hover:shadow-lg transition-all duration-200">
+            <CardBody className="flex flex-row items-center gap-4 p-6">
+              <div className="p-4 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl shadow-lg">
+                <Icon icon="mdi:shield-check" className="text-3xl text-white" />
               </div>
               <div>
-                <p className="text-small text-foreground-600">Managed Clusters</p>
-                <p className="text-2xl font-bold">{clusters.length}</p>
+                <p className="text-sm text-slate-600 dark:text-slate-400 font-medium">Active Clusters</p>
+                <p className="text-3xl font-bold text-emerald-600">{clusters.length}</p>
               </div>
             </CardBody>
           </Card>
-        </motion.div>
-      </div>
 
-      {/* Clusters Table */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
-      >
-        <Card>
-          <CardHeader className="flex items-center gap-3">
-            <Icon icon="lucide:server" className="text-2xl text-primary" />
+          <Card className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-teal-200 dark:border-teal-700 hover:shadow-lg transition-all duration-200">
+            <CardBody className="flex flex-row items-center gap-4 p-6">
+              <div className="p-4 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-xl shadow-lg">
+                <Icon icon="mdi:cloud-check" className="text-3xl text-white" />
+              </div>
+              <div>
+                <p className="text-sm text-slate-600 dark:text-slate-400 font-medium">Providers</p>
+                <p className="text-3xl font-bold text-teal-600">
+                  {new Set(clusters.map(c => c.provider_name)).size}
+                </p>
+              </div>
+            </CardBody>
+          </Card>
+        </div>
+
+        {/* Clusters Table */}
+        <Card className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-green-200 dark:border-green-700 shadow-xl">
+          <CardHeader className="flex items-center gap-4 p-6 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/30 dark:to-emerald-900/30 border-b border-green-200 dark:border-green-700">
+            <div className="p-3 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl shadow-lg">
+              <Icon icon="mdi:database" className="text-2xl text-white" />
+            </div>
             <div>
-              <h2 className="text-xl font-semibold">Onboarded Clusters</h2>
-              <p className="text-small text-foreground-600">
-                {clusters.length} cluster{clusters.length !== 1 ? 's' : ''} configured
+              <h2 className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                Connected Clusters
+              </h2>
+              <p className="text-slate-600 dark:text-slate-300 font-medium flex items-center gap-2">
+                <Icon icon="mdi:information" className="text-green-500" />
+                {clusters.length} cluster{clusters.length !== 1 ? 's' : ''} ready for management
               </p>
             </div>
           </CardHeader>
-          <CardBody>
+          <CardBody className="p-0">
             {loading ? (
-                            <div className="flex justify-center items-center py-12">
-                            <div className="text-center">
-                              <Spinner size="lg" />
-                              <p className="text-foreground-600 mt-4">Loading clusters...</p>
+              <div className="flex justify-center items-center py-20">
+                <div className="text-center space-y-4">
+                  <Spinner size="lg" color="success" />
+                  <p className="text-slate-600 dark:text-slate-300 text-lg font-medium flex items-center gap-2 justify-center">
+                    <Icon icon="mdi:cloud-download" className="text-green-500" />
+                    Loading clusters...
+                  </p>
+                </div>
+              </div>
+            ) : clusters.length === 0 ? (
+              <div className="text-center py-20 px-8">
+                <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-green-100 to-emerald-200 dark:from-green-800 dark:to-emerald-700 rounded-3xl flex items-center justify-center">
+                  <Icon icon="mdi:server-off" className="text-5xl text-green-600 dark:text-green-400" />
+                </div>
+                <h3 className="text-2xl font-bold text-slate-700 dark:text-slate-200 mb-3">
+                  No Clusters Found
+                </h3>
+                <p className="text-slate-500 dark:text-slate-400 mb-8 max-w-md mx-auto text-lg">
+                  <Icon icon="mdi:rocket-launch" className="inline mr-2 text-green-500" />
+                  Start your Kubernetes journey by connecting your first cluster
+                </p>
+                <Button
+                  color="success"
+                  size="lg"
+                  radius="lg"
+                  startContent={<Icon icon="mdi:plus-circle" className="text-xl" />}
+                  onPress={onOnboardOpen}
+                  className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 shadow-lg font-semibold px-8"
+                >
+                  Connect Your First Cluster
+                </Button>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table aria-label="Clusters table" className="min-w-full">
+                  <TableHeader>
+                    <TableColumn className="bg-green-50 dark:bg-green-900/30 font-bold text-slate-700 dark:text-slate-200">
+                      <Icon icon="mdi:server" className="inline mr-2 text-green-600" />
+                      CLUSTER
+                    </TableColumn>
+                    <TableColumn className="bg-green-50 dark:bg-green-900/30 font-bold text-slate-700 dark:text-slate-200">
+                      <Icon icon="mdi:cloud" className="inline mr-2 text-emerald-600" />
+                      PROVIDER
+                    </TableColumn>
+                    <TableColumn className="bg-green-50 dark:bg-green-900/30 font-bold text-slate-700 dark:text-slate-200">
+                      <Icon icon="mdi:calendar" className="inline mr-2 text-teal-600" />
+                      CREATED
+                    </TableColumn>
+                    <TableColumn className="bg-green-50 dark:bg-green-900/30 font-bold text-slate-700 dark:text-slate-200">
+                      <Icon icon="mdi:cog" className="inline mr-2 text-orange-600" />
+                      ACTIONS
+                    </TableColumn>
+                  </TableHeader>
+                  <TableBody>
+                    {clusters.map((cluster) => (
+                      <TableRow key={cluster.id} className="hover:bg-green-50/50 dark:hover:bg-green-900/20 transition-colors duration-200">
+                        <TableCell>
+                          <div className="flex items-center gap-4">
+                            <div className="relative">
+                              <div className="w-12 h-12 bg-gradient-to-br from-green-600 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg">
+                                <Icon
+                                  icon={getProviderIcon(cluster.provider_name)}
+                                  className="text-2xl text-white"
+                                />
+                              </div>
+                              <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <h4 className="font-bold text-lg text-slate-800 dark:text-slate-100 truncate">
+                                {cluster.cluster_name}
+                              </h4>
+                              <p className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                                <Icon icon="mdi:link" className="text-green-500" />
+                                Connected
+                              </p>
                             </div>
                           </div>
-                        ) : clusters.length === 0 ? (
-                          <div className="text-center py-12">
-                            <Icon icon="lucide:server-off" className="text-6xl text-foreground-300 mx-auto mb-4" />
-                            <h3 className="text-lg font-semibold text-foreground-600 mb-2">No Clusters Found</h3>
-                            <p className="text-foreground-500 mb-6 max-w-md mx-auto">
-                              Get started by onboarding your first Kubernetes cluster to begin managing your infrastructure
-                            </p>
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            variant="flat"
+                            size="lg"
+                            className="bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-900/30 dark:to-emerald-900/30 text-green-700 dark:text-green-300 font-semibold border border-green-200 dark:border-green-700"
+                            startContent={<Icon icon="mdi:check-circle" className="text-green-500" />}
+                          >
+                            {cluster.provider_name || 'Unknown'}
+                          </Chip>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Icon icon="mdi:clock" className="text-slate-400" />
+                            <span className="text-sm font-medium text-slate-600 dark:text-slate-300">
+                              {formatDate(cluster.created_at)}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center justify-start">
                             <Button
-                              color="primary"
-                              startContent={<Icon icon="lucide:plus" />}
-                              onPress={onOnboardOpen}
-                              size="lg"
+                              isIconOnly
+                              size="sm"
+                              variant="flat"
+                              color="danger"
+                              onPress={() => confirmDelete(cluster)}
+                              isLoading={removing === cluster.id}
+                              isDisabled={removing !== null}
+                              aria-label="Remove Cluster"
+                              className="bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-600 border border-red-200 dark:border-red-800"
                             >
-                              Onboard Your First Cluster
+                              <Icon icon="mdi:delete" />
                             </Button>
                           </div>
-                        ) : (
-                          <div className="overflow-x-auto">
-                            <Table aria-label="Clusters table" className="min-w-full">
-                              <TableHeader>
-                                <TableColumn>CLUSTER</TableColumn>
-                                <TableColumn>PROVIDER</TableColumn>
-                                {/* <TableColumn>TAGS</TableColumn> */}
-                                <TableColumn>CREATED</TableColumn>
-                                <TableColumn>ACTIONS</TableColumn>
-                              </TableHeader>
-                              <TableBody>
-                                {clusters.map((cluster) => (
-                                  <TableRow key={cluster.id}>
-                                    <TableCell>
-                                      <div className="flex items-center gap-3">
-                                        <Icon 
-                                          icon={getProviderIcon(cluster.provider_name)} 
-                                          className="text-2xl flex-shrink-0" 
-                                        />
-                                        <div className="min-w-0">
-                                          <p className="font-semibold truncate">{cluster.cluster_name}</p>
-                                        </div>
-                                      </div>
-                                    </TableCell>
-                                    <TableCell>
-                                      <Chip
-                                        variant="flat"
-                                        color="default"
-                                        size="sm"
-                                      >
-                                        {cluster.provider_name || 'Unknown'}
-                                      </Chip>
-                                    </TableCell>
-                                    
-                                    <TableCell>
-                                      <p className="text-small">
-                                        {formatDate(cluster.created_at)}
-                                      </p>
-                                    </TableCell>
-                                    <TableCell>
-                                      <div className="flex items-center gap-1">
-                                        <Button
-                                          isIconOnly
-                                          size="sm"
-                                          variant="light"
-                                          color="danger"
-                                          onPress={() => confirmDelete(cluster)}
-                                          isLoading={removing === cluster.id}
-                                          isDisabled={removing !== null}
-                                          aria-label="Remove Cluster"
-                                        >
-                                          <Icon icon="lucide:trash-2" />
-                                        </Button>
-                                      </div>
-                                    </TableCell>
-                                  </TableRow>
-                                ))}
-                              </TableBody>
-                            </Table>
+                        </TableCell>
+
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardBody>
+        </Card>
+
+        {/* Onboard Cluster Modal */}
+        <Modal
+          isOpen={isOnboardOpen}
+          onClose={handleModalClose}
+          size="4xl"
+          scrollBehavior="inside"
+          isDismissable={!onboarding}
+          hideCloseButton={onboarding}
+          className="bg-white/95 dark:bg-slate-800/95"
+          backdrop="blur"
+        >
+          <ModalContent>
+            <ModalHeader className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/30 dark:to-emerald-900/30 border-b border-green-200 dark:border-green-700">
+              <div className="flex items-center gap-4 w-full">
+                <div className="p-3 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl shadow-lg">
+                  <Icon icon="mdi:server-plus" className="text-white text-2xl" />
+                </div>
+                <div className="flex-1">
+                  <h2 className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                    Connect New Cluster
+                  </h2>
+                  <p className="text-slate-600 dark:text-slate-300 font-medium flex items-center gap-2">
+                    <Icon icon="mdi:link" className="text-green-500" />
+                    Integrate your Kubernetes cluster with KubeSage
+                  </p>
+                </div>
+              </div>
+            </ModalHeader>
+            <ModalBody className="p-8">
+              <div className="space-y-8">
+                {/* Basic Information */}
+                <div className="space-y-6">
+                  <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl border border-green-200 dark:border-green-700">
+                    <div className="p-3 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl shadow-lg">
+                      <Icon icon="mdi:information" className="text-white text-xl" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                        Basic Information
+                      </h3>
+                      <p className="text-slate-600 dark:text-slate-300 text-sm">
+                        Configure your cluster's basic details
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <Input
+                      label="Cluster Name"
+                      placeholder="e.g., production-cluster"
+                      value={formData.cluster_name}
+                      onValueChange={(value) => handleInputChange('cluster_name', value)}
+                      startContent={<Icon icon="mdi:tag" className="text-green-500" />}
+                      isRequired
+                      variant="bordered"
+                      isDisabled={onboarding}
+                      classNames={{
+                        inputWrapper: "border-green-200 hover:border-green-400 focus-within:border-green-500"
+                      }}
+                    />
+
+                    <Select
+                      label="Provider"
+                      placeholder="Select provider"
+                      selectedKeys={formData.provider_name ? [formData.provider_name] : ['AWS EKS']}
+                      onSelectionChange={(keys) => {
+                        const selected = Array.from(keys)[0] as string;
+                        handleInputChange('provider_name', selected);
+                      }}
+                      variant="bordered"
+                      isDisabled={onboarding}
+                      startContent={<Icon icon="mdi:cloud" className="text-emerald-500" />}
+                      classNames={{
+                        trigger: "border-green-200 hover:border-green-400 focus:border-green-500",
+                        value: "text-slate-700 dark:text-slate-200 font-medium"
+                      }}
+                      defaultSelectedKeys={["AWS EKS"]}
+                    >
+                      {providers.map((provider) => (
+                        <SelectItem
+                          key={provider.value}
+                          value={provider.value}
+                          textValue={provider.label}
+                        >
+                          <div className="flex items-center gap-3">
+                            <Icon icon={getProviderIcon(provider.value)} className="text-lg flex-shrink-0" />
+                            <span className="font-medium text-slate-700 dark:text-slate-200">
+                              {provider.label}
+                            </span>
                           </div>
-                        )}
-                      </CardBody>
-                    </Card>
-                  </motion.div>
-            
-                  {/* Onboard Cluster Modal */}
-                  <Modal 
-                    isOpen={isOnboardOpen} 
-                    onClose={handleModalClose}
-                    size="3xl"
-                    scrollBehavior="inside"
-                    isDismissable={!onboarding}
-                    hideCloseButton={onboarding}
-                  >
-                    <ModalContent>
-                      <ModalHeader className="flex flex-col gap-1">
-                        <div className="flex items-center gap-2">
-                          <Icon icon="lucide:server-cog" className="text-primary" />
-                          <span>Onboard New Cluster</span>
+                        </SelectItem>
+                      ))}
+                    </Select>
+                  </div>
+
+                  <Input
+                    label="Tags"
+                    placeholder="e.g., production, web, backend (optional)"
+                    value={formData.tags?.join(', ') || ''}
+                    onValueChange={handleTagsChange}
+                    startContent={<Icon icon="mdi:tag-multiple" className="text-teal-500" />}
+                    description="Separate multiple tags with commas"
+                    variant="bordered"
+                    isDisabled={onboarding}
+                    classNames={{
+                      inputWrapper: "border-green-200 hover:border-green-400 focus-within:border-green-500"
+                    }}
+                  />
+                </div>
+
+                <Divider className="bg-gradient-to-r from-transparent via-green-300 to-transparent" />
+
+                {/* Connection Details */}
+                <div className="space-y-6">
+                  <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 rounded-xl border border-emerald-200 dark:border-emerald-700">
+                    <div className="p-3 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl shadow-lg">
+                      <Icon icon="mdi:connection" className="text-white text-xl" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                        Connection Details
+                      </h3>
+                      <p className="text-slate-600 dark:text-slate-300 text-sm">
+                        Configure secure connection to your cluster
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Auto-Generated Script */}
+                  <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-2 border-blue-200 dark:border-blue-700">
+                    <CardHeader className="pb-4">
+                      <div className="flex items-center gap-4 w-full">
+                        <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-lg">
+                          <Icon icon="mdi:console" className="text-white text-xl" />
                         </div>
-                        <p className="text-small text-foreground-500 font-normal">
-                          Connect your Kubernetes cluster to KubeSage platform
+                        <div className="flex-1">
+                          <h4 className="font-bold text-blue-800 dark:text-blue-200 text-lg">
+                            Automated Setup Script
+                          </h4>
+                          <p className="text-blue-600 dark:text-blue-300 text-sm">
+                            One-click cluster integration
+                          </p>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardBody className="pt-0 space-y-4">
+                      <div className="p-4 bg-gradient-to-r from-blue-100 to-indigo-100 dark:from-blue-900/40 dark:to-indigo-900/40 rounded-xl border border-blue-200 dark:border-blue-700">
+                        <div className="flex items-start gap-3">
+                          <Icon icon="mdi:rocket-launch" className="text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0 text-xl" />
+                          <div className="text-sm text-blue-700 dark:text-blue-300">
+                            <p className="font-bold mb-2">Execute this command on your cluster:</p>
+                            <div className="space-y-1 text-xs">
+                              <div className="flex items-center gap-2">
+                                <Icon icon="mdi:download" className="text-blue-600 dark:text-blue-400" />
+                                <span>Downloads secure onboarding script</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Icon icon="mdi:account-plus" className="text-blue-600 dark:text-blue-400" />
+                                <span>Creates service account: <strong>{formData.cluster_name || "your-cluster"}</strong></span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Icon icon="mdi:key" className="text-blue-600 dark:text-blue-400" />
+                                <span>Generates authentication tokens</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Icon icon="mdi:send" className="text-blue-600 dark:text-blue-400" />
+                                <span>Transmits credentials securely</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="relative bg-slate-900 p-4 rounded-xl border border-slate-700">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <div className="flex gap-1">
+                              <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                              <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                            </div>
+                            <span className="text-green-400 text-sm font-mono">Terminal</span>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="flat"
+                            color="success"
+                            onPress={() => copyToClipboard(generateDynamicScript())}
+                            startContent={
+                              copied ?
+                                <Icon icon="mdi:check" className="text-green-400" /> :
+                                <Icon icon="mdi:content-copy" />
+                            }
+                            className={`transition-all duration-200 border ${copied
+                              ? 'bg-green-500/30 border-green-400 text-green-300'
+                              : 'bg-green-500/20 hover:bg-green-500/30 text-green-400 border-green-500/30'
+                              }`}
+                          >
+                            {copied ? 'Copied!' : 'Copy'}
+                          </Button>
+                        </div>
+                        <div className="h-12 overflow-y-auto scrollbar-thin scrollbar-thumb-green-500 scrollbar-track-slate-700">
+                          <Code className="block text-green-400 bg-transparent p-0 text-sm font-mono whitespace-pre-wrap break-all leading-6">
+                            {generateDynamicScript()}
+                          </Code>
+                        </div>
+                      </div>
+
+                    </CardBody>
+                  </Card>
+
+                  <div className="text-center py-4">
+                    <div className="flex items-center justify-center gap-4">
+                      <div className="h-px bg-slate-300 dark:bg-slate-600 flex-1"></div>
+                      <p className="text-slate-600 dark:text-slate-400 font-medium flex items-center gap-2 px-4">
+                        <Icon icon="mdi:arrow-down" className="text-green-500" />
+                        Or configure manually
+                        <Icon icon="mdi:arrow-down" className="text-green-500" />
+                      </p>
+                      <div className="h-px bg-slate-300 dark:bg-slate-600 flex-1"></div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6">
+                    <Input
+                      label="Server URL"
+                      placeholder="https://your-cluster-api-server.com:6443"
+                      value={formData.server_url}
+                      onValueChange={(value) => handleInputChange('server_url', value)}
+                      startContent={<Icon icon="mdi:server" className="text-blue-500" />}
+                      isRequired
+                      variant="bordered"
+                      isDisabled={onboarding}
+                      classNames={{
+                        inputWrapper: "border-green-200 hover:border-green-400 focus-within:border-green-500"
+                      }}
+                    />
+
+                    <Textarea
+                      label="Authentication Token"
+                      placeholder="Enter your cluster authentication token"
+                      value={formData.token}
+                      onValueChange={(value) => handleInputChange('token', value)}
+                      minRows={3}
+                      maxRows={6}
+                      isRequired
+                      variant="bordered"
+                      isDisabled={onboarding}
+                      description="Service account token or authentication credentials"
+                      startContent={<Icon icon="mdi:key" className="text-purple-500 mt-2" />}
+                      classNames={{
+                        inputWrapper: "border-green-200 hover:border-green-400 focus-within:border-green-500"
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <Divider className="bg-gradient-to-r from-transparent via-emerald-300 to-transparent" />
+
+                {/* TLS Configuration */}
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-teal-50 to-cyan-50 dark:from-teal-900/20 dark:to-cyan-900/20 rounded-xl border border-teal-200 dark:border-teal-700">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-xl shadow-lg">
+                        <Icon icon="mdi:security" className="text-white text-xl" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-bold bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent">
+                          TLS Security
+                        </h3>
+                        <p className="text-slate-600 dark:text-slate-300 text-sm">
+                          Advanced security configuration
                         </p>
-                      </ModalHeader>
-                      <ModalBody>
-                        <div className="space-y-6">
-                          {/* Basic Information */}
-                          <div className="space-y-4">
-                            <h3 className="text-lg font-semibold flex items-center gap-2">
-                              <Icon icon="lucide:info" className="text-primary" />
-                              Basic Information
-                            </h3>
-                            
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <Input
-                                label="Cluster Name"
-                                placeholder="e.g., production-cluster"
-                                value={formData.cluster_name}
-                                onValueChange={(value) => handleInputChange('cluster_name', value)}
-                                startContent={<Icon icon="lucide:tag" className="text-foreground-400" />}
-                                isRequired
-                                variant="bordered"
-                                isDisabled={onboarding}
-                              />
-                              
-                              <Select
-                                label="Provider"
-                                placeholder="Select provider"
-                                selectedKeys={formData.provider_name ? [formData.provider_name] : []}
-                                onSelectionChange={(keys) => {
-                                  const selected = Array.from(keys)[0] as string;
-                                  handleInputChange('provider_name', selected);
-                                }}
-                                variant="bordered"
-                                isDisabled={onboarding}
-                              >
-                                {providers.map((provider) => (
-                                  <SelectItem key={provider.value} value={provider.value}>
-                                    {provider.label}
-                                  </SelectItem>
-                                ))}
-                              </Select>
-                            </div>
-            
-                            <Input
-                              label="Tags"
-                              placeholder="e.g., production, web, backend (optional)"
-                              value={formData.tags?.join(', ') || ''}
-                              onValueChange={handleTagsChange}
-                              startContent={<Icon icon="lucide:tags" className="text-foreground-400" />}
-                              description="Separate multiple tags with commas"
-                              variant="bordered"
-                              isDisabled={onboarding}
-                            />
-                          </div>
-            
-                          <Divider />
-            
-                          {/* Connection Details */}
-                          <div className="space-y-4">
-                            <h3 className="text-lg font-semibold flex items-center gap-2">
-                              <Icon icon="lucide:link" className="text-primary" />
-                              Connection Details
-                            </h3>
-            
-                            {/* Dynamic Script Generation Section */}
-                            <Card className="bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-950/30 dark:to-blue-950/30 border-l-4 border-indigo-500 dark:border-indigo-400">
-                              <CardHeader className="pb-2">
-                                <h4 className="font-semibold text-indigo-800 dark:text-indigo-200 flex items-center gap-2">
-                                  <Icon icon="mdi:terminal" className="text-indigo-600 dark:text-indigo-400" />
-                                  Auto-Generated Onboarding Script
-                                </h4>
-                              </CardHeader>
-                              <CardBody className="pt-0">
-                                <p className="text-indigo-700 dark:text-indigo-300 text-sm mb-3">
-                                  Run this command on your Kubernetes cluster to automatically generate the required credentials:
-                                </p>
-                                <div className="bg-gray-900 dark:bg-gray-950 p-4 rounded-lg relative border dark:border-gray-800">
-                                  <div className="flex items-center justify-between mb-2">
-                                    <span className="text-green-400 dark:text-green-300 text-sm font-mono">Terminal Command</span>
-                                    <Button
-                                      size="sm"
-                                      variant="flat"
-                                      color="success"
-                                      onPress={() => copyToClipboard(generateDynamicScript())}
-                                      startContent={<Icon icon="mdi:content-copy" />}
-                                      className="text-xs bg-green-500/10 dark:bg-green-400/10 hover:bg-green-500/20 dark:hover:bg-green-400/20"
-                                    >
-                                      Copy
-                                    </Button>
-                                  </div>
-                                  <ScrollShadow className="max-h-32">
-                                    <Code 
-                                      className="block text-green-400 dark:text-green-300 bg-transparent p-0 text-sm whitespace-pre-wrap break-all font-mono"
-                                      style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}
-                                    >
-                                      {generateDynamicScript()}
-                                    </Code>
-                                  </ScrollShadow>
-                                </div>
-                                <div className="mt-3 p-3 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg border dark:border-indigo-800/50">
-                                  <div className="flex items-start gap-2">
-                                    <Icon icon="mdi:information" className="text-indigo-600 dark:text-indigo-400 mt-0.5 flex-shrink-0" />
-                                    <div className="text-sm text-indigo-700 dark:text-indigo-300">
-                                      <p className="font-medium mb-1">What this script does:</p>
-                                      <ul className="space-y-1 text-xs">
-                                        <li>• Downloads the onboarding script from the server</li>
-                                        <li>• Creates a service account for cluster: <strong className="text-indigo-800 dark:text-indigo-200">{formData.cluster_name || "your-cluster"}</strong></li>
-                                        <li>• Generates the required bearer token and server URL</li>
-                                        <li>• Sends the credentials to the webhook endpoint</li>
-                                      </ul>
-                                    </div>
-                                  </div>
-                                </div>
-                              </CardBody>
-                            </Card>
-            
-                            <Divider className="my-4" />
-            
-                            <div className="text-center">
-                              <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">Or manually enter your cluster credentials below:</p>
-                            </div>
-            
-                            <Input
-                              label="Server URL"
-                              placeholder="https://your-cluster-api-server.com:6443"
-                              value={formData.server_url}
-                              onValueChange={(value) => handleInputChange('server_url', value)}
-                              startContent={<Icon icon="lucide:server" className="text-foreground-400" />}
-                              isRequired
-                              variant="bordered"
-                              isDisabled={onboarding}
-                            />
-            
-                            <Textarea
-                              label="Authentication Token"
-                              placeholder="Enter your cluster authentication token"
-                              value={formData.token}
-                              onValueChange={(value) => handleInputChange('token', value)}
-                              minRows={3}
-                              maxRows={6}
-                              isRequired
-                              variant="bordered"
-                              isDisabled={onboarding}
-                              description="Service account token or other authentication token"
-                            />
-                          </div>
-            
-                          <Divider />
-            
-                          {/* TLS Configuration */}
-                          <div className="space-y-4">
-                            <div className="flex items-center justify-between">
-                              <h3 className="text-lg font-semibold flex items-center gap-2">
-                                <Icon icon="lucide:shield" className="text-primary" />
-                                TLS Configuration
-                              </h3>
-                              <label className="flex items-center gap-2 cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  checked={formData.use_secure_tls}
-                                  onChange={(e) => handleInputChange('use_secure_tls', e.target.checked)}
-                                  disabled={onboarding}
-                                  className="w-4 h-4 text-primary bg-gray-100 border-gray-300 rounded focus:ring-primary focus:ring-2"
-                                />
-                                <span className="text-sm">Enable Secure TLS</span>
-                              </label>
-                            </div>
-            
-                            {formData.use_secure_tls && (
-                              <div className="space-y-4 p-4 bg-default-50 rounded-lg border">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <Icon icon="lucide:info" className="text-primary text-sm" />
-                                  <p className="text-small text-foreground-600">
-                                    Configure TLS certificates for secure cluster communication
-                                  </p>
-                                </div>
-                                
-                                <Textarea
-                                  label="CA Certificate Data"
-                                  placeholder="-----BEGIN CERTIFICATE-----
+                      </div>
+                    </div>
+                    <label className="flex items-center gap-3 cursor-pointer p-2 rounded-lg hover:bg-white/50 dark:hover:bg-slate-700/50 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={formData.use_secure_tls}
+                        onChange={(e) => handleInputChange('use_secure_tls', e.target.checked)}
+                        disabled={onboarding}
+                        className="w-5 h-5 text-teal-600 bg-gray-100 border-gray-300 rounded focus:ring-teal-500 focus:ring-2"
+                      />
+                      <span className="font-semibold flex items-center gap-2 text-slate-700 dark:text-slate-200">
+                        <Icon icon="mdi:lock" className="text-teal-500" />
+                        Enable Secure TLS
+                      </span>
+                    </label>
+                  </div>
+
+                  {formData.use_secure_tls && (
+                    <div className="space-y-6 p-6 bg-gradient-to-br from-teal-50/50 to-cyan-50/50 dark:from-teal-900/10 dark:to-cyan-900/10 rounded-xl border border-teal-200 dark:border-teal-700">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="p-2 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-lg">
+                          <Icon icon="mdi:shield-lock" className="text-white text-lg" />
+                        </div>
+                        <p className="text-slate-600 dark:text-slate-300 font-medium">
+                          Configure TLS certificates for enhanced security
+                        </p>
+                      </div>
+
+                      <Textarea
+                        label="CA Certificate Data"
+                        placeholder="-----BEGIN CERTIFICATE-----
 ...
 -----END CERTIFICATE-----"
-                                  value={formData.ca_data}
-                                  onValueChange={(value) => handleInputChange('ca_data', value)}
-                                  minRows={4}
-                                  maxRows={8}
-                                  description="Base64 encoded CA certificate (optional)"
-                                  variant="bordered"
-                                  isDisabled={onboarding}
-                                />
-            
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                  <Textarea
-                                    label="TLS Certificate"
-                                    placeholder="-----BEGIN CERTIFICATE-----
+                        value={formData.ca_data}
+                        onValueChange={(value) => handleInputChange('ca_data', value)}
+                        minRows={3}
+                        maxRows={6}
+                        description="Base64 encoded CA certificate (optional)"
+                        variant="bordered"
+                        isDisabled={onboarding}
+                        startContent={<Icon icon="mdi:certificate" className="text-teal-500 mt-2" />}
+                        classNames={{
+                          inputWrapper: "border-teal-200 hover:border-teal-400 focus-within:border-teal-500"
+                        }}
+                      />
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <Textarea
+                          label="TLS Certificate"
+                          placeholder="-----BEGIN CERTIFICATE-----
 ...
 -----END CERTIFICATE-----"
-                                    value={formData.tls_cert}
-                                    onValueChange={(value) => handleInputChange('tls_cert', value)}
-                                    minRows={4}
-                                    maxRows={8}
-                                    description="Client certificate for mutual TLS (optional)"
-                                    variant="bordered"
-                                    isDisabled={onboarding}
-                                  />
-            
-                                  <Textarea
-                                    label="TLS Private Key"
-                                    placeholder="-----BEGIN PRIVATE KEY-----
+                          value={formData.tls_cert}
+                          onValueChange={(value) => handleInputChange('tls_cert', value)}
+                          minRows={3}
+                          maxRows={6}
+                          description="Client certificate (optional)"
+                          variant="bordered"
+                          isDisabled={onboarding}
+                          startContent={<Icon icon="mdi:file-certificate" className="text-teal-500 mt-2" />}
+                          classNames={{
+                            inputWrapper: "border-teal-200 hover:border-teal-400 focus-within:border-teal-500"
+                          }}
+                        />
+
+                        <Textarea
+                          label="TLS Private Key"
+                          placeholder="-----BEGIN PRIVATE KEY-----
 ...
 -----END PRIVATE KEY-----"
-                                    value={formData.tls_key}
-                                    onValueChange={(value) => handleInputChange('tls_key', value)}
-                                    minRows={4}
-                                    maxRows={8}
-                                    description="Private key for client certificate (optional)"
-                                    variant="bordered"
-                                    isDisabled={onboarding}
-                                  />
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </ModalBody>
-                      <ModalFooter>
-                        <Button 
-                          color="danger" 
-                          variant="light" 
-                          onPress={handleModalClose}
+                          value={formData.tls_key}
+                          onValueChange={(value) => handleInputChange('tls_key', value)}
+                          minRows={3}
+                          maxRows={6}
+                          description="Private key (optional)"
+                          variant="bordered"
                           isDisabled={onboarding}
-                        >
-                          Cancel
-                        </Button>
-                        <Button 
-                          color="primary" 
-                          onPress={handleOnboardCluster}
-                          isLoading={onboarding}
-                          startContent={!onboarding ? <Icon icon="lucide:plus" /> : null}
-                        >
-                          {onboarding ? "Onboarding Cluster..." : "Onboard Cluster"}
-                        </Button>
-                      </ModalFooter>
-                    </ModalContent>
-                  </Modal>
-            
-                  {/* Delete Confirmation Modal */}
-                  <Modal 
-                    isOpen={isDeleteOpen} 
-                    onClose={onDeleteClose}
-                    isDismissable={removing === null}
-                    hideCloseButton={removing !== null}
-                  >
-                    <ModalContent>
-                      <ModalHeader className="flex flex-col gap-1">
-                        <div className="flex items-center gap-2">
-                          <Icon icon="lucide:alert-triangle" className="text-danger" />
-                          <span>Confirm Deletion</span>
-                        </div>
-                      </ModalHeader>
-                      <ModalBody>
-                        <div className="space-y-3">
-                          <p>
-                            Are you sure you want to remove the cluster{' '}
-                            <strong className="text-danger">{clusterToDelete?.cluster_name}</strong>?
-                          </p>
-                          <div className="p-3 bg-danger-50 border border-danger-200 rounded-lg">
-                            <div className="flex items-start gap-2">
-                              <Icon icon="lucide:alert-triangle" className="text-danger mt-0.5 flex-shrink-0" />
-                              <div>
-                                <p className="text-small font-medium text-danger">Warning</p>
-                                <p className="text-small text-danger-600">
-                                  This action cannot be undone. The cluster configuration will be permanently deleted from KubeSage.
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                          {clusterToDelete && (
-                            <div className="text-small text-foreground-600">
-                              <p><strong>Provider:</strong> {clusterToDelete.provider_name}</p>
-                              <p><strong>Created:</strong> {formatDate(clusterToDelete.created_at)}</p>
-                            </div>
-                          )}
-                        </div>
-                      </ModalBody>
-                      <ModalFooter>
-                        <Button 
-                          color="default" 
-                          variant="light" 
-                          onPress={onDeleteClose}
-                          isDisabled={removing !== null}
-                        >
-                          Cancel
-                        </Button>
-                        <Button 
-                          color="danger" 
-                          onPress={() => clusterToDelete && handleRemoveCluster(clusterToDelete)}
-                          isLoading={removing !== null}
-                          startContent={removing === null ? <Icon icon="lucide:trash-2" /> : null}
-                        >
-                          {removing !== null ? "Removing..." : "Remove Cluster"}
-                        </Button>
-                      </ModalFooter>
-                    </ModalContent>
-                  </Modal>
-                </motion.div>
-              );
-            };
-            
-            export default UploadKubeconfig;
-            
+                          startContent={<Icon icon="mdi:key-variant" className="text-teal-500 mt-2" />}
+                          classNames={{
+                            inputWrapper: "border-teal-200 hover:border-teal-400 focus-within:border-teal-500"
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </ModalBody>
+            <ModalFooter className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/30 dark:to-emerald-900/30 border-t border-green-200 dark:border-green-700 p-6">
+              <div className="flex gap-4 w-full justify-end">
+                <Button
+                  color="danger"
+                  variant="light"
+                  onPress={handleModalClose}
+                  isDisabled={onboarding}
+                  startContent={<Icon icon="mdi:close" />}
+                  className="font-semibold"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  color="success"
+                  onPress={handleOnboardCluster}
+                  isLoading={onboarding}
+                  startContent={!onboarding ? <Icon icon="mdi:rocket-launch" /> : null}
+                  className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 shadow-lg font-semibold px-8"
+                  size="lg"
+                >
+                  {onboarding ? (
+                    <div className="flex items-center gap-2">
+                      <Icon icon="mdi:loading" className="animate-spin" />
+                      Connecting...
+                    </div>
+                  ) : (
+                    "Connect Cluster"
+                  )}
+                </Button>
+              </div>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
+
+        {/* Delete Confirmation Modal */}
+        <Modal
+          isOpen={isDeleteOpen}
+          onClose={onDeleteClose}
+          isDismissable={removing === null}
+          hideCloseButton={removing !== null}
+          className="bg-white/95 dark:bg-slate-800/95"
+          backdrop="blur"
+        >
+          <ModalContent>
+            <ModalHeader className="bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/30 dark:to-orange-900/30 border-b border-red-200 dark:border-red-700">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-gradient-to-br from-red-500 to-orange-600 rounded-xl shadow-lg">
+                  <Icon icon="mdi:alert" className="text-white text-2xl" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-red-700 dark:text-red-300">
+                    Confirm Cluster Removal
+                  </h2>
+                  <p className="text-red-600 dark:text-red-400 text-sm">
+                    This action cannot be undone
+                  </p>
+                </div>
+              </div>
+            </ModalHeader>
+            <ModalBody className="p-6">
+              <div className="space-y-6">
+                <div className="text-center">
+                  <p className="text-lg text-slate-700 dark:text-slate-200">
+                    Are you sure you want to remove the cluster{' '}
+                    <strong className="text-red-600 dark:text-red-400 font-bold">
+                      {clusterToDelete?.cluster_name}
+                    </strong>?
+                  </p>
+                </div>
+
+                <div className="p-4 bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border-l-4 border-red-500 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <Icon icon="mdi:shield-alert" className="text-red-500 mt-0.5 flex-shrink-0 text-xl" />
+                    <div>
+                      <p className="font-bold text-red-700 dark:text-red-300 mb-2 flex items-center gap-2">
+                        <Icon icon="mdi:alert-circle" />
+                        Warning
+                      </p>
+                      <p className="text-red-600 dark:text-red-400 font-medium">
+                        This will permanently remove the cluster configuration from KubeSage.
+                        All monitoring and management capabilities will be lost.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {clusterToDelete && (
+                  <div className="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-xl border border-slate-200 dark:border-slate-600">
+                    <div className="space-y-3 text-slate-600 dark:text-slate-300">
+                      <div className="flex items-center gap-3">
+                        <Icon icon="mdi:cloud" className="text-blue-500" />
+                        <span><strong>Provider:</strong> {clusterToDelete.provider_name}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Icon icon="mdi:calendar" className="text-green-500" />
+                        <span><strong>Created:</strong> {formatDate(clusterToDelete.created_at)}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Icon icon="mdi:dns" className="text-purple-500" />
+                        <span><strong>Server:</strong> {clusterToDelete.server_url}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </ModalBody>
+            <ModalFooter className="bg-gradient-to-r from-slate-50 to-red-50 dark:from-slate-800 dark:to-red-900/30 border-t border-red-200 dark:border-red-700 p-6">
+              <div className="flex gap-4 w-full justify-end">
+                <Button
+                  color="default"
+                  variant="light"
+                  onPress={onDeleteClose}
+                  isDisabled={removing !== null}
+                  startContent={<Icon icon="mdi:close" />}
+                  className="font-semibold"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  color="danger"
+                  onPress={() => clusterToDelete && handleRemoveCluster(clusterToDelete)}
+                  isLoading={removing !== null}
+                  startContent={removing === null ? <Icon icon="mdi:delete" /> : null}
+                  className="bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 shadow-lg font-semibold px-8"
+                  size="lg"
+                >
+                  {removing !== null ? (
+                    <div className="flex items-center gap-2">
+                      <Icon icon="mdi:loading" className="animate-spin" />
+                      Removing...
+                    </div>
+                  ) : (
+                    "Remove Cluster"
+                  )}
+                </Button>
+              </div>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
+      </div>
+    </div>
+  );
+};
+
+export default UploadKubeconfig;
