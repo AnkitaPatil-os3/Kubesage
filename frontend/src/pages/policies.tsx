@@ -251,28 +251,28 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
     const POLICIES_API = 'https://10.0.32.106:8005/api/v1/policies';
 
     // Update the close button onClick and add this function
-const resetDeleteModal = () => {
-    setDeleteData({
-        type: 'policy',
-        selectedCategoryForDelete: '',
+    const resetDeleteModal = () => {
+        setDeleteData({
+            type: 'policy',
+            selectedCategoryForDelete: '',
+            policyId: '',
+            categoryName: '',
+            forceDelete: false
+        });
+        setPoliciesForSelectedCategory([]);
+        setShowDeleteModal(false);
+    };
+
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [deleteData, setDeleteData] = useState({
+        type: 'policy', // 'policy' or 'category'
+        selectedCategoryForDelete: '', // New field for category selection
         policyId: '',
         categoryName: '',
         forceDelete: false
     });
-    setPoliciesForSelectedCategory([]);
-    setShowDeleteModal(false);
-};
-
-    const [showDeleteModal, setShowDeleteModal] = useState(false);
-const [deleteData, setDeleteData] = useState({
-    type: 'policy', // 'policy' or 'category'
-    selectedCategoryForDelete: '', // New field for category selection
-    policyId: '',
-    categoryName: '',
-    forceDelete: false
-});
-const [policiesForSelectedCategory, setPoliciesForSelectedCategory] = useState<Policy[]>([]);
-const [deleting, setDeleting] = useState(false);
+    const [policiesForSelectedCategory, setPoliciesForSelectedCategory] = useState<Policy[]>([]);
+    const [deleting, setDeleting] = useState(false);
 
 
 
@@ -464,13 +464,14 @@ const [deleting, setDeleting] = useState(false);
 
                 if (result.warnings && result.warnings.length > 0) {
                     result.warnings.forEach(warning => {
-                        showToast(warning, 'warning');
+                        showToast(warning, 'info');
                     });
                 }
 
                 // Reset form
                 setDeleteData({
                     type: 'policy',
+                    selectedCategoryForDelete: '',
                     policyId: '',
                     categoryName: '',
                     forceDelete: false
@@ -495,31 +496,31 @@ const [deleting, setDeleting] = useState(false);
     };
 
     const fetchPoliciesForDeletion = async (categoryName: string) => {
-    if (!categoryName) {
-        setPoliciesForSelectedCategory([]);
-        return;
-    }
-    
-    try {
-        const response = await fetch(`${POLICIES_API}/categories/${categoryName}?page=1&size=100`, {
-            headers: {
-                'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+        if (!categoryName) {
+            setPoliciesForSelectedCategory([]);
+            return;
+        }
+
+        try {
+            const response = await fetch(`${POLICIES_API}/categories/${categoryName}?page=1&size=100`, {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
-        });
 
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            const data = await response.json();
+            if (data.success && data.data) {
+                setPoliciesForSelectedCategory(data.data.policies);
+            }
+        } catch (error) {
+            console.error('Error fetching policies for deletion:', error);
+            setPoliciesForSelectedCategory([]);
         }
-
-        const data = await response.json();
-        if (data.success && data.data) {
-            setPoliciesForSelectedCategory(data.data.policies);
-        }
-    } catch (error) {
-        console.error('Error fetching policies for deletion:', error);
-        setPoliciesForSelectedCategory([]);
-    }
-};
+    };
 
 
 
@@ -966,7 +967,7 @@ const [deleting, setDeleting] = useState(false);
                 );
 
                 if (result.policies_failed > 0) {
-                    showToast(`${result.policies_failed} policies failed to add`, 'warning');
+                    showToast(`${result.policies_failed} policies failed to add`, 'info');
                 }
 
                 // Reset form
@@ -1200,11 +1201,11 @@ const [deleting, setDeleting] = useState(false);
                                     </h2>
                                 </div>
                                 <button
-    onClick={resetDeleteModal}
-    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
->
-    <X className="w-5 h-5 text-gray-500" />
-</button>
+                                    onClick={resetDeleteModal}
+                                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                                >
+                                    <X className="w-5 h-5 text-gray-500" />
+                                </button>
 
                             </div>
                         </div>
@@ -1241,123 +1242,123 @@ const [deleting, setDeleting] = useState(false);
                             </div>
 
                             {/* Policy Selection */}
-{deleteData.type === 'policy' && (
-    <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="space-y-4 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-700"
-    >
-        <h4 className="font-medium text-gray-900 dark:text-white flex items-center space-x-2">
-            <Shield className="w-4 h-4 text-red-600" />
-            <span>Select Policy to Delete</span>
-        </h4>
-        
-        {/* First select category */}
-        <div className="space-y-3">
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                1. First select a category:
-            </label>
-            <div className="relative">
-                <Layers className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <select
-                    value={deleteData.selectedCategoryForDelete}
-                    onChange={(e) => {
-                        const categoryName = e.target.value;
-                        setDeleteData(prev => ({ 
-                            ...prev, 
-                            selectedCategoryForDelete: categoryName,
-                            policyId: '' // Reset policy selection when category changes
-                        }));
-                        fetchPoliciesForDeletion(categoryName);
-                    }}
-                    className="pl-10 pr-8 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-red-500 focus:border-transparent w-full appearance-none"
-                >
-                    <option value="">Select a category first...</option>
-                    {categories.map(category => (
-                        <option key={category.name} value={category.name}>
-                            {category.display_name} ({category.policy_count} policies)
-                        </option>
-                    ))}
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-            </div>
-        </div>
+                            {deleteData.type === 'policy' && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="space-y-4 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-700"
+                                >
+                                    <h4 className="font-medium text-gray-900 dark:text-white flex items-center space-x-2">
+                                        <Shield className="w-4 h-4 text-red-600" />
+                                        <span>Select Policy to Delete</span>
+                                    </h4>
 
-        {/* Then select policy from that category */}
-        {deleteData.selectedCategoryForDelete && (
-            <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="space-y-3"
-            >
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    2. Then select a policy from "{categories.find(c => c.name === deleteData.selectedCategoryForDelete)?.display_name}":
-                </label>
-                <div className="relative">
-                    <Hash className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <select
-                        value={deleteData.policyId}
-                        onChange={(e) => setDeleteData(prev => ({ ...prev, policyId: e.target.value }))}
-                        className="pl-10 pr-8 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-red-500 focus:border-transparent w-full appearance-none"
-                        disabled={policiesForSelectedCategory.length === 0}
-                    >
-                        <option value="">
-                            {policiesForSelectedCategory.length === 0 
-                                ? 'No policies found in this category' 
-                                : 'Select a policy to delete...'
-                            }
-                        </option>
-                        {policiesForSelectedCategory.map(policy => (
-                            <option key={policy.policy_id} value={policy.policy_id}>
-                                {policy.name} ({policy.policy_id}) - {policy.severity.toUpperCase()}
-                            </option>
-                        ))}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                </div>
-                
-                {/* Show policy count */}
-                <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
-                    <Info className="w-4 h-4" />
-                    <span>
-                        {policiesForSelectedCategory.length} policies found in this category
-                    </span>
-                </div>
-                
-                {/* Show selected policy details */}
-                {deleteData.policyId && (
-                    <motion.div
-                        initial={{ opacity: 0, y: 5 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="p-3 bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600"
-                    >
-                        {(() => {
-                            const selectedPolicy = policiesForSelectedCategory.find(p => p.policy_id === deleteData.policyId);
-                            if (!selectedPolicy) return null;
-                            
-                            return (
-                                <div className="space-y-2">
-                                    <div className="flex items-center space-x-2">
-                                        <Shield className="w-4 h-4 text-blue-600" />
-                                        <span className="font-medium text-gray-900 dark:text-white">
-                                            {selectedPolicy.name}
-                                        </span>
-                                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getSeverityColor(selectedPolicy.severity)}`}>
-                                            {selectedPolicy.severity.toUpperCase()}
-                                        </span>
+                                    {/* First select category */}
+                                    <div className="space-y-3">
+                                        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                            1. First select a category:
+                                        </label>
+                                        <div className="relative">
+                                            <Layers className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                            <select
+                                                value={deleteData.selectedCategoryForDelete}
+                                                onChange={(e) => {
+                                                    const categoryName = e.target.value;
+                                                    setDeleteData(prev => ({
+                                                        ...prev,
+                                                        selectedCategoryForDelete: categoryName,
+                                                        policyId: '' // Reset policy selection when category changes
+                                                    }));
+                                                    fetchPoliciesForDeletion(categoryName);
+                                                }}
+                                                className="pl-10 pr-8 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-red-500 focus:border-transparent w-full appearance-none"
+                                            >
+                                                <option value="">Select a category first...</option>
+                                                {categories.map(category => (
+                                                    <option key={category.name} value={category.name}>
+                                                        {category.display_name} ({category.policy_count} policies)
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                                        </div>
                                     </div>
-                                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                                        {selectedPolicy.description}
-                                    </p>
-                                </div>
-                            );
-                        })()}
-                    </motion.div>
-                )}
-            </motion.div>
-        )}
-    </motion.div>
-)}
+
+                                    {/* Then select policy from that category */}
+                                    {deleteData.selectedCategoryForDelete && (
+                                        <motion.div
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            className="space-y-3"
+                                        >
+                                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                2. Then select a policy from "{categories.find(c => c.name === deleteData.selectedCategoryForDelete)?.display_name}":
+                                            </label>
+                                            <div className="relative">
+                                                <Hash className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                                <select
+                                                    value={deleteData.policyId}
+                                                    onChange={(e) => setDeleteData(prev => ({ ...prev, policyId: e.target.value }))}
+                                                    className="pl-10 pr-8 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-red-500 focus:border-transparent w-full appearance-none"
+                                                    disabled={policiesForSelectedCategory.length === 0}
+                                                >
+                                                    <option value="">
+                                                        {policiesForSelectedCategory.length === 0
+                                                            ? 'No policies found in this category'
+                                                            : 'Select a policy to delete...'
+                                                        }
+                                                    </option>
+                                                    {policiesForSelectedCategory.map(policy => (
+                                                        <option key={policy.policy_id} value={policy.policy_id}>
+                                                            {policy.name} ({policy.policy_id}) 
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                                            </div>
+
+                                            {/* Show policy count */}
+                                            <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
+                                                <Info className="w-4 h-4" />
+                                                <span>
+                                                    {policiesForSelectedCategory.length} policies found in this category
+                                                </span>
+                                            </div>
+
+                                            {/* Show selected policy details */}
+                                            {deleteData.policyId && (
+                                                <motion.div
+                                                    initial={{ opacity: 0, y: 5 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    className="p-3 bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600"
+                                                >
+                                                    {(() => {
+                                                        const selectedPolicy = policiesForSelectedCategory.find(p => p.policy_id === deleteData.policyId);
+                                                        if (!selectedPolicy) return null;
+
+                                                        return (
+                                                            <div className="space-y-2">
+                                                                <div className="flex items-center space-x-2">
+                                                                    <Shield className="w-4 h-4 text-blue-600" />
+                                                                    <span className="font-medium text-gray-900 dark:text-white">
+                                                                        {selectedPolicy.name}
+                                                                    </span>
+                                                                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getSeverityColor(selectedPolicy.severity)}`}>
+                                                                        {selectedPolicy.severity.toUpperCase()}
+                                                                    </span>
+                                                                </div>
+                                                                <p className="text-sm text-gray-600 dark:text-gray-400">
+                                                                    {selectedPolicy.description}
+                                                                </p>
+                                                            </div>
+                                                        );
+                                                    })()}
+                                                </motion.div>
+                                            )}
+                                        </motion.div>
+                                    )}
+                                </motion.div>
+                            )}
 
 
                             {/* Category Selection */}
@@ -1428,12 +1429,12 @@ const [deleting, setDeleting] = useState(false);
                         <div className="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 rounded-b-2xl">
                             <div className="flex justify-end space-x-4">
                                 <button
-    onClick={resetDeleteModal}
-    className="flex items-center space-x-2 px-6 py-3 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
->
-    <X className="w-4 h-4" />
-    <span>Cancel</span>
-</button>
+                                    onClick={resetDeleteModal}
+                                    className="flex items-center space-x-2 px-6 py-3 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                                >
+                                    <X className="w-4 h-4" />
+                                    <span>Cancel</span>
+                                </button>
 
                                 <button
                                     onClick={handleDelete}
@@ -1743,7 +1744,7 @@ const [deleting, setDeleting] = useState(false);
                                     <button
                                         onClick={handleAddPolicy}
                                         disabled={addingPolicy}
-                                       className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-slate-500 to-gray-600 hover:from-slate-600 hover:to-gray-700 text-white font-medium rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
+                                        className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-slate-500 to-gray-600 hover:from-slate-600 hover:to-gray-700 text-white font-medium rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
                                     >
                                         {addingPolicy ? (
                                             <>
@@ -1800,7 +1801,7 @@ const [deleting, setDeleting] = useState(false);
                         </button>
                     )}
                     {/* Delete Policies/Categories Button - Only for Super Admin */}
-                     {JSON.parse(localStorage.getItem('roles') || '[]').includes('Super Admin') && (
+                    {JSON.parse(localStorage.getItem('roles') || '[]').includes('Super Admin') && (
                         <button
                             onClick={() => setShowDeleteModal(true)}
                             className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white font-medium rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"

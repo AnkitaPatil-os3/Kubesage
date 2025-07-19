@@ -362,20 +362,33 @@ const UploadKubeconfig: React.FC = () => {
     fetchClusters();
   }, []);
 
-  // Get provider icon
-  const getProviderIcon = (provider?: string) => {
-    if (!provider) return "logos:kubernetes";
+  const getProviderIcon = (provider?: string): string => {
+  if (!provider) return "mdi:kubernetes"; // Monochrome Kubernetes
 
-    const providerLower = provider.toLowerCase();
-    if (providerLower.includes('aws') || providerLower.includes('eks')) return "logos:aws";
-    if (providerLower.includes('google') || providerLower.includes('gke')) return "logos:google-cloud";
-    if (providerLower.includes('azure') || providerLower.includes('aks')) return "logos:microsoft-azure";
-    if (providerLower.includes('digitalocean')) return "logos:digitalocean";
-    if (providerLower.includes('minikube')) return "logos:kubernetes";
-    if (providerLower.includes('kind')) return "logos:kubernetes";
-    if (providerLower.includes('k3s')) return "logos:rancher";
-    return "logos:kubernetes";
-  };
+  const providerLower = provider.toLowerCase();
+
+  if (providerLower.includes('aws') || providerLower.includes('eks')) {
+    return "simple-icons:amazonaws"; // Black AWS logo
+  }
+  if (providerLower.includes('google') || providerLower.includes('gke')) {
+    return "simple-icons:googlecloud"; // Google Cloud (black)
+  }
+  if (providerLower.includes('azure') || providerLower.includes('aks')) {
+    return "simple-icons:microsoftazure"; // Microsoft Azure
+  }
+  if (providerLower.includes('digitalocean')) {
+    return "simple-icons:digitalocean";
+  }
+  if (providerLower.includes('minikube') || providerLower.includes('kind')) {
+    return "mdi:kubernetes"; // Black Kubernetes logo
+  }
+  if (providerLower.includes('k3s') || providerLower.includes('rancher')) {
+    return "simple-icons:rancher"; // Monochrome Rancher logo (if available)
+  }
+
+  return "mdi:kubernetes";
+};
+
 
   // Format date
   const formatDate = (dateString: string) => {
