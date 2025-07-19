@@ -894,7 +894,6 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
         }
     };
 
-
     const filteredPolicies = policies.filter(policy => {
         const matchesSearch = policy.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             policy.description.toLowerCase().includes(searchTerm.toLowerCase());
@@ -1310,7 +1309,7 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
                                                     </option>
                                                     {policiesForSelectedCategory.map(policy => (
                                                         <option key={policy.policy_id} value={policy.policy_id}>
-                                                            {policy.name} ({policy.policy_id}) 
+                                                            {policy.name} ({policy.policy_id})
                                                         </option>
                                                     ))}
                                                 </select>
