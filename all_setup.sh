@@ -27,9 +27,14 @@ sudo apt install -y nodejs
 echo "=============================="
 echo " Installing Visual Studio Code..."
 echo "=============================="
-wget -q -O vscode.deb "https://code.visualstudio.com/sha/download?build=stable&os=linux-deb-x64"
-sudo apt install -y ./vscode.deb
-rm vscode.deb
+sudo apt update
+sudo apt install wget gpg
+wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > packages.microsoft.gpg
+sudo install -o root -g root -m 644 packages.microsoft.gpg /usr/share/keyrings/
+sudo sh -c 'echo "deb [arch=amd64 signed-by=/usr/share/keyrings/packages.microsoft.gpg] \
+https://packages.microsoft.com/repos/code stable main" > /etc/apt/sources.list.d/vscode.list'
+sudo apt update
+sudo apt install code
 
 # Install Helm
 echo "=============================="
