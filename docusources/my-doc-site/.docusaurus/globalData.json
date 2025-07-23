@@ -1,0 +1,135 @@
+{
+  "docusaurus-plugin-content-docs": {
+    "default": {
+      "path": "/kubesagedocumentation/docs",
+      "versions": [
+        {
+          "name": "current",
+          "label": "Next",
+          "isLast": true,
+          "path": "/kubesagedocumentation/docs",
+          "mainDocId": "intro",
+          "docs": [
+            {
+              "id": "api/chatlanggraph/chat-api",
+              "path": "/kubesagedocumentation/docs/api/chatlanggraph/chat-api",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "api/chatlanggraph/index",
+              "path": "/kubesagedocumentation/docs/api/chatlanggraph/",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "api/index",
+              "path": "/kubesagedocumentation/docs/api/",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "api/kubeconfig/get-clusters",
+              "path": "/kubesagedocumentation/docs/api/kubeconfig/get-clusters",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "api/kubeconfig/index",
+              "path": "/kubesagedocumentation/docs/api/kubeconfig/",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "api/kubeconfig/update-yaml",
+              "path": "/kubesagedocumentation/docs/api/kubeconfig/update-yaml",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "api/remediation/index",
+              "path": "/kubesagedocumentation/docs/api/remediation/",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "api/remediation/trigger-remediation",
+              "path": "/kubesagedocumentation/docs/api/remediation/trigger-remediation",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "api/security/index",
+              "path": "/kubesagedocumentation/docs/api/security/",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "api/security/scan",
+              "path": "/kubesagedocumentation/docs/api/security/scan",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "api/user/index",
+              "path": "/kubesagedocumentation/docs/api/user/",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "api/user/login",
+              "path": "/kubesagedocumentation/docs/api/user/login",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "api/user/register",
+              "path": "/kubesagedocumentation/docs/api/user/register",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "getting-started",
+              "path": "/kubesagedocumentation/docs/getting-started",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "intro",
+              "path": "/kubesagedocumentation/docs/intro",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "tutorial-basics/congratulations",
+              "path": "/kubesagedocumentation/docs/tutorial-basics/congratulations"
+            },
+            {
+              "id": "tutorial-basics/create-a-blog-post",
+              "path": "/kubesagedocumentation/docs/tutorial-basics/create-a-blog-post"
+            },
+            {
+              "id": "tutorial-basics/create-a-document",
+              "path": "/kubesagedocumentation/docs/tutorial-basics/create-a-document"
+            },
+            {
+              "id": "tutorial-basics/create-a-page",
+              "path": "/kubesagedocumentation/docs/tutorial-basics/create-a-page"
+            },
+            {
+              "id": "tutorial-basics/deploy-your-site",
+              "path": "/kubesagedocumentation/docs/tutorial-basics/deploy-your-site"
+            },
+            {
+              "id": "tutorial-basics/markdown-features",
+              "path": "/kubesagedocumentation/docs/tutorial-basics/markdown-features"
+            },
+            {
+              "id": "tutorial-extras/manage-docs-versions",
+              "path": "/kubesagedocumentation/docs/tutorial-extras/manage-docs-versions"
+            },
+            {
+              "id": "tutorial-extras/translate-your-site",
+              "path": "/kubesagedocumentation/docs/tutorial-extras/translate-your-site"
+            }
+          ],
+          "draftIds": [],
+          "sidebars": {
+            "tutorialSidebar": {
+              "link": {
+                "path": "/kubesagedocumentation/docs/intro",
+                "label": "intro"
+              }
+            }
+          }
+        }
+      ],
+      "breadcrumbs": true
+    }
+  }
+}

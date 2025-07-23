@@ -1,0 +1,26 @@
+{
+  "id": "getting-started",
+  "title": "",
+  "description": "KubeSage is an AI-powered cloud-native super app for Kubernetes",
+  "source": "@site/docs/getting-started.md",
+  "sourceDirName": ".",
+  "slug": "/getting-started",
+  "permalink": "/kubesagedocumentation/docs/getting-started",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "title": "",
+    "sidebar_label": " Getting Started"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Introduction",
+    "permalink": "/kubesagedocumentation/docs/intro"
+  },
+  "next": {
+    "title": "API Documentation",
+    "permalink": "/kubesagedocumentation/docs/api/"
+  }
+}

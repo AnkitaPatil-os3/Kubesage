@@ -257,8 +257,8 @@ interface ClusterConfig {
 }
 
 // API Configuration
-const API_BASE_URL = 'https://10.0.32.103:8003';
-const KUBECONFIG_API_BASE_URL = 'https://10.0.32.103:8002';
+const API_BASE_URL = 'https://10.0.32.105:8003';
+const KUBECONFIG_API_BASE_URL = 'https://10.0.32.105:8002';
 
 class ChatAPI {
   private getAuthHeaders() {

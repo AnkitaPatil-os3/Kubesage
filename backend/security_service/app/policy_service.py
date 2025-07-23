@@ -29,7 +29,7 @@ class PolicyDatabaseService:
     def __init__(self):
         self.policy_data = self._get_all_policy_data()
         # Get kubeconfig service URL from environment or use default
-        self.kubeconfig_service_url = os.getenv("KUBECONFIG_SERVICE_URL", "https://10.0.32.103:8002")
+        self.kubeconfig_service_url = os.getenv("KUBECONFIG_SERVICE_URL", "https://10.0.32.105:8002")
     
     def _get_all_policy_data(self) -> Dict[str, List[Dict]]:
         """Get all predefined policy data organized by category"""

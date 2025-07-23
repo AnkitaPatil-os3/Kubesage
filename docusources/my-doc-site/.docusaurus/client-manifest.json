@@ -1,0 +1,929 @@
+{
+  "entrypoints": [
+    "main"
+  ],
+  "origins": {
+    "2237": [
+      2237
+    ],
+    "6870": [
+      867,
+      1869,
+      3249,
+      4813,
+      6061,
+      7518,
+      7643,
+      8401,
+      6870
+    ],
+    "7518": [
+      867,
+      1869,
+      3249,
+      4212,
+      4813,
+      6870,
+      7643,
+      7518
+    ],
+    "17896441": [
+      1869,
+      6870,
+      8401
+    ],
+    "59362658": [
+      9325
+    ],
+    "main": [
+      1869,
+      5354,
+      8792
+    ],
+    "runtime~main": [
+      1869,
+      8792,
+      5354
+    ],
+    "01a85c17": [
+      1869,
+      8209
+    ],
+    "0e384e19": [
+      1869,
+      3976
+    ],
+    "12a9fae3": [
+      3335
+    ],
+    "172407bc": [
+      1015
+    ],
+    "174f8bc5": [
+      3723
+    ],
+    "18c41134": [
+      9262
+    ],
+    "1e4232ab": [
+      1953
+    ],
+    "1f391b9e": [
+      1869,
+      6870,
+      6061
+    ],
+    "25561d4b": [
+      7676
+    ],
+    "26a6a7d7": [
+      237
+    ],
+    "2e14009c": [
+      7847
+    ],
+    "33fc5bb8": [
+      1869,
+      6870,
+      7518,
+      867
+    ],
+    "36994c47": [
+      9858
+    ],
+    "393be207": [
+      4134
+    ],
+    "533a09ca": [
+      3098
+    ],
+    "5584f700": [
+      456
+    ],
+    "58f2ef7d": [
+      6296
+    ],
+    "590a1d61": [
+      7080
+    ],
+    "5c868d36": [
+      1974
+    ],
+    "5e8c322a": [
+      594
+    ],
+    "5e95c892": [
+      9647
+    ],
+    "621db11d": [
+      1869,
+      7518,
+      4212
+    ],
+    "66a39b34": [
+      2559
+    ],
+    "6875c492": [
+      1869,
+      6870,
+      7518,
+      4813
+    ],
+    "723ca1dc": [
+      9463
+    ],
+    "73664a40": [
+      1972
+    ],
+    "749a8832": [
+      5407
+    ],
+    "7661071f": [
+      8737
+    ],
+    "785d39c9": [
+      1985
+    ],
+    "7b8ca2e4": [
+      8729
+    ],
+    "805ff4e7": [
+      8128
+    ],
+    "807f24ef": [
+      4119
+    ],
+    "814f3328": [
+      7472
+    ],
+    "81755dfd": [
+      247
+    ],
+    "8184f1c4": [
+      6716
+    ],
+    "8219913d": [
+      5140
+    ],
+    "822bd8ab": [
+      2748
+    ],
+    "8717b14a": [
+      3694
+    ],
+    "925b3f96": [
+      8609
+    ],
+    "94eaae41": [
+      4049
+    ],
+    "98d68d83": [
+      1161
+    ],
+    "9e4087bc": [
+      2711
+    ],
+    "a6aa9e1f": [
+      1869,
+      6870,
+      7518,
+      7643
+    ],
+    "a7456010": [
+      1235
+    ],
+    "a7bd4aaa": [
+      7098
+    ],
+    "a94703ab": [
+      1869,
+      9048
+    ],
+    "aac7bbe7": [
+      5539
+    ],
+    "aba21aa0": [
+      5742
+    ],
+    "acecf23e": [
+      1903
+    ],
+    "ae9d07fd": [
+      6599
+    ],
+    "b2df32f9": [
+      4285
+    ],
+    "b61e9ba9": [
+      4146
+    ],
+    "c1205750": [
+      6238
+    ],
+    "c4f5d8e4": [
+      1869,
+      2634
+    ],
+    "c759ac84": [
+      5827
+    ],
+    "ccc49370": [
+      1869,
+      6870,
+      7518,
+      3249
+    ],
+    "d589d3a7": [
+      7924
+    ],
+    "d9f32620": [
+      5557
+    ],
+    "dff1c289": [
+      1724
+    ],
+    "e273c56f": [
+      9328
+    ],
+    "e44a2883": [
+      4736
+    ],
+    "e53257dc": [
+      4797
+    ],
+    "f4f34a3a": [
+      3637
+    ],
+    "f55d3e7a": [
+      8863
+    ],
+    "styles": [
+      867,
+      2634,
+      3249,
+      3976,
+      4212,
+      4813,
+      5354,
+      6061,
+      6870,
+      7518,
+      7643,
+      8209,
+      8401,
+      8792,
+      9048,
+      1869
+    ]
+  },
+  "assets": {
+    "237": {
+      "js": [
+        {
+          "file": "assets/js/26a6a7d7.ad9841da.js",
+          "hash": "b634fcaadd6e5bb9",
+          "publicPath": "/kubesagedocumentation/assets/js/26a6a7d7.ad9841da.js"
+        }
+      ]
+    },
+    "247": {
+      "js": [
+        {
+          "file": "assets/js/81755dfd.0b583a09.js",
+          "hash": "4d9cd01406049762",
+          "publicPath": "/kubesagedocumentation/assets/js/81755dfd.0b583a09.js"
+        }
+      ]
+    },
+    "456": {
+      "js": [
+        {
+          "file": "assets/js/5584f700.2358e057.js",
+          "hash": "31a715fe22377211",
+          "publicPath": "/kubesagedocumentation/assets/js/5584f700.2358e057.js"
+        }
+      ]
+    },
+    "594": {
+      "js": [
+        {
+          "file": "assets/js/5e8c322a.ee63d2c8.js",
+          "hash": "4d9d33ec103d8aeb",
+          "publicPath": "/kubesagedocumentation/assets/js/5e8c322a.ee63d2c8.js"
+        }
+      ]
+    },
+    "867": {
+      "js": [
+        {
+          "file": "assets/js/33fc5bb8.1791295c.js",
+          "hash": "812d54668f1de544",
+          "publicPath": "/kubesagedocumentation/assets/js/33fc5bb8.1791295c.js"
+        }
+      ]
+    },
+    "1015": {
+      "js": [
+        {
+          "file": "assets/js/172407bc.142b697c.js",
+          "hash": "abeec96c5904c302",
+          "publicPath": "/kubesagedocumentation/assets/js/172407bc.142b697c.js"
+        }
+      ]
+    },
+    "1161": {
+      "js": [
+        {
+          "file": "assets/js/98d68d83.893315de.js",
+          "hash": "08ac96c64f5dc816",
+          "publicPath": "/kubesagedocumentation/assets/js/98d68d83.893315de.js"
+        }
+      ]
+    },
+    "1235": {
+      "js": [
+        {
+          "file": "assets/js/a7456010.38be4d36.js",
+          "hash": "07cd31726ea08d8b",
+          "publicPath": "/kubesagedocumentation/assets/js/a7456010.38be4d36.js"
+        }
+      ]
+    },
+    "1724": {
+      "js": [
+        {
+          "file": "assets/js/dff1c289.0c8fecd1.js",
+          "hash": "026c59e460f91766",
+          "publicPath": "/kubesagedocumentation/assets/js/dff1c289.0c8fecd1.js"
+        }
+      ]
+    },
+    "1869": {
+      "css": [
+        {
+          "file": "assets/css/styles.986371c4.css",
+          "hash": "d092b70c44f89146",
+          "publicPath": "/kubesagedocumentation/assets/css/styles.986371c4.css"
+        }
+      ]
+    },
+    "1903": {
+      "js": [
+        {
+          "file": "assets/js/acecf23e.cdcaa46c.js",
+          "hash": "d8ab05bc8d598088",
+          "publicPath": "/kubesagedocumentation/assets/js/acecf23e.cdcaa46c.js"
+        }
+      ]
+    },
+    "1953": {
+      "js": [
+        {
+          "file": "assets/js/1e4232ab.1108ddcc.js",
+          "hash": "ab8e144353fb922b",
+          "publicPath": "/kubesagedocumentation/assets/js/1e4232ab.1108ddcc.js"
+        }
+      ]
+    },
+    "1972": {
+      "js": [
+        {
+          "file": "assets/js/73664a40.1d7bede9.js",
+          "hash": "5713e5b41b2280b5",
+          "publicPath": "/kubesagedocumentation/assets/js/73664a40.1d7bede9.js"
+        }
+      ]
+    },
+    "1974": {
+      "js": [
+        {
+          "file": "assets/js/5c868d36.2f599b56.js",
+          "hash": "2b93576cd1b7b2cf",
+          "publicPath": "/kubesagedocumentation/assets/js/5c868d36.2f599b56.js"
+        }
+      ]
+    },
+    "1985": {
+      "js": [
+        {
+          "file": "assets/js/785d39c9.134f48a2.js",
+          "hash": "70ddec22e4bdee16",
+          "publicPath": "/kubesagedocumentation/assets/js/785d39c9.134f48a2.js"
+        }
+      ]
+    },
+    "2237": {
+      "js": [
+        {
+          "file": "assets/js/2237.e514bcbb.js",
+          "hash": "579d4a992d4b39b6",
+          "publicPath": "/kubesagedocumentation/assets/js/2237.e514bcbb.js"
+        }
+      ]
+    },
+    "2559": {
+      "js": [
+        {
+          "file": "assets/js/66a39b34.29d7611d.js",
+          "hash": "e73eadae7e6a390d",
+          "publicPath": "/kubesagedocumentation/assets/js/66a39b34.29d7611d.js"
+        }
+      ]
+    },
+    "2634": {
+      "js": [
+        {
+          "file": "assets/js/c4f5d8e4.9c7bcd76.js",
+          "hash": "6ed38198ca1f4179",
+          "publicPath": "/kubesagedocumentation/assets/js/c4f5d8e4.9c7bcd76.js"
+        }
+      ]
+    },
+    "2711": {
+      "js": [
+        {
+          "file": "assets/js/9e4087bc.18ef965e.js",
+          "hash": "becb055c3066a76e",
+          "publicPath": "/kubesagedocumentation/assets/js/9e4087bc.18ef965e.js"
+        }
+      ]
+    },
+    "2748": {
+      "js": [
+        {
+          "file": "assets/js/822bd8ab.996ecbbd.js",
+          "hash": "ab6df1ebca1fb922",
+          "publicPath": "/kubesagedocumentation/assets/js/822bd8ab.996ecbbd.js"
+        }
+      ]
+    },
+    "3098": {
+      "js": [
+        {
+          "file": "assets/js/533a09ca.9294e7c0.js",
+          "hash": "35e197c4519f8510",
+          "publicPath": "/kubesagedocumentation/assets/js/533a09ca.9294e7c0.js"
+        }
+      ]
+    },
+    "3249": {
+      "js": [
+        {
+          "file": "assets/js/ccc49370.aa34bc19.js",
+          "hash": "cd42f6b8c97f0224",
+          "publicPath": "/kubesagedocumentation/assets/js/ccc49370.aa34bc19.js"
+        }
+      ]
+    },
+    "3335": {
+      "js": [
+        {
+          "file": "assets/js/12a9fae3.a61ff57d.js",
+          "hash": "b22a71d391cd7db3",
+          "publicPath": "/kubesagedocumentation/assets/js/12a9fae3.a61ff57d.js"
+        }
+      ]
+    },
+    "3637": {
+      "js": [
+        {
+          "file": "assets/js/f4f34a3a.5fa7edc7.js",
+          "hash": "54015b0643bbe2c9",
+          "publicPath": "/kubesagedocumentation/assets/js/f4f34a3a.5fa7edc7.js"
+        }
+      ]
+    },
+    "3694": {
+      "js": [
+        {
+          "file": "assets/js/8717b14a.7037da5d.js",
+          "hash": "15d8d293a064b6d5",
+          "publicPath": "/kubesagedocumentation/assets/js/8717b14a.7037da5d.js"
+        }
+      ]
+    },
+    "3723": {
+      "js": [
+        {
+          "file": "assets/js/174f8bc5.72c8b794.js",
+          "hash": "061e8df63bfd6b96",
+          "publicPath": "/kubesagedocumentation/assets/js/174f8bc5.72c8b794.js"
+        }
+      ]
+    },
+    "3976": {
+      "js": [
+        {
+          "file": "assets/js/0e384e19.03d4c65f.js",
+          "hash": "59afe71ece078b79",
+          "publicPath": "/kubesagedocumentation/assets/js/0e384e19.03d4c65f.js"
+        }
+      ]
+    },
+    "4049": {
+      "js": [
+        {
+          "file": "assets/js/94eaae41.9d1e4da2.js",
+          "hash": "ed1472e522dcb89e",
+          "publicPath": "/kubesagedocumentation/assets/js/94eaae41.9d1e4da2.js"
+        }
+      ]
+    },
+    "4119": {
+      "js": [
+        {
+          "file": "assets/js/807f24ef.789ffc18.js",
+          "hash": "e02fb200c59db3a2",
+          "publicPath": "/kubesagedocumentation/assets/js/807f24ef.789ffc18.js"
+        }
+      ]
+    },
+    "4134": {
+      "js": [
+        {
+          "file": "assets/js/393be207.9174f6bb.js",
+          "hash": "d4711d87029e16c7",
+          "publicPath": "/kubesagedocumentation/assets/js/393be207.9174f6bb.js"
+        }
+      ]
+    },
+    "4146": {
+      "js": [
+        {
+          "file": "assets/js/b61e9ba9.ffb55d9b.js",
+          "hash": "2a4c81b07e20832d",
+          "publicPath": "/kubesagedocumentation/assets/js/b61e9ba9.ffb55d9b.js"
+        }
+      ]
+    },
+    "4212": {
+      "js": [
+        {
+          "file": "assets/js/621db11d.e4d3958f.js",
+          "hash": "0696addfc8c37bf0",
+          "publicPath": "/kubesagedocumentation/assets/js/621db11d.e4d3958f.js"
+        }
+      ]
+    },
+    "4285": {
+      "js": [
+        {
+          "file": "assets/js/b2df32f9.675c9ae8.js",
+          "hash": "10f16c2862fcfe03",
+          "publicPath": "/kubesagedocumentation/assets/js/b2df32f9.675c9ae8.js"
+        }
+      ]
+    },
+    "4736": {
+      "js": [
+        {
+          "file": "assets/js/e44a2883.9978226a.js",
+          "hash": "d39b130e4242e6fd",
+          "publicPath": "/kubesagedocumentation/assets/js/e44a2883.9978226a.js"
+        }
+      ]
+    },
+    "4797": {
+      "js": [
+        {
+          "file": "assets/js/e53257dc.a18906bb.js",
+          "hash": "a3dc5258312f976b",
+          "publicPath": "/kubesagedocumentation/assets/js/e53257dc.a18906bb.js"
+        }
+      ]
+    },
+    "4813": {
+      "js": [
+        {
+          "file": "assets/js/6875c492.f179628c.js",
+          "hash": "efec7de6c28b9cdb",
+          "publicPath": "/kubesagedocumentation/assets/js/6875c492.f179628c.js"
+        }
+      ]
+    },
+    "5140": {
+      "js": [
+        {
+          "file": "assets/js/8219913d.fa2cbf1f.js",
+          "hash": "6bad46fbb4bc74a4",
+          "publicPath": "/kubesagedocumentation/assets/js/8219913d.fa2cbf1f.js"
+        }
+      ]
+    },
+    "5354": {
+      "js": [
+        {
+          "file": "assets/js/runtime~main.756d6f57.js",
+          "hash": "811aca03c96e8d6b",
+          "publicPath": "/kubesagedocumentation/assets/js/runtime~main.756d6f57.js"
+        }
+      ]
+    },
+    "5407": {
+      "js": [
+        {
+          "file": "assets/js/749a8832.c0110c43.js",
+          "hash": "0e2589aeed16d5b1",
+          "publicPath": "/kubesagedocumentation/assets/js/749a8832.c0110c43.js"
+        }
+      ]
+    },
+    "5539": {
+      "js": [
+        {
+          "file": "assets/js/aac7bbe7.0e558b8b.js",
+          "hash": "3fd00863c07e32ba",
+          "publicPath": "/kubesagedocumentation/assets/js/aac7bbe7.0e558b8b.js"
+        }
+      ]
+    },
+    "5557": {
+      "js": [
+        {
+          "file": "assets/js/d9f32620.b0b6a03b.js",
+          "hash": "4fba9cdd329ebb85",
+          "publicPath": "/kubesagedocumentation/assets/js/d9f32620.b0b6a03b.js"
+        }
+      ]
+    },
+    "5742": {
+      "js": [
+        {
+          "file": "assets/js/aba21aa0.7959968d.js",
+          "hash": "ec48b1b7b5504c55",
+          "publicPath": "/kubesagedocumentation/assets/js/aba21aa0.7959968d.js"
+        }
+      ]
+    },
+    "5827": {
+      "js": [
+        {
+          "file": "assets/js/c759ac84.325fcadb.js",
+          "hash": "e71f742c428a525f",
+          "publicPath": "/kubesagedocumentation/assets/js/c759ac84.325fcadb.js"
+        }
+      ]
+    },
+    "6061": {
+      "js": [
+        {
+          "file": "assets/js/1f391b9e.b2e5382e.js",
+          "hash": "707c96b55698b22c",
+          "publicPath": "/kubesagedocumentation/assets/js/1f391b9e.b2e5382e.js"
+        }
+      ]
+    },
+    "6238": {
+      "js": [
+        {
+          "file": "assets/js/c1205750.3ccab564.js",
+          "hash": "6ff39dd2dc199ccf",
+          "publicPath": "/kubesagedocumentation/assets/js/c1205750.3ccab564.js"
+        }
+      ]
+    },
+    "6296": {
+      "js": [
+        {
+          "file": "assets/js/58f2ef7d.33c5a88d.js",
+          "hash": "fe7ce31bdcdf9b44",
+          "publicPath": "/kubesagedocumentation/assets/js/58f2ef7d.33c5a88d.js"
+        }
+      ]
+    },
+    "6599": {
+      "js": [
+        {
+          "file": "assets/js/ae9d07fd.a674b183.js",
+          "hash": "bfd5e4234706d987",
+          "publicPath": "/kubesagedocumentation/assets/js/ae9d07fd.a674b183.js"
+        }
+      ]
+    },
+    "6716": {
+      "js": [
+        {
+          "file": "assets/js/8184f1c4.0316a49a.js",
+          "hash": "fb3d45d0e23eee48",
+          "publicPath": "/kubesagedocumentation/assets/js/8184f1c4.0316a49a.js"
+        }
+      ]
+    },
+    "6870": {
+      "js": [
+        {
+          "file": "assets/js/6870.ba5646b0.js",
+          "hash": "60de617a54926500",
+          "publicPath": "/kubesagedocumentation/assets/js/6870.ba5646b0.js"
+        }
+      ]
+    },
+    "7080": {
+      "js": [
+        {
+          "file": "assets/js/590a1d61.33619863.js",
+          "hash": "f0f0a79dd249076b",
+          "publicPath": "/kubesagedocumentation/assets/js/590a1d61.33619863.js"
+        }
+      ]
+    },
+    "7098": {
+      "js": [
+        {
+          "file": "assets/js/a7bd4aaa.07560d58.js",
+          "hash": "f374195794141add",
+          "publicPath": "/kubesagedocumentation/assets/js/a7bd4aaa.07560d58.js"
+        }
+      ]
+    },
+    "7472": {
+      "js": [
+        {
+          "file": "assets/js/814f3328.0670db89.js",
+          "hash": "27a92180e07bfa92",
+          "publicPath": "/kubesagedocumentation/assets/js/814f3328.0670db89.js"
+        }
+      ]
+    },
+    "7518": {
+      "js": [
+        {
+          "file": "assets/js/7518.1cb04a89.js",
+          "hash": "41d7e33d2d51804a",
+          "publicPath": "/kubesagedocumentation/assets/js/7518.1cb04a89.js"
+        }
+      ]
+    },
+    "7643": {
+      "js": [
+        {
+          "file": "assets/js/a6aa9e1f.068b93e9.js",
+          "hash": "46f19a95b693a9d4",
+          "publicPath": "/kubesagedocumentation/assets/js/a6aa9e1f.068b93e9.js"
+        }
+      ]
+    },
+    "7676": {
+      "js": [
+        {
+          "file": "assets/js/25561d4b.755ea8fd.js",
+          "hash": "346b11719c2ff0e0",
+          "publicPath": "/kubesagedocumentation/assets/js/25561d4b.755ea8fd.js"
+        }
+      ]
+    },
+    "7847": {
+      "js": [
+        {
+          "file": "assets/js/2e14009c.3e58fddc.js",
+          "hash": "8a9008181aec5273",
+          "publicPath": "/kubesagedocumentation/assets/js/2e14009c.3e58fddc.js"
+        }
+      ]
+    },
+    "7924": {
+      "js": [
+        {
+          "file": "assets/js/d589d3a7.fba0418a.js",
+          "hash": "1c064f81a929583d",
+          "publicPath": "/kubesagedocumentation/assets/js/d589d3a7.fba0418a.js"
+        }
+      ]
+    },
+    "8128": {
+      "js": [
+        {
+          "file": "assets/js/805ff4e7.324e1255.js",
+          "hash": "ee00fa32cf29718a",
+          "publicPath": "/kubesagedocumentation/assets/js/805ff4e7.324e1255.js"
+        }
+      ]
+    },
+    "8209": {
+      "js": [
+        {
+          "file": "assets/js/01a85c17.3ab3746f.js",
+          "hash": "f6c6de7dddcb25a7",
+          "publicPath": "/kubesagedocumentation/assets/js/01a85c17.3ab3746f.js"
+        }
+      ]
+    },
+    "8401": {
+      "js": [
+        {
+          "file": "assets/js/17896441.47fa1615.js",
+          "hash": "ea75a4f706813afb",
+          "publicPath": "/kubesagedocumentation/assets/js/17896441.47fa1615.js"
+        }
+      ]
+    },
+    "8609": {
+      "js": [
+        {
+          "file": "assets/js/925b3f96.0597aec8.js",
+          "hash": "ef04205cc7599107",
+          "publicPath": "/kubesagedocumentation/assets/js/925b3f96.0597aec8.js"
+        }
+      ]
+    },
+    "8729": {
+      "js": [
+        {
+          "file": "assets/js/7b8ca2e4.7efb131a.js",
+          "hash": "6b96f374425a2bd9",
+          "publicPath": "/kubesagedocumentation/assets/js/7b8ca2e4.7efb131a.js"
+        }
+      ]
+    },
+    "8737": {
+      "js": [
+        {
+          "file": "assets/js/7661071f.e348daf7.js",
+          "hash": "bf135793027d38af",
+          "publicPath": "/kubesagedocumentation/assets/js/7661071f.e348daf7.js"
+        }
+      ]
+    },
+    "8792": {
+      "js": [
+        {
+          "file": "assets/js/main.12372302.js",
+          "hash": "4dd77d32697d7486",
+          "publicPath": "/kubesagedocumentation/assets/js/main.12372302.js"
+        }
+      ]
+    },
+    "8863": {
+      "js": [
+        {
+          "file": "assets/js/f55d3e7a.9aaf8bd3.js",
+          "hash": "9d8e685313056218",
+          "publicPath": "/kubesagedocumentation/assets/js/f55d3e7a.9aaf8bd3.js"
+        }
+      ]
+    },
+    "9048": {
+      "js": [
+        {
+          "file": "assets/js/a94703ab.0a193f98.js",
+          "hash": "332982232ef72921",
+          "publicPath": "/kubesagedocumentation/assets/js/a94703ab.0a193f98.js"
+        }
+      ]
+    },
+    "9262": {
+      "js": [
+        {
+          "file": "assets/js/18c41134.bff72e83.js",
+          "hash": "ff7c6156842828ed",
+          "publicPath": "/kubesagedocumentation/assets/js/18c41134.bff72e83.js"
+        }
+      ]
+    },
+    "9325": {
+      "js": [
+        {
+          "file": "assets/js/59362658.02a829a4.js",
+          "hash": "8743d44bf39c32de",
+          "publicPath": "/kubesagedocumentation/assets/js/59362658.02a829a4.js"
+        }
+      ]
+    },
+    "9328": {
+      "js": [
+        {
+          "file": "assets/js/e273c56f.3bf29e6e.js",
+          "hash": "d85471b8dbec7d1c",
+          "publicPath": "/kubesagedocumentation/assets/js/e273c56f.3bf29e6e.js"
+        }
+      ]
+    },
+    "9463": {
+      "js": [
+        {
+          "file": "assets/js/723ca1dc.c8e7036a.js",
+          "hash": "35261d6ad612cf3b",
+          "publicPath": "/kubesagedocumentation/assets/js/723ca1dc.c8e7036a.js"
+        }
+      ]
+    },
+    "9647": {
+      "js": [
+        {
+          "file": "assets/js/5e95c892.2e84a734.js",
+          "hash": "561bf36b5a2cd737",
+          "publicPath": "/kubesagedocumentation/assets/js/5e95c892.2e84a734.js"
+        }
+      ]
+    },
+    "9858": {
+      "js": [
+        {
+          "file": "assets/js/36994c47.acf60bda.js",
+          "hash": "36588ea758afb738",
+          "publicPath": "/kubesagedocumentation/assets/js/36994c47.acf60bda.js"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "id": "api1/user/register",
+  "title": "User Registration",
+  "description": "Documentation for user registration endpoints.",
+  "source": "@site/docs/api1/user/register.md",
+  "sourceDirName": "api1/user",
+  "slug": "/api1/user/register",
+  "permalink": "/docs/api1/user/register",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 3,
+  "frontMatter": {
+    "sidebar_position": 3
+  }
+}

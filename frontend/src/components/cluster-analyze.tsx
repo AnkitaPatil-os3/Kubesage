@@ -249,7 +249,7 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
     const executeCommand = async (command: string, stepId: number) => {
         try {
             // Use the cluster-specific kubectl execution endpoint
-            const response = await fetch(`https://10.0.32.103:8002/kubeconfig/execute-kubectl-direct/${selectedClusterId}`, {
+            const response = await fetch(`https://10.0.32.105:8002/kubeconfig/execute-kubectl-direct/${selectedClusterId}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -315,7 +315,7 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
         setIsLoadingClusters(true);
         try {
             const token = localStorage.getItem('access_token');
-            const response = await fetch('https://10.0.32.103:8002/kubeconfig/clusters', {  // Make sure this matches your backend endpoint
+            const response = await fetch('https://10.0.32.105:8002/kubeconfig/clusters', {  // Make sure this matches your backend endpoint
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -365,7 +365,7 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
 
             // Fetch namespaces for the selected cluster
             const token = localStorage.getItem('access_token');
-            const response = await fetch(`https://10.0.32.103:8002/kubeconfig/get-namespaces/${clusterIdNum}`, {
+            const response = await fetch(`https://10.0.32.105:8002/kubeconfig/get-namespaces/${clusterIdNum}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -394,7 +394,7 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
 
         try {
             const token = localStorage.getItem('access_token');
-            const response = await fetch(`https://10.0.32.103:8002/kubeconfig/get-namespaces/${selectedClusterId}`, {  // Use the GET endpoint
+            const response = await fetch(`https://10.0.32.105:8002/kubeconfig/get-namespaces/${selectedClusterId}`, {  // Use the GET endpoint
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -433,7 +433,7 @@ export const ClusterAnalyze: React.FC<ClusterAnalyzeProps> = ({ selectedCluster 
             params.append('resource_types', selectedResourceType);
 
             // Use the cluster-specific analysis endpoint with cluster ID
-            const response = await fetch(`https://10.0.32.103:8002/kubeconfig/analyze-k8s-with-solutions/${selectedClusterId}?${params}`, {
+            const response = await fetch(`https://10.0.32.105:8002/kubeconfig/analyze-k8s-with-solutions/${selectedClusterId}?${params}`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,

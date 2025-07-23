@@ -1,0 +1,45 @@
+{
+  "permalink": "/kubesagedocumentation/blog/2021/08/01/mdx-blog-post",
+  "source": "@site/blog/2021-08-01-mdx-blog-post.mdx",
+  "title": "MDX Blog Post",
+  "description": "This is an example of a blog post written in MDX format, allowing JSX components within markdown.",
+  "date": "2021-08-01T00:00:00.000Z",
+  "tags": [
+    {
+      "inline": true,
+      "label": "mdx",
+      "permalink": "/kubesagedocumentation/blog/tags/mdx"
+    },
+    {
+      "inline": true,
+      "label": "example",
+      "permalink": "/kubesagedocumentation/blog/tags/example"
+    }
+  ],
+  "readingTime": 0.09,
+  "hasTruncateMarker": false,
+  "authors": [
+    {
+      "name": "Vaishnavi",
+      "key": null,
+      "page": null
+    }
+  ],
+  "frontMatter": {
+    "title": "MDX Blog Post",
+    "author": "Vaishnavi",
+    "tags": [
+      "mdx",
+      "example"
+    ]
+  },
+  "unlisted": false,
+  "prevItem": {
+    "title": "Welcome",
+    "permalink": "/kubesagedocumentation/blog/welcome"
+  },
+  "nextItem": {
+    "title": "A Longer Blog Post",
+    "permalink": "/kubesagedocumentation/blog/2019/05/29/long-blog-post"
+  }
+}

@@ -1,0 +1,405 @@
+{
+  "/kubesagedocumentation/__docusaurus/debug-285": {
+    "__comp": "__comp---theme-debug-config-23-a-2ff",
+    "__context": {
+      "plugin": "plugin---kubesagedocumentation-docusaurus-debugb-38-9cc"
+    }
+  },
+  "/kubesagedocumentation/__docusaurus/debug/config-714": {
+    "__comp": "__comp---theme-debug-config-23-a-2ff",
+    "__context": {
+      "plugin": "plugin---kubesagedocumentation-docusaurus-debugb-38-9cc"
+    }
+  },
+  "/kubesagedocumentation/__docusaurus/debug/content-d8d": {
+    "__comp": "__comp---theme-debug-contentba-8-ce7",
+    "__context": {
+      "plugin": "plugin---kubesagedocumentation-docusaurus-debugb-38-9cc"
+    },
+    "__props": "__props---kubesagedocumentation-docusaurus-debug-contentf-39-c59"
+  },
+  "/kubesagedocumentation/__docusaurus/debug/globalData-19d": {
+    "__comp": "__comp---theme-debug-global-dataede-0fa",
+    "__context": {
+      "plugin": "plugin---kubesagedocumentation-docusaurus-debugb-38-9cc"
+    }
+  },
+  "/kubesagedocumentation/__docusaurus/debug/metadata-006": {
+    "__comp": "__comp---theme-debug-site-metadata-68-e-3d4",
+    "__context": {
+      "plugin": "plugin---kubesagedocumentation-docusaurus-debugb-38-9cc"
+    }
+  },
+  "/kubesagedocumentation/__docusaurus/debug/registry-c30": {
+    "__comp": "__comp---theme-debug-registry-679-501",
+    "__context": {
+      "plugin": "plugin---kubesagedocumentation-docusaurus-debugb-38-9cc"
+    }
+  },
+  "/kubesagedocumentation/__docusaurus/debug/routes-9e8": {
+    "__comp": "__comp---theme-debug-routes-946-699",
+    "__context": {
+      "plugin": "plugin---kubesagedocumentation-docusaurus-debugb-38-9cc"
+    }
+  },
+  "/kubesagedocumentation/blog-ebb": {
+    "__comp": "__comp---theme-blog-list-pagea-6-a-7ba",
+    "__context": {
+      "plugin": "plugin---kubesagedocumentation-blog-369-9d1"
+    },
+    "sidebar": "sidebar---kubesagedocumentation-blog-814-985",
+    "items": [
+      {
+        "content": "content---kubesagedocumentation-blog-766-c14"
+      },
+      {
+        "content": "content---kubesagedocumentation-blogf-4-f-f34"
+      },
+      {
+        "content": "content---kubesagedocumentation-blog-871-e04"
+      },
+      {
+        "content": "content---kubesagedocumentation-blog-925-ec5"
+      }
+    ],
+    "__props": "__props---kubesagedocumentation-blog-807-048"
+  },
+  "/kubesagedocumentation/blog/2019/05/28/first-blog-post-639": {
+    "__comp": "__comp---theme-blog-post-pageccc-cab",
+    "__context": {
+      "data": {
+        "blogMetadata": "blogMetadata---kubesagedocumentation-blog-2019-05-28-first-blog-postace-197"
+      },
+      "plugin": "plugin---kubesagedocumentation-blog-369-9d1"
+    },
+    "sidebar": "sidebar---kubesagedocumentation-blog-814-985",
+    "content": "content---kubesagedocumentation-blog-2019-05-28-first-blog-poste-27-a7c"
+  },
+  "/kubesagedocumentation/blog/2019/05/29/long-blog-post-de6": {
+    "__comp": "__comp---theme-blog-post-pageccc-cab",
+    "__context": {
+      "data": {
+        "blogMetadata": "blogMetadata---kubesagedocumentation-blog-2019-05-28-first-blog-postace-197"
+      },
+      "plugin": "plugin---kubesagedocumentation-blog-369-9d1"
+    },
+    "sidebar": "sidebar---kubesagedocumentation-blog-814-985",
+    "content": "content---kubesagedocumentation-blog-2019-05-29-long-blog-post-736-e33"
+  },
+  "/kubesagedocumentation/blog/2021/08/01/mdx-blog-post-1aa": {
+    "__comp": "__comp---theme-blog-post-pageccc-cab",
+    "__context": {
+      "data": {
+        "blogMetadata": "blogMetadata---kubesagedocumentation-blog-2019-05-28-first-blog-postace-197"
+      },
+      "plugin": "plugin---kubesagedocumentation-blog-369-9d1"
+    },
+    "sidebar": "sidebar---kubesagedocumentation-blog-814-985",
+    "content": "content---kubesagedocumentation-blog-2021-08-01-mdx-blog-post-593-76a"
+  },
+  "/kubesagedocumentation/blog/archive-9c4": {
+    "__comp": "__comp---theme-blog-archive-page-9-e-4-1d8",
+    "__context": {
+      "plugin": "plugin---kubesagedocumentation-blog-369-9d1"
+    },
+    "__props": "__props---kubesagedocumentation-blog-archiveb-2-d-6c9"
+  },
+  "/kubesagedocumentation/blog/authors-902": {
+    "__comp": "__comp---theme-blog-pages-blog-authors-list-page-621-70c",
+    "__context": {
+      "data": {
+        "blogMetadata": "blogMetadata---kubesagedocumentation-blog-2019-05-28-first-blog-postace-197"
+      },
+      "plugin": "plugin---kubesagedocumentation-blog-369-9d1"
+    },
+    "sidebar": "sidebar---kubesagedocumentation-blog-814-985",
+    "__props": "__props---kubesagedocumentation-blog-authors-558-032"
+  },
+  "/kubesagedocumentation/blog/authors/all-sebastien-lorber-articles-2c8": {
+    "__comp": "__comp---theme-blog-pages-blog-authors-posts-page-33-f-bd5",
+    "__context": {
+      "data": {
+        "blogMetadata": "blogMetadata---kubesagedocumentation-blog-2019-05-28-first-blog-postace-197"
+      },
+      "plugin": "plugin---kubesagedocumentation-blog-369-9d1"
+    },
+    "items": [
+      {
+        "content": "content---kubesagedocumentation-blog-766-c14"
+      }
+    ],
+    "sidebar": "sidebar---kubesagedocumentation-blog-814-985",
+    "__props": "__props---kubesagedocumentation-blog-authors-all-sebastien-lorber-articles-66-a-7e7"
+  },
+  "/kubesagedocumentation/blog/authors/yangshun-9a9": {
+    "__comp": "__comp---theme-blog-pages-blog-authors-posts-page-33-f-bd5",
+    "__context": {
+      "data": {
+        "blogMetadata": "blogMetadata---kubesagedocumentation-blog-2019-05-28-first-blog-postace-197"
+      },
+      "plugin": "plugin---kubesagedocumentation-blog-369-9d1"
+    },
+    "items": [
+      {
+        "content": "content---kubesagedocumentation-blog-766-c14"
+      }
+    ],
+    "sidebar": "sidebar---kubesagedocumentation-blog-814-985",
+    "__props": "__props---kubesagedocumentation-blog-authors-yangshun-172-b5c"
+  },
+  "/kubesagedocumentation/blog/tags-b88": {
+    "__comp": "__comp---theme-blog-tags-list-page-01-a-d0b",
+    "__context": {
+      "plugin": "plugin---kubesagedocumentation-blog-369-9d1"
+    },
+    "sidebar": "sidebar---kubesagedocumentation-blog-814-985",
+    "__props": "__props---kubesagedocumentation-blog-tagsc-12-cf1"
+  },
+  "/kubesagedocumentation/blog/tags/docusaurus-67b": {
+    "__comp": "__comp---theme-blog-tags-posts-page-687-b6c",
+    "__context": {
+      "plugin": "plugin---kubesagedocumentation-blog-369-9d1"
+    },
+    "sidebar": "sidebar---kubesagedocumentation-blog-814-985",
+    "items": [
+      {
+        "content": "content---kubesagedocumentation-blog-766-c14"
+      }
+    ],
+    "__props": "__props---kubesagedocumentation-blog-tags-docusaurus-805-5c8"
+  },
+  "/kubesagedocumentation/blog/tags/example-a23": {
+    "__comp": "__comp---theme-blog-tags-posts-page-687-b6c",
+    "__context": {
+      "plugin": "plugin---kubesagedocumentation-blog-369-9d1"
+    },
+    "sidebar": "sidebar---kubesagedocumentation-blog-814-985",
+    "items": [
+      {
+        "content": "content---kubesagedocumentation-blogf-4-f-f34"
+      }
+    ],
+    "__props": "__props---kubesagedocumentation-blog-tags-exampleaac-148"
+  },
+  "/kubesagedocumentation/blog/tags/facebook-c1c": {
+    "__comp": "__comp---theme-blog-tags-posts-page-687-b6c",
+    "__context": {
+      "plugin": "plugin---kubesagedocumentation-blog-369-9d1"
+    },
+    "sidebar": "sidebar---kubesagedocumentation-blog-814-985",
+    "items": [
+      {
+        "content": "content---kubesagedocumentation-blog-766-c14"
+      }
+    ],
+    "__props": "__props---kubesagedocumentation-blog-tags-facebook-821-5d5"
+  },
+  "/kubesagedocumentation/blog/tags/hello-a1e": {
+    "__comp": "__comp---theme-blog-tags-posts-page-687-b6c",
+    "__context": {
+      "plugin": "plugin---kubesagedocumentation-blog-369-9d1"
+    },
+    "sidebar": "sidebar---kubesagedocumentation-blog-814-985",
+    "items": [
+      {
+        "content": "content---kubesagedocumentation-blog-766-c14"
+      }
+    ],
+    "__props": "__props---kubesagedocumentation-blog-tags-hello-2-e-1-cae"
+  },
+  "/kubesagedocumentation/blog/tags/introduction-201": {
+    "__comp": "__comp---theme-blog-tags-posts-page-687-b6c",
+    "__context": {
+      "plugin": "plugin---kubesagedocumentation-blog-369-9d1"
+    },
+    "sidebar": "sidebar---kubesagedocumentation-blog-814-985",
+    "items": [
+      {
+        "content": "content---kubesagedocumentation-blog-925-ec5"
+      }
+    ],
+    "__props": "__props---kubesagedocumentation-blog-tags-introduction-58-f-7f4"
+  },
+  "/kubesagedocumentation/blog/tags/mdx-d63": {
+    "__comp": "__comp---theme-blog-tags-posts-page-687-b6c",
+    "__context": {
+      "plugin": "plugin---kubesagedocumentation-blog-369-9d1"
+    },
+    "sidebar": "sidebar---kubesagedocumentation-blog-814-985",
+    "items": [
+      {
+        "content": "content---kubesagedocumentation-blogf-4-f-f34"
+      }
+    ],
+    "__props": "__props---kubesagedocumentation-blog-tags-mdx-590-dcd"
+  },
+  "/kubesagedocumentation/blog/tags/news-37c": {
+    "__comp": "__comp---theme-blog-tags-posts-page-687-b6c",
+    "__context": {
+      "plugin": "plugin---kubesagedocumentation-blog-369-9d1"
+    },
+    "sidebar": "sidebar---kubesagedocumentation-blog-814-985",
+    "items": [
+      {
+        "content": "content---kubesagedocumentation-blog-871-e04"
+      }
+    ],
+    "__props": "__props---kubesagedocumentation-blog-tags-news-818-e28"
+  },
+  "/kubesagedocumentation/blog/tags/update-021": {
+    "__comp": "__comp---theme-blog-tags-posts-page-687-b6c",
+    "__context": {
+      "plugin": "plugin---kubesagedocumentation-blog-369-9d1"
+    },
+    "sidebar": "sidebar---kubesagedocumentation-blog-814-985",
+    "items": [
+      {
+        "content": "content---kubesagedocumentation-blog-871-e04"
+      }
+    ],
+    "__props": "__props---kubesagedocumentation-blog-tags-update-12-a-576"
+  },
+  "/kubesagedocumentation/blog/tags/welcome-72f": {
+    "__comp": "__comp---theme-blog-tags-posts-page-687-b6c",
+    "__context": {
+      "plugin": "plugin---kubesagedocumentation-blog-369-9d1"
+    },
+    "sidebar": "sidebar---kubesagedocumentation-blog-814-985",
+    "items": [
+      {
+        "content": "content---kubesagedocumentation-blog-925-ec5"
+      }
+    ],
+    "__props": "__props---kubesagedocumentation-blog-tags-welcome-785-9dc"
+  },
+  "/kubesagedocumentation/blog/welcome-f3a": {
+    "__comp": "__comp---theme-blog-post-pageccc-cab",
+    "__context": {
+      "data": {
+        "blogMetadata": "blogMetadata---kubesagedocumentation-blog-2019-05-28-first-blog-postace-197"
+      },
+      "plugin": "plugin---kubesagedocumentation-blog-369-9d1"
+    },
+    "sidebar": "sidebar---kubesagedocumentation-blog-814-985",
+    "content": "content---kubesagedocumentation-blog-welcomed-9-f-6bd"
+  },
+  "/kubesagedocumentation/markdown-page-300": {
+    "__comp": "__comp---theme-mdx-page-1-f-3-b90",
+    "__context": {
+      "plugin": "plugin---kubesagedocumentation-markdown-pagea-74-10f"
+    },
+    "content": "content---kubesagedocumentation-markdown-page-393-3c4"
+  },
+  "/kubesagedocumentation/docs-324": {
+    "__comp": "__comp---theme-docs-root-5-e-9-0b6",
+    "__context": {
+      "plugin": "plugin---kubesagedocumentation-docsaba-316"
+    }
+  },
+  "/kubesagedocumentation/docs-780": {
+    "__comp": "__comp---theme-doc-version-roota-7-b-5de",
+    "__props": "__props---kubesagedocumentation-docs-98-d-51f"
+  },
+  "/kubesagedocumentation/docs-b4e": {
+    "__comp": "__comp---theme-doc-roota-94-67a"
+  },
+  "/kubesagedocumentation/docs/api/-e7d": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---kubesagedocumentation-docs-api-5-e-8-ebe"
+  },
+  "/kubesagedocumentation/docs/api/chatlanggraph/-14d": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---kubesagedocumentation-docs-api-chatlanggraph-749-379"
+  },
+  "/kubesagedocumentation/docs/api/chatlanggraph/chat-api-a58": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---kubesagedocumentation-docs-api-chatlanggraph-chat-api-94-e-99d"
+  },
+  "/kubesagedocumentation/docs/api/kubeconfig/-b2a": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---kubesagedocumentation-docs-api-kubeconfig-26-a-14d"
+  },
+  "/kubesagedocumentation/docs/api/kubeconfig/get-clusters-ed3": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---kubesagedocumentation-docs-api-kubeconfig-get-clusters-174-d5d"
+  },
+  "/kubesagedocumentation/docs/api/kubeconfig/update-yaml-01f": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---kubesagedocumentation-docs-api-kubeconfig-update-yamlc-75-410"
+  },
+  "/kubesagedocumentation/docs/api/remediation/-120": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---kubesagedocumentation-docs-api-remediation-b-61-0aa"
+  },
+  "/kubesagedocumentation/docs/api/remediation/trigger-remediation-e2c": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---kubesagedocumentation-docs-api-remediation-trigger-remediationae-9-1dd"
+  },
+  "/kubesagedocumentation/docs/api/security/-a5c": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---kubesagedocumentation-docs-api-security-255-f90"
+  },
+  "/kubesagedocumentation/docs/api/security/scan-382": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---kubesagedocumentation-docs-api-security-scan-7-b-8-4a5"
+  },
+  "/kubesagedocumentation/docs/api/user/-e31": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---kubesagedocumentation-docs-api-user-723-ac2"
+  },
+  "/kubesagedocumentation/docs/api/user/login-5c4": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---kubesagedocumentation-docs-api-user-logine-53-de5"
+  },
+  "/kubesagedocumentation/docs/api/user/register-b8d": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---kubesagedocumentation-docs-api-user-register-817-b7f"
+  },
+  "/kubesagedocumentation/docs/getting-started-abe": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---kubesagedocumentation-docs-getting-startedd-58-6f0"
+  },
+  "/kubesagedocumentation/docs/intro-abf": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---kubesagedocumentation-docs-intro-0-e-3-eed"
+  },
+  "/kubesagedocumentation/docs/tutorial-basics/congratulations-480": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---kubesagedocumentation-docs-tutorial-basics-congratulations-822-a96"
+  },
+  "/kubesagedocumentation/docs/tutorial-basics/create-a-blog-post-d18": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---kubesagedocumentation-docs-tutorial-basics-create-a-blog-post-533-143"
+  },
+  "/kubesagedocumentation/docs/tutorial-basics/create-a-document-722": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---kubesagedocumentation-docs-tutorial-basics-create-a-document-1-e-4-620"
+  },
+  "/kubesagedocumentation/docs/tutorial-basics/create-a-page-c03": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---kubesagedocumentation-docs-tutorial-basics-create-a-page-5-c-8-f36"
+  },
+  "/kubesagedocumentation/docs/tutorial-basics/deploy-your-site-60d": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---kubesagedocumentation-docs-tutorial-basics-deploy-your-sitef-55-dd0"
+  },
+  "/kubesagedocumentation/docs/tutorial-basics/markdown-features-0a5": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---kubesagedocumentation-docs-tutorial-basics-markdown-features-18-c-391"
+  },
+  "/kubesagedocumentation/docs/tutorial-extras/manage-docs-versions-927": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---kubesagedocumentation-docs-tutorial-extras-manage-docs-versionsdff-c25"
+  },
+  "/kubesagedocumentation/docs/tutorial-extras/translate-your-site-dd8": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---kubesagedocumentation-docs-tutorial-extras-translate-your-sitee-44-e39"
+  },
+  "/kubesagedocumentation/-8d6": {
+    "__comp": "__comp---site-src-pages-index-jsc-4-f-f99",
+    "__context": {
+      "plugin": "plugin---kubesagedocumentation-markdown-pagea-74-10f"
+    },
+    "config": "config---kubesagedocumentation-5-e-9-df4"
+  }
+}

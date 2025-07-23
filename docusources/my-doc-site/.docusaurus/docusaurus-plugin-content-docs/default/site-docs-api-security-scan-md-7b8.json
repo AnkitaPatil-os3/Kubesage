@@ -1,0 +1,22 @@
+{
+  "id": "api/security/scan",
+  "title": "Security Scan API",
+  "description": "The Security Scan API initiates a comprehensive security scan on the specified Kubernetes cluster. It analyzes the cluster for vulnerabilities, misconfigurations, and compliance issues to help maintain a secure environment. The scan results include a unique scan identifier, the current status of the scan, and the number of issues detected.",
+  "source": "@site/docs/api/security/scan.md",
+  "sourceDirName": "api/security",
+  "slug": "/api/security/scan",
+  "permalink": "/kubesagedocumentation/docs/api/security/scan",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 2,
+  "frontMatter": {
+    "sidebar_position": 2
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Security Service Overview",
+    "permalink": "/kubesagedocumentation/docs/api/security/"
+  }
+}

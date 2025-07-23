@@ -1,0 +1,17 @@
+{
+  "id": "api1/index",
+  "title": "API Documentation",
+  "description": "Welcome to the KubeSage API documentation.",
+  "source": "@site/docs/api1/index.md",
+  "sourceDirName": "api1",
+  "slug": "/api1/",
+  "permalink": "/docs/api1/",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 1,
+  "frontMatter": {
+    "sidebar_position": 1
+  }
+}

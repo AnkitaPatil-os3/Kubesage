@@ -1,0 +1,41 @@
+{
+  "permalink": "/kubesagedocumentation/blog/2019/05/28/first-blog-post",
+  "source": "@site/blog/2019-05-28-first-blog-post.md",
+  "title": "My First Blog Post",
+  "description": "This is the first blog post in the KubeSage documentation site. Stay tuned for updates and news!",
+  "date": "2019-05-28T00:00:00.000Z",
+  "tags": [
+    {
+      "inline": true,
+      "label": "introduction",
+      "permalink": "/kubesagedocumentation/blog/tags/introduction"
+    },
+    {
+      "inline": true,
+      "label": "welcome",
+      "permalink": "/kubesagedocumentation/blog/tags/welcome"
+    }
+  ],
+  "readingTime": 0.09,
+  "hasTruncateMarker": false,
+  "authors": [
+    {
+      "name": "Vaishnavi",
+      "key": null,
+      "page": null
+    }
+  ],
+  "frontMatter": {
+    "title": "My First Blog Post",
+    "author": "Vaishnavi",
+    "tags": [
+      "introduction",
+      "welcome"
+    ]
+  },
+  "unlisted": false,
+  "prevItem": {
+    "title": "A Longer Blog Post",
+    "permalink": "/kubesagedocumentation/blog/2019/05/29/long-blog-post"
+  }
+}

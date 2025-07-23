@@ -11,11 +11,11 @@ class Settings(BaseSettings):
     """Application settings."""
     
     # Database Configuration
-    POSTGRES_USER: str = os.getenv("POSTGRES_USER", "kubesage")
+    POSTGRES_USER: str = os.getenv("POSTGRES_USER", "vaishnavi")
     POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "linux")
     POSTGRES_HOST: str = os.getenv("POSTGRES_HOST", "localhost")
     POSTGRES_PORT: str = os.getenv("POSTGRES_PORT", "5432")
-    POSTGRES_DB: str = os.getenv("POSTGRES_DB", "k_chat_lang_db")
+    POSTGRES_DB: str = os.getenv("POSTGRES_DB", "v_chat_db")
     
     @property
     def DATABASE_URL(self) -> str:
@@ -45,7 +45,7 @@ class Settings(BaseSettings):
     RABBITMQ_PASSWORD: str = os.getenv("RABBITMQ_PASSWORD", "guest")
     
     # Kubernetes Configuration
-    KUBECONFIG_SERVICE_URL: str = os.getenv("KUBECONFIG_SERVICE_URL", "https://10.0.32.103:8002")
+    KUBECONFIG_SERVICE_URL: str = os.getenv("KUBECONFIG_SERVICE_URL", "https://10.0.32.105:8002")
     KUBECTL_TIMEOUT: int = int(os.getenv("KUBECTL_TIMEOUT", "60"))
     
     def get_kubeconfig_path(self) -> str:

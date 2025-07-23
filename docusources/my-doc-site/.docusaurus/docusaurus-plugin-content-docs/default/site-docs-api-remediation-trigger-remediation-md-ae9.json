@@ -1,0 +1,26 @@
+{
+  "id": "api/remediation/trigger-remediation",
+  "title": "Trigger Remediation API",
+  "description": "The Trigger Remediation API initiates an automated remediation process for a detected issue within a Kubernetes cluster. By providing the issue identifier and the target cluster, this endpoint generates and optionally executes remediation steps to resolve the problem. It leverages AI-driven solutions to determine the best course of action, improving system reliability and reducing manual intervention.",
+  "source": "@site/docs/api/remediation/trigger-remediation.md",
+  "sourceDirName": "api/remediation",
+  "slug": "/api/remediation/trigger-remediation",
+  "permalink": "/kubesagedocumentation/docs/api/remediation/trigger-remediation",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 2,
+  "frontMatter": {
+    "sidebar_position": 2
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Remediation Service Overview",
+    "permalink": "/kubesagedocumentation/docs/api/remediation/"
+  },
+  "next": {
+    "title": "Security Service Overview",
+    "permalink": "/kubesagedocumentation/docs/api/security/"
+  }
+}

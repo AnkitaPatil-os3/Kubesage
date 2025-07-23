@@ -21,7 +21,7 @@ export default defineConfig(({ mode }) => {
           secure: false,
         },
         '/api': {
-        target: 'https://10.0.32.103:8005',
+        target: 'https://10.0.32.105:8005',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
         secure: false // If using self-signed certificates
@@ -38,7 +38,7 @@ export default defineConfig(({ mode }) => {
         },
         // Add proxy for Grafana if needed
         '/grafana': {
-          target: 'https://10.0.32.103:3000',
+          target: 'https://10.0.32.105:3000',
           changeOrigin: true,
           secure: false,
           rewrite: (path) => path.replace(/^\/grafana/, ''),

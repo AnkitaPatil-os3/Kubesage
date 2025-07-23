@@ -1,3 +1,4 @@
+# hi
 from pydantic_settings import BaseSettings
 import os
 from typing import Optional, ClassVar, List    #new classvar, List
@@ -28,11 +29,11 @@ class Settings(BaseSettings):
     DEBUG: bool = os.getenv("DEBUG", "False").lower() == "true"
     
     # PostgreSQL connection
-    POSTGRES_USER: str = os.getenv("POSTGRES_USER", "kubesage")
+    POSTGRES_USER: str = os.getenv("POSTGRES_USER", "vaishnavi")
     POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "linux")
     POSTGRES_HOST: str = os.getenv("POSTGRES_HOST", "localhost")
     POSTGRES_PORT: str = os.getenv("POSTGRES_PORT", "5432")
-    POSTGRES_DB: str = os.getenv("POSTGRES_DB", "k_user_db")
+    POSTGRES_DB: str = os.getenv("POSTGRES_DB", "v_user_db")
     DATABASE_URL: str = ""  # Will be constructed from above settings
 
     # Email Configuration
@@ -44,9 +45,9 @@ class Settings(BaseSettings):
     MAIL_FROM_NAME: str = os.getenv("MAIL_FROM_NAME", "KubeSage Alert System")
     MAIL_STARTTLS: bool = os.getenv("MAIL_TLS", "True").lower() == "true"
     MAIL_SSL_TLS: bool = os.getenv("MAIL_SSL", "False").lower() == "true"
-    SERVER_BASE_URL: str = os.getenv("SERVER_BASE_URL", "https://10.0.32.103:8001")
+    SERVER_BASE_URL: str = os.getenv("SERVER_BASE_URL", "https://10.0.32.105:8001")
     USER_CONFIRMATION_TIMEOUT: int = int(os.getenv("USER_CONFIRMATION_TIMEOUT", "3600"))
-    FRONTEND_BASE_URL: str = os.getenv("FRONTEND_BASE_URL", "https://10.0.32.103:5173")
+    FRONTEND_BASE_URL: str = os.getenv("FRONTEND_BASE_URL", "https://10.0.32.105:5173")
     MAIL_RECIPIENT: str = os.getenv("MAIL_RECIPIENT", "nisha.chaurasiya@os3infotech.com")
 
     # RabbitMQ settings
@@ -94,3 +95,65 @@ class Settings(BaseSettings):
         extra = "ignore"
 
 settings = Settings()
+
+# Role to permissions mapping matching frontend/src/config/permissions.ts
+ROLE_PERMISSIONS = {
+    "Super Admin": ["all"],
+
+    "platform_engineer": [
+        "dashboard",
+        "clusters",
+        "applications",
+        "workloads",
+        "analyze",
+        "chatops",
+        "insights",
+        "observability",
+        "carbon-emission",
+        "cost",
+        "backup",
+        "security",
+        "settings",
+        "integrations",
+        "help",
+    ],
+
+    "devops": [
+        "dashboard",
+        "clusters",
+        "applications",
+        "workloads",
+        "chatops",
+        "insights",
+        "observability",
+        "cost",
+        "remediations",
+        "backup",
+        "settings",
+        "integrations",
+        "help",
+    ],
+
+    "Developer": [
+        "dashboard",
+        "applications",
+        "workloads",
+        "observability",
+        "analyze",
+        "chatops",
+        "insights",
+        "settings",
+        "help",
+    ],
+
+    "Security Engineer": [
+        "dashboard",
+        "security",
+        "secrets",
+        "compliance",
+        "remediations",
+        "anomalies",
+        "settings",
+        "help",
+    ],
+}

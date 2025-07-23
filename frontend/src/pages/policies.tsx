@@ -169,7 +169,7 @@ export const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
 
     // API Base URLs
     const KUBECONFIG_API = '/kubeconfig';
-    const POLICIES_API = 'https://10.0.32.103:8005/api/v1/policies';
+    const POLICIES_API = 'https://10.0.32.105:8005/api/v1/policies';
 
 
     // Make this function available globally for the modal

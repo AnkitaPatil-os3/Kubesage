@@ -1,0 +1,17 @@
+{
+  "id": "api1/security/index",
+  "title": "Security API",
+  "description": "Documentation for the Security API.",
+  "source": "@site/docs/api1/security/index.md",
+  "sourceDirName": "api1/security",
+  "slug": "/api1/security/",
+  "permalink": "/docs/api1/security/",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 1,
+  "frontMatter": {
+    "sidebar_position": 1
+  }
+}

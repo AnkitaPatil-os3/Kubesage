@@ -1,0 +1,26 @@
+{
+  "id": "api/user/login",
+  "title": "Login API",
+  "description": "The Login API endpoint allows existing users to authenticate themselves by providing their credentials. Upon successful authentication, the API generates and returns a JSON Web Token (JWT) access token along with a refresh token. These tokens are used to authorize subsequent requests to protected resources without requiring the user to re-enter their credentials repeatedly. The access token has a limited lifespan, after which the refresh token can be used to obtain a new access token, ensuring continuous and secure access. This endpoint supports multi-session management by uniquely identifying each login session with a session ID.",
+  "source": "@site/docs/api/user/login.md",
+  "sourceDirName": "api/user",
+  "slug": "/api/user/login",
+  "permalink": "/kubesagedocumentation/docs/api/user/login",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 2,
+  "frontMatter": {
+    "sidebar_position": 2
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "User Service Overview",
+    "permalink": "/kubesagedocumentation/docs/api/user/"
+  },
+  "next": {
+    "title": "Register API",
+    "permalink": "/kubesagedocumentation/docs/api/user/register"
+  }
+}

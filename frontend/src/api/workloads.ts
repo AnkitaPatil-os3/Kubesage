@@ -1,4 +1,4 @@
-const API_BASE_URL = "https://10.0.32.103:8002/kubeconfig";
+const API_BASE_URL = "https://10.0.32.105:8002/kubeconfig";
 
 export const fetchResourceYaml = async (
   clusterId: number,

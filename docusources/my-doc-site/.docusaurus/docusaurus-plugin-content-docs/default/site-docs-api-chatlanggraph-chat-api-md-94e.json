@@ -1,0 +1,26 @@
+{
+  "id": "api/chatlanggraph/chat-api",
+  "title": "Chat API",
+  "description": "The Chat API allows users to ask questions about their Kubernetes cluster and receive AI-powered responses. It processes natural language queries, interacts with cluster data and knowledge graphs, and provides insightful answers to help users troubleshoot and manage their clusters effectively.",
+  "source": "@site/docs/api/chatlanggraph/chat-api.md",
+  "sourceDirName": "api/chatlanggraph",
+  "slug": "/api/chatlanggraph/chat-api",
+  "permalink": "/kubesagedocumentation/docs/api/chatlanggraph/chat-api",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 2,
+  "frontMatter": {
+    "sidebar_position": 2
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "ChatLangGraph Service Overview",
+    "permalink": "/kubesagedocumentation/docs/api/chatlanggraph/"
+  },
+  "next": {
+    "title": "Remediation Service Overview",
+    "permalink": "/kubesagedocumentation/docs/api/remediation/"
+  }
+}

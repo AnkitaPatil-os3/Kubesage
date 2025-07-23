@@ -1,3 +1,4 @@
+
 //usr rbac
 import React, { useState, useEffect } from "react";
 import { Chip } from "@heroui/react";
@@ -66,8 +67,10 @@ const permissionCategories: Record<string, string> = {
 
 // Permission category descriptions for short one-line info
 const permissionCategoryDescriptions: Record<string, string> = {
+  
   dashboard: "Access the main system dashboard with overview metrics.",
   clusters: "View and manage Kubernetes cluster details and configurations.",
+  all: "You have full access to all features and settings as a Super Admin.",
   applications: "Deploy and monitor Kubernetes-native applications.",
   workloads: "Inspect and scale running pods, jobs, and deployments.",
   analyze: "Use AI-powered diagnostics and recommendations for your cluster.",
@@ -613,12 +616,12 @@ export const UsersAndRBAC: React.FC = () => {
                             {Object.entries(groupPermissionsByCategory(selectedPermissions)).map(([category, perms]) => (
                               <div key={category} className="mb-2">
                                 <h5 className="font-semibold">{permissionCategories[category] || category}</h5>
-                                <p className="text-xs text-gray-500 mb-1">{permissionCategoryDescriptions[category] || ""}</p>
-                                <ul className="list-disc list-inside text-sm border border-gray-300 rounded p-2 bg-white shadow-md">
+                                <p className="text-xs text-gray-500 mb-1">{permissionCategoryDescriptions[category] || ""}</p><br></br>
+                                {/* <ul className="list-disc list-inside text-sm border border-gray-300 rounded p-2 bg-white shadow-md">
                                   {perms.map((perm) => (
                                     <li key={perm} className="hover:text-primary transition-colors duration-200 cursor-pointer">{perm}</li>
                                   ))}
-                                </ul>
+                                </ul> */}
                               </div>
                             ))}
                           </div>
@@ -699,6 +702,7 @@ export const UsersAndRBAC: React.FC = () => {
                         let perms = rolePermissions[roleKey] || [];
                         if (roleKey === 'super_admin') {
                           perms = ['all'];
+                          
                         }
                         setSelectedPermissions(perms);
                       }} isRequired>
@@ -805,6 +809,28 @@ export const UsersAndRBAC: React.FC = () => {
           )}
         </ModalContent>
       </Modal>
+       {showSuccessModal && (
+        <Modal isOpen={showSuccessModal} onOpenChange={setShowSuccessModal} placement="top-center" size="sm">
+          <ModalContent>
+            {(onClose) => (
+              <>
+                <ModalHeader>
+                  <span>Confirmation Email Sent</span>
+                </ModalHeader>
+                <ModalBody>
+                  <p>{successMessage}</p>
+                </ModalBody>
+                <ModalFooter>
+                  <Button color="primary" onPress={() => setShowSuccessModal(false)}>
+                    OK
+                  </Button>
+                </ModalFooter>
+              </>
+            )}
+          </ModalContent>
+        </Modal>
+      )}
+   
     </div>
   );
 }

@@ -1,0 +1,17 @@
+{
+  "id": "api1/chatlanggraph/index",
+  "title": "Chat LangGraph API",
+  "description": "Documentation for the Chat LangGraph API.",
+  "source": "@site/docs/api1/chatlanggraph/index.md",
+  "sourceDirName": "api1/chatlanggraph",
+  "slug": "/api1/chatlanggraph/",
+  "permalink": "/docs/api1/chatlanggraph/",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 1,
+  "frontMatter": {
+    "sidebar_position": 1
+  }
+}

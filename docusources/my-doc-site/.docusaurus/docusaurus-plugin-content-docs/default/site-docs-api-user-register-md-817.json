@@ -1,0 +1,26 @@
+{
+  "id": "api/user/register",
+  "title": "Register API",
+  "description": "The Register API endpoint allows new users to create an account by providing their details such as name, email, and password. Upon successful registration, the API initiates a confirmation process to verify the user's email address. This ensures that the account is associated with a valid email and helps prevent unauthorized registrations. Once the user confirms their email, the account becomes active and ready for use. This endpoint is essential for onboarding new users and securing access to the system.",
+  "source": "@site/docs/api/user/register.md",
+  "sourceDirName": "api/user",
+  "slug": "/api/user/register",
+  "permalink": "/kubesagedocumentation/docs/api/user/register",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 3,
+  "frontMatter": {
+    "sidebar_position": 3
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Login API",
+    "permalink": "/kubesagedocumentation/docs/api/user/login"
+  },
+  "next": {
+    "title": "Kubeconfig Service Overview",
+    "permalink": "/kubesagedocumentation/docs/api/kubeconfig/"
+  }
+}

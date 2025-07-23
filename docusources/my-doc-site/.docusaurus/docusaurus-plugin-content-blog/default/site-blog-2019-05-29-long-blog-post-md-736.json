@@ -1,0 +1,45 @@
+{
+  "permalink": "/kubesagedocumentation/blog/2019/05/29/long-blog-post",
+  "source": "@site/blog/2019-05-29-long-blog-post.md",
+  "title": "A Longer Blog Post",
+  "description": "This blog post provides a detailed update on the latest features and improvements in KubeSage.",
+  "date": "2019-05-29T00:00:00.000Z",
+  "tags": [
+    {
+      "inline": true,
+      "label": "update",
+      "permalink": "/kubesagedocumentation/blog/tags/update"
+    },
+    {
+      "inline": true,
+      "label": "news",
+      "permalink": "/kubesagedocumentation/blog/tags/news"
+    }
+  ],
+  "readingTime": 0.08,
+  "hasTruncateMarker": false,
+  "authors": [
+    {
+      "name": "Vaishnavi",
+      "key": null,
+      "page": null
+    }
+  ],
+  "frontMatter": {
+    "title": "A Longer Blog Post",
+    "author": "Vaishnavi",
+    "tags": [
+      "update",
+      "news"
+    ]
+  },
+  "unlisted": false,
+  "prevItem": {
+    "title": "MDX Blog Post",
+    "permalink": "/kubesagedocumentation/blog/2021/08/01/mdx-blog-post"
+  },
+  "nextItem": {
+    "title": "My First Blog Post",
+    "permalink": "/kubesagedocumentation/blog/2019/05/28/first-blog-post"
+  }
+}
