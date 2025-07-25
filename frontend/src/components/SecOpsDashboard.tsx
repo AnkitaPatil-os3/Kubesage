@@ -15,8 +15,8 @@ export const SecOpsDashboard: React.FC = () => {
         const isSuperAdmin = role.toLowerCase().includes("super");
 
         const baseUrl = isSuperAdmin
-            ? "https://10.0.34.151:3000/d/security_trivy_operator/trivy-operator-vulnerabilities"
-            : "https://10.0.34.151:3000/d/security_trivy_operator-1/trivy-operator-vulnerabilities-replica";
+            ? "https://10.0.32.103:3000/d/security_trivy_operator/trivy-operator-vulnerabilities"
+            : "https://10.0.32.103:3000/d/security_trivy_operator-1/trivy-operator-vulnerabilities-replica";
 
         const params = new URLSearchParams({
             orgId: "1",

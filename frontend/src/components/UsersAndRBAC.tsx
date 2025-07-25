@@ -1,3 +1,4 @@
+
 //usr rbac
 import React, { useState, useEffect } from "react";
 import { Chip } from "@heroui/react";
@@ -808,6 +809,28 @@ export const UsersAndRBAC: React.FC = () => {
           )}
         </ModalContent>
       </Modal>
+       {showSuccessModal && (
+        <Modal isOpen={showSuccessModal} onOpenChange={setShowSuccessModal} placement="top-center" size="sm">
+          <ModalContent>
+            {(onClose) => (
+              <>
+                <ModalHeader>
+                  <span>Confirmation Email Sent</span>
+                </ModalHeader>
+                <ModalBody>
+                  <p>{successMessage}</p>
+                </ModalBody>
+                <ModalFooter>
+                  <Button color="primary" onPress={() => setShowSuccessModal(false)}>
+                    OK
+                  </Button>
+                </ModalFooter>
+              </>
+            )}
+          </ModalContent>
+        </Modal>
+      )}
+   
     </div>
   );
 }

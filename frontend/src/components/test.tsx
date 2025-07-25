@@ -22,13 +22,8 @@ export const ObservabilityDashboard: React.FC = () => {
             timezone: "browser",
             theme: currentTheme,
             kiosk: "true",
-            "var-DS": "eepx4n9ag9vk0c",
-            "var-Cluster": "rod-lgtm-stck-mumbai-south",
-            "var-Node": "prod-lgtm-stck-mumbai-south",
-            "var-Namespace": "alloy",
-            "var-Pod": "alloy-tc5vp",
-            "var-Container": "alloy",
-            "var-logs": "aepxfvdv7708wf",
+            "var-DS": "eepx4n9ag9vk0c"
+           
         });
 
         if (!isSuperAdmin) {
@@ -36,8 +31,8 @@ export const ObservabilityDashboard: React.FC = () => {
         }
 
         const baseUrl = isSuperAdmin
-            ? "https://10.0.34.151:3000/d/ddonjajttscn4e/kub-cluster-details"
-            : "https://10.0.34.151:3000/d/ddonjajttscn4/kub-cluster-details-replica";
+            ? "https://10.0.32.103:3000/d/ddonjajttscn4e/kub-cluster-details"
+            : "https://10.0.32.103:3000/d/ddonjajttscn4/kub-cluster-details-replica";
 
         return `${baseUrl}?${baseParams.toString()}`;
     };

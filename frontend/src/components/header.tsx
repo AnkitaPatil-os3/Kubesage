@@ -20,11 +20,11 @@ import {
   Chip,
 } from "@heroui/react";
 import { motion } from "framer-motion";
-
+ 
 interface HeaderProps {
   toggleChat: () => void;
 }
-
+ 
 interface ApiKey {
   id: number;
   key_name: string;
@@ -34,7 +34,7 @@ interface ApiKey {
   is_active: boolean;
   created_at: string;
 }
-
+ 
 export const Header: React.FC<HeaderProps> = ({ toggleChat }) => {
   const location = useLocation();
   const [isSearchFocused, setIsSearchFocused] = React.useState(false);
@@ -57,7 +57,7 @@ export const Header: React.FC<HeaderProps> = ({ toggleChat }) => {
       default: return 'Dashboard';
     }
   };
-
+ 
   const fetchApiKeys = async () => {
     try {
       const token = localStorage.getItem('access_token');
@@ -76,7 +76,7 @@ export const Header: React.FC<HeaderProps> = ({ toggleChat }) => {
       console.error('Error fetching API keys:', error);
     }
   };
-
+ 
   const createApiKey = async () => {
     if (!newKeyName.trim()) return;
     
@@ -108,7 +108,7 @@ export const Header: React.FC<HeaderProps> = ({ toggleChat }) => {
       setIsCreating(false);
     }
   };
-
+ 
   const regenerateApiKey = async (keyId: number) => {
     try {
       const token = localStorage.getItem('access_token');
@@ -129,22 +129,22 @@ export const Header: React.FC<HeaderProps> = ({ toggleChat }) => {
       console.error('Error regenerating API key:', error);
     }
   };
-
+ 
   const isExpired = (expiresAt: string | null) => {
     if (!expiresAt) return false;
     return new Date(expiresAt) < new Date();
   };
-
+ 
   const handleApiKeyManagement = () => {
     fetchApiKeys();
     onOpen();
   };
-
+ 
   const getMinDate = () => {
     const today = new Date();
     return today.toISOString().split('T')[0];
   };
-
+ 
   return (
     <>
       <motion.header
@@ -214,8 +214,8 @@ export const Header: React.FC<HeaderProps> = ({ toggleChat }) => {
               <DropdownItem key="settings" startContent={<Icon icon="lucide:settings" />}>
                 Settings
               </DropdownItem>
-              <DropdownItem 
-                key="api-keys" 
+              <DropdownItem
+                key="api-keys"
                 startContent={<Icon icon="lucide:key" />}
                 onClick={handleApiKeyManagement}
               >
@@ -245,8 +245,7 @@ export const Header: React.FC<HeaderProps> = ({ toggleChat }) => {
                   } catch (error) {
                     console.error('Logout failed:', error);
                   } finally {
-                    localStorage.removeItem('access_token');
-                    localStorage.removeItem('refresh_token');
+                    localStorage.clear();
                     window.location.href = '/login';
                   }
                 }}
@@ -257,7 +256,7 @@ export const Header: React.FC<HeaderProps> = ({ toggleChat }) => {
           </Dropdown>
         </div>
       </motion.header>
-
+ 
       <Modal isOpen={isOpen} onOpenChange={onOpenChange} size="2xl">
         <ModalContent>
           {(onClose) => (
@@ -296,7 +295,7 @@ export const Header: React.FC<HeaderProps> = ({ toggleChat }) => {
                     </Button>
                   </CardBody>
                 </Card>
-
+ 
                 {createdKey && (
                   <Card className="bg-success-50 border-success-200">
                     <CardBody>
@@ -323,7 +322,7 @@ export const Header: React.FC<HeaderProps> = ({ toggleChat }) => {
                     </CardBody>
                   </Card>
                 )}
-
+ 
                 <div className="space-y-3">
                   <h4 className="text-lg font-semibold">Your API Keys</h4>
                   {apiKeys.length === 0 ? (
@@ -378,3 +377,5 @@ export const Header: React.FC<HeaderProps> = ({ toggleChat }) => {
     </>
   );
 };
+ 
+ 

@@ -17,8 +17,8 @@ export const CostAnalysis: React.FC = () => {
     const isSuperAdmin = role.toLowerCase().includes("super");
 
     const baseUrl = isSuperAdmin
-      ? "https://10.0.34.151:3000/d/opencost-mixin-kover-jkwq/finops-overview"
-      : "https://10.0.34.151:3000/d/opencost-mixin-kover-jkw/finops-replica";
+      ? "https://10.0.32.103:3000/d/opencost-mixin-kover-jkwq/finops-overview"
+      : "https://10.0.32.103:3000/d/opencost-mixin-kover-jkw/finops-replica";
 
     const params = new URLSearchParams({
       orgId: "1",

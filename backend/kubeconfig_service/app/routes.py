@@ -2503,7 +2503,7 @@ async def publish_command_event_async(cluster, current_user: dict, command: str,
 # ******************************** Prometheus api ********************************
 
   
-PROMETHEUS_URL = "http://10.0.34.142:9090"
+PROMETHEUS_URL = "http://10.0.32.103:9090"
 
 @cluster_router.get("/metrics/resource-usage")
 async def get_user_cluster_resource_usage(
@@ -2559,37 +2559,37 @@ async def get_user_cluster_resource_usage(
     return {"data": result}
 
 
-def get_nodes_status_all_clusters():
-    query = 'kube_node_status_condition{condition="Ready"}'
+def get_nodes_status_all_clusters(username: str):
+    query = f'kube_node_status_condition{{condition="Ready", username="{username}"}}'
     response = requests.get(f"{PROMETHEUS_URL}/api/v1/query", params={"query": query})
     result = response.json().get("data", {}).get("result", [])
-
+ 
     cluster_status = {}
     total_ready = 0
     total_not_ready = 0
-
+ 
     for item in result:
         metric = item.get("metric", {})
         cluster = metric.get("cluster", "unknown")
         status = metric.get("status")
-
+ 
         if cluster not in cluster_status:
             cluster_status[cluster] = {
                 "ready": 0,
                 "not_ready": 0
             }
-
+ 
         if status == "true":
             cluster_status[cluster]["ready"] += 1
             total_ready += 1
         elif status == "false":
             cluster_status[cluster]["not_ready"] += 1
             total_not_ready += 1
-
+ 
     for cluster in cluster_status:
         stats = cluster_status[cluster]
         stats["total"] = stats["ready"] + stats["not_ready"]
-
+ 
     return {
         "clusters": cluster_status,
         "totals": {
@@ -2598,13 +2598,13 @@ def get_nodes_status_all_clusters():
             "total": total_ready + total_not_ready
         }
     }
-
+ 
 @cluster_router.get("/nodes/status/all-clusters")
-def all_clusters_node_health():
-    data = get_nodes_status_all_clusters()
+def all_clusters_node_health(username: str = Query(...)):
+    data = get_nodes_status_all_clusters(username)
     return JSONResponse(content=data)
-
-
+ 
+ 
  
 def prometheus_query(query: str):
     url = f"{PROMETHEUS_URL}/api/v1/query"

@@ -740,7 +740,12 @@ export const Applications: React.FC<ApplicationsProps> = ({ selectedCluster }) =
                         className="text-lg"
                       />
                       <span>
-                        {clusters.find((c) => c.id === selectedClusterId)?.cluster_name || ''}
+                        {(() => {
+                          const name = clusters.find((c) => c.id === selectedClusterId)?.cluster_name || '';
+                          if (name.length < 3) return name;
+                          if (name.length > 10) return name.slice(0, 10) + '...';
+                          return name;
+                        })()}
                       </span>
                     </div>
                   ) : (
@@ -752,7 +757,13 @@ export const Applications: React.FC<ApplicationsProps> = ({ selectedCluster }) =
                   <SelectItem key={cluster.id.toString()}>
                     <div className="flex items-center gap-2">
                       <Icon icon={getProviderIcon(cluster.provider_name)} className="text-lg" />
-                      <span>{cluster.cluster_name}</span>
+                      <span>
+                        {cluster.cluster_name.length < 3
+                          ? cluster.cluster_name
+                          : cluster.cluster_name.length > 10
+                          ? cluster.cluster_name.slice(0, 10) + '...'
+                          : cluster.cluster_name}
+                      </span>
                     </div>
                   </SelectItem>
                 ))}

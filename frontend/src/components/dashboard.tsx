@@ -78,7 +78,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ selectedCluster }) => {
 
   const fetchNodeStatus = async () => {
     try {
-      const res = await fetch("https://10.0.32.103:8002/kubeconfig/nodes/status/all-clusters", {
+      const username = localStorage.getItem("username") || "";
+
+      const res = await fetch(`https://10.0.32.103:8002/kubeconfig/nodes/status/all-clusters?username=${username}`, {
         headers: {
           Authorization: `Bearer ${getAuthToken()}`
         }

@@ -17,7 +17,7 @@ import {
 import { useHistory } from "react-router-dom";
  
 export const SecurityScanner: React.FC = () => {
-  const username = "k8s-usr";
+  const username = localStorage.getItem("username") || "";
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const history = useHistory();

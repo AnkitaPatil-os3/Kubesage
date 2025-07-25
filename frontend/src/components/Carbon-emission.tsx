@@ -17,8 +17,8 @@ export const CarbonEmissionDashboard: React.FC = () => {
         const isSuperAdmin = role.toLowerCase().includes("super");
 
         const baseUrl = isSuperAdmin
-            ? "https://10.0.34.151:3000/d/NhnADUW4zIB/greenops-overview"
-            : "https://10.0.34.151:3000/d/NhnADUW4zI/greenops-replica";
+            ? "https://10.0.32.103:3000/d/NhnADUW4zIB/greenops-overview"
+            : "https://10.0.32.103:3000/d/NhnADUW4zI/greenops-replica";
 
         const params = new URLSearchParams({
             orgId: "1",
