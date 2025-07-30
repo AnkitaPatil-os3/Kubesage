@@ -214,6 +214,8 @@ async def receive_incident_webhook(
         
         # Link incident to webhook user
         incident.webhook_user_id = webhook_user.id
+        # Save cluster name from header
+        incident.cluster_name = x_cluster_name
         
         # Convert labels and annotations to JSON strings BEFORE saving
         if incident_data.involved_object_labels:
@@ -539,113 +541,287 @@ async def get_incident(
     return IncidentResponse(**incident_dict)
 
 
+ 
+import os
+import json
+import httpx
+from typing import Optional, Dict, Any
+from datetime import datetime
+ 
+from fastapi import HTTPException, Query, Depends
+from fastapi.responses import JSONResponse
+from sqlmodel import Session, select
+ 
+from app.executors.kubectl import KubectlExecutor
+from app.logger import logger
+# ... your other imports (Incident, WebhookUser, Executor, ExecutorType, ExecutorStatus, remediation_router, get_session, get_current_user, etc.)
+ 
+KUBECONFIG_SERVICE_URL = os.getenv("KUBECONFIG_SERVICE_URL", "http://kubeconfig-service:8000")
+ 
+ 
+# -------------------------
+# ADD THIS HELPER IN routes.py
+# -------------------------
 
-async def execute_remediation_background(
-    incident_id: str,
-    executor_type: ExecutorType,
-    kubeconfig_path: str,
-    namespace: str,
-    user_id: str
-) -> Dict[str, Any]:
-    """Execute remediation completely in background without blocking other requests"""
-    
+
+
+
+
+async def get_cluster_info(incident_id: str, user_token: str) -> Optional[Dict[str, Any]]:
+    """Get cluster information using incident ID."""
     try:
-        logger.info(f"Starting background remediation for user {user_id}, incident: {incident_id}")
+        # Get database session
+        session = next(get_session())
         
-        # Create new database session for this background task
-        with Session(engine) as session:
-            # Get incident from database
-            incident = session.get(Incident, incident_id)
-            if not incident:
-                raise Exception(f"Incident {incident_id} not found")
-            
-            # Initialize LLM service
-            llm_service = RemediationLLMService()
-            
-            # Generate remediation solution (truly async now)
-            cluster_context = {
-                "kubeconfig_path": kubeconfig_path,
-                "namespace": namespace,
-                "cluster_type": "kubernetes"
-            }
-            
-            solution = await llm_service.generate_remediation_solution(
-                incident=incident,
-                executor_type=executor_type,
-                cluster_context=cluster_context,
-                user_id=user_id
+        # Get incident from database
+        incident = session.get(Incident, incident_id)
+        if not incident:
+            raise HTTPException(status_code=404, detail="Incident not found")
+
+        if not incident.cluster_name:
+            raise HTTPException(status_code=400, detail="Incident is not associated with any cluster")
+
+
+        cluster_name = incident.cluster_name
+        logger.info(f"Fetching cluster info for cluster: {cluster_name} from incident: {incident_id}")
+
+        # Get cluster credentials from kubeconfig service
+        async with httpx.AsyncClient(verify=False, timeout=10.0) as client:
+            url = f"{KUBECONFIG_SERVICE_URL}/kubeconfig/cluster/{cluster_name}/credentials"
+            response = await client.get(
+                url,
+                headers={"Authorization": f"Bearer {user_token}"}
             )
-            
-            # Get executor configuration
-            executor_config = {
-                'kubeconfig_path': kubeconfig_path,
-                'namespace': namespace
-            }
-            
-            # Get executor instance
-            executor = get_executor_instance(executor_type, executor_config)
-            
-            # Execute remediation steps
-            execution_results = []
-            if solution.get("remediation_steps"):
-                logger.info(f"Executing {len(solution['remediation_steps'])} remediation steps for user {user_id}")
-                execution_results = await executor.execute_remediation_steps(
-                    solution["remediation_steps"], 
-                    user_id=user_id
-                )
-            
-            # Update incident status in database
-            incident.resolution_attempts += 1
-            incident.last_resolution_attempt = datetime.utcnow()
-            incident.executor_id = session.exec(
-                select(Executor.id).where(Executor.name == executor_type)
-            ).first()
-            incident.updated_at = datetime.utcnow()
-            
-            # Check if remediation was successful
-            successful_steps = sum(1 for result in execution_results if result.get("success", False))
-            total_steps = len(execution_results)
-            
-            if successful_steps == total_steps and total_steps > 0:
-                incident.is_resolved = True
-            
-            session.add(incident)
-            session.commit()
-            
-            logger.info(f"Background remediation completed for user {user_id}: {successful_steps}/{total_steps} steps successful")
-            
-            return {
-                "incident_id": incident_id,
-                "user_id": user_id,
-                "executor_type": executor_type.value,
-                "solution": solution,
-                "execution_results": execution_results,
-                "summary": {
-                    "total_steps": total_steps,
-                    "successful_steps": successful_steps,
-                    "success_rate": (successful_steps / total_steps * 100) if total_steps > 0 else 0,
-                    "overall_success": successful_steps == total_steps and total_steps > 0
-                },
-                "timestamp": datetime.utcnow().isoformat()
-            }
-            
+
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("success") and data.get("cluster"):
+                    return data["cluster"]
+
+            logger.error(f"Failed to get cluster info for {cluster_name}: {response.text}")
+            return None
+
     except Exception as e:
-        logger.error(f"Background remediation failed for user {user_id}: {str(e)}")
-        
-        # Update incident status to failed in separate session
-        try:
-            with Session(engine) as session:
-                incident = session.get(Incident, incident_id)
-                if incident:
-                    incident.resolution_attempts += 1
-                    incident.last_resolution_attempt = datetime.utcnow()
-                    incident.updated_at = datetime.utcnow()
-                    session.add(incident)
-                    session.commit()
-        except Exception as db_error:
-            logger.error(f"Failed to update incident status for user {user_id}: {str(db_error)}")
+        logger.error(f"Error getting cluster info: {e}")
+        return None
 
 
+
+@remediation_router.post("/incidents/{id}/execute",
+                        summary="Execute Remediation Steps",
+                        description="Execute specific remediation steps for an incident")
+async def execute_remediation_steps(
+    id: int,
+    request: Dict[str, Any],
+    executor_type: Optional[ExecutorType] = Query(None),
+    session: Session = Depends(get_session),
+    current_user: Dict = Depends(get_current_user)):
+ 
+    """Execute specific remediation steps for an incident"""
+ 
+    user_id = current_user["id"]
+    print("------------------------ user_id", user_id)
+ 
+    # First get the incident to fetch cluster_name
+    incident = session.exec(
+        select(Incident).join(WebhookUser).where(
+            Incident.id == id,
+            Incident.webhook_user.has(WebhookUser.user_id == user_id)
+        )
+    ).first()
+
+    if not incident:
+        raise HTTPException(status_code=404, detail="Incident not found")
+
+    if not incident.cluster_name:
+        raise HTTPException(status_code=400, detail="Incident is not associated with any cluster")
+
+    cluster_name = incident.cluster_name
+    print("------------------------ cluster_name from incident:", cluster_name)
+
+    # Now fetch cluster credentials using the incident ID
+    kube_cluster = await get_cluster_info(
+        incident_id=str(incident.id),
+        user_token=current_user.get("token", "")
+    )
+    
+    print("------------------------ kube_cluster", kube_cluster)
+    if not kube_cluster:
+        raise HTTPException(status_code=404, detail=f"Failed to resolve cluster credentials for cluster '{cluster_name}'")
+ 
+ 
+    server_url = kube_cluster.get("server_url")
+    token = kube_cluster.get("token") or kube_cluster.get("bearer_token")
+    use_secure_tls = kube_cluster.get("use_secure_tls", True)
+    namespace = kube_cluster.get("namespace", "default")
+ 
+    if not server_url or not token:
+        raise HTTPException(status_code=400, detail="Cluster credentials incomplete (server_url/token missing)")
+ 
+    # Filter incident with user
+    incident = session.exec(
+        select(Incident).join(WebhookUser).where(
+            Incident.id == id,
+            Incident.webhook_user.has(WebhookUser.user_id == user_id)
+        )
+    ).first()
+ 
+    if not incident:
+        raise HTTPException(status_code=404, detail="Incident not found")
+ 
+    # Extract steps
+    steps = request.get("remediation_steps", [])
+    if not steps:
+        raise HTTPException(status_code=400, detail="No remediation steps provided")
+ 
+    commands = []
+    for step in steps:
+        command = step.get("command", "")
+        if command:
+            commands.append({
+                "step_id": step.get("step_id"),
+                "command": command,
+                "description": step.get("description", ""),
+                "action_type": step.get("action_type", ""),
+                "cluster_name": step.get("cluster_name", cluster_name)
+            })
+ 
+    if not commands:
+        raise HTTPException(status_code=400, detail="No commands found in remediation steps")
+ 
+    # Prepare kubectl executor with server_url/token
+    kubectl_executor = KubectlExecutor(config={
+        "server_url": server_url,
+        "token": token,
+        "namespace": namespace,
+        "use_secure_tls": use_secure_tls
+    })
+ 
+    try:
+        execution_results = []
+ 
+        for cmd_info in commands:
+            try:
+                command = cmd_info["command"]
+ 
+                # Use kubectl executor when command starts with kubectl
+                if command.strip().startswith("kubectl"):
+                    result = await kubectl_executor.execute_command(command)
+                    execution_results.append({
+                        "step_id": cmd_info["step_id"],
+                        "command": cmd_info["command"],
+                        "description": cmd_info["description"],
+                        "success": result.get("success", False),
+                        "output": result.get("stdout", ""),
+                        "error": result.get("stderr") or result.get("error"),
+                        "return_code": result.get("return_code", 0)
+                    })
+                    continue
+ 
+                # Non-kubectl commands (unchanged)
+                import subprocess
+ 
+                # jq safety wrapping kept as-is
+                if 'jq' in command:
+                    if '|' in command and 'jq' in command.split('|')[-1]:
+                        parts = command.rsplit('|', 1)
+                        if len(parts) == 2:
+                            base_cmd = parts[0].strip()
+                            jq_part = parts[1].strip()
+                            safe_jq = f"({jq_part} 2>/dev/null || echo '{{\"error\": \"jq parsing failed\"}}')"
+                            command = f"{base_cmd} | {safe_jq}"
+                    command = command.replace('jq .', 'jq . 2>/dev/null || echo "{\\"error\\": \\"invalid json\\"}"')
+                    command = command.replace("jq '", "jq -r '")
+ 
+                result = subprocess.run(
+                    command,
+                    shell=True,
+                    capture_output=True,
+                    text=True,
+                    timeout=300,
+                    env=dict(os.environ, LC_ALL='C', LANG='C')
+                )
+ 
+                output = result.stdout
+                error = result.stderr
+ 
+                if 'jq: error' in error or 'jq: parse error' in error:
+                    if '|' in cmd_info["command"] and 'jq' in cmd_info["command"]:
+                        raw_command = cmd_info["command"].split('|')[0].strip()
+                        try:
+                            raw_result = subprocess.run(
+                                raw_command,
+                                shell=True,
+                                capture_output=True,
+                                text=True,
+                                timeout=60,
+                                env=dict(os.environ, LC_ALL='C')
+                            )
+                            if raw_result.returncode == 0:
+                                output = f"Raw data (jq parsing failed):\n{raw_result.stdout}"
+                                error = f"jq parsing failed, showing raw data instead. Original error: {error}"
+                        except:
+                            pass
+ 
+                execution_results.append({
+                    "step_id": cmd_info["step_id"],
+                    "command": cmd_info["command"],
+                    "description": cmd_info["description"],
+                    "success": result.returncode == 0 or (result.returncode != 0 and 'jq: error' in error and output),
+                    "output": output,
+                    "error": error if result.returncode != 0 and 'jq: error' not in error else None,
+                    "return_code": result.returncode
+                })
+ 
+            except subprocess.TimeoutExpired:
+                execution_results.append({
+                    "step_id": cmd_info["step_id"],
+                    "command": cmd_info["command"],
+                    "description": cmd_info["description"],
+                    "success": False,
+                    "output": "",
+                    "error": "Command timed out after 300 seconds",
+                    "return_code": -1
+                })
+            except Exception as e:
+                execution_results.append({
+                    "step_id": cmd_info["step_id"],
+                    "command": cmd_info["command"],
+                    "description": cmd_info["description"],
+                    "success": False,
+                    "output": "",
+                    "error": str(e),
+                    "return_code": -1
+                })
+ 
+        incident.resolution_attempts += 1
+        incident.last_resolution_attempt = datetime.utcnow()
+        incident.updated_at = datetime.utcnow()
+ 
+        successful_steps = sum(1 for result in execution_results if result.get("success", False))
+        if successful_steps == len(commands):
+            incident.is_resolved = True
+ 
+        session.add(incident)
+        session.commit()
+ 
+        return JSONResponse(content={
+            "message": "Remediation steps executed",
+            "results": execution_results,
+            "successful_steps": successful_steps,
+            "total_steps": len(commands)
+        }, status_code=200)
+ 
+    except Exception as e:
+        logger.error(f"Error executing remediation steps: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error executing remediation steps: {str(e)}")
+ 
+ 
+ 
+ 
+ 
+ 
+ 
 
 # Remediation endpoints
 
@@ -764,6 +940,8 @@ async def remediate_incident(
     except Exception as e:
         logger.error(f"Error generating remediation solution: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error generating remediation solution: {str(e)}")
+
+
 
 
 @remediation_router.post("/incidents/{id}/execute",

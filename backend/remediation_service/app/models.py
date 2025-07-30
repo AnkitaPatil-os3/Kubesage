@@ -73,6 +73,7 @@ class Incident(SQLModel, table=True):
     last_timestamp: Optional[datetime] = Field(default=None)
     involved_object_labels: Optional[str] = Field(default=None)
     involved_object_annotations: Optional[str] = Field(default=None)
+    cluster_name: Optional[str] = Field(default=None, index=True)
     
     # Remediation tracking
     executor_id: Optional[int] = Field(default=None, foreign_key="executors.id")
