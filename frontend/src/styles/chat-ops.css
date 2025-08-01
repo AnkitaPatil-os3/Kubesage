@@ -1,0 +1,409 @@
+/* Chat Operations Responsive Styles */
+
+/* Code block alignment fixes */
+.code-block-container {
+    text-align: left !important;
+  }
+  
+  .code-block-container pre {
+    text-align: left !important;
+    white-space: pre !important;
+    word-break: normal !important;
+  }
+  
+  .code-block-container code {
+    display: block !important;
+    text-align: left !important;
+    white-space: pre !important;
+    word-break: normal !important;
+    background-color: transparent !important;
+  }
+  
+  /* Ensure proper left alignment for all command lines */
+  .command-line {
+    display: block;
+    text-align: left;
+    margin: 0;
+    padding: 0;
+    white-space: pre;
+    word-break: normal;
+  }
+  
+  /* Fix for markdown rendered code blocks */
+  .prose pre {
+    text-align: left !important;
+    white-space: pre !important;
+  }
+  
+  .prose pre code {
+    display: block !important;
+    text-align: left !important;
+    white-space: pre !important;
+    word-break: normal !important;
+  }
+  
+  /* Ensure proper scrolling on mobile */
+  @media (max-width: 640px) {
+    .chat-messages {
+      -webkit-overflow-scrolling: touch;
+    }
+    
+    .code-block-container {
+      overflow-x: auto;
+    }
+  }
+  
+  /* Improve touch targets on mobile */
+  @media (max-width: 768px) {
+    .touch-target {
+      min-height: 44px;
+      min-width: 44px;
+    }
+  }
+  
+  /* Optimize text rendering */
+  .prose {
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  /* Ensure proper contrast in dark mode */
+  @media (prefers-color-scheme: dark) {
+    .dark-mode-text {
+      color: rgb(255 255 255 / 0.9);
+    }
+    
+    .dark-mode-border {
+      border-color: rgb(255 255 255 / 0.1);
+    }
+  }
+  
+ /* Responsive grid adjustments */
+@media (max-width: 1024px) {
+    .quick-commands-grid {
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    }
+  }
+  
+  @media (max-width: 768px) {
+    .quick-commands-grid {
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    }
+    
+    .welcome-cards-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  
+  @media (max-width: 640px) {
+    .quick-commands-grid {
+      grid-template-columns: 1fr;
+    }
+    
+    .message-card {
+      max-width: 95%;
+    }
+    
+    .chat-input-area {
+      padding: 0.75rem;
+    }
+    
+    .shell-panel-header {
+      padding: 0.75rem;
+    }
+  }
+  
+  /* Animation improvements */
+  .fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+  }
+  
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .slide-up {
+    animation: slideUp 0.3s ease-out;
+  }
+  
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  /* Loading states */
+  .loading-shimmer {
+    background: linear-gradient(90deg, 
+      rgba(255, 255, 255, 0.1) 25%, 
+      rgba(255, 255, 255, 0.2) 50%, 
+      rgba(255, 255, 255, 0.1) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
+  }
+  
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+  
+  /* Focus states for accessibility */
+  .focus-visible:focus {
+    outline: 2px solid rgb(59 130 246);
+    outline-offset: 2px;
+  }
+  
+  /* High contrast mode support */
+  @media (prefers-contrast: high) {
+    .high-contrast-border {
+      border-width: 2px;
+    }
+    
+    .high-contrast-text {
+      font-weight: 600;
+    }
+  }
+  
+  /* Reduced motion support */
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+  
+  /* Print styles */
+  @media print {
+    .no-print {
+      display: none !important;
+    }
+    
+    .chat-message {
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    
+    .code-block-container {
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+  }
+  
+  /* Scrollbar styling */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(156, 163, 175, 0.5);
+    border-radius: 3px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(156, 163, 175, 0.7);
+  }
+  
+  /* Dark mode scrollbar */
+  @media (prefers-color-scheme: dark) {
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(75, 85, 99, 0.5);
+    }
+    
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: rgba(75, 85, 99, 0.7);
+    }
+  }
+  
+  /* Utility classes */
+  .text-balance {
+    text-wrap: balance;
+  }
+  
+  .text-pretty {
+    text-wrap: pretty;
+  }
+  
+  .safe-area-inset {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+  
+  .safe-area-inset-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  /* Command execution status indicators */
+  .status-success {
+    color: rgb(34 197 94);
+    background-color: rgb(34 197 94 / 0.1);
+  }
+  
+  .status-error {
+    color: rgb(239 68 68);
+    background-color: rgb(239 68 68 / 0.1);
+  }
+  
+  .status-warning {
+    color: rgb(245 158 11);
+    background-color: rgb(245 158 11 / 0.1);
+  }
+  
+  /* Interactive elements */
+  .interactive-hover:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+  
+  .interactive-active:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Glassmorphism effects */
+  .glass-effect {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+  
+  @media (prefers-color-scheme: dark) {
+    .glass-effect {
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+  }
+  
+  /* Tooltip improvements */
+  .tooltip-content {
+    font-size: 0.75rem;
+    max-width: 200px;
+    word-wrap: break-word;
+  }
+  
+  /* Modal improvements */
+  .modal-backdrop {
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+  
+  /* Code syntax highlighting adjustments */
+  .hljs {
+    background: transparent !important;
+  }
+  
+  .hljs-keyword {
+    color: rgb(147 51 234);
+  }
+  
+  .hljs-string {
+    color: rgb(34 197 94);
+  }
+  
+  .hljs-comment {
+    color: rgb(107 114 128);
+    font-style: italic;
+  }
+  
+  .hljs-number {
+    color: rgb(239 68 68);
+  }
+  
+  @media (prefers-color-scheme: dark) {
+    .hljs-keyword {
+      color: rgb(196 181 253);
+    }
+    
+    .hljs-string {
+      color: rgb(134 239 172);
+    }
+    
+    .hljs-comment {
+      color: rgb(156 163 175);
+    }
+    
+    .hljs-number {
+      color: rgb(252 165 165);
+    }
+  }
+  
+  /* Performance optimizations */
+  .will-change-transform {
+    will-change: transform;
+  }
+  
+  .will-change-opacity {
+    will-change: opacity;
+  }
+  
+  .gpu-accelerated {
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+  }
+  
+  /* Container queries support */
+  @container (max-width: 400px) {
+    .container-responsive {
+      font-size: 0.875rem;
+    }
+  }
+  
+  @container (max-width: 300px) {
+    .container-responsive {
+      font-size: 0.75rem;
+    }
+  }
+  
+  /* ADD these styles for better markdown formatting */
+  .prose p {
+    margin-bottom: 1rem;
+    line-height: 1.6;
+  }
+
+  .prose br {
+    line-height: 1.4;
+  }
+
+  .prose p + p {
+    margin-top: 1rem;
+  }
+
+  /* Handle double line breaks */
+  .prose p:empty {
+    margin-bottom: 1rem;
+    height: 1rem;
+  }
+
+  /* Better spacing for lists */
+  .prose ul, .prose ol {
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .prose li {
+    margin-bottom: 0.5rem;
+  }
