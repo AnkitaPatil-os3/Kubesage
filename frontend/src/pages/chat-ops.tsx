@@ -270,7 +270,7 @@ class ChatAPI {
   }
 
   async sendMessage(message: string, sessionId?: string, enableToolResponse: boolean = false, clusterName?: string): Promise<ChatResponse> {
-    const response = await fetch(`${API_BASE_URL}/chat`, {
+    const response = await fetch(`https://10.0.2.30:8003/chat`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
       body: JSON.stringify({
@@ -288,7 +288,7 @@ class ChatAPI {
     return response.json();
   }
   async getSessions(): Promise<{ sessions: Session[] }> {
-    const response = await fetch(`${API_BASE_URL}/sessions`, {
+    const response = await fetch(`https://10.0.2.30:8003/sessions`, {
       headers: this.getAuthHeaders()
     });
 
@@ -300,7 +300,7 @@ class ChatAPI {
   }
 
   async createSession(title: string): Promise<Session> {
-    const response = await fetch(`${API_BASE_URL}/sessions`, {
+    const response = await fetch(`https://10.0.2.30:8003/sessions`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
       body: JSON.stringify({ title })
@@ -314,7 +314,7 @@ class ChatAPI {
   }
 
   async deleteSession(sessionId: string): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/sessions/${sessionId}`, {
+    const response = await fetch(`https://10.0.2.30:8003/sessions/${sessionId}`, {
       method: 'DELETE',
       headers: this.getAuthHeaders()
     });
@@ -325,7 +325,7 @@ class ChatAPI {
   }
 
   async getSessionHistory(sessionId: string): Promise<{ id: string; created_at: string; messages: Message[] }> {
-    const response = await fetch(`${API_BASE_URL}/sessions/${sessionId}`, {
+    const response = await fetch(`https://10.0.2.30:8003/sessions/${sessionId}`, {
       headers: this.getAuthHeaders()
     });
 
@@ -337,7 +337,7 @@ class ChatAPI {
   }
 
   async getHealthStatus() {
-    const response = await fetch(`${API_BASE_URL}/health`, {
+    const response = await fetch(`https://10.0.2.30:8003/health`, {
       headers: this.getAuthHeaders()
     });
 
@@ -350,7 +350,7 @@ class ChatAPI {
 
   // Cluster management methods
   async getClusters(): Promise<{ clusters: ClusterConfig[] }> {
-    const response = await fetch(`${KUBECONFIG_API_BASE_URL}/kubeconfig/clusters`, {
+    const response = await fetch(`https://10.0.2.30:8002/kubeconfig/clusters`, {
       headers: this.getAuthHeaders()
     });
 
