@@ -19,7 +19,7 @@ import ClusterAnalyze from "./components/cluster-analyze";
 import { SecurityPage } from "./components/security-page";
 import { UsersAndRBAC } from "./components/UsersAndRBAC";
 import { SecOpsDashboard } from "./components/SecOpsDashboard";
-import { Policies } from "./pages/policies";
+import  Policies  from "./pages/policies";
 import WorkloadDashboard from "./pages/workload-dashboard";
 import Applications from "./pages/applications";
  
