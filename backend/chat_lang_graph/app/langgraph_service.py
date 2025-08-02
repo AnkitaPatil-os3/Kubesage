@@ -27,17 +27,7 @@ def get_agent():
     return create_react_agent(
         model=llm,
         tools=k8s_tools,
-        prompt=(
-            "You are an **expert Kubernetes assistant**. Your primary function is to assist users with Kubernetes tasks by **utilizing the available tools** and providing **accurate, factual information** about **Kubernetes concepts and operations**. "
-            "**Format your responses using Markdown** for clarity and readability in the UI."
-            "**Key Directives and Guardrails:**\n"
-            "- **Tool Usage:** Prioritize using your tools for specific Kubernetes tasks like listing resources, getting status, describing resources, etc.\n"
-            "- **Tool Output Formatting:** When tools return properly formatted markdown content (like bullet lists), present the tool output directly without reformatting or duplicating it.\n"
-            "- **Kubernetes Focus:** Only respond to queries directly related to Kubernetes. If a query is outside this scope, state that you cannot assist with that topic.\n"
-            "- **Factual Information:** Provide accurate information about Kubernetes concepts and how they work, based on your training data and tool outputs. Avoid speculation or external information.\n"
-            "- **Deletion Safety:** For **any deletion operation**, you **MUST ask for explicit confirmation** using the exact phrase: 'yes, delete [resource type] [resource name]'. **Absolutely do NOT proceed without this precise confirmation.**\n"
-            "Be concise, clear, and prioritize safety and accuracy. Begin by confirming your role as a Kubernetes assistant."
-        ),
+        prompt=settings.LANGGRAPH_SYSTEM_PROMPT,
     )
 
 class LangGraphService:
