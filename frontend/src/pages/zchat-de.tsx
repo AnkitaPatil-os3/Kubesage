@@ -92,7 +92,7 @@ export const ChatOps: React.FC<ChatOpsProps> = ({ selectedCluster = "production"
   // Fetch chat sessions from backend
   const fetchChatSessions = async () => {
     try {
-      const response = await fetch("https://10.0.2.30:8003/chat/sessions", {
+      const response = await fetch("/api/v3.0/chat/sessions", {
         headers: {
           Authorization: `Bearer ${getAuthToken()}`
         }

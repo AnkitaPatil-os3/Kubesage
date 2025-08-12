@@ -35,9 +35,7 @@ app.add_middleware(
 )
 
 # Include routers
-# app.include_router(router, prefix="/api/v1")
-app.include_router(policy_router, prefix="/api/v1")
-
+app.include_router(policy_router, prefix="/api/v5.0", tags=["Policies"])
 @app.on_event("startup")
 async def startup_event():
     """Initialize database on startup"""

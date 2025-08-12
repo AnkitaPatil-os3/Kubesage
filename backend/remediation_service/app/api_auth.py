@@ -9,7 +9,7 @@ from app.models import WebhookUser
 from app.database import get_session
 
 # Configuration
-USER_SERVICE_URL = "https://10.0.2.30:8001"
+USER_SERVICE_URL = "https://10.0.2.29:8001"
 
 def hash_api_key(api_key: str) -> str:
     """Create a hash of the API key for secure storage"""

@@ -16,8 +16,8 @@ class Settings(BaseSettings):
     DATABASE_URL: str = ""  # Will be constructed from above settings
     
     # User service URL for authentication
-    USER_SERVICE_URL: str = os.getenv("USER_SERVICE_URL")
-    KUBECONFIG_SERVICE_URL: str = os.getenv("KUBECONFIG_SERVICE_URL")
+    USER_SERVICE_URL: str = os.getenv("USER_SERVICE_URL", "http://localhost:8001")
+    KUBECONFIG_SERVICE_URL: str = os.getenv("KUBECONFIG_SERVICE_URL", "http://localhost:8002")
 
     # LLM settings for remediation
     OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")

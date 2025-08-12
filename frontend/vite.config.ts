@@ -15,30 +15,30 @@ export default defineConfig(({ mode }) => {
         cert: fs.readFileSync('./cert.pem'),
       },
       proxy: {
-        '/auth': {
+        '/api/v1.0': {
           target: env.VITE_USER_SERVICE,
           changeOrigin: true,
           secure: false,
         },
         '/api': {
-        target: 'https://10.0.2.30:8005',
+        target: 'https://10.0.2.29:8005',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
         secure: false // If using self-signed certificates
       },
-        '/kubeconfig': {
+        '/api/v2.0': {
           target: env.VITE_KUBECONFIG_SERVICE,
           changeOrigin: true,
           secure: false,
         },
-        '/chat': {
+        '/api/v3.0': {
           target: env.VITE_CHAT_SERVICE,
           changeOrigin: true,
           secure: false,
         },
         // Add proxy for Grafana if needed
         '/grafana': {
-          target: 'https://10.0.2.30:3000',
+          target: 'https://10.0.2.13:3000',
           changeOrigin: true,
           secure: false,
           rewrite: (path) => path.replace(/^\/grafana/, ''),
@@ -47,3 +47,4 @@ export default defineConfig(({ mode }) => {
     },
   };
 });
+

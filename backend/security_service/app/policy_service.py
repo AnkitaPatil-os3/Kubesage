@@ -1862,7 +1862,7 @@ spec:
           self.policy_data = {}
       
       # Get kubeconfig service URL from environment or use default
-      self.kubeconfig_service_url = os.getenv("KUBECONFIG_SERVICE_URL", "https://10.0.2.30:8002")
+      self.kubeconfig_service_url = os.getenv("KUBECONFIG_SERVICE_URL", "https://10.0.2.29:8002")
         
 
     async def get_cluster_info(self, cluster_name: str, user_token: str) -> Optional[Dict]:

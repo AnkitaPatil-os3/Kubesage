@@ -18,7 +18,7 @@ from app.logger import logger
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # Token handling
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1.0/auth/token")
 
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)

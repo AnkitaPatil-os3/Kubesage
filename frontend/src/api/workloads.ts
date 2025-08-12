@@ -1,4 +1,4 @@
-const API_BASE_URL = "https://10.0.2.30:8002/kubeconfig";
+// const API_BASE_URL = "https://10.0.2.29:8002/kubeconfig";
 
 export const fetchResourceYaml = async (
   clusterId: number,
@@ -8,7 +8,7 @@ export const fetchResourceYaml = async (
 ): Promise<string> => {
   const token = localStorage.getItem('access_token');
   const response = await fetch(
-    `${API_BASE_URL}/clusters/${clusterId}/yaml/${namespace}/${resourceType}/${name}`,
+    `/api/v2.0/clusters/${clusterId}/yaml/${namespace}/${resourceType}/${name}`,
     {
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -33,7 +33,7 @@ export const updateResourceYaml = async (
 ): Promise<{ success: boolean; message: string }> => {
   const token = localStorage.getItem('access_token');
   const response = await fetch(
-    `${API_BASE_URL}/clusters/${clusterId}/yaml/${namespace}/${resourceType}/${name}`,
+    `/api/v2.0/clusters/${clusterId}/yaml/${namespace}/${resourceType}/${name}`,
     {
       method: 'PUT',
       headers: {

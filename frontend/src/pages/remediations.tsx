@@ -162,7 +162,7 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
   const [showRemediationModal, setShowRemediationModal] = useState(false);
 
   // API Base URL
-  const API_BASE = 'https://10.0.2.30:8004/remediation';
+  // const API_BASE = 'https://10.0.2/remediation';
 
   // Fetch data functions
 const fetchIncidents = async () => {
@@ -183,7 +183,7 @@ const fetchIncidents = async () => {
       params.append('resolved', filters.resolved);
     }
 
-    const response = await fetch(`${API_BASE}/incidents?${params}`, {
+    const response = await fetch(`/api/v4.0/incidents?${params}`, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
         'X-API-Key': localStorage.getItem('access_token') // ADD THIS LINE
@@ -203,7 +203,7 @@ const fetchIncidents = async () => {
 
   const fetchExecutors = async () => {
     try {
-      const response = await fetch(`${API_BASE}/executors`);
+      const response = await fetch(`/api/v4.0/executors`);
       const data = await response.json();
 
       if (response.ok) {
@@ -216,7 +216,7 @@ const fetchIncidents = async () => {
 
   const fetchHealthStatus = async () => {
     try {
-      const response = await fetch(`${API_BASE}/health`);
+      const response = await fetch(`/api/v4.0/health`);
       const data = await response.json();
       setHealthStatus(data);
     } catch (error) {
@@ -226,7 +226,7 @@ const fetchIncidents = async () => {
 
   const initializeExecutors = async () => {
     try {
-      const response = await fetch(`${API_BASE}/initialize`, {
+      const response = await fetch(`/api/v4.0/initialize`, {
         method: 'POST'
       });
 
@@ -240,7 +240,7 @@ const fetchIncidents = async () => {
 
   const activateExecutor = async (executorId: number) => {
     try {
-      const response = await fetch(`${API_BASE}/executors/${executorId}/activate`, {
+      const response = await fetch(`/api/v4.0/executors/${executorId}/activate`, {
         method: 'POST'
       });
 
@@ -262,11 +262,11 @@ const fetchIncidents = async () => {
 
       if (executeDirectly) {
         // Direct execution - single API call
-        endpoint = `https://10.0.2.30:8004/remediation/incidents/${incidentId}/remediate?execute=true`;
+        endpoint = `/api/v4.0/remediation/incidents/${incidentId}/remediate?execute=true`;
         method = 'POST';
       } else {
         // Just generate solution
-        endpoint = `https://10.0.2.30:8004/remediation/incidents/${incidentId}/remediate`;
+        endpoint = `/api/v4.0/remediation/incidents/${incidentId}/remediate`;
         method = 'POST';
       }
 
@@ -323,7 +323,7 @@ const fetchIncidents = async () => {
     setExecutingRemediation(true);
     // setHasExecuted(true); // ADD THIS LINE
     try {
-      const response = await fetch(`https://10.0.2.30:8004/remediation/incidents/${incidentId}/execute`, {
+      const response = await fetch(`/api/v4.0/remediation/incidents/${incidentId}/execute`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -473,7 +473,7 @@ const fetchIncidents = async () => {
       }
 
       // Execute the command via the correct API endpoint
-      const response = await fetch(`${API_BASE}/incidents/${incidentId}/execute`, {
+      const response = await fetch(`/api/v4.0/incidents/${incidentId}/execute`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

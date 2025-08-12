@@ -28,6 +28,7 @@ from app.policy_schemas import APIResponse
 from datetime import datetime
 from sqlalchemy import and_
 
+from app.auth_permission import require_permission
 # Create router
 policy_router = APIRouter(prefix="/policies", tags=["policies"])
 
@@ -35,7 +36,8 @@ policy_router = APIRouter(prefix="/policies", tags=["policies"])
 @policy_router.post("/initialize")
 async def initialize_policies(
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    # current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(require_permission("initialize_policy_database"))
 ):
     """Initialize database with predefined policies"""
     try:
@@ -54,7 +56,7 @@ async def initialize_policies(
 @policy_router.get("/categories", response_model=APIResponse)
 async def get_policy_categories(
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+     current_user: dict = Depends(require_permission("security"))
 ):
     """Get all policy categories with policy counts"""
     try:
@@ -76,7 +78,7 @@ async def get_policies_by_category(
     page: int = Query(1, ge=1, description="Page number"),
     size: int = Query(10, ge=1, le=100, description="Page size"),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+     current_user: dict = Depends(require_permission("security"))
 ):
     """Get policies by category with pagination"""
     try:
@@ -97,7 +99,7 @@ async def get_policies_by_category(
 async def get_policy_by_id(
     policy_id: str = Path(..., description="Policy ID"),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+     current_user: dict = Depends(require_permission("security"))
 ):
     """Get a specific policy by ID"""
     try:
@@ -124,7 +126,7 @@ async def get_policy_by_id(
 async def get_category_stats(
     category_name: str = Path(..., description="Policy category name"),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+     current_user: dict = Depends(require_permission("security"))
 ):
     """Get statistics for a specific policy category"""
     try:
@@ -230,7 +232,7 @@ async def apply_policy_to_cluster(
     policy_request: PolicyApplicationRequest,
     request: Request,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+     current_user: dict = Depends(require_permission("security"))
 ):
     """Apply a policy to a specific cluster"""
     try:
@@ -267,7 +269,7 @@ async def apply_policy_to_cluster(
 async def get_policy_applications(
     request_data: PolicyApplicationListRequest,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+     current_user: dict = Depends(require_permission("security"))
 ):
     """Get policy applications for the current user with cluster filtering"""
     try:
@@ -294,7 +296,7 @@ async def get_policy_applications(
 async def get_policy_application_details(
     application_id: int = Path(..., description="Policy application ID"),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+     current_user: dict = Depends(require_permission("security"))
 ):
     """Get details of a specific policy application"""
     try:
@@ -328,7 +330,7 @@ async def get_policy_application_details(
 async def remove_policy_from_cluster(
     application_id: int = Path(..., description="Policy application ID"),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+     current_user: dict = Depends(require_permission("security")),
     request: Request = None
 ):
     """Remove a policy from cluster and database"""
@@ -357,7 +359,7 @@ async def remove_policy_from_cluster(
 async def get_cluster_policy_overview(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+     current_user: dict = Depends(require_permission("security"))
 ):
     """Get overview of policy applications across all clusters"""
     try:
@@ -386,7 +388,7 @@ async def get_available_policies_for_cluster(
     page: int = Query(1, ge=1, description="Page number"),
     size: int = Query(10, ge=1, le=100, description="Page size"),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+     current_user: dict = Depends(require_permission("security"))
 ):
     """Get available policies that can be applied to a cluster"""
     try:
@@ -468,7 +470,7 @@ async def get_applied_policies_for_cluster(
     page: int = Query(1, ge=1, description="Page number"),
     size: int = Query(10, ge=1, le=100, description="Page size"),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+     current_user: dict = Depends(require_permission("security"))
 ):
     """Get policies applied to a specific cluster"""
     try:
@@ -517,7 +519,7 @@ async def get_applied_policies_for_cluster(
 async def remove_failed_policy_by_id(
     application_id: int = Path(..., description="Failed policy application ID"),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+     current_user: dict = Depends(require_permission("security"))
 ):
     """Remove a specific failed policy application from database"""
     try:
@@ -546,7 +548,7 @@ async def remove_failed_policy_by_id(
 async def delete_policy(
     policy_id: str = Path(..., description="Policy ID to delete"),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+     current_user: dict = Depends(require_permission("security"))
 ):
     """Delete a specific policy (Super Admin only)"""
     try:
@@ -576,7 +578,7 @@ async def delete_category(
     category_name: str = Path(..., description="Category name to delete"),
     force_delete: bool = Query(False, description="Force delete category with all policies"),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+     current_user: dict = Depends(require_permission("security"))
 ):
     """Delete a category and optionally its policies (Super Admin only)"""
     try:
@@ -606,7 +608,7 @@ async def delete_category(
 async def add_policies_and_categories(
     request: AddPoliciesRequest,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+     current_user: dict = Depends(require_permission("security"))
 ):
     """Add policies to existing category or create new category with policies"""
     try:

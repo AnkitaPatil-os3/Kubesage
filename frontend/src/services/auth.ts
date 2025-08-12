@@ -1,5 +1,5 @@
 class AuthService {
-    private baseURL = 'https://10.0.2.30:8001';
+    private baseURL = 'https://10.0.2.29:8001';
     private tokenKey = 'access_token';
     private refreshTokenKey = 'refresh_token';
     private userInfoKey = 'user_info';
@@ -78,7 +78,7 @@ class AuthService {
       }
   
       try {
-        const response = await fetch(`${this.baseURL}/auth/refresh`, {
+        const response = await fetch(`${this.baseURL}/api/v1.0/auth/refresh`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -166,7 +166,7 @@ class AuthService {
     // Login method
     async login(username: string, password: string): Promise<{ success: boolean; user?: any; error?: string }> {
         try {
-          const response = await fetch(`${this.baseURL}/auth/token`, {
+          const response = await fetch(`${this.baseURL}/api/v1.0/auth/token`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/x-www-form-urlencoded',
@@ -192,7 +192,7 @@ class AuthService {
     
             // Fetch user info
             try {
-              const userResponse = await fetch(`${this.baseURL}/users/me`, {
+              const userResponse = await fetch(`${this.baseURL}/api/v1.0/users/me`, {
                 headers: {
                   'Authorization': `Bearer ${data.access_token}`,
                   'Content-Type': 'application/json',
@@ -247,7 +247,7 @@ class AuthService {
           }
     
           // If no cache, fetch from server
-          const response = await this.authenticatedRequest(`${this.baseURL}/users/me`);
+          const response = await this.authenticatedRequest(`${this.baseURL}/api/v1.0/users/me`);
           
           if (response.ok) {
             const userData = await response.json();
@@ -266,7 +266,7 @@ class AuthService {
       // Check admin status
       async checkAdminStatus(): Promise<{ is_admin: boolean; roles?: string }> {
         try {
-          const response = await this.authenticatedRequest(`${this.baseURL}/auth/check-admin`);
+          const response = await this.authenticatedRequest(`${this.baseURL}/api/v1.0/auth/check-admin`);
           
           if (response.ok) {
             const data = await response.json();
@@ -290,7 +290,7 @@ class AuthService {
           
           if (token) {
             // Call logout endpoint
-            const response = await fetch(`${this.baseURL}/auth/logout`, {
+            const response = await fetch(`${this.baseURL}/api/v1.0/auth/logout`, {
               method: 'POST',
               headers: {
                 'Authorization': `Bearer ${token}`,

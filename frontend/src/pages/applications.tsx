@@ -37,7 +37,7 @@ import {
 } from "@heroui/react";
 import { motion, AnimatePresence } from "framer-motion";
 
-const API_BASE_URL = "https://10.0.2.30:8002/kubeconfig";
+
 
 interface ClusterInfo {
   id: number;
@@ -132,6 +132,7 @@ export const Applications: React.FC<ApplicationsProps> = ({ selectedCluster }) =
   const [selectedClusterId, setSelectedClusterId] = useState<number | null>(null);
   const [namespaces, setNamespaces] = useState<string[]>([]);
   const [selectedNamespace, setSelectedNamespace] = useState<string>("all");
+
   const [applications, setApplications] = useState<Application[]>([]);
   const [applicationLogs, setApplicationLogs] = useState<string>('');
   const [applicationEvents, setApplicationEvents] = useState<any[]>([]);
@@ -164,7 +165,7 @@ export const Applications: React.FC<ApplicationsProps> = ({ selectedCluster }) =
     setError(null);
     
     try {
-      const response = await fetch(`${API_BASE_URL}/clusters`, {
+      const response = await fetch(`/api/v2.0/clusters`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -196,7 +197,7 @@ export const Applications: React.FC<ApplicationsProps> = ({ selectedCluster }) =
     setNamespacesLoading(true);
     
     try {
-      const response = await fetch(`${API_BASE_URL}/get-namespaces/${clusterId}`, {
+      const response = await fetch(`/api/v2.0/get-namespaces/${clusterId}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -222,6 +223,25 @@ export const Applications: React.FC<ApplicationsProps> = ({ selectedCluster }) =
     }
   }, []);
 
+  // Set default cluster and namespace on clusters load
+  useEffect(() => {
+    if (clusters.length > 0 && selectedClusterId === null) {
+      // Set default cluster to first cluster's id
+      const defaultClusterId = clusters[0].id;
+      setSelectedClusterId(defaultClusterId);
+      fetchNamespaces(defaultClusterId);
+    }
+  }, [clusters, selectedClusterId, fetchNamespaces]);
+
+  // Set default namespace when namespaces load
+  useEffect(() => {
+    if (namespaces.length > 0 && selectedNamespace === "all") {
+      // Set default namespace to first namespace other than 'all' if exists, else 'all'
+      const defaultNamespace = namespaces.find(ns => ns !== "all") || "all";
+      setSelectedNamespace(defaultNamespace);
+    }
+  }, [namespaces, selectedNamespace]);
+
   // Fetch applications
   const fetchApplications = useCallback(async (clusterId: number, namespace: string, appType: string) => {
     setAppsLoading(true);
@@ -235,7 +255,7 @@ export const Applications: React.FC<ApplicationsProps> = ({ selectedCluster }) =
         params.append('app_type', appType);
       }
 
-      const response = await fetch(`${API_BASE_URL}/clusters/${clusterId}/apps?${params.toString()}`, {
+      const response = await fetch(`/api/v2.0/clusters/${clusterId}/apps?${params.toString()}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -273,7 +293,7 @@ export const Applications: React.FC<ApplicationsProps> = ({ selectedCluster }) =
       });
 
       const response = await fetch(
-        `${API_BASE_URL}/clusters/${selectedClusterId}/apps/${app.name}/details?${params.toString()}`,
+        `/api/v2.0/clusters/${selectedClusterId}/apps/${app.name}/details?${params.toString()}`,
         {
           method: "GET",
           headers: {
@@ -740,7 +760,12 @@ export const Applications: React.FC<ApplicationsProps> = ({ selectedCluster }) =
                         className="text-lg"
                       />
                       <span>
-                        {clusters.find((c) => c.id === selectedClusterId)?.cluster_name || ''}
+                        {(() => {
+                          const name = clusters.find((c) => c.id === selectedClusterId)?.cluster_name || '';
+                          if (name.length < 3) return name;
+                          if (name.length > 10) return name.slice(0, 10) + '...';
+                          return name;
+                        })()}
                       </span>
                     </div>
                   ) : (
@@ -752,7 +777,13 @@ export const Applications: React.FC<ApplicationsProps> = ({ selectedCluster }) =
                   <SelectItem key={cluster.id.toString()}>
                     <div className="flex items-center gap-2">
                       <Icon icon={getProviderIcon(cluster.provider_name)} className="text-lg" />
-                      <span>{cluster.cluster_name}</span>
+                      <span>
+                        {cluster.cluster_name.length < 3
+                          ? cluster.cluster_name
+                          : cluster.cluster_name.length > 10
+                          ? cluster.cluster_name.slice(0, 10) + '...'
+                          : cluster.cluster_name}
+                      </span>
                     </div>
                   </SelectItem>
                 ))}
@@ -1420,7 +1451,7 @@ const fetchApplicationLogs = async (app: Application, setApplicationLogs: React.
   try {
     const token = localStorage.getItem('access_token');
     const response = await fetch(
-      `${API_BASE_URL}/clusters/${selectedClusterId}/apps/${app.name}/logs?namespace=${app.namespace}`,
+      `/api/v2.0/clusters/${selectedClusterId}/apps/${app.name}/logs?namespace=${app.namespace}`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -1450,7 +1481,7 @@ const fetchApplicationEvents = async (app: Application, setApplicationEvents: Re
   try {
     const token = localStorage.getItem('access_token');
     const response = await fetch(
-      `${API_BASE_URL}/clusters/${selectedClusterId}/apps/${app.name}/events?namespace=${app.namespace}`,
+      `/api/v2.0/clusters/${selectedClusterId}/apps/${app.name}/events?namespace=${app.namespace}`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,

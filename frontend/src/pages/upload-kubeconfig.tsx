@@ -89,7 +89,7 @@ const UploadKubeconfig: React.FC = () => {
   // Optimized functions
   const generateDynamicScript = () => {
     const clusterName = formData.cluster_name;
-    return `curl -O http://10.0.2.21/onboarding.sh && bash onboarding.sh "${clusterName}" "${username}" "https://10.0.2.30:8004/remediation/webhook/incidents"`;
+    return `curl -O http://10.0.2.21/onboarding.sh && bash onboarding.sh "${clusterName}" "${username}" "/api/v4.0/remediation/webhook/incidents"`;
   };
 
   const [copied, setCopied] = useState(false);
@@ -139,7 +139,7 @@ const UploadKubeconfig: React.FC = () => {
   const fetchClusters = async () => {
     try {
       setLoading(true);
-      const response = await fetch('https://10.0.2.30:8002/kubeconfig/clusters', {
+      const response = await fetch('/api/v2.0/clusters', {
         headers: getAuthHeaders()
       });
 
@@ -204,7 +204,7 @@ const UploadKubeconfig: React.FC = () => {
 
     try {
       setOnboarding(true);
-      const response = await fetch('https://10.0.2.30:8002/kubeconfig/onboard-cluster', {
+      const response = await fetch('/api/v2.0/onboard-cluster', {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({
@@ -289,7 +289,7 @@ const UploadKubeconfig: React.FC = () => {
   const handleRemoveCluster = async (cluster: ClusterConfig) => {
     try {
       setRemoving(cluster.id);
-      const response = await fetch(`https://10.0.2.30:8002/kubeconfig/remove-cluster/${cluster.id}`, {
+      const response = await fetch(`/api/v2.0/remove-cluster/${cluster.id}`, {
         method: 'DELETE',
         headers: getAuthHeaders()
       });

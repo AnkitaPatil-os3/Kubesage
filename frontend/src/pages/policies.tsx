@@ -247,8 +247,8 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
     });
 
     // API Base URLs
-    const KUBECONFIG_API = '/kubeconfig';
-    const POLICIES_API = 'https://10.0.2.30:8005/api/v1/policies';
+    // const KUBECONFIG_API = '/kubeconfig';
+    const POLICIES_API = '/api/v5.0/policies';
 
     // Update the close button onClick and add this function
     const resetDeleteModal = () => {
@@ -440,7 +440,7 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
             let method = 'DELETE';
 
             if (deleteData.type === 'policy') {
-                url = `${POLICIES_API}/policy/${deleteData.policyId}`;
+                url = `/api/v5.0/policy/${deleteData.policyId}`;
             } else {
                 url = `${POLICIES_API}/category/${deleteData.categoryName}${deleteData.forceDelete ? '?force_delete=true' : ''}`;
             }
@@ -527,7 +527,7 @@ const Policies: React.FC<PoliciesProps> = ({ selectedCluster }) => {
     // API Functions
     const fetchClusters = async () => {
         try {
-            const response = await fetch(`${KUBECONFIG_API}/clusters`, {
+            const response = await fetch(`/api/v2.0/clusters`, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
                 }

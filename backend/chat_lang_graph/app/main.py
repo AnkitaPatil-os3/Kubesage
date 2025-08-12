@@ -113,7 +113,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 Instrumentator().instrument(app).expose(app)
 
 # --- Include Routes ---
-app.include_router(router)
+app.include_router(router, prefix="/api/v3.0", tags=["Chat"])
 
 # --- Global Exception Handlers ---
 @app.exception_handler(Exception)

@@ -30,7 +30,7 @@ export const ResourceUsage: React.FC<ResourceUsageProps> = ({ clusterId }) => {
       setLoading(true);
       const username = localStorage.getItem("username") || "";
       const res = await fetch(
-        `/kubeconfig/metrics/resource-usage?metric=${metric}&username=${username}&namespace=default`
+        `/api/v2.0/metrics/resource-usage?metric=${metric}&username=${username}&namespace=default`
       );
       const json = await res.json();
       setChartData(json.data);

@@ -1,6 +1,4 @@
-////workload-dashbord final 
-//workload-dashboard final
-//hi hihis
+// hi
 import React, { useState, useEffect, useCallback } from "react";
 import { useHistory } from "react-router-dom";
 import { Icon } from "@iconify/react";
@@ -39,20 +37,8 @@ import {
   Divider
 } from "@heroui/react";
 import { motion, AnimatePresence } from "framer-motion";
-import { fetchResourceYaml, updateResourceYaml } from "../api/workloads";
-import yaml from 'js-yaml';
 
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.1 } }
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0 }
-};
-
-const API_BASE_URL = "https://10.0.2.30:8002/kubeconfig";
+const API_BASE_URL = "/api/v2.0";
 
 interface ClusterInfo {
   id: number;
@@ -105,8 +91,8 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [sortBy, setSortBy] = useState<'name' | 'status' | 'age'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  const [showStats, setShowStats] = useState(true);
-  
+const [showStats, setShowStats] = useState(true);
+
   // Events State
   const [selectedWorkloadEvents, setSelectedWorkloadEvents] = useState<any[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
@@ -124,81 +110,37 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
   const { isOpen: isEventsOpen, onOpen: onEventsOpen, onClose: onEventsClose } = useDisclosure();
   const [selectedWorkload, setSelectedWorkload] = useState<any>(null);
 
-  // YAML Editor State - ADD THESE MISSING VARIABLES
-  const [showYamlModal, setShowYamlModal] = useState(false);
-  const [yamlContent, setYamlContent] = useState("");
-  const [editingResource, setEditingResource] = useState({ 
-    type: "", 
-    name: "", 
-    namespace: "" 
-  });
-  const [yamlLoading, setYamlLoading] = useState(false);
-
-  // Success message state for styled popup
-  const [successMessage, setSuccessMessage] = useState<string>("");
-
-  // YAML Cache for storing fetched YAML content by resource key
-  const [yamlCache, setYamlCache] = useState<Record<string, string>>({});
-
   // Helper function to get auth token
   const getAuthToken = () => {
     return localStorage.getItem("access_token") || "";
   };
 
+  // Animation variants
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0 }
+  };
+
   // Fetch clusters on component mount
   useEffect(() => {
-    const fetchClusters = async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/clusters`, {
-          headers: {
-            "Authorization": `Bearer ${getAuthToken()}`
-          }
-        });
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch clusters: ${response.statusText}`);
-        }
-
-        const data = await response.json();
-        setClusters(data.clusters || []);
-      } catch (err: any) {
-        setError(`Error fetching clusters: ${err.message}`);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchClusters();
   }, []);
 
   // Fetch namespaces when cluster is selected
   useEffect(() => {
-    const fetchNamespaces = async () => {
-      if (!selectedClusterId) return;
-
-      setNamespacesLoading(true);
-      try {
-        const response = await fetch(`${API_BASE_URL}/select-cluster-and-get-namespaces/${selectedClusterId}`, {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${getAuthToken()}`
-          }
-        });
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch namespaces: ${response.statusText}`);
-        }
-
-        const data = await response.json();
-        setNamespaces(data.namespaces || []);
-      } catch (err: any) {
-        setError(`Error fetching namespaces: ${err.message}`);
-      } finally {
-        setNamespacesLoading(false);
-      }
-    };
-
-    fetchNamespaces();
+    if (selectedClusterId) {
+      fetchNamespaces(selectedClusterId);
+    }
   }, [selectedClusterId]);
 
   // Fetch workloads when cluster and namespace are selected
@@ -208,20 +150,79 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
     }
   }, [selectedClusterId, selectedNamespace]);
 
-  // Auto refresh effect
+  // Auto-refresh logic
   useEffect(() => {
     if (autoRefresh && selectedClusterId && selectedNamespace) {
       const interval = setInterval(() => {
         fetchWorkloads(selectedClusterId, selectedNamespace);
       }, 30000); // Refresh every 30 seconds
-
       setRefreshInterval(interval);
-      return () => clearInterval(interval);
     } else if (refreshInterval) {
       clearInterval(refreshInterval);
       setRefreshInterval(null);
     }
+
+    return () => {
+      if (refreshInterval) {
+        clearInterval(refreshInterval);
+      }
+    };
   }, [autoRefresh, selectedClusterId, selectedNamespace]);
+
+  // Fetch clusters
+  const fetchClusters = async () => {
+    try {
+      const response = await fetch(`/api/v2.0/clusters`, {
+        headers: {
+          "Authorization": `Bearer ${getAuthToken()}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch clusters: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      if (!selectedClusterId && data.clusters && data.clusters.length > 0) {
+        setSelectedClusterId(data.clusters[0].id);
+      }
+      setClusters(data.clusters || []);
+    } catch (err: any) {
+      setError(`Error fetching clusters: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch namespaces
+  const fetchNamespaces = async (clusterId: number) => {
+    setNamespacesLoading(true);
+    try {
+      const response = await fetch(`/api/v2.0/get-namespaces/${clusterId}`, {
+        headers: {
+          "Authorization": `Bearer ${getAuthToken()}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch namespaces: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const fetchedNamespaces = data.namespaces || [];
+      setNamespaces(fetchedNamespaces);
+      
+      // Auto-select first namespace if none is selected
+      if (fetchedNamespaces.length > 0 && !selectedNamespace) {
+        setSelectedNamespace(fetchedNamespaces[0]);
+      }
+    } catch (err: any) {
+      setError(`Error fetching namespaces: ${err.message}`);
+      setNamespaces([]);
+    } finally {
+      setNamespacesLoading(false);
+    }
+  };
 
   // Fetch workloads using kubectl commands
   const fetchWorkloads = async (clusterId: number, namespace: string) => {
@@ -252,7 +253,7 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
       // Fetch all workload types concurrently
       const promises = Object.entries(workloadCommands).map(async ([type, command]) => {
         try {
-          const response = await fetch(`${API_BASE_URL}/execute-kubectl-direct/${clusterId}`, {
+          const response = await fetch(`/api/v2.0/execute-kubectl-direct/${clusterId}`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -284,184 +285,6 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
     }
   };
 
-  // ADD THESE MISSING FUNCTIONS
-  const handleEditYaml = async (resourceType: string, name: string, namespace: string) => {
-    if (!selectedClusterId) return;
-    
-    setYamlLoading(true);
-    setEditingResource({ type: resourceType, name, namespace });
-    
-    try {
-      // Cache key बनाएं
-      const cacheKey = `${selectedClusterId}-${namespace}-${resourceType}-${name}`;
-      
-      // पहले cache check करें
-      if (yamlCache[cacheKey]) {
-        console.log("Using cached YAML for:", cacheKey);
-        setYamlContent(yamlCache[cacheKey]);
-        setShowYamlModal(true);
-      } else {
-        // Cache नहीं है तो fresh YAML fetch करें
-        console.log("Fetching fresh YAML for:", cacheKey);
-        const freshYaml = await fetchResourceYaml(selectedClusterId, namespace, resourceType, name);
-        
-        // Cache को update करें
-        setYamlCache(prev => ({
-          ...prev,
-          [cacheKey]: freshYaml
-        }));
-        
-        setYamlContent(freshYaml);
-        setShowYamlModal(true);
-      }
-    } catch (error) {
-      console.error('Error fetching YAML:', error);
-      alert('Failed to fetch YAML: ' + error.message);
-    } finally {
-      setYamlLoading(false);
-    }
-  };
-
-  const handleSaveYaml = async () => {
-    if (!selectedClusterId) return;
-
-    // Prevent updating pods YAML as backend does not support it
-    if (editingResource.type.toLowerCase() === 'pod') {
-      alert("Editing pods YAML is not supported.");
-      return;
-    }
-
-    // Validate YAML syntax before sending
-    let parsedYaml;
-    try {
-      parsedYaml = yaml.load(yamlContent);
-    } catch (e) {
-      alert("Invalid YAML syntax: " + e.message);
-      return;
-    }
-
-    // Sanitize YAML by removing metadata.resourceVersion, metadata.managedFields, metadata.status
-    if (parsedYaml && parsedYaml.metadata) {
-      delete parsedYaml.metadata.resourceVersion;
-      delete parsedYaml.metadata.managedFields;
-      delete parsedYaml.status;
-    }
-
-    // Additional sanitization: remove null or empty fields recursively
-    function cleanObject(obj) {
-      if (Array.isArray(obj)) {
-        return obj
-          .map(cleanObject)
-          .filter(item => item !== null && item !== undefined && !(typeof item === 'object' && Object.keys(item).length === 0));
-      } else if (obj !== null && typeof obj === 'object') {
-        const cleaned = {};
-        Object.entries(obj).forEach(([key, value]) => {
-          let cleanedValue = cleanObject(value);
-          // Fix containerPort field name if present as container_port
-          if (key === 'ports' && Array.isArray(cleanedValue)) {
-            cleanedValue = cleanedValue.map(port => {
-              if (port.container_port !== undefined) {
-                port.containerPort = port.container_port;
-                delete port.container_port;
-              }
-              return port;
-            });
-          }
-          if (cleanedValue !== null && cleanedValue !== undefined && !(typeof cleanedValue === 'object' && Object.keys(cleanedValue).length === 0)) {
-            cleaned[key] = cleanedValue;
-          }
-        });
-        return cleaned;
-      } else {
-        return obj;
-      }
-    }
-
-    const cleanedYamlObj = cleanObject(parsedYaml);
-
-    // Convert back to YAML string
-    const sanitizedYaml = yaml.dump(cleanedYamlObj);
-
-    console.log("Sending YAML to backend:", sanitizedYaml);
-
-    setYamlLoading(true);
-    try {
-      const result = await updateResourceYaml(
-        selectedClusterId,
-        editingResource.namespace,
-        editingResource.type,
-        editingResource.name,
-        sanitizedYaml
-      );
-      
-        if (result.success) {
-          // Success notification
-          console.log('YAML updated successfully');
-          
-          // Cache को update करें ताकि next time updated content दिखे
-          const cacheKey = `${selectedClusterId}-${editingResource.namespace}-${editingResource.type}-${editingResource.name}`;
-          setYamlCache(prev => ({
-            ...prev,
-            [cacheKey]: sanitizedYaml
-          }));
-          
-          // Show success message popup
-          setSuccessMessage('YAML updated successfully!');
-          
-          // Modal close करें
-          setShowYamlModal(false);
-
-          // Immediately update workloads state for deployments to reflect new name from YAML
-          try {
-            const parsedYamlObj = yaml.load(sanitizedYaml) as any;
-            const newNameFromYaml = parsedYamlObj?.metadata?.name;
-            if (newNameFromYaml && editingResource.type.toLowerCase() === 'deployment') {
-              setWorkloads(prev => ({
-                ...prev,
-                deployments: prev.deployments.map((dep: any) =>
-                  dep.metadata?.name === editingResource.name
-                    ? {
-                        ...dep,
-                        metadata: parsedYamlObj.metadata,
-                        kind: parsedYamlObj.kind,
-                        apiVersion: parsedYamlObj.apiVersion,
-                        // Also update container image if changed
-                        spec: {
-                          ...dep.spec,
-                          template: {
-                            ...dep.spec?.template,
-                            spec: {
-                              ...dep.spec?.template?.spec,
-                              containers: parsedYamlObj.spec?.template?.spec?.containers || dep.spec?.template?.spec?.containers
-                            }
-                          }
-                        }
-                      }
-                    : dep
-                )
-              }));
-            }
-          } catch (e) {
-            console.error('Error updating workloads state from YAML:', e);
-          }
-          
-          // Add 2 second delay before refreshing workloads from backend
-          // setTimeout(() => {
-          //   fetchWorkloads(selectedClusterId, editingResource.namespace);
-          // }, 2000);
-
-          // Content clear करें
-          setYamlContent("");
-          
-        }
-    } catch (error) {
-      console.error('Error updating YAML:', error);
-      alert("Failed to update YAML: " + error.message);
-    } finally {
-      setYamlLoading(false);
-    }
-  };
-
   // Fetch workload events
   const fetchWorkloadEvents = async (workloadName: string, workloadType: string, namespace: string) => {
     if (!selectedClusterId || !workloadName || !namespace) return;
@@ -471,7 +294,7 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
     setSelectedWorkloadType(workloadType);
     
     try {
-      const response = await fetch(`${API_BASE_URL}/execute-kubectl-direct/${selectedClusterId}`, {
+      const response = await fetch(`/api/v2.0/execute-kubectl-direct/${selectedClusterId}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -557,7 +380,6 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
     }
   };
 
-
   const formatEventTime = (timestamp: string) => {
     if (!timestamp) return 'Unknown';
     const date = new Date(timestamp);
@@ -612,12 +434,12 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
       running: 0,
       pending: 0,
       failed: 0,
-      succeeded: 0
+            succeeded: 0
     };
 
     allWorkloads.forEach(workload => {
       const status = workload.status?.phase || workload.status?.conditions?.[0]?.type || '';
-      switch (status.toLowerCase()) {
+      switch (status?.toLowerCase() ?? '') {
         case 'running':
           stats.running++;
           break;
@@ -720,7 +542,7 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
             // Determine state and error message
             let state = 'Active';
             let errorMsg = '';
-            if (status.toLowerCase() === 'failed') {
+            if ((status?.toLowerCase() ?? '') === 'failed') {
               state = 'Failed';
               // Try to get error message from containerStatuses or conditions
               const containerStatus = pod.status?.containerStatuses?.find((c: any) => c.state?.terminated?.exitCode !== 0);
@@ -734,9 +556,7 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
             return (
               <TableRow key={index}>
                 <TableCell>
-                  <div className="text-white">
-                    {renderClickableWorkloadName(pod, 'pods', 'lucide:box', 'dark:black')}
-                  </div>
+                  {renderClickableWorkloadName(pod, 'pods', 'lucide:box', 'primary')}
                 </TableCell>
                 <TableCell>{ready}/{total}</TableCell>
                 <TableCell>
@@ -895,16 +715,14 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
                         <Icon icon="lucide:calendar" />
                       </Button>
                     </Tooltip>
-                    <Tooltip content="Edit YAML">
+                    <Tooltip content="Scale">
                       <Button
+                        isIconOnly
                         size="sm"
-                        variant="flat"
-                        color="primary"
-                        onPress={() => handleEditYaml("deployment", deployment.metadata?.name || deployment.name, selectedNamespace)}
-                        startContent={<Icon icon="lucide:edit" />}
-                        isLoading={yamlLoading}
+                        variant="light"
+                        color="warning"
                       >
-                        Edit YAML
+                        <Icon icon="lucide:maximize" />
                       </Button>
                     </Tooltip>
                   </div>
@@ -1208,17 +1026,17 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
                         <Icon icon="lucide:calendar" />
                       </Button>
                     </Tooltip>
-                    <Tooltip content="View Logs">
-                      <Button
-                        isIconOnly
-                        size="sm"
-                        variant="light"
-                        color="warning"
-                        onPress={() => handleViewLogsClick(job)}
-                      >
-                        <Icon icon="lucide:file-text" />
-                      </Button>
-                    </Tooltip>
+                <Tooltip content="View Logs">
+                  <Button
+                    isIconOnly
+                    size="sm"
+                    variant="light"
+                    color="warning"
+                    onPress={() => handleViewLogsClick(job)}
+                  >
+                    <Icon icon="lucide:file-text" />
+                  </Button>
+                </Tooltip>
                   </div>
                 </TableCell>
               </TableRow>
@@ -1321,7 +1139,7 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
 
     try {
       // Fetch logs for the workload - example command, adjust as needed
-      const response = await fetch(`${API_BASE_URL}/execute-kubectl-direct/${selectedClusterId}`, {
+      const response = await fetch(`/api/v2.0/execute-kubectl-direct/${selectedClusterId}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1368,11 +1186,7 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
         return renderCronJobsTable();
       default:
         return renderPodsTable();
-
-
-
-
-            }
+    }
   };
 
   // Stats cards renderer
@@ -1437,8 +1251,8 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
     );
   };
 
-  // Workload type cards renderer
-  const renderWorkloadTypeCards = () => {
+  // Workload type cards renderer pods, deployments, services, statefulsets, daemonsets, jobs, cronjobs
+const renderWorkloadTypeCards = () => {
     const workloadTypes = [
       { key: 'pods', label: 'Pods', icon: 'lucide:box', color: 'primary' },
       { key: 'deployments', label: 'Deployments', icon: 'lucide:layers', color: 'secondary' },
@@ -1455,6 +1269,8 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
         initial="hidden"
         animate="visible"
         className="grid grid-cols-3 md:grid-cols-6 lg:grid-cols-7 gap-2 mb-6"
+
+
       >
         {workloadTypes.map((type) => (
           <motion.div key={type.key} variants={itemVariants} className="w-full max-w-[120px]">
@@ -1464,7 +1280,7 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
               }`}
               isPressable
               onPress={() => setSelectedTab(type.key)}
-              style={{ width: '100%', height: '100px' }}
+              style={{ width: '100%', height: '100px'  }}
             >
               <CardBody className="text-center p-3 flex flex-col items-center justify-center gap-1">
                 <Icon icon={type.icon} className={`text-2xl text-${type.color}`} />
@@ -1495,6 +1311,7 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
     return (
       <div className="flex items-center justify-center h-screen">
         <Card className="max-w-md">
+
           <CardBody className="text-center p-8">
             <Icon icon="lucide:alert-circle" className="text-6xl text-danger mb-4" />
             <h3 className="text-lg font-semibold text-danger mb-2">Error</h3>
@@ -1515,37 +1332,6 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
       animate="visible"
       className="p-6 space-y-6"
     >
-    {/* Success Message Modal */}
-      <Modal
-        isOpen={!!successMessage}
-        onClose={() => {
-          setSuccessMessage("");
-          setShowYamlModal(false);
-        }}
-        size="sm"
-        // Removed isCentered because it's not a valid prop
-        closeOnOverlayClick={false}
-      >
-  <ModalContent>
-    <ModalHeader>Success</ModalHeader>
-    <ModalBody>
-      <p>{successMessage}</p>
-    </ModalBody>
-    <ModalFooter>
-      <Button
-        color="primary"
-        onPress={() => {
-          setSuccessMessage("");
-          setShowYamlModal(false);
-        }}
-      >
-        OK
-      </Button>
-    </ModalFooter>
-  </ModalContent>
-</Modal>
-
-
       {/* Header */}
       <motion.div variants={itemVariants}>
         <Card>
@@ -1606,6 +1392,7 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
                       const cluster = clusters.find(c => c.id.toString() === item.key);
                       return (
                         <div key={item.key} className="flex items-center gap-2">
+                          {/* <Icon icon={getProviderIcon(cluster?.provider_name || "")} className="text-lg" /> */}
                           <span className="font-medium">{cluster?.cluster_name}</span>
                         </div>
                       );
@@ -1613,6 +1400,7 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
                   }}
                 >
                   {clusters.map((cluster) => (
+
                     <SelectItem key={cluster.id.toString()}>
                       <div className="flex items-center gap-3">
                         <Icon icon={getProviderIcon(cluster.provider_name)} className="text-lg" />
@@ -1642,6 +1430,8 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
                   renderValue={(items) => {
                     return items.map((item) => (
                       <div key={item.key} className="flex items-center gap-2">
+                        {/* <Icon icon="lucide:folder" className="text-warning" /> */}
+
                         <span>{item.key.toString()}</span>
                       </div>
                     ));
@@ -1680,6 +1470,16 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
                   >
                     <Icon icon="lucide:list" />
                   </Button>
+                </Tooltip>
+                <Tooltip content="Grid View">
+                  {/* <Button
+                    isIconOnly
+                    variant={viewMode === 'grid' ? 'solid' : 'light'}
+                    color="primary"
+                    onPress={() => setViewMode('grid')}
+                  >
+                    <Icon icon="lucide:grid-3x3" />
+                  </Button> */}
                 </Tooltip>
               </div>
 
@@ -2303,80 +2103,8 @@ export const WorkloadDashboard: React.FC<WorkloadDashboardProps> = ({ selectedCl
           </ModalFooter>
         </ModalContent>
       </Modal>
-
-      {/* YAML Editor Modal */}
-      <Modal
-        isOpen={showYamlModal}
-        onClose={() => {
-          setShowYamlModal(false);
-          setYamlContent(""); // Clear content when modal closes
-          setEditingResource({ type: "", name: "", namespace: "" }); // Reset editing resource
-        }}
-        size="5xl"
-        scrollBehavior="inside"
-        // Removed closeOnOverlayClick as it is not a valid prop
-      >
-        <ModalContent>
-          <ModalHeader>
-            <div className="flex items-center gap-3">
-              <Icon icon="lucide:edit" className="text-xl" />
-              <div>
-                <h3 className="text-lg font-semibold">Edit YAML</h3>
-                <p className="text-sm text-foreground-500">
-                  {editingResource.type}/{editingResource.name} - {editingResource.namespace}
-                </p>
-              </div>
-            </div>
-          </ModalHeader>
-          <ModalBody>
-            <div className="space-y-4">
-              <div className="bg-warning-50 border border-warning-200 rounded-lg p-3">
-                <div className="flex items-center gap-2">
-                  <Icon icon="lucide:alert-triangle" className="text-warning-600" />
-                  <span className="text-sm font-medium text-warning-800">Warning</span>
-                </div>
-                <p className="text-sm text-warning-700 mt-1">
-                  Editing YAML directly can affect your application. Make sure you understand the changes.
-                </p>
-              </div>
-
-              <div className="relative">
-                <textarea
-                  className="w-full h-96 p-4 font-mono text-sm border rounded-lg bg-content1 resize-none"
-                  value={yamlContent}
-                  onChange={(e) => setYamlContent(e.target.value)}
-                  placeholder="YAML content will appear here..."
-                  style={{ fontFamily: 'Monaco, Consolas, "Courier New", monospace' }}
-                />
-              </div>
-            </div>
-          </ModalBody>
-          <ModalFooter>
-            <Button
-              color="danger"
-              variant="light"
-              onPress={() => {
-                setShowYamlModal(false);
-                setYamlContent(""); // Clear content when cancelled
-                setEditingResource({ type: "", name: "", namespace: "" }); // Reset editing resource
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              color="primary"
-              onPress={handleSaveYaml}
-              isLoading={yamlLoading}
-              startContent={<Icon icon="lucide:save" />}
-            >
-              Save Changes
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
     </motion.div>
   );
 };
-
 
 export default WorkloadDashboard;

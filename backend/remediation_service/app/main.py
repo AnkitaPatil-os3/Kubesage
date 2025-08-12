@@ -14,7 +14,7 @@ app = FastAPI(
 # Configure CORS
 origins = [
     "https://localhost:3000",
-    "https://10.0.2.30:5173",
+    "https://10.0.2.29:5173",
     "https://127.0.0.1:3000",
     "*"  # Allow all origins for development
 ]
@@ -52,7 +52,7 @@ def health_check():
     }
 
 # Include routers
-app.include_router(remediation_router, prefix="/remediation", tags=["remediation"])
+app.include_router(remediation_router, prefix="/api/v4.0", tags=["remediation"])
 
 if __name__ == "__main__":
     import uvicorn

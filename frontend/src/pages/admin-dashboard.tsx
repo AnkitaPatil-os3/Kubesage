@@ -155,7 +155,7 @@ const checkAdminStatus = async () => {
     const token = getValidToken();
     if (!token) return false;
     
-    const res = await fetch(`${API_BASE_URL}/auth/check-admin`, {
+    const res = await fetch(`${API_BASE_URL}/api/v1.0/auth/check-admin`, {
       headers: {
         "Authorization": `Bearer ${token}`,
       },
@@ -246,7 +246,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
 
       console.log('Using token:', token.substring(0, 50) + '...');
 
-      const res = await fetch(`${API_BASE_URL}/users/?skip=0&limit=100`, {
+      const res = await fetch(`${API_BASE_URL}/api/v1.0/users/?skip=0&limit=100`, {
         method: 'GET',
         headers: {
           "accept": "application/json",
@@ -382,7 +382,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
 
       console.log('Adding user:', newUser);
 
-      const res = await fetch(`${API_BASE_URL}/auth/register`, {
+      const res = await fetch(`${API_BASE_URL}/api/v1.0/auth/register`, {
         method: "POST",
         headers: {
           "accept": "application/json",
@@ -466,7 +466,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
         updateData.password = editUser.password;
       }
 
-      const res = await fetch(`${API_BASE_URL}/users/${selectedUser.id}`, {
+      const res = await fetch(`${API_BASE_URL}/api/v1.0/users/${selectedUser.id}`, {
         method: "PUT",
         headers: {
           "accept": "application/json",
@@ -537,7 +537,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
 
       console.log('Deleting user:', selectedUser.id);
 
-      const res = await fetch(`${API_BASE_URL}/users/${selectedUser.id}`, {
+      const res = await fetch(`${API_BASE_URL}/api/v1.0/users/${selectedUser.id}`, {
         method: "DELETE",
         headers: {
           "accept": "application/json",
@@ -942,7 +942,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
   const resendConfirmation = async (userId: number) => {
   // Call your backend API to resend confirmation email
   const token = getValidToken();
-  const res = await fetch(`${API_BASE_URL}/auth/resend-confirm/${userId}`, {
+  const res = await fetch(`${API_BASE_URL}/api/v1.0/auth/resend-confirm/${userId}`, {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${token}`,
@@ -960,7 +960,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
 const manuallyConfirmUser = async (userId: number) => {
   // Call your backend API to manually confirm the user
   const token = getValidToken();
-  const res = await fetch(`${API_BASE_URL}/auth/confirm/${userId}/accept`, {
+  const res = await fetch(`${API_BASE_URL}/api/v1.0/auth/confirm/${userId}/accept`, {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${token}`,

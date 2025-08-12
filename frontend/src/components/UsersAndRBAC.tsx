@@ -1,3 +1,5 @@
+//user and rbac
+
 //usr rbac
 import React, { useState, useEffect } from "react";
 import { Chip } from "@heroui/react";
@@ -120,7 +122,7 @@ const resendConfirmation = async (userId: number, setSuccessMessage: (msg: strin
     return;
   }
   try {
-    const res = await fetch(`${API_BASE_URL}/auth/resend-confirm/${userId}`, {
+    const res = await fetch(`/api/v1.0/auth/resend-confirm/${userId}`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -148,7 +150,7 @@ const manuallyConfirmUser = async (userId: number, setSuccessMessage: (msg: stri
     return;
   }
   try {
-    const res = await fetch(`${API_BASE_URL}/auth/confirm/${userId}/accept`, {
+    const res = await fetch(`/api/v1.0/auth/confirm/${userId}/accept`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -209,7 +211,7 @@ const checkAdminStatus = async (): Promise<boolean> => {
   const token = getValidToken();
   if (!token) return false;
   try {
-    const res = await fetch(`${API_BASE_URL}/auth/check-admin`, {
+    const res = await fetch(`/api/v1.0/auth/check-admin`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) return false;
@@ -284,7 +286,7 @@ export const UsersAndRBAC: React.FC = () => {
     }
 
     try {
-      const res = await fetch(`${API_BASE_URL}/users/?skip=0&limit=100`, {
+      const res = await fetch(`/api/v1.0/users/?skip=0&limit=100`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const text = await res.text();
@@ -331,7 +333,7 @@ export const UsersAndRBAC: React.FC = () => {
         ...newUser,
         roles: Array.isArray(newUser.roles) ? newUser.roles.join(",") : newUser.roles,
       };
-      const res = await fetch(`${API_BASE_URL}/auth/register`, {
+      const res = await fetch(`/api/v1.0/auth/register`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -393,7 +395,7 @@ export const UsersAndRBAC: React.FC = () => {
       };
       if (editUser.password) body.password = editUser.password;
 
-      const res = await fetch(`${API_BASE_URL}/users/${selectedUser.id}`, {
+      const res = await fetch(`/api/v1.0/users/${selectedUser.id}`, {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -426,7 +428,7 @@ export const UsersAndRBAC: React.FC = () => {
     }
 
     try {
-      const res = await fetch(`${API_BASE_URL}/users/${selectedUser.id}`, {
+      const res = await fetch(`/api/v1.0/users/${selectedUser.id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -608,24 +610,29 @@ export const UsersAndRBAC: React.FC = () => {
                           <SelectItem key={role}>{role}</SelectItem>
                         ))}
                       </Select>
-                      <div className="mt-4">
-                        <h4 className="font-semibold mb-2">Permissions</h4>
+                    <div className="mt-4">
+                        <h4 className="font-semibold mb-2 text-foreground">Permissions</h4>
                         {selectedPermissions.length > 0 ? (
-                          <div className="max-h-60 overflow-y-auto border border-gray-300 rounded p-2 bg-white shadow-md" style={{ width: '600px' }}>
+                           <div className="max-h-60 overflow-y-auto border border-gray-600 rounded-lg p-3 bg-content2 shadow-lg" style={{ width: '600px' }}>
                             {Object.entries(groupPermissionsByCategory(selectedPermissions)).map(([category, perms]) => (
-                              <div key={category} className="mb-2">
-                                <h5 className="font-semibold">{permissionCategories[category] || category}</h5>
-                                <p className="text-xs text-gray-500 mb-1">{permissionCategoryDescriptions[category] || ""}</p><br></br>
-                                {/* <ul className="list-disc list-inside text-sm border border-gray-300 rounded p-2 bg-white shadow-md">
+                             <div key={category} className="mb-3 last:mb-0">
+                                <h5 className="font-semibold text-foreground flex items-center gap-2">
+                                  <span className="text-lg">{permissionCategories[category]?.split(' ')[0] || '📁'}</span>
+                                  <span>{permissionCategories[category]?.replace(/^[^\s]+\s/, '') || category}</span>
+                                </h5>
+                                <p className="text-xs text-foreground-500 mb-2">{permissionCategoryDescriptions[category] || ""}</p>
+                                <div className="flex flex-wrap gap-1">
                                   {perms.map((perm) => (
-                                    <li key={perm} className="hover:text-primary transition-colors duration-200 cursor-pointer">{perm}</li>
+                                    <Chip key={perm} size="sm" variant="flat" color="primary" className="text-xs">
+                                      {perm}
+                                    </Chip>
                                   ))}
-                                </ul> */}
+                                </div>
                               </div>
                             ))}
                           </div>
                         ) : (
-                          <p className="text-sm text-gray-500">No permissions selected</p>
+                          <p className="text-sm text-foreground-500">No permissions selected</p>
                         )}
                       </div>
                       <div className="flex items-center gap-2 mt-2 md:col-span-2">
@@ -716,25 +723,38 @@ export const UsersAndRBAC: React.FC = () => {
                       </div>
                     </CardBody>
                     <div className="mt-4">
-                      <h4 className="font-semibold mb-2 ml-3">Permissions</h4>
-                      {selectedPermissions.length > 0 ? (
-                        <div className="max-h-60 ml-3 overflow-y-auto border border-gray-300 rounded p-2 bg-white shadow-md" style={{ width: '600px' }}>
-                          {Object.entries(groupPermissionsByCategory(selectedPermissions)).map(([category, perms]) => (
-                            <div key={category} className="mb-2">
-                              <h5 className="font-semibold">{permissionCategories[category] || category}</h5>
-                              <p className="text-xs text-gray-500 mb-1">{permissionCategoryDescriptions[category] || ""}</p>
-                              <ul className="list-disc list-inside text-sm">
-                                {perms.map((perm) => (
-                                  <li key={perm} className="hover:text-primary transition-colors duration-200 cursor-pointer">{perm}</li>
-                                ))}
-                              </ul>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-sm text-gray-500">No permissions selected</p>
-                      )}
-                    </div>
+  <h4 className="font-semibold mb-2 ml-3 text-gray-900 dark:text-gray-100">Permissions</h4>
+  {selectedPermissions.length > 0 ? (
+    <div
+      className="max-h-60 ml-3 overflow-y-auto border border-gray-300 dark:border-gray-700 rounded p-2 bg-white dark:bg-gray-900 shadow-md"
+      style={{ width: '600px' }}
+    >
+      {Object.entries(groupPermissionsByCategory(selectedPermissions)).map(([category, perms]) => (
+        <div key={category} className="mb-2">
+          <h5 className="font-semibold text-gray-800 dark:text-gray-200">
+            {permissionCategories[category] || category}
+          </h5>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+            {permissionCategoryDescriptions[category] || ""}
+          </p>
+          <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300">
+            {perms.map((perm) => (
+              <li
+                key={perm}
+                className="hover:text-primary dark:hover:text-blue-400 transition-colors duration-200 cursor-pointer"
+              >
+                {perm}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  ) : (
+    <p className="text-sm text-gray-500 dark:text-gray-400">No permissions selected</p>
+  )}
+</div>
+
                   </Card>
                 </ModalBody>
                 <ModalFooter>
@@ -808,6 +828,28 @@ export const UsersAndRBAC: React.FC = () => {
           )}
         </ModalContent>
       </Modal>
+       {showSuccessModal && (
+        <Modal isOpen={showSuccessModal} onOpenChange={setShowSuccessModal} placement="top-center" size="sm">
+          <ModalContent>
+            {(onClose) => (
+              <>
+                <ModalHeader>
+                  <span>Confirmation Email Sent</span>
+                </ModalHeader>
+                <ModalBody>
+                  <p>{successMessage}</p>
+                </ModalBody>
+                <ModalFooter>
+                  <Button color="primary" onPress={() => setShowSuccessModal(false)}>
+                    OK
+                  </Button>
+                </ModalFooter>
+              </>
+            )}
+          </ModalContent>
+        </Modal>
+      )}
+   
     </div>
   );
 }

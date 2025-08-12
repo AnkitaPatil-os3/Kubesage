@@ -62,13 +62,20 @@ def get_user_token(request: Request) -> str:
     print("❌ No valid authorization header found")
     return ""
 
+
+from app.auth_permission import require_permission
+
+from fastapi import Depends
+
+
 @router.post("/chat", response_model=ChatResponse)
 @limiter.limit(f"{settings.RATE_LIMIT_REQUESTS}/{settings.RATE_LIMIT_WINDOW}")
 async def chat_invoke(
     request: Request,
     chat_request: ChatRequest,
     db_session: SessionDep,
-    current_user: CurrentUser
+    # current_user: CurrentUser
+    current_user = Depends(require_permission("chatops"))
 ):
     """Process a chat message with LangGraph agent."""
     try:
@@ -167,7 +174,8 @@ async def chat_stream(
     request: Request,
     chat_request: ChatRequest,
     db_session: SessionDep,
-    current_user: CurrentUser
+    # current_user: CurrentUser
+    current_user = Depends(require_permission("chatops"))
 ):
     """Stream a chat response from LangGraph agent."""
     try:
@@ -242,7 +250,8 @@ async def chat_stream(
 @router.get("/sessions", response_model=ChatSessionList)
 async def list_sessions(
     db_session: SessionDep,
-    current_user: CurrentUser,
+    # current_user: CurrentUser,
+    current_user = Depends(require_permission("chatops")),
     skip: int = 0,
     limit: int = 50
 ):
@@ -272,7 +281,8 @@ async def list_sessions(
 async def get_session(
     session_id: str,
     db_session: SessionDep,
-    current_user: CurrentUser
+    # current_user: CurrentUser
+    current_user = Depends(require_permission("chatops"))
 ):
     """Get a specific session with its message history."""
     try:
@@ -300,7 +310,8 @@ async def get_session(
 async def delete_session(
     session_id: str,
     db_session: SessionDep,
-    current_user: CurrentUser
+    # current_user: CurrentUser
+    current_user = Depends(require_permission("chatops"))
 ):
     """Delete a chat session."""
     try:
@@ -322,7 +333,8 @@ async def delete_session(
 async def create_session(
     session_create: ChatSessionCreate,
     db_session: SessionDep,
-    current_user: CurrentUser
+    # current_user: CurrentUser
+    current_user = Depends(require_permission("chatops"))
 ):
     """Create a new chat session."""
     try:

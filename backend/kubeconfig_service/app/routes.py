@@ -30,7 +30,9 @@ from fastapi.responses import JSONResponse, PlainTextResponse  # ✅ Add PlainTe
 import yaml  # ✅ Add yaml import
 import datetime 
 import re
- 
+
+from app.auth_permission import require_permission
+
 
 cluster_router = APIRouter()
 
@@ -41,7 +43,7 @@ cluster_router = APIRouter()
 async def onboard_cluster(
     cluster_data: ClusterConfigRequest,
     session: Session = Depends(get_session),
-    current_user: Dict = Depends(get_current_user)
+    current_user: Dict = Depends(require_permission("clusters")),
  ):
     """
     Onboards a Kubernetes cluster using server URL, token, and optional TLS configuration.
@@ -237,7 +239,8 @@ async def onboard_cluster(
                    description="Returns a list of all onboarded clusters for the current user")
 async def list_clusters(
     session: Session = Depends(get_session),
-    current_user: Dict = Depends(get_current_user)
+    
+    current_user: Dict = Depends(require_permission("clusters"))
 ):
     """
     Lists all onboarded clusters for the current user.
@@ -338,7 +341,8 @@ async def list_clusters(
 async def remove_cluster(
     cluster_id: int,
     session: Session = Depends(get_session),
-    current_user: Dict = Depends(get_current_user)
+    current_user: Dict = Depends(require_permission("clusters"))
+
 ):
     """
     Deletes a cluster configuration from the system.
@@ -401,7 +405,8 @@ async def remove_cluster(
 async def select_cluster_and_get_namespaces(
     cluster_id: int,
     session: Session = Depends(get_session),
-    current_user: Dict = Depends(get_current_user)
+    current_user: Dict = Depends(require_permission("clusters"))
+
 ):
     """
     Gets namespaces from a specific cluster using server URL and token dynamically.
@@ -772,7 +777,8 @@ async def select_cluster_and_get_namespaces(
 async def get_namespaces_from_cluster(
     cluster_id: int,
     session: Session = Depends(get_session),
-    current_user: Dict = Depends(get_current_user)
+    current_user: Dict = Depends(require_permission("clusters"))
+
 ):
     """
     Retrieves namespaces from the specified cluster using GET method.
@@ -978,7 +984,8 @@ async def get_namespaces_from_cluster(
 async def get_cluster_credentials(
     cluster_name: str,
     session: Session = Depends(get_session),
-    current_user: Dict = Depends(get_current_user)
+    current_user: Dict = Depends(require_permission("clusters"))
+
 ):
     """
     Get cluster credentials (server URL and token) by cluster name.
@@ -2180,7 +2187,8 @@ async def generate_solutions_concurrently(resource_errors: Dict, llm_service: K8
 async def analyze_k8s_with_solutions(
     cluster_id: int,  # CHANGED: Now requires cluster_id parameter
     session: Session = Depends(get_session),
-    current_user: Dict = Depends(get_current_user),
+    current_user: Dict = Depends(require_permission("clusters"))
+,
     namespace: str = Query(None, description="Namespace to analyze"),
     resource_types: List[str] = Query(
         ["pods", "deployments", "services", "secrets", "storageclasses", "ingress", "pvc"],
@@ -2317,7 +2325,8 @@ async def execute_kubectl_command_direct(
     cluster_id: int,
     command_data: dict,
     session: Session = Depends(get_session),
-    current_user: Dict = Depends(get_current_user)
+    current_user: Dict = Depends(require_permission("clusters"))
+
 ):
     """
     Execute kubectl command using cluster credentials directly without temporary kubeconfig.
@@ -2676,7 +2685,8 @@ async def get_workloads_in_namespace(
     cluster_id: int,
     namespace: str,
     session: Session = Depends(get_session),
-    current_user: Dict = Depends(get_current_user)
+    current_user: Dict = Depends(require_permission("clusters"))
+
 ):
     """
     Retrieves all workloads from specified namespace in the cluster.
@@ -2902,7 +2912,8 @@ async def get_cluster_applications(
     namespace: str = Query(None, description="Filter by namespace"),
     app_type: str = Query(None, description="Filter by application type"),
     session: Session = Depends(get_session),
-    current_user: Dict = Depends(get_current_user)
+    current_user: Dict = Depends(require_permission("clusters"))
+
 ):
     """
     Get applications from the specified cluster.
@@ -3016,7 +3027,8 @@ async def get_application_details(
     namespace: str = Query(..., description="Application namespace"),
     app_type: str = Query(..., description="Application type"),
     session: Session = Depends(get_session),
-    current_user: Dict = Depends(get_current_user)
+    current_user: Dict = Depends(require_permission("clusters"))
+
 ):
     """
     Get detailed information about a specific application including related resources.
@@ -3439,7 +3451,8 @@ async def get_resource_yaml(
     resource_type: str,
     name: str,
     session: Session = Depends(get_session),
-    current_user: Dict = Depends(get_current_user)
+    current_user: Dict = Depends(require_permission("clusters"))
+
 ):
     """Get YAML configuration of a Kubernetes resource"""
     # Get cluster
@@ -3507,7 +3520,8 @@ async def update_yaml_resource(
     name: str,
     request: Request,
     session: Session = Depends(get_session),
-    current_user: Dict = Depends(get_current_user),
+    current_user: Dict = Depends(require_permission("clusters"))
+,
 ):
     def clean_deployment_yaml(yaml_obj):
         # Remove fields that are not allowed or should not be sent in update

@@ -11,7 +11,7 @@ app = FastAPI(title="KubeSage KubeConfig Service")
 # Allow frontend requests
 origins = [
     "*",  # Frontend running locally
-    "https://10.0.2.30:5173"
+    "https://10.0.2.29:5173"
    
 ]
 
@@ -36,7 +36,7 @@ def health_check():
     return {"status": "healthy"}
 
 # Include routers
-app.include_router(cluster_router, prefix="/kubeconfig", tags=["kubeconfig"])
+app.include_router(cluster_router, prefix="/api/v2.0", tags=["kubeconfig"])
 
 if __name__ == "__main__":
     import uvicorn

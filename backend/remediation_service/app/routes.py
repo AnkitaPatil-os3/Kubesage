@@ -23,6 +23,8 @@ from app.executors import KubectlExecutor, ArgoCDExecutor, CrossplaneExecutor
 from app.api_auth import authenticate_api_key_from_header
 import os
 
+from app.auth_permission import require_permission
+
 remediation_router = APIRouter()
 
 # Executor instances cache
@@ -380,7 +382,7 @@ async def list_incidents(
     namespace: Optional[str] = Query(None),
     resolved: Optional[bool] = Query(None),
     session: Session = Depends(get_session),
-    current_user: Dict = Depends(get_current_user)
+     current_user: Dict = Depends(require_permission("remediations"))
 ):
     """List incidents with filtering and pagination for authenticated user"""
     
@@ -475,7 +477,7 @@ async def list_incidents(
 async def get_incident(
     id: int,
     session: Session = Depends(get_session),
-    current_user: Dict = Depends(get_current_user)):
+     current_user: Dict = Depends(require_permission("remediations"))):
 
     """Get detailed information about a specific incident for authenticated user"""
 
@@ -658,7 +660,7 @@ async def remediate_incident(
     background_tasks: BackgroundTasks,
     execute: bool = Query(False, description="Whether to execute the remediation automatically"),
     session: Session = Depends(get_session),
-    current_user: Dict = Depends(get_current_user) 
+     current_user: Dict = Depends(require_permission("remediations")) 
 ):
     """Generate remediation solution for ANY type of incident using LLM."""
     
@@ -774,7 +776,7 @@ async def execute_remediation_steps(
     request: Dict[str, Any],
     executor_type: Optional[ExecutorType] = Query(None),
     session: Session = Depends(get_session),
-    current_user: Dict = Depends(get_current_user)):
+     current_user: Dict = Depends(require_permission("remediations"))):
 
     """Execute specific remediation steps for an incident"""
 

@@ -78,7 +78,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         const accessToken = localStorage.getItem("access_token");
         if (!accessToken) return setIsAdmin(false);
  
-        const response = await fetch(`${API_BASE_URL}/auth/check-admin`, {
+        const response = await fetch(`${API_BASE_URL}/api/v1.0/auth/check-admin`, {
           headers: {
             Authorization: `Bearer ${accessToken}`,
           },
@@ -99,7 +99,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     try {
       const accessToken = localStorage.getItem("access_token");
       if (accessToken) {
-        await fetch(`${API_BASE_URL}/auth/logout`, {
+        await fetch(`${API_BASE_URL}/api/v1.0/auth/logout`, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${accessToken}`,

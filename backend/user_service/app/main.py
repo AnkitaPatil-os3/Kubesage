@@ -62,9 +62,9 @@ def health_check():
     return {"status": "healthy"}
 
 # Include routers
-app.include_router(auth_router, prefix="/auth", tags=["Authentication"])
-app.include_router(user_router, prefix="/users", tags=["Users"])
-app.include_router(api_key_router, prefix="/api-keys", tags=["API Keys"])  
+app.include_router(auth_router, prefix="/api/v1.0/auth", tags=["Authentication"])
+app.include_router(user_router, prefix="/api/v1.0/users", tags=["Users"])
+app.include_router(api_key_router, prefix="/api/v1.0/api-keys", tags=["API Keys"])  
 
 
 if __name__ == "__main__":

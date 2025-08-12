@@ -257,8 +257,8 @@ interface ClusterConfig {
 }
 
 // API Configuration
-const API_BASE_URL = 'https://10.0.2.30:8003';
-const KUBECONFIG_API_BASE_URL = 'https://10.0.2.30:8002';
+// const API_BASE_URL = 'https://10.0.2.29:8003';
+// const KUBECONFIG_API_BASE_URL = 'https://10.0.2.29:8002';
 
 class ChatAPI {
   private getAuthHeaders() {
@@ -270,7 +270,7 @@ class ChatAPI {
   }
 
   async sendMessage(message: string, sessionId?: string, enableToolResponse: boolean = false, clusterName?: string): Promise<ChatResponse> {
-    const response = await fetch(`https://10.0.2.30:8003/chat`, {
+    const response = await fetch(`/api/v3.0/chat`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
       body: JSON.stringify({
@@ -288,7 +288,7 @@ class ChatAPI {
     return response.json();
   }
   async getSessions(): Promise<{ sessions: Session[] }> {
-    const response = await fetch(`https://10.0.2.30:8003/sessions`, {
+    const response = await fetch(`/api/v3.0/sessions`, {
       headers: this.getAuthHeaders()
     });
 
@@ -300,7 +300,7 @@ class ChatAPI {
   }
 
   async createSession(title: string): Promise<Session> {
-    const response = await fetch(`https://10.0.2.30:8003/sessions`, {
+    const response = await fetch(`/api/v3.0/sessions`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
       body: JSON.stringify({ title })
@@ -314,7 +314,7 @@ class ChatAPI {
   }
 
   async deleteSession(sessionId: string): Promise<void> {
-    const response = await fetch(`https://10.0.2.30:8003/sessions/${sessionId}`, {
+    const response = await fetch(`/api/v3.0/sessions/${sessionId}`, {
       method: 'DELETE',
       headers: this.getAuthHeaders()
     });
@@ -325,7 +325,7 @@ class ChatAPI {
   }
 
   async getSessionHistory(sessionId: string): Promise<{ id: string; created_at: string; messages: Message[] }> {
-    const response = await fetch(`https://10.0.2.30:8003/sessions/${sessionId}`, {
+    const response = await fetch(`/api/v3.0/sessions/${sessionId}`, {
       headers: this.getAuthHeaders()
     });
 
@@ -337,7 +337,7 @@ class ChatAPI {
   }
 
   async getHealthStatus() {
-    const response = await fetch(`https://10.0.2.30:8003/health`, {
+    const response = await fetch(`/api/v3.0/health`, {
       headers: this.getAuthHeaders()
     });
 
@@ -350,7 +350,7 @@ class ChatAPI {
 
   // Cluster management methods
   async getClusters(): Promise<{ clusters: ClusterConfig[] }> {
-    const response = await fetch(`https://10.0.2.30:8002/kubeconfig/clusters`, {
+    const response = await fetch(`/api/v2.0/clusters`, {
       headers: this.getAuthHeaders()
     });
 
