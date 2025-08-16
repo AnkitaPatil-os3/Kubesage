@@ -2,8 +2,8 @@ import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Icon } from "@iconify/react";
 import { jwtDecode } from "jwt-decode";
-const API_BASE_URL = (import.meta as any).env.VITE_USER_SERVICE;
-const KUBECONFIG_BASE_URL = (import.meta as any).env.VITE_KUBECONFIG_SERVICE;
+// const API_BASE_URL = (import.meta as any).env.VITE_USER_SERVICE;
+// const KUBECONFIG_BASE_URL = (import.meta as any).env.VITE_KUBECONFIG_SERVICE;
 
 import { 
   Card, 
@@ -155,7 +155,7 @@ const checkAdminStatus = async () => {
     const token = getValidToken();
     if (!token) return false;
     
-    const res = await fetch(`${API_BASE_URL}/api/v1.0/auth/check-admin`, {
+    const res = await fetch(`/api/v1.0/auth/check-admin`, {
       headers: {
         "Authorization": `Bearer ${token}`,
       },
@@ -246,7 +246,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
 
       console.log('Using token:', token.substring(0, 50) + '...');
 
-      const res = await fetch(`${API_BASE_URL}/api/v1.0/users/?skip=0&limit=100`, {
+      const res = await fetch(`api/v1.0/users/?skip=0&limit=100`, {
         method: 'GET',
         headers: {
           "accept": "application/json",
@@ -306,7 +306,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
       console.log('Using token:', token.substring(0, 50) + '...');
 
       // Updated API endpoint to fetch cluster names from kubeconfig service on port 8002
-     const res = await fetch(`${KUBECONFIG_BASE_URL}/kubeconfig/clusters`, {
+     const res = await fetch(`/api/v2.0/clusters`, {
   method: 'GET',
   headers: {
     "accept": "application/json",
@@ -382,7 +382,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
 
       console.log('Adding user:', newUser);
 
-      const res = await fetch(`${API_BASE_URL}/api/v1.0/auth/register`, {
+      const res = await fetch(`/api/v1.0/auth/register`, {
         method: "POST",
         headers: {
           "accept": "application/json",
@@ -466,7 +466,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
         updateData.password = editUser.password;
       }
 
-      const res = await fetch(`${API_BASE_URL}/api/v1.0/users/${selectedUser.id}`, {
+      const res = await fetch(`/api/v1.0/users/${selectedUser.id}`, {
         method: "PUT",
         headers: {
           "accept": "application/json",
@@ -537,7 +537,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
 
       console.log('Deleting user:', selectedUser.id);
 
-      const res = await fetch(`${API_BASE_URL}/api/v1.0/users/${selectedUser.id}`, {
+      const res = await fetch(`/api/v1.0/users/${selectedUser.id}`, {
         method: "DELETE",
         headers: {
           "accept": "application/json",
@@ -942,7 +942,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
   const resendConfirmation = async (userId: number) => {
   // Call your backend API to resend confirmation email
   const token = getValidToken();
-  const res = await fetch(`${API_BASE_URL}/api/v1.0/auth/resend-confirm/${userId}`, {
+  const res = await fetch(`/api/v1.0/auth/resend-confirm/${userId}`, {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${token}`,
@@ -960,7 +960,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
 const manuallyConfirmUser = async (userId: number) => {
   // Call your backend API to manually confirm the user
   const token = getValidToken();
-  const res = await fetch(`${API_BASE_URL}/api/v1.0/auth/confirm/${userId}/accept`, {
+  const res = await fetch(`/api/v1.0/auth/confirm/${userId}/accept`, {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${token}`,

@@ -94,6 +94,7 @@ async def receive_incident_webhook(
     x_namespace: Optional[str] = Header(None, alias="X-Namespace"),  # ADD namespace header
     user_agent: Optional[str] = Header(None, alias="User-Agent"),  # ADD user agent
     content_type: Optional[str] = Header(None, alias="Content-Type"),  # ADD content type
+    current_user: Dict = Depends(require_permission("remediations"))
 ):
     """
     Webhook endpoint to receive Kubernetes incidents and store important data in database.
@@ -255,6 +256,7 @@ async def receive_incident_webhook(
                        description="Get list of all executors and their status")
 async def list_executors(
     session: Session = Depends(get_session),
+    current_user: Dict = Depends(require_permission("remediations"))
 ):
     """List all executors and their status"""
     executors = session.exec(select(Executor)).all()
@@ -289,6 +291,7 @@ async def list_executors(
 async def create_executor(
     executor_data: ExecutorCreate,
     session: Session = Depends(get_session),
+    current_user: Dict = Depends(require_permission("remediations"))
 ):
     """Create a new executor"""
     # Check if executor already exists
@@ -320,6 +323,7 @@ async def update_executor(
     executor_id: int,
     executor_data: ExecutorUpdate,
     session: Session = Depends(get_session),
+    current_user: Dict = Depends(require_permission("remediations"))
 ):
     """Update executor status and configuration"""
     executor = session.get(Executor, executor_id)
@@ -349,6 +353,7 @@ async def update_executor(
 async def activate_executor(
     executor_id: int,
     session: Session = Depends(get_session),
+        current_user: Dict = Depends(require_permission("remediations"))
 ):
     """Activate an executor and deactivate all others"""
     executor = session.get(Executor, executor_id)
@@ -382,7 +387,7 @@ async def list_incidents(
     namespace: Optional[str] = Query(None),
     resolved: Optional[bool] = Query(None),
     session: Session = Depends(get_session),
-     current_user: Dict = Depends(require_permission("remediations"))
+    current_user: Dict = Depends(require_permission("remediations"))
 ):
     """List incidents with filtering and pagination for authenticated user"""
     
@@ -477,7 +482,7 @@ async def list_incidents(
 async def get_incident(
     id: int,
     session: Session = Depends(get_session),
-     current_user: Dict = Depends(require_permission("remediations"))):
+    current_user: Dict = Depends(require_permission("remediations"))):
 
     """Get detailed information about a specific incident for authenticated user"""
 
@@ -660,7 +665,7 @@ async def remediate_incident(
     background_tasks: BackgroundTasks,
     execute: bool = Query(False, description="Whether to execute the remediation automatically"),
     session: Session = Depends(get_session),
-     current_user: Dict = Depends(require_permission("remediations")) 
+    current_user: Dict = Depends(require_permission("remediations")) 
 ):
     """Generate remediation solution for ANY type of incident using LLM."""
     
@@ -776,7 +781,7 @@ async def execute_remediation_steps(
     request: Dict[str, Any],
     executor_type: Optional[ExecutorType] = Query(None),
     session: Session = Depends(get_session),
-     current_user: Dict = Depends(require_permission("remediations"))):
+    current_user: Dict = Depends(require_permission("remediations"))):
 
     """Execute specific remediation steps for an incident"""
 
@@ -942,6 +947,7 @@ async def execute_remediation_steps(
                         description="Initialize default executors (kubectl, argocd, crossplane)")
 async def initialize_default_executors(
     session: Session = Depends(get_session),
+    current_user: Dict = Depends(require_permission("remediations"))
 ):
     """Initialize default executors with kubectl as active"""
     try:
@@ -1028,7 +1034,8 @@ async def initialize_default_executors(
 @remediation_router.get("/health",
                        summary="Health Check",
                        description="Check service health and component status")
-async def health_check(session: Session = Depends(get_session)):
+async def health_check(session: Session = Depends(get_session),
+                        current_user: Dict = Depends(require_permission("remediations"))):
     """Health check endpoint"""
     try:
         # Check database connection

@@ -77,8 +77,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ selectedCluster }) => {
   
 
   const fetchNodeStatus = async () => {
-    const username = localStorage.getItem("username") || "";
     try {
+      const username = localStorage.getItem("username") || "";
+
       const res = await fetch(`/api/v2.0/nodes/status/all-clusters?username=${username}`, {
         headers: {
           Authorization: `Bearer ${getAuthToken()}`

@@ -31,7 +31,7 @@ import { jwtDecode } from "jwt-decode";
 
 import { rolePermissions, UserRole } from "../config/permissions";
 
-const API_BASE_URL = (import.meta as any).env.VITE_USER_SERVICE;
+// const API_BASE_URL = (import.meta as any).env.VITE_USER_SERVICE;
 
 // Helper function to create role name to key mapping dynamically
 const createRoleNameToKeyMap = (rolesOptions: string[]): Record<string, UserRole> => {

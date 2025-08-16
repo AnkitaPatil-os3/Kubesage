@@ -1,3 +1,4 @@
+# routes
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
 from sqlmodel import Session, select, update
@@ -2314,13 +2315,13 @@ async def analyze_k8s_with_solutions(
 
 
 
-# Create a thread pool executor for kubectl commands
-kubectl_executor = ThreadPoolExecutor(max_workers=50, thread_name_prefix="kubectl-")
+# Kubernetes client-based workload API - No kubectl dependency
+workload_executor = ThreadPoolExecutor(max_workers=50, thread_name_prefix="k8s-workload-")
 
 
 @cluster_router.post("/execute-kubectl-direct/{cluster_id}",
-                       summary="Execute Kubectl Command Directly", 
-                       description="Execute kubectl command using cluster credentials directly")
+                       summary="Execute Kubernetes Command Directly", 
+                       description="Execute Kubernetes commands using direct API calls without kubectl")
 async def execute_kubectl_command_direct(
     cluster_id: int,
     command_data: dict,
@@ -2329,8 +2330,8 @@ async def execute_kubectl_command_direct(
 
 ):
     """
-    Execute kubectl command using cluster credentials directly without temporary kubeconfig.
-    Optimized for high concurrency (100-150+ users).
+    Execute Kubernetes commands using direct API calls without kubectl installation.
+    Supports common kubectl operations via Kubernetes Python client.
     """
     # Get specified cluster
     cluster = session.exec(
@@ -2350,9 +2351,9 @@ async def execute_kubectl_command_direct(
     if not command:
         raise HTTPException(status_code=400, detail="Command is required")
 
-    # Run kubectl command in background thread to avoid blocking
+    # Run Kubernetes API command in background thread
     try:
-        result_data = await run_kubectl_command_async(cluster, command, current_user)
+        result_data = await run_k8s_api_command_async(cluster, command, current_user)
         return JSONResponse(content=result_data, status_code=200)
         
     except asyncio.TimeoutError:
@@ -2369,10 +2370,10 @@ async def execute_kubectl_command_direct(
                 "provider_name": cluster.provider_name
             },
             "executed_at": datetime.datetime.now().isoformat(),
-            "execution_method": "direct"
+            "execution_method": "kubernetes-api"
         }, status_code=200)
     except Exception as e:
-        logger.error(f"Error executing kubectl command on cluster {cluster_id}: {str(e)}")
+        logger.error(f"Error executing Kubernetes command on cluster {cluster_id}: {str(e)}")
         return JSONResponse(content={
             "success": False,
             "output": "",
@@ -2386,85 +2387,216 @@ async def execute_kubectl_command_direct(
                 "provider_name": cluster.provider_name
             },
             "executed_at": datetime.datetime.now().isoformat(),
-            "execution_method": "direct"
+            "execution_method": "kubernetes-api"
         }, status_code=200)
 
 
-async def run_kubectl_command_async(cluster, command: str, current_user: dict) -> dict:
+async def run_k8s_api_command_async(cluster, command: str, current_user: dict) -> dict:
     """
-    Run kubectl command asynchronously in a thread pool to handle high concurrency.
+    Run Kubernetes API commands asynchronously using direct client calls.
     """
-    def _execute_kubectl_sync():
-        """Synchronous kubectl execution - runs in thread pool"""
-        import subprocess
-        
-        # Prepare environment variables for kubectl
-        env = dict(os.environ)
-        
-        # Add cluster credentials to command if it's a kubectl command
-        if command.strip().startswith("kubectl"):
-            cmd_with_auth = command
-            # Add server and token directly to kubectl command
-            if "--server" not in command:
-                cmd_with_auth += f" --server={cluster.server_url}"
-            if "--token" not in command:
-                cmd_with_auth += f" --token={cluster.token}"
-            if not cluster.use_secure_tls and "--insecure-skip-tls-verify" not in command:
-                cmd_with_auth += " --insecure-skip-tls-verify=true"
-        else:
-            cmd_with_auth = command
-
-        logger.info(f"Executing command on cluster {cluster.cluster_name}: {command}")
-
-        # Execute command with timeout
-        result = subprocess.run(
-            cmd_with_auth,
-            shell=True,
-            capture_output=True,
-            text=True,
-            timeout=300,
-            env=env
-        )
-        
-        return result
+    def _execute_k8s_api_sync():
+        """Synchronous Kubernetes API execution - runs in thread pool"""
+        try:
+            # Setup Kubernetes configuration
+            configuration = Configuration()
+            configuration.host = cluster.server_url
+            configuration.api_key = {"authorization": f"Bearer {cluster.token}"}
+            configuration.api_key_prefix = {"authorization": ""}
+            configuration.verify_ssl = cluster.use_secure_tls
+            
+            # Configure TLS if needed
+            if cluster.use_secure_tls and cluster.ca_data:
+                import tempfile
+                import base64
+                
+                with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.crt') as ca_file:
+                    try:
+                        ca_content = base64.b64decode(cluster.ca_data).decode('utf-8')
+                    except:
+                        ca_content = cluster.ca_data
+                    ca_file.write(ca_content)
+                    configuration.ssl_ca_cert = ca_file.name
+            
+            api_client = ApiClient(configuration)
+            
+            # Parse command and execute appropriate API call
+            command_parts = command.strip().split()
+            if len(command_parts) < 2:
+                raise ValueError("Invalid command format")
+            
+            action = command_parts[0]
+            resource_type = command_parts[1].lower()
+            
+            # Handle different kubectl-like commands
+            if action == "kubectl" or action == "k8s":
+                return execute_kubectl_like_command(api_client, command_parts[1:], cluster)
+            else:
+                raise ValueError(f"Unsupported command: {command}")
+                
+        except Exception as e:
+            logger.error(f"Error in Kubernetes API execution: {str(e)}")
+            raise
 
     # Run in thread pool with timeout
     try:
         result = await asyncio.wait_for(
             asyncio.get_event_loop().run_in_executor(
-                kubectl_executor, 
-                _execute_kubectl_sync
+                workload_executor, 
+                _execute_k8s_api_sync
             ),
             timeout=300
         )
         
-        # Process results
-        success = result.returncode == 0
-        output = result.stdout.strip() if result.stdout else ""
-        error = result.stderr.strip() if result.stderr else None
+        return result
         
-        if not output and error and success:
-            output = error
-            error = None
+    except Exception as e:
+        raise
+
+
+def execute_kubectl_like_command(api_client, command_parts, cluster):
+    """Execute kubectl-like commands using Kubernetes Python client"""
+    try:
+        if len(command_parts) < 2:
+            raise ValueError("Invalid command format. Expected format: kubectl <action> <resource-type> [name] [flags]")
         
-        if not output and not error:
-            if success:
-                output = "Command executed successfully (no output)"
+        action = command_parts[0].lower()
+        resource_type = command_parts[1].lower()
+        
+        # Parse command parts
+        namespace = None
+        resource_name = None
+        output_format = "json"
+        
+        i = 2
+        while i < len(command_parts):
+            part = command_parts[i]
+            if part == "-n" or part == "--namespace":
+                if i + 1 < len(command_parts):
+                    namespace = command_parts[i + 1]
+                    i += 2
+                else:
+                    raise ValueError("Namespace value missing")
+            elif part == "-o" or part == "--output":
+                if i + 1 < len(command_parts):
+                    output_format = command_parts[i + 1]
+                    i += 2
+                else:
+                    raise ValueError("Output format missing")
+            elif part.startswith("-"):
+                # Skip other flags
+                i += 1
             else:
-                output = "Command failed"
-                error = "No error details available"
+                if not resource_name:
+                    resource_name = part
+                i += 1
         
-        # Publish command execution event asynchronously (non-blocking)
-        asyncio.create_task(publish_command_event_async(
-            cluster, current_user, command, success, result.returncode
-        ))
+        # Validate action
+        if action not in ["get", "list", "describe"]:
+            raise ValueError(f"Unsupported action: {action}")
+        
+        # Initialize API clients
+        core_v1 = client.CoreV1Api(api_client)
+        apps_v1 = client.AppsV1Api(api_client)
+        batch_v1 = client.BatchV1Api(api_client)
+        
+        # Handle different resource types based on action
+        result = None
+        
+        if resource_type in ["pods", "pod", "po"]:
+            if action == "get" or action == "describe":
+                if resource_name:
+                    result = core_v1.read_namespaced_pod(resource_name, namespace or "default")
+                else:
+                    if namespace:
+                        result = core_v1.list_namespaced_pod(namespace)
+                    else:
+                        result = core_v1.list_pod_for_all_namespaces()
+        
+        elif resource_type in ["deployments", "deployment", "deploy"]:
+            if action == "get" or action == "describe":
+                if resource_name:
+                    result = apps_v1.read_namespaced_deployment(resource_name, namespace or "default")
+                else:
+                    if namespace:
+                        result = apps_v1.list_namespaced_deployment(namespace)
+                    else:
+                        result = apps_v1.list_deployment_for_all_namespaces()
+        
+        elif resource_type in ["services", "service", "svc"]:
+            if action == "get" or action == "describe":
+                if resource_name:
+                    result = core_v1.read_namespaced_service(resource_name, namespace or "default")
+                else:
+                    if namespace:
+                        result = core_v1.list_namespaced_service(namespace)
+                    else:
+                        result = core_v1.list_service_for_all_namespaces()
+        
+        elif resource_type in ["configmaps", "configmap", "cm"]:
+            if action == "get" or action == "describe":
+                if resource_name:
+                    result = core_v1.read_namespaced_config_map(resource_name, namespace or "default")
+                else:
+                    if namespace:
+                        result = core_v1.list_namespaced_config_map(namespace)
+                    else:
+                        result = core_v1.list_config_map_for_all_namespaces()
+        
+        elif resource_type in ["secrets", "secret"]:
+            if action == "get" or action == "describe":
+                if resource_name:
+                    result = core_v1.read_namespaced_secret(resource_name, namespace or "default")
+                else:
+                    if namespace:
+                        result = core_v1.list_namespaced_secret(namespace)
+                    else:
+                        result = core_v1.list_secret_for_all_namespaces()
+        
+        elif resource_type in ["jobs", "job"]:
+            if action == "get" or action == "describe":
+                if resource_name:
+                    result = batch_v1.read_namespaced_job(resource_name, namespace or "default")
+                else:
+                    if namespace:
+                        result = batch_v1.list_namespaced_job(namespace)
+                    else:
+                        result = batch_v1.list_job_for_all_namespaces()
+        
+        elif resource_type in ["cronjobs", "cronjob", "cj"]:
+            batch_v1beta1 = client.BatchV1beta1Api(api_client)
+            if action == "get" or action == "describe":
+                if resource_name:
+                    result = batch_v1beta1.read_namespaced_cron_job(resource_name, namespace or "default")
+                else:
+                    if namespace:
+                        result = batch_v1beta1.list_namespaced_cron_job(namespace)
+                    else:
+                        result = batch_v1beta1.list_cron_job_for_all_namespaces()
+        
+        else:
+            raise ValueError(f"Unsupported resource type: {resource_type}")
+        
+        # Convert result to appropriate format
+        if hasattr(result, 'to_dict'):
+            data = result.to_dict()
+        else:
+            data = result
+        
+        # Format output based on requested format
+        if output_format == "yaml":
+            import yaml as pyyaml
+            output = pyyaml.safe_dump(data, default_flow_style=False)
+        else:
+            import json
+            output = json.dumps(data, indent=2, default=str)
         
         return {
-            "success": success,
+            "success": True,
             "output": output,
-            "error": error,
-            "command": command,
-            "return_code": result.returncode,
+            "error": None,
+            "command": f"kubectl {' '.join(command_parts)}",
+            "return_code": 0,
             "cluster_info": {
                 "cluster_id": cluster.id,
                 "cluster_name": cluster.cluster_name,
@@ -2472,12 +2604,26 @@ async def run_kubectl_command_async(cluster, command: str, current_user: dict) -
                 "provider_name": cluster.provider_name
             },
             "executed_at": datetime.datetime.now().isoformat(),
-            "execution_method": "direct"
+            "execution_method": "kubernetes-api"
         }
         
-    except subprocess.TimeoutExpired:
-        raise asyncio.TimeoutError("Command execution timed out")
-
+    except client.rest.ApiException as e:
+        return {
+            "success": False,
+            "output": "",
+            "error": f"Kubernetes API error: {e.reason}",
+            "command": command,
+            "return_code": e.status,
+            "cluster_info": {
+                "cluster_id": cluster.id,
+                "cluster_name": cluster.cluster_name,
+                "server_url": cluster.server_url,
+                "provider_name": cluster.provider_name
+            },
+            "executed_at": datetime.datetime.now().isoformat(),
+            "execution_method": "kubernetes-api"
+        }
+        
 
 async def publish_command_event_async(cluster, current_user: dict, command: str, success: bool, return_code: int):
     """
