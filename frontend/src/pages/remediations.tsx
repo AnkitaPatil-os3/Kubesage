@@ -23,7 +23,7 @@ import {
   ChevronRight,
   ExternalLink,
   Cpu,
-  Memory,
+  // Memory,
   HardDrive,
   Globe,
   GitBranch,
@@ -162,7 +162,7 @@ export const Remediations: React.FC<RemediationsProps> = ({ selectedCluster }) =
   const [showRemediationModal, setShowRemediationModal] = useState(false);
 
   // API Base URL
-  // const API_BASE = 'https://10.0.2/remediation';
+  // const API_BASE = 'https://10.0.2.30:8004/remediation';
 
   // Fetch data functions
 const fetchIncidents = async () => {
@@ -203,7 +203,11 @@ const fetchIncidents = async () => {
 
   const fetchExecutors = async () => {
     try {
-      const response = await fetch(`/api/v4.0/executors`);
+      const response = await fetch(`/api/v4.0/executors`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+        }
+      });
       const data = await response.json();
 
       if (response.ok) {
@@ -216,7 +220,11 @@ const fetchIncidents = async () => {
 
   const fetchHealthStatus = async () => {
     try {
-      const response = await fetch(`/api/v4.0/health`);
+      const response = await fetch(`/api/v4.0/health`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+        }
+      });
       const data = await response.json();
       setHealthStatus(data);
     } catch (error) {
@@ -227,11 +235,15 @@ const fetchIncidents = async () => {
   const initializeExecutors = async () => {
     try {
       const response = await fetch(`/api/v4.0/initialize`, {
-        method: 'POST'
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+        }
       });
 
       if (response.ok) {
         await fetchExecutors();
+        await fetchHealthStatus();
       }
     } catch (error) {
       console.error('Error initializing executors:', error);
@@ -241,7 +253,10 @@ const fetchIncidents = async () => {
   const activateExecutor = async (executorId: number) => {
     try {
       const response = await fetch(`/api/v4.0/executors/${executorId}/activate`, {
-        method: 'POST'
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+        }
       });
 
       if (response.ok) {
@@ -252,7 +267,7 @@ const fetchIncidents = async () => {
       console.error('Error activating executor:', error);
     }
   };
-
+  
   // MODIFY the generateRemediation function (replace the existing one)
   const generateRemediation = async (incidentId: number, executeDirectly: boolean = false) => {
     setGeneratingRemediation(incidentId); // Set to specific incident ID

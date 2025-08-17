@@ -37,6 +37,7 @@ role_permissions = {
 
     "developer": [
         "dashboard",
+        "clusters",
         "applications",
         "workloads",
         "observability",
@@ -49,6 +50,7 @@ role_permissions = {
 
     "security_engineer": [
         "dashboard",
+        "clusters",
         "security",
         "secrets",
         "compliance",

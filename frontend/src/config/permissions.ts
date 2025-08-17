@@ -39,6 +39,7 @@ export const rolePermissions: Record<UserRole, string[]> = {
 
     developer: [
         'dashboard',
+        'clusters',
         'applications',
         'workloads',
         'observability',
@@ -51,6 +52,7 @@ export const rolePermissions: Record<UserRole, string[]> = {
 
     security_engineer: [
         'dashboard',
+        'clusters',
         'security',
         'secrets',
         'compliance',
