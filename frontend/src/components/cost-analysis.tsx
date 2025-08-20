@@ -7,7 +7,7 @@ export const CostAnalysis: React.FC = () => {
   const [error, setError] = React.useState<string | null>(null);
   const [dashboardUrl, setDashboardUrl] = React.useState<string | null>(null);
   const [theme, setTheme] = React.useState<string>(() => localStorage.getItem("heroui-theme") || "dark");
-
+  const MONITORING_BASE_URL = (import.meta as any).env.VITE_MONITORING_SERVICE_URL;
   // Helper to build dashboard URL
   const getDashboardUrl = (currentTheme: string) => {
     const role = localStorage.getItem("roles") || "";
@@ -17,8 +17,8 @@ export const CostAnalysis: React.FC = () => {
     const isSuperAdmin = role.toLowerCase().includes("super");
 
     const baseUrl = isSuperAdmin
-      ? "https://10.0.2.13:3000/d/opencost-mixin-kover-jkwq/finops-overview"
-      : "https://10.0.2.13:3000/d/opencost-mixin-kover-jkw/finops-replica";
+      ? `${MONITORING_BASE_URL}/d/opencost-mixin-kover-jkwq/finops-overview`
+      : `${MONITORING_BASE_URL}/d/opencost-mixin-kover-jkw/finops-replica`;
 
     const params = new URLSearchParams({
       orgId: "1",

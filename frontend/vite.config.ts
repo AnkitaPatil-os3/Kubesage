@@ -9,6 +9,7 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     server: {
       host: '0.0.0.0',
+      port: 5173,
       allowedHosts: true,
       https: {
         key: fs.readFileSync('./key.pem'),
@@ -20,12 +21,7 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           secure: false,
         },
-        '/api': {
-        target: 'https://10.0.2.29:8005',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ''),
-        secure: false // If using self-signed certificates
-      },
+      
         '/api/v2.0': {
           target: env.VITE_KUBECONFIG_SERVICE,
           changeOrigin: true,
@@ -33,6 +29,16 @@ export default defineConfig(({ mode }) => {
         },
         '/api/v3.0': {
           target: env.VITE_CHAT_SERVICE,
+          changeOrigin: true,
+          secure: false,
+        },
+        '/api/v4.0': {
+          target: env.VITE_REMEDIATION_SERVICE,
+          changeOrigin: true,
+          secure: false,
+        },
+        '/api/v5.0': {
+          target: env.VITE_SECURITY_SERVICE,
           changeOrigin: true,
           secure: false,
         },

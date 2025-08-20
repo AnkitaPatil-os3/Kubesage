@@ -7,7 +7,7 @@ export const CarbonEmissionDashboard: React.FC = () => {
     const [error, setError] = React.useState<string | null>(null);
     const [dashboardUrl, setDashboardUrl] = React.useState<string | null>(null);
     const [theme, setTheme] = React.useState<string>(() => localStorage.getItem("heroui-theme") || "dark");
-
+    const MONITORING_BASE_URL = (import.meta as any).env.VITE_MONITORING_SERVICE_URL;
     // Build Grafana dashboard URL
     const buildDashboardUrl = (currentTheme: string): string => {
         const role = localStorage.getItem("roles") || "";
@@ -17,8 +17,8 @@ export const CarbonEmissionDashboard: React.FC = () => {
         const isSuperAdmin = role.toLowerCase().includes("super");
 
         const baseUrl = isSuperAdmin
-            ? "https://10.0.2.13:3000/d/NhnADUW4zIB/greenops-overview"
-            : "https://10.0.2.13:3000/d/NhnADUW4zI/greenops-replica";
+            ? `${MONITORING_BASE_URL}/d/NhnADUW4zIB/greenops-overview`
+            : `${MONITORING_BASE_URL}/d/NhnADUW4zI/greenops-replica`;
 
         const params = new URLSearchParams({
             orgId: "1",

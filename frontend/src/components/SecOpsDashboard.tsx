@@ -7,7 +7,7 @@ export const SecOpsDashboard: React.FC = () => {
     const [error, setError] = React.useState<string | null>(null);
     const [dashboardUrl, setDashboardUrl] = React.useState<string | null>(null);
     const [theme, setTheme] = React.useState<string>(() => localStorage.getItem("heroui-theme") || "dark");
-
+    const MONITORING_BASE_URL = (import.meta as any).env.VITE_MONITORING_SERVICE_URL;
     const buildDashboardUrl = (currentTheme: string): string => {
         const role = localStorage.getItem("roles") || "";
         const username = localStorage.getItem("username") || "k8s-usr";;
@@ -15,8 +15,8 @@ export const SecOpsDashboard: React.FC = () => {
         const isSuperAdmin = role.toLowerCase().includes("super");
 
         const baseUrl = isSuperAdmin
-            ? "https://10.0.2.13:3000/d/security_trivy_operator/trivy-operator-vulnerabilities"
-            : "https://10.0.2.13:3000/d/security_trivy_operator-1/trivy-operator-vulnerabilities-replica";
+            ? `${MONITORING_BASE_URL}/d/security_trivy_operator/trivy-operator-vulnerabilities`
+            : `${MONITORING_BASE_URL}/d/security_trivy_operator-1/trivy-operator-vulnerabilities-replica`;
 
         const params = new URLSearchParams({
             orgId: "1",

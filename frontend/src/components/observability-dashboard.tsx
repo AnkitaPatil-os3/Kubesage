@@ -19,7 +19,7 @@ export const ObservabilityDashboard: React.FC<ObservabilityDashboardProps> = ({ 
     const [clusters, setClusters] = React.useState<ClusterInfo[]>([]);
     const [selectedClusterName, setSelectedClusterName] = React.useState<string>("");
     const [isLoadingClusters, setIsLoadingClusters] = React.useState(false);
-
+    const MONITORING_BASE_URL = (import.meta as any).env.VITE_MONITORING_SERVICE_URL;
     const getAuthToken = () => {
         return localStorage.getItem('access_token') || '';
     };
@@ -67,7 +67,7 @@ export const ObservabilityDashboard: React.FC<ObservabilityDashboardProps> = ({ 
     const dashboardUrl = React.useMemo(() => {
         if (!selectedClusterName) return "";
         
-        const baseUrl = "https://10.0.2.29:3000/grafana-monitoring/d/ddonjajttscn4e/kub-cluster-details";
+        const baseUrl = `${MONITORING_BASE_URL}/d/ddonjajttscn4e/kub-cluster-details`;
         
         // Calculate time range (last 6 hours)
         const now = Date.now();

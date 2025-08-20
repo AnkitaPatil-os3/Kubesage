@@ -106,8 +106,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ selectedCluster }) => {
       ? { total: nodeStatusTotals.ready, outOf: nodeStatusTotals.total }
       : { total: 0, outOf: 0 };
 
-    const activeAlerts = Math.max(0, totalClusters * 2 - activeClusters + Math.floor(Math.random() * 5));
-    const securityIssues = Math.max(0, Math.floor(totalClusters * 0.5) + Math.floor(Math.random() * 3));
+    const activeAlerts = 0;
+    const securityIssues = 0;
 
     return {
       totalClusters,

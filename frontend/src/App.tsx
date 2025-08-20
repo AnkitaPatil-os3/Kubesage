@@ -16,7 +16,7 @@ import { CostAnalysis } from "./components/cost-analysis";
 import { ObservabilityDashboard } from "./components/test";
 import { CarbonEmissionDashboard } from "./components/Carbon-emission";
 import ClusterAnalyze from "./components/cluster-analyze";
-import { SecurityPage } from "./components/security-page";
+// import { SecurityPage } from "./components/security-page";
 import { UsersAndRBAC } from "./components/UsersAndRBAC";
 import { SecOpsDashboard } from "./components/SecOpsDashboard";
 import  Policies  from "./pages/policies";
@@ -69,7 +69,7 @@ export default function App() {
     { path: "/dashboard/applications", permission: "applications", component: Applications },
     { path: "/dashboard/workloads", permission: "workloads", component: WorkloadDashboard },
     { path: "/dashboard/cost", permission: "cost", component: CostAnalysis },
-    { path: "/dashboard/security", permission: "security", component: SecurityPage },
+    // { path: "/dashboard/security", permission: "security", component: SecurityPage },
     { path: "/dashboard/observability", permission: "observability", component: ObservabilityDashboard },
     { path: "/dashboard/analyze", permission: "analyze", component: ClusterAnalyze },
     // Special case for /dashboard/users route

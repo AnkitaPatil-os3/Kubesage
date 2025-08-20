@@ -48,8 +48,8 @@ async def send_confirmation_email(user_data: Dict):
         }
         
         # Create Yes/No action buttons with links back to our server
-        yes_url = f"{settings.SERVER_BASE_URL}/auth/confirm/{confirmation_id}/yes"
-        no_url = f"{settings.SERVER_BASE_URL}/auth/confirm/{confirmation_id}/no"
+        yes_url = f"{settings.SERVER_BASE_URL}/api/v1.0/auth/confirm/{confirmation_id}/yes"
+        no_url = f"{settings.SERVER_BASE_URL}/api/v1.0/auth/confirm/{confirmation_id}/no"
         
         # Format the email body with Yes/No buttons
         email_body = f"""

@@ -7,7 +7,8 @@ export const ObservabilityDashboard: React.FC = () => {
     const [error, setError] = React.useState<string | null>(null);
     const [dashboardUrl, setDashboardUrl] = React.useState<string | null>(null);
     const [theme, setTheme] = React.useState<string>(() => localStorage.getItem("heroui-theme") || "light");
-
+    // const monitoring_url = import.meta.env.VITE_MONITORING_SERVICE_URL 
+    const MONITORING_BASE_URL = (import.meta as any).env.VITE_MONITORING_SERVICE_URL;
     // Helper to generate dashboard URL
     const getDashboardUrl = (currentTheme: string) => {
         const role = localStorage.getItem("roles") || "";
@@ -33,8 +34,8 @@ export const ObservabilityDashboard: React.FC = () => {
         }
 
         const baseUrl = isSuperAdmin
-            ? "https://10.0.2.13:3000/d/ddonjajttscn4e/kub-cluster-details"
-            : "https://10.0.2.13:3000/d/ddonjajttscn4/kub-cluster-details-replica";
+            ? `${MONITORING_BASE_URL}/d/ddonjajttscn4e/kub-cluster-details`
+            : `${MONITORING_BASE_URL}/d/ddonjajttscn4/kub-cluster-details-replica`;
 
         return `${baseUrl}?${baseParams.toString()}`;
     };
