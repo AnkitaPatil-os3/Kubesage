@@ -55,7 +55,7 @@ export const navCategories = [
         { id: "settings", name: "Settings", icon: "lucide:settings", path: "/dashboard/settings" },
         { id: "users", name: "Users & RBAC", icon: "lucide:users", path: "/dashboard/users" },
         { id: "integrations", name: "Integrations", icon: "lucide:plug", path: "/dashboard/integrations" },
-        { id: "help", name: "Help", icon: "lucide:help-circle", path: "/dashboard/help" },
+        // { id: "help", name: "Help", icon: "lucide:help-circle", path: "/dashboard/help" },
       ]
     },
   ];

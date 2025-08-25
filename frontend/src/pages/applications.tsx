@@ -749,7 +749,10 @@ export const Applications: React.FC<ApplicationsProps> = ({ selectedCluster }) =
                     handleClusterSelect(parseInt(clusterId));
                   }
                 }}
-                className="w-64"
+                // className="w-64"
+                // new
+                className="max-w-[250px] truncate"
+                // new
                 startContent={
                   selectedClusterId ? (
                     <div className="flex items-center gap-2">
@@ -773,20 +776,22 @@ export const Applications: React.FC<ApplicationsProps> = ({ selectedCluster }) =
                   )
                 }
               >
+                {/* new */}
                 {clusters.map((cluster) => (
-                  <SelectItem key={cluster.id.toString()}>
-                    <div className="flex items-center gap-2">
-                      <Icon icon={getProviderIcon(cluster.provider_name)} className="text-lg" />
-                      <span>
-                        {cluster.cluster_name.length < 3
-                          ? cluster.cluster_name
-                          : cluster.cluster_name.length > 10
-                          ? cluster.cluster_name.slice(0, 10) + '...'
-                          : cluster.cluster_name}
-                      </span>
-                    </div>
-                  </SelectItem>
-                ))}
+  <SelectItem
+    key={cluster.id.toString()}
+    className="max-w-[220px] truncate"
+  >
+    <div className="flex items-center gap-2 overflow-hidden">
+      <Icon icon={getProviderIcon(cluster.provider_name)} className="text-lg shrink-0" />
+      <span className="truncate whitespace-nowrap overflow-hidden text-ellipsis block">
+        {cluster.cluster_name}
+      </span>
+    </div>
+  </SelectItem>
+))}
+{/* new */}
+
               </Select>
 
               {selectedClusterId && (

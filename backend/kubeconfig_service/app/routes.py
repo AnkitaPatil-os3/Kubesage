@@ -47,6 +47,7 @@ async def onboard_cluster(
     current_user: Dict = Depends(require_permission("clusters")),
  ):
     """
+    
     Onboards a Kubernetes cluster using server URL, token, and optional TLS configuration.
     """
     logger.info(f"Cluster onboarding request received for user {current_user['id']} with cluster {cluster_data.cluster_name}")

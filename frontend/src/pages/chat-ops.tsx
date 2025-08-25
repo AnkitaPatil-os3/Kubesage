@@ -1,3 +1,4 @@
+// chat-ops
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Card,
@@ -324,6 +325,20 @@ class ChatAPI {
     }
   }
 
+  async renameSession(sessionId: string, newTitle: string): Promise<Session> {
+    const response = await fetch(`/api/v3.0/sessions/${sessionId}`, {
+      method: 'PUT',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify({ title: newTitle })
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
   async getSessionHistory(sessionId: string): Promise<{ id: string; created_at: string; messages: Message[] }> {
     const response = await fetch(`/api/v3.0/sessions/${sessionId}`, {
       headers: this.getAuthHeaders()
@@ -624,6 +639,11 @@ export default function ChatOpsPage() {
   // Modal states
   const { isOpen: isSessionModalOpen, onOpen: onSessionModalOpen, onClose: onSessionModalClose } = useDisclosure();
   const { isOpen: isExportModalOpen, onOpen: onExportModalOpen, onClose: onExportModalClose } = useDisclosure();
+  const { isOpen: isRenameModalOpen, onOpen: onRenameModalOpen, onClose: onRenameModalClose } = useDisclosure();
+  
+  // Rename modal state
+  const [renameSessionId, setRenameSessionId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
 
   // Get role-specific commands
   const QUICK_COMMANDS = getRoleSpecificCommands(userRole);
@@ -708,49 +728,70 @@ export default function ChatOpsPage() {
     }
   };
 
-  const createNewSession = async (title?: string) => {
-    try {
-      const newSession = await chatAPI.createSession(title || 'New Chat');
-      setSessions(prev => [newSession, ...prev]);
-      setCurrentSessionId(newSession.session_id);
-      setMessages([]);
-      addToast({
-        title: 'Success',
-        description: 'New chat session created',
-        color: 'success'
-      });
-    } catch (error) {
-      console.error('Failed to create session:', error);
-      addToast({
-        title: 'Error',
-        description: 'Failed to create new session',
-        color: 'danger'
-      });
-    }
-  };
-
-  const deleteSession = async (sessionId: string) => {
-    try {
-      await chatAPI.deleteSession(sessionId);
-      setSessions(prev => prev.filter(s => s.session_id !== sessionId));
-      if (currentSessionId === sessionId) {
-        setCurrentSessionId(null);
+    const createNewSession = async (title?: string) => {
+      try {
+        const newSession = await chatAPI.createSession(title || 'New Chat');
+        setSessions(prev => [newSession, ...prev]);
+        setCurrentSessionId(newSession.session_id);
         setMessages([]);
+        addToast({
+          title: 'Success',
+          description: 'New chat session created',
+          color: 'success'
+        });
+      } catch (error) {
+        console.error('Failed to create session:', error);
+        addToast({
+          title: 'Error',
+          description: 'Failed to create new session',
+          color: 'danger'
+        });
       }
-      addToast({
-        title: 'Success',
-        description: 'Session deleted successfully',
-        color: 'success'
-      });
-    } catch (error) {
-      console.error('Failed to delete session:', error);
-      addToast({
-        title: 'Error',
-        description: 'Failed to delete session',
-        color: 'danger'
-      });
-    }
-  };
+    };
+
+    const deleteSession = async (sessionId: string) => {
+      try {
+        await chatAPI.deleteSession(sessionId);
+        setSessions(prev => prev.filter(s => s.session_id !== sessionId));
+        if (currentSessionId === sessionId) {
+          setCurrentSessionId(null);
+          setMessages([]);
+        }
+        addToast({
+          title: 'Success',
+          description: 'Session deleted successfully',
+          color: 'success'
+        });
+      } catch (error) {
+        console.error('Failed to delete session:', error);
+        addToast({
+          title: 'Error',
+          description: 'Failed to delete session',
+          color: 'danger'
+        });
+      }
+    };
+
+    const renameSession = async (sessionId: string, newTitle: string) => {
+      try {
+        const updatedSession = await chatAPI.renameSession(sessionId, newTitle);
+        setSessions(prev => prev.map(s => 
+          s.session_id === sessionId ? updatedSession : s
+        ));
+        addToast({
+          title: 'Success',
+          description: 'Session renamed successfully',
+          color: 'success'
+        });
+      } catch (error) {
+        console.error('Failed to rename session:', error);
+        addToast({
+          title: 'Error',
+          description: 'Failed to rename session',
+          color: 'danger'
+        });
+      }
+    };
 
   const sendMessage = async (message: string) => {
     if (!message.trim()) return;
@@ -1123,6 +1164,17 @@ export default function ChatOpsPage() {
                             </DropdownTrigger>
                             <DropdownMenu>
                               <DropdownItem
+                                key="rename"
+                                onPress={() => {
+                                  setRenameSessionId(session.session_id);
+                                  setRenameValue(session.title);
+                                  onRenameModalOpen();
+                                }}
+                                startContent={<Icon icon="solar:pen-bold" width={16} />}
+                              >
+                                Rename Session
+                              </DropdownItem>
+                              <DropdownItem
                                 key="delete"
                                 color="danger"
                                 onPress={() => deleteSession(session.session_id)}
@@ -1429,10 +1481,19 @@ export default function ChatOpsPage() {
                   {getRoleDisplayName(userRole)}
                 </Chip>
                 {selectedCluster && (
-                  <Chip size="sm" variant="flat" color="primary" className="text-xs">
-                    <Icon icon="solar:server-bold" width={12} className="mr-1" />
-                    {getSelectedClusterName()}
-                  </Chip>
+                  // new
+                  <Chip
+  size="sm"
+  variant="flat"
+  color="primary"
+  className="text-xs"
+>
+  <div className="flex items-center space-x-1 max-w-[180px]">
+    <Icon icon="solar:server-bold" width={12} className="shrink-0" />
+    <span className="truncate">{getSelectedClusterName()}</span>
+  </div>
+</Chip>
+// new
                 )}
                 {currentSessionId && (
                   <Chip size="sm" variant="flat" color="success" className="text-xs">
@@ -1608,6 +1669,53 @@ export default function ChatOpsPage() {
           <ModalFooter>
             <Button variant="light" onPress={onSessionModalClose}>
               Close
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Rename Modal */}
+      <Modal isOpen={isRenameModalOpen} onClose={onRenameModalClose} size="md">
+        <ModalContent>
+          <ModalHeader>
+            <div className="flex items-center gap-2">
+              <Icon icon="solar:pen-bold" width={20} />
+              Rename Session
+            </div>
+          </ModalHeader>
+          <ModalBody>
+            <div className="space-y-4">
+              <p className="text-sm text-default-600">
+                Enter a new name for this chat session.
+              </p>
+              <Input
+                label="Session Name"
+                placeholder="Enter new session name"
+                value={renameValue}
+                onValueChange={setRenameValue}
+                maxLength={100}
+                classNames={{
+                  input: "text-sm",
+                  inputWrapper: "bg-content2 border-2 border-divider hover:border-primary focus-within:border-primary transition-colors"
+                }}
+              />
+            </div>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="light" onPress={onRenameModalClose}>
+              Cancel
+            </Button>
+            <Button
+              color="primary"
+              onPress={() => {
+                if (renameSessionId && renameValue.trim()) {
+                  renameSession(renameSessionId, renameValue.trim());
+                  onRenameModalClose();
+                }
+              }}
+              isDisabled={!renameValue.trim()}
+            >
+              Rename
             </Button>
           </ModalFooter>
         </ModalContent>

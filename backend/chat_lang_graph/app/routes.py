@@ -9,7 +9,7 @@ from datetime import datetime
 from .dependencies import SessionDep, CurrentUser
 from .schemas import (
     ChatRequest, ChatResponse, SessionInfo, SessionHistory, 
-    ToolInfo, ToolResponse, ChatSessionCreate, ChatSessionResponse,
+    ToolInfo, ToolResponse, ChatSessionCreate, ChatSessionUpdate, ChatSessionResponse,
     ChatSessionList, HealthResponse
 )
 from .services import ChatService, MessageService
@@ -355,6 +355,46 @@ async def create_session(
         
     except Exception as e:
         logger.error(f"❌ Error creating session: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.put("/sessions/{session_id}", response_model=ChatSessionResponse)
+async def update_session(
+    session_id: str,
+    session_update: ChatSessionUpdate,
+    db_session: SessionDep,
+    # current_user: CurrentUser
+    current_user = Depends(require_permission("chatops"))
+):
+    """Update a chat session (rename)."""
+    try:
+        chat_service = ChatService(db_session)
+        
+        # Prepare updates dictionary
+        updates = {}
+        if session_update.title is not None:
+            updates["title"] = session_update.title
+        if session_update.is_active is not None:
+            updates["is_active"] = session_update.is_active
+        
+        # Update session
+        updated_session = chat_service.update_session(session_id, current_user["id"], updates)
+        
+        if not updated_session:
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        return ChatSessionResponse(
+            id=updated_session.id,
+            session_id=updated_session.session_id,
+            title=updated_session.title,
+            created_at=updated_session.created_at,
+            updated_at=updated_session.updated_at,
+            is_active=updated_session.is_active
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Error updating session: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # Health Check Endpoint (no authentication required)

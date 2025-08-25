@@ -84,7 +84,7 @@ export default function App() {
     { path: "/dashboard/compliance", permission: "compliance", component: () => <div>Compliance Page</div> },
     { path: "/dashboard/settings", permission: "settings", component: () => <div>Settings Page</div> },
     { path: "/dashboard/integrations", permission: "integrations", component: () => <div>Integrations Page</div> },
-    { path: "/dashboard/help", permission: "help", component: () => <div>Help Page</div> },
+    // { path: "/dashboard/help", permission: "help", component: () => <div>Help Page</div> },
   ];
  
   return (

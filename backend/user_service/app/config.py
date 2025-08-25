@@ -8,16 +8,18 @@ load_dotenv()  # This will load the .env file from the current directory
 # new
 ROLE_OPTIONS = [
     "Super Admin",
-    "platform_engineer",
+    # "platform_engineer",
+    "Platform Engineer",
     "devops",
     "Developer",
     "Security Engineer"
-]
+]   
 
 class Settings(BaseSettings):
     ROLE_OPTIONS: ClassVar[List[str]] = [
         "Super Admin",
-        "platform_engineer",
+        # "platform_engineer",
+        "Platform Engineer",
         "devops",
         "Developer",
         "Security Engineer"
