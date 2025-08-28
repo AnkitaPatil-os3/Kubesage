@@ -1,4 +1,4 @@
-# KubeSage
+## KubeSage
 
 KubeSage is a comprehensive platform for Kubernetes cluster analysis, troubleshooting, and management. It combines AI-powered analysis with intuitive interfaces to help users identify and resolve issues in their Kubernetes environments.
 
