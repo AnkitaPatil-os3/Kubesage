@@ -31,9 +31,10 @@ from fastapi.responses import JSONResponse, PlainTextResponse  # ✅ Add PlainTe
 import yaml  # ✅ Add yaml import
 import datetime 
 import re
+from dotenv import load_dotenv
 
 from app.auth_permission import require_permission
-
+load_dotenv(override=True)
 
 cluster_router = APIRouter()
 
@@ -2656,12 +2657,15 @@ async def publish_command_event_async(cluster, current_user: dict, command: str,
 
 # ******************************** Prometheus api ********************************
 
-  
-PROMETHEUS_URL = "http://10.0.2.13:9090"
+ 
 
+  
+# ---------------------------------------------------------
+# Endpoint 1: Cluster Resource Usage
+# ---------------------------------------------------------
 @cluster_router.get("/metrics/resource-usage")
-async def get_user_cluster_resource_usage(
-    username: str = Query(...),
+async def get_cluster_resource_usage(
+    cluster: str = Query(...),
     metric: str = Query(..., enum=["cpu", "memory"]),
     namespace: str = Query("default"),
     duration: int = Query(3600),
@@ -2670,13 +2674,18 @@ async def get_user_cluster_resource_usage(
     end = int(time.time())
     start = end - duration
 
-    # Build PromQL query
+    # PromQL Query
     if metric == "cpu":
-        promql = f'rate(container_cpu_usage_seconds_total{{username="{username}", namespace="{namespace}", container!=""}}[5m])'
+        promql = (
+            f'rate(container_cpu_usage_seconds_total{{cluster="{cluster}", '
+            f'namespace="{namespace}", container!=""}}[5m])'
+        )
     elif metric == "memory":
-        promql = f'kube_pod_container_resource_limits{{username="{username}", container!="", resource="{metric}"}}'
-        # promql = f'container_memory_usage_bytes{{username="{username}", namespace="{namespace}", container!=""}}'
-        # kube_pod_container_resource_limits{{username="{username}", container!="", resource="{metric}"}}
+        promql = (
+            f'kube_pod_container_resource_limits{{cluster="{cluster}", '
+            f'namespace="{namespace}", container!=""}}'
+            # 'kube_pod_container_resource_limits{{username="{username}", container!="", resource="{metric}"}}'
+        )
 
     params = {
         "query": promql,
@@ -2686,13 +2695,12 @@ async def get_user_cluster_resource_usage(
     }
 
     async with httpx.AsyncClient() as client:
-        r = await client.get(f"{PROMETHEUS_URL}/api/v1/query_range", params=params)
+        r = await client.get(f"{settings.PROMETHEUS_URL}/api/v1/query_range", params=params)
         r.raise_for_status()
         data = r.json()
 
-    # Group values by timestamp across all clusters
+    # Aggregate by timestamp
     aggregated_usage = defaultdict(list)
-
     for series in data["data"]["result"]:
         for ts, val in series["values"]:
             try:
@@ -2700,7 +2708,6 @@ async def get_user_cluster_resource_usage(
             except ValueError:
                 continue
 
-    # Aggregate and average across clusters per timestamp
     result = []
     for ts in sorted(aggregated_usage.keys()):
         usage_values = aggregated_usage[ts]
@@ -2713,87 +2720,81 @@ async def get_user_cluster_resource_usage(
     return {"data": result}
 
 
-def get_nodes_status_all_clusters(username: str):
-    # Use username in the PromQL query
-    query = f'kube_node_status_condition{{condition="Ready", username="{username}"}}'
-    response = requests.get(f"{PROMETHEUS_URL}/api/v1/query", params={"query": query})
+# ---------------------------------------------------------
+# Helper: Node Health by Cluster
+# ---------------------------------------------------------
+def get_nodes_status_by_cluster(cluster: str):
+    query = f'kube_node_status_condition{{condition="Ready", cluster="{cluster}"}}'
+    response = requests.get(f"{settings.PROMETHEUS_URL}/api/v1/query", params={"query": query})
     result = response.json().get("data", {}).get("result", [])
 
-    cluster_status = {}
-    total_ready = 0
-    total_not_ready = 0
-
-    for item in result:
-        metric = item.get("metric", {})
-        cluster = metric.get("cluster", "unknown")
-        status = metric.get("status")
-
-        if cluster not in cluster_status:
-            cluster_status[cluster] = {
-                "ready": 0,
-                "not_ready": 0
-            }
-
-        if status == "true":
-            cluster_status[cluster]["ready"] += 1
-            total_ready += 1
-        elif status == "false":
-            cluster_status[cluster]["not_ready"] += 1
-            total_not_ready += 1
-
-    for cluster in cluster_status:
-        stats = cluster_status[cluster]
-        stats["total"] = stats["ready"] + stats["not_ready"]
-
-    return {
-        "clusters": cluster_status,
-        "totals": {
-            "ready": total_ready,
-            "not_ready": total_not_ready,
-            "total": total_ready + total_not_ready
-        }
+    status = {
+        "ready": 0,
+        "not_ready": 0
     }
 
-@cluster_router.get("/nodes/status/all-clusters")
-def all_clusters_node_health(username: str = Query(...)):
-    data = get_nodes_status_all_clusters(username)
+    for item in result:
+        condition = item.get("metric", {}).get("status")
+        if condition == "true":
+            status["ready"] += 1
+        elif condition == "false":
+            status["not_ready"] += 1
+
+    status["total"] = status["ready"] + status["not_ready"]
+    return status
+
+
+# ---------------------------------------------------------
+# Endpoint 2: Node Health for a Cluster
+# ---------------------------------------------------------
+@cluster_router.get("/nodes/status/cluster")
+def cluster_node_health(cluster: str = Query(...)):
+    data = get_nodes_status_by_cluster(cluster)
     return JSONResponse(content=data)
-    
+
+
+# ---------------------------------------------------------
+# Helper: Generic Prometheus Query
+# ---------------------------------------------------------
 def prometheus_query(query: str):
-    url = f"{PROMETHEUS_URL}/api/v1/query"
+    url = f"{settings.PROMETHEUS_URL}/api/v1/query"
     response = httpx.get(url, params={"query": query})
     data = response.json()
     return data.get("data", {}).get("result", [])
- 
+
+
+# ---------------------------------------------------------
+# Endpoint 3: Security Overview for a Cluster
+# ---------------------------------------------------------
 @cluster_router.get("/security")
-async def get_security(username: str):
-    severities = ["Critical", "High", "Medium", "Low"]
+async def get_security(cluster: str = Query(...)):
+    severities = ["Critical", "High", "Medium", "Low", "Negligible", "Unknown"]
     vulnerabilities = {}
- 
-    # Step 1: Get counts for each severity using username
+
+    # Count vulnerabilities by severity
     for severity in severities:
         query = (
-            f'sum(trivy_image_vulnerabilities{{severity="{severity}", username="{username}"}})'
+            f'sum(trivy_image_vulnerabilities{{severity="{severity}", cluster="{cluster}"}})'
         )
         result = prometheus_query(query)
         count = int(float(result[0]["value"][1])) if result else 0
         vulnerabilities[severity.lower()] = count
- 
-    # Step 2: Get detailed vulnerabilities by username
+
+    # Get detailed vulnerability info
     issues_query = (
-        f'sum(trivy_image_vulnerabilities{{username="{username}"}}) '
+        f'sum(trivy_image_vulnerabilities{{cluster="{cluster}"}}) '
         f'by (namespace, image_registry, image_repository, image_tag, severity) > 0'
     )
     result = prometheus_query(issues_query)
- 
-    # Step 3: Top 1 per severity
+
+    # Group issues by severity (with all 6 severities)
     severity_groups = {s.lower(): [] for s in severities}
     for item in result:
         metric = item["metric"]
         severity = metric.get("severity", "").lower()
         if severity in severity_groups:
             severity_groups[severity].append(item)
- 
+
     issues = []
     issue_id = 1
     for severity in severities:
@@ -2805,7 +2806,7 @@ async def get_security(username: str):
             image_tag = metric.get("image_tag", "latest")
             component = f"{image_repo}:{image_tag}"
             count = int(float(top["value"][1]))
- 
+
             issues.append({
                 "id": issue_id,
                 "severity": severity.lower(),
@@ -2814,12 +2815,13 @@ async def get_security(username: str):
                 "description": f"Detected {count} vulnerability(ies)"
             })
             issue_id += 1
- 
+
     return {
         "lastScan": "unknown",
         "vulnerabilities": vulnerabilities,
         "issues": issues
     }
+
 
 
 # changes related to workload api

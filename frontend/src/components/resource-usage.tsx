@@ -26,17 +26,18 @@ export const ResourceUsage: React.FC<ResourceUsageProps> = ({ clusterId }) => {
   const [loading, setLoading] = React.useState(false);
 
   const fetchResourceUsage = async (metric: string) => {
+    if (!clusterId) return;
     try {
       setLoading(true);
-      const username = localStorage.getItem("username") || "";
       const res = await fetch(
-        `/api/v2.0/metrics/resource-usage?metric=${metric}&username=${username}&namespace=default`
+        `/api/v2.0/metrics/resource-usage?metric=${metric}&cluster=${encodeURIComponent(clusterId)}&namespace=default`
       );
       const json = await res.json();
-      setChartData(json.data);
+      setChartData(Array.isArray(json.data) ? json.data : []);
       console.log("Fetched resource usage data:", json.data);
     } catch (error) {
       console.error("Failed to fetch resource usage:", error);
+      setChartData([]);
     } finally {
       setLoading(false);
     }
@@ -47,8 +48,8 @@ export const ResourceUsage: React.FC<ResourceUsageProps> = ({ clusterId }) => {
   }, [selected, clusterId]);
 
   const getCurrentUsage = () => {
-    if (chartData.length === 0) return 0;
-    return chartData[chartData.length - 2]?.usage ?? 0;
+    if (!Array.isArray(chartData) || chartData.length === 0) return 0;
+    return chartData[chartData.length - 1]?.usage ?? 0;
   };
 
   const getUsageColor = (usage: number) => {
@@ -101,13 +102,7 @@ export const ResourceUsage: React.FC<ResourceUsageProps> = ({ clusterId }) => {
                   : formatBytes(getCurrentUsage())}
               </p>
             </div>
-            {selected === "cpu" && (
-              <Progress
-                value={getCurrentUsage()}
-                color={getUsageColor(getCurrentUsage())}
-                className="w-32"
-              />
-            )}
+            
           </div>
 
           <div className="h-64 mt-4">

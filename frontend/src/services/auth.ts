@@ -1,4 +1,4 @@
-class AuthService {
+ class AuthService {
     // private baseURL = 'https://10.0.2.29:8001';
     private tokenKey = 'access_token';
     private refreshTokenKey = 'refresh_token';
@@ -223,9 +223,16 @@ class AuthService {
             }
           } else {
             const errorData = await response.json().catch(() => ({}));
+            let errorMessage = errorData.detail || 'Invalid username or password';
+            
+            // Map "database connection failed" to more user-friendly message for login failures
+            if (errorMessage.toLowerCase().includes('database connection failed')) {
+              errorMessage = 'Incorrect Username or Password';
+            }
+            
             return {
               success: false,
-              error: errorData.detail || 'Invalid username or password',
+              error: errorMessage,
             };
           }
         } catch (error: any) {

@@ -7,10 +7,7 @@ import { AiInsights } from "./ai-insights";
 import { RecentEvents } from "./recent-events";
 import { Card, CardBody } from "@heroui/react";
 import { Icon } from "@iconify/react";
-
-interface DashboardProps {
-  selectedCluster: string;
-}
+import { Select, SelectItem } from "@heroui/react";
 
 interface ClusterInfo {
   filename: string;
@@ -25,22 +22,37 @@ interface NodeStatusTotals {
   total: number;
 }
 
-interface NodeStatusClusters {
-  [clusterName: string]: NodeStatusTotals;
+interface DashboardSummary {
+  totalClusters: number;
+  activeClusters: number;
+  healthyNodes: { total: number; outOf: number };
+  activeAlerts: number;
+  securityIssues: number;
 }
 
-interface NodeStatusResponse {
-  clusters: NodeStatusClusters;
-  totals: NodeStatusTotals;
-}
+// Helper to map provider names to icons (update as needed)
+const getProviderIcon = (providerName: string) => {
+  switch (providerName?.toLowerCase()) {
+    case "aws":
+      return "logos:aws";
+    case "gcp":
+      return "logos:google-cloud";
+    case "azure":
+      return "logos:microsoft-azure";
+    default:
+      return "lucide:database";
+  }
+};
 
-export const Dashboard: React.FC<DashboardProps> = ({ selectedCluster }) => {
+export const Dashboard: React.FC = () => {
   const [clusters, setClusters] = React.useState<ClusterInfo[]>([]);
+  const [selectedCluster, setSelectedCluster] = React.useState<string>("");
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [nodeStatusTotals, setNodeStatusTotals] = React.useState<NodeStatusTotals | null>(null);
+  const [securityIssues, setSecurityIssues] = React.useState<number>(0);
 
-  const getAuthToken = () => localStorage.getItem('access_token') || '';
+  const getAuthToken = () => localStorage.getItem("access_token") || "";
 
   const fetchClusters = async () => {
     setLoading(true);
@@ -50,84 +62,161 @@ export const Dashboard: React.FC<DashboardProps> = ({ selectedCluster }) => {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${getAuthToken()}`
-        }
+          Authorization: `Bearer ${getAuthToken()}`,
+        },
       });
-  
+
       if (!response.ok) {
         throw new Error(`Failed to fetch clusters: ${response.statusText}`);
       }
-  
+
       const data = await response.json();
-      console.log('Dashboard clusters response:', data);
-  
       if (data && Array.isArray(data.clusters)) {
-        setClusters(data.clusters); // <-- FIXED LINE
+        setClusters(data.clusters);
+        if (data.clusters.length > 0) {
+          setSelectedCluster(data.clusters[0].cluster_name); // default select first cluster
+        }
       } else {
         setClusters([]);
       }
     } catch (err: any) {
       console.error("Error fetching clusters:", err);
-      setError(err.message || 'Failed to fetch clusters');
+      setError(err.message || "Failed to fetch clusters");
       setClusters([]);
     } finally {
       setLoading(false);
     }
   };
-  
 
-  const fetchNodeStatus = async () => {
+  const fetchNodeStatus = async (clusterName: string) => {
     try {
-      const username = localStorage.getItem("username") || "";
-
-      const res = await fetch(`/api/v2.0/nodes/status/all-clusters?username=${username}`, {
-        headers: {
-          Authorization: `Bearer ${getAuthToken()}`
+      const res = await fetch(
+        `/api/v2.0/nodes/status/cluster?cluster=${clusterName}`,
+        {
+          headers: {
+            Authorization: `Bearer ${getAuthToken()}`,
+          },
         }
-      });
+      );
       if (!res.ok) throw new Error(res.statusText);
-      const json: NodeStatusResponse = await res.json();
-      setNodeStatusTotals(json.totals);
+      const json: NodeStatusTotals = await res.json();
+      setNodeStatusTotals(json);
     } catch (err) {
       console.error("Failed to fetch node status:", err);
     }
   };
 
+  const fetchSecurityData = async (clusterName: string) => {
+    try {
+      const res = await fetch(`/api/v2.0/security?cluster=${encodeURIComponent(clusterName)}`, {
+        headers: {
+          Authorization: `Bearer ${getAuthToken()}`,
+        },
+      });
+      const data = await res.json();
+      if (data?.vulnerabilities) {
+        const { critical, high, medium, low } = data.vulnerabilities;
+        const total = critical + high + medium + low;
+        setSecurityIssues(total);
+      } else {
+        setSecurityIssues(0);
+      }
+    } catch (err) {
+      console.error("Failed to fetch security data:", err);
+      setSecurityIssues(0);
+    }
+  };
+
   React.useEffect(() => {
     fetchClusters();
-    fetchNodeStatus();
   }, []);
 
-  const dashboardSummary = React.useMemo(() => {
+  React.useEffect(() => {
+    if (selectedCluster) {
+      fetchNodeStatus(selectedCluster);
+      fetchSecurityData(selectedCluster);
+    }
+  }, [selectedCluster]);
+
+  const dashboardSummary: DashboardSummary = React.useMemo(() => {
     const totalClusters = clusters.length;
-    const activeClusters = clusters.filter(cluster => cluster.active).length;
+    const activeClusters = clusters.filter((cluster) => cluster.active).length;
 
     const healthyNodes = nodeStatusTotals
       ? { total: nodeStatusTotals.ready, outOf: nodeStatusTotals.total }
       : { total: 0, outOf: 0 };
 
     const activeAlerts = 0;
-    const securityIssues = 0;
 
     return {
       totalClusters,
       activeClusters,
       healthyNodes,
       activeAlerts,
-      securityIssues
+      securityIssues,
     };
-  }, [clusters, nodeStatusTotals]);
+  }, [clusters, nodeStatusTotals, securityIssues]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900">
+      {/* Header */}
       <div className="mb-6">
-        <div className="flex flex-col mb-4">
-          <h1 className="text-2xl font-semibold">Dashboard</h1>
-          <p className="text-sm text-foreground-500">AI-powered overview of your Kubernetes infrastructure</p>
+        <div className="flex items-center justify-between mb-6">
+          {/* Left title + description */}
+          <div>
+            <h1 className="text-3xl font-semibold">Dashboard</h1>
+            <p className="text-base text-gray-600 dark:text-gray-400">
+              AI-powered overview of your Kubernetes infrastructure
+            </p>
+          </div>
+
+          {/* Cluster Selector with label and border */}
+          <div className="flex items-center space-x-3 border border-gray-300 dark:border-gray-700 rounded-md px-4 py-2 bg-gray-50 dark:bg-gray-800 shadow-sm w-full max-w-2xl">
+            <label
+              htmlFor="cluster-select"
+              className="text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap"
+            >
+              Select Cluster:
+            </label>
+            <Select
+              id="cluster-select"
+              aria-label="Select cluster"
+              className="flex-1"
+              selectedKeys={selectedCluster ? [selectedCluster] : []}
+              onSelectionChange={(keys) => {
+                const selected = Array.from(keys)[0]; // ensure it's a single string
+                setSelectedCluster(selected);
+              }}
+              startContent={
+                selectedCluster ? (
+                  <div className="flex items-center gap-2">
+                    <Icon
+                      icon={getProviderIcon(clusters.find((c) => c.cluster_name === selectedCluster)?.provider || "")}
+                      className="text-lg flex-shrink-0"
+                    />
+                    <span className="whitespace-nowrap">{selectedCluster}</span>
+                  </div>
+                ) : (
+                  <Icon icon="lucide:database" />
+                )
+              }
+            // Remove any max width or truncation here to show full name
+            >
+              {clusters.map((cluster) => (
+                <SelectItem key={cluster.cluster_name} value={cluster.cluster_name}>
+                  <div className="flex items-center gap-2">
+                    <Icon icon={getProviderIcon(cluster.provider || "")} className="text-lg flex-shrink-0" />
+                    <span>{cluster.cluster_name}</span>
+                  </div>
+                </SelectItem>
+              ))}
+            </Select>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Total Clusters Card */}
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+          {/* Total Clusters */}
           <Card className="bg-content1 border-none">
             <CardBody className="p-4">
               <div className="flex items-start justify-between">
@@ -136,7 +225,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ selectedCluster }) => {
                 </div>
                 <div className="text-right">
                   <span className="text-2xl font-bold">{dashboardSummary.totalClusters}</span>
-                  {loading && <div className="w-4 h-4 animate-spin rounded-full border-2 border-blue-500 border-t-transparent ml-2 inline-block"></div>}
+                  {loading && (
+                    <div className="w-4 h-4 animate-spin rounded-full border-2 border-blue-500 border-t-transparent ml-2 inline-block"></div>
+                  )}
                 </div>
               </div>
               <p className="text-sm font-medium mt-3">Total Clusters</p>
@@ -144,7 +235,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ selectedCluster }) => {
             </CardBody>
           </Card>
 
-          {/* Healthy Nodes Card */}
+          {/* Healthy Nodes */}
           <Card className="bg-content1 border-none">
             <CardBody className="p-4">
               <div className="flex items-start justify-between">
@@ -155,19 +246,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ selectedCluster }) => {
                   <span className="text-2xl font-bold">
                     {dashboardSummary.healthyNodes.total} / {dashboardSummary.healthyNodes.outOf}
                   </span>
-                  {loading && <div className="w-4 h-4 animate-spin rounded-full border-2 border-purple-500 border-t-transparent ml-2 inline-block"></div>}
+                  {loading && (
+                    <div className="w-4 h-4 animate-spin rounded-full border-2 border-purple-500 border-t-transparent ml-2 inline-block"></div>
+                  )}
                 </div>
               </div>
               <p className="text-sm font-medium mt-3">Healthy Nodes</p>
               <p className="text-xs text-foreground-500 mt-1">
                 {dashboardSummary.healthyNodes.outOf > 0
-                  ? `${Math.round((dashboardSummary.healthyNodes.total / dashboardSummary.healthyNodes.outOf) * 100)}% healthy`
-                  : 'No nodes'}
+                  ? `${Math.round(
+                    (dashboardSummary.healthyNodes.total / dashboardSummary.healthyNodes.outOf) * 100
+                  )}% healthy`
+                  : "No nodes"}
               </p>
             </CardBody>
           </Card>
 
-          {/* Active Alerts Card */}
+          {/* Active Alerts */}
           <Card className="bg-content1 border-none">
             <CardBody className="p-4">
               <div className="flex items-start justify-between">
@@ -176,17 +271,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ selectedCluster }) => {
                 </div>
                 <div className="text-right">
                   <span className="text-2xl font-bold">{dashboardSummary.activeAlerts}</span>
-                  {loading && <div className="w-4 h-4 animate-spin rounded-full border-2 border-amber-500 border-t-transparent ml-2 inline-block"></div>}
+                  {loading && (
+                    <div className="w-4 h-4 animate-spin rounded-full border-2 border-amber-500 border-t-transparent ml-2 inline-block"></div>
+                  )}
                 </div>
               </div>
               <p className="text-sm font-medium mt-3">Active Alerts</p>
               <p className="text-xs text-foreground-500 mt-1">
-                {dashboardSummary.activeAlerts === 0 ? 'All clear' : 'Needs attention'}
+                {dashboardSummary.activeAlerts === 0 ? "All clear" : "Needs attention"}
               </p>
             </CardBody>
           </Card>
 
-          {/* Security Issues Card */}
+          {/* Security Issues */}
           <Card className="bg-content1 border-none">
             <CardBody className="p-4">
               <div className="flex items-start justify-between">
@@ -195,39 +292,36 @@ export const Dashboard: React.FC<DashboardProps> = ({ selectedCluster }) => {
                 </div>
                 <div className="text-right">
                   <span className="text-2xl font-bold">{dashboardSummary.securityIssues}</span>
-                  {loading && <div className="w-4 h-4 animate-spin rounded-full border-2 border-red-500 border-t-transparent ml-2 inline-block"></div>}
+                  {loading && (
+                    <div className="w-4 h-4 animate-spin rounded-full border-2 border-red-500 border-t-transparent ml-2 inline-block"></div>
+                  )}
                 </div>
               </div>
               <p className="text-sm font-medium mt-3">Security Issues</p>
               <p className="text-xs text-foreground-500 mt-1">
-                {dashboardSummary.securityIssues === 0 ? 'Secure' : 'Review required'}
+                {dashboardSummary.securityIssues === 0 ? "Secure" : "Review required"}
               </p>
             </CardBody>
           </Card>
         </div>
       </div>
 
+      {/* Rest of your dashboard */}
+      {/* Cluster Insights */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">Cluster Overview</h2>
           <div className="flex items-center text-sm text-primary">
-            <span>View All</span>
             <Icon icon="lucide:chevron-right" className="ml-1" />
           </div>
         </div>
       </div>
 
+      {/* Resource + Security */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ResourceUsage clusterId={selectedCluster} />
-        <SecurityScanner clusterId={selectedCluster} />
+        <SecurityScanner clusterName={selectedCluster} />
       </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ComplianceStatus clusterId={selectedCluster} />
-        <AiInsights clusterId={selectedCluster} />
-      </div>
-
-      <RecentEvents clusterId={selectedCluster} />
     </div>
   );
 };

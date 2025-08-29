@@ -5,7 +5,6 @@ import {
   CardBody,
   CardHeader,
   Button,
-  Progress,
   Chip,
   Table,
   TableHeader,
@@ -15,15 +14,21 @@ import {
   TableCell
 } from "@heroui/react";
 import { useHistory } from "react-router-dom";
- 
-export const SecurityScanner: React.FC = () => {
-  const username = localStorage.getItem("username") || "";
+
+interface SecurityScannerProps {
+  clusterName: string; // ✅ Accept cluster name
+}
+
+export const SecurityScanner: React.FC<SecurityScannerProps> = ({ clusterName }) => {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const history = useHistory();
- 
+
   useEffect(() => {
-    fetch(`/kubeconfig/security?username=${username}`)
+    if (!clusterName) return;
+
+    setLoading(true);
+    fetch(`/api/v2.0/security?cluster=${encodeURIComponent(clusterName)}`)
       .then((res) => res.json())
       .then((result) => {
         setData(result);
@@ -31,10 +36,11 @@ export const SecurityScanner: React.FC = () => {
       })
       .catch((err) => {
         console.error("Failed to load security data:", err);
+        setData(null);
         setLoading(false);
       });
-  }, [username]);
- 
+  }, [clusterName]);
+
   const getSeverityColor = (severity: string) => {
     switch (severity.toLowerCase()) {
       case "critical":
@@ -49,20 +55,21 @@ export const SecurityScanner: React.FC = () => {
         return "default";
     }
   };
- 
+
   const handleViewAll = () => {
     history.push("/dashboard/security-dashboard");
   };
- 
-  if (loading || !data) return <p>Loading...</p>;
- 
-  const { vulnerabilities, issues, lastScan } = data;
+
+  if (loading) return <p>Loading...</p>;
+  if (!data || !data.vulnerabilities || !data.issues) return <p>No data available.</p>;
+
+  const { vulnerabilities, issues } = data;
   const totalIssues =
     vulnerabilities.critical +
     vulnerabilities.high +
     vulnerabilities.medium +
     vulnerabilities.low;
- 
+
   return (
     <Card>
       <CardHeader className="flex flex-col gap-1">
@@ -73,7 +80,7 @@ export const SecurityScanner: React.FC = () => {
           </div>
         </div>
       </CardHeader>
- 
+
       <CardBody>
         <div className="grid grid-cols-4 gap-2 mb-6">
           <div className="flex flex-col items-center p-2 rounded-medium bg-content2">
@@ -101,12 +108,12 @@ export const SecurityScanner: React.FC = () => {
             </span>
           </div>
         </div>
- 
+
         <Table
           aria-label="Top security vulnerabilities"
           removeWrapper
           classNames={{
-            base: "max-h-[240px] overflow-auto",
+            base: "max-h-[300px] overflow-auto",
           }}
         >
           <TableHeader>
@@ -138,20 +145,9 @@ export const SecurityScanner: React.FC = () => {
             ))}
           </TableBody>
         </Table>
- 
-        <div className="flex justify-end mt-4">
-          <Button
-            variant="flat"
-            color="primary"
-            onClick={handleViewAll}
-            endContent={<Icon icon="lucide:external-link" />}
-          >
-            View All ({totalIssues})
-          </Button>
-        </div>
+
+      
       </CardBody>
     </Card>
   );
 };
- 
- 

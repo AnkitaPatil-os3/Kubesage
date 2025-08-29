@@ -10,7 +10,7 @@ ROLE_OPTIONS = [
     "Super Admin",
     # "platform_engineer",
     "Platform Engineer",
-    "devops",
+    "DevOps",
     "Developer",
     "Security Engineer"
 ]   
@@ -20,7 +20,7 @@ class Settings(BaseSettings):
         "Super Admin",
         # "platform_engineer",
         "Platform Engineer",
-        "devops",
+        "DevOps",
         "Developer",
         "Security Engineer"
     ]

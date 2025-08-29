@@ -139,7 +139,7 @@ export const LoginPage: React.FC<{ onLogin?: (username: string, password: string
           
           // Verify with backend without causing infinite loop
           const cachedUser = authService.getCachedUserInfo();
-          if (cachedUser) {
+          if (cachedUser) {db
             console.log("User already authenticated, redirecting...");
             history.replace("/dashboard"); // Use replace instead of push to avoid history issues
             return;
@@ -237,7 +237,7 @@ export const LoginPage: React.FC<{ onLogin?: (username: string, password: string
                 isDisabled={isLoading}
               />
               
-              <div className="flex items-center justify-between">
+              {/* <div className="flex items-center justify-between">
                 <Checkbox
                   size="sm"
                   isSelected={rememberMe}
@@ -249,7 +249,7 @@ export const LoginPage: React.FC<{ onLogin?: (username: string, password: string
                 <Button variant="light" size="sm" className="p-0" isDisabled={isLoading}>
                   Forgot password?
                 </Button>
-              </div>
+              </div> */}
               
               <Button
                 color="primary"
@@ -261,13 +261,7 @@ export const LoginPage: React.FC<{ onLogin?: (username: string, password: string
                 {isLoading ? "Signing In..." : "Sign In"}
               </Button>
               
-              {/* Debug info for development */}
-              {process.env.NODE_ENV === 'development' && (
-                <div className="text-xs text-foreground-400 mt-4">
-                  <p>Session: {authService.getSessionId()?.substring(0, 8) || 'None'}</p>
-                  <p>Token: {authService.getAccessToken() ? 'Present' : 'None'}</p>
-                </div>
-              )}
+              
             </form>
           </CardBody>
         </Card>

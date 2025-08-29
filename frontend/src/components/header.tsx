@@ -1,5 +1,5 @@
 import React from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useHistory } from "react-router-dom"; // <-- useHistory for v5
 import { Icon } from "@iconify/react";
 import {
   Button,
@@ -20,6 +20,7 @@ import {
   Chip,
 } from "@heroui/react";
 import { motion } from "framer-motion";
+import { navCategories } from "../config/navConfig";
  
 interface HeaderProps {
   toggleChat: () => void;
@@ -37,7 +38,11 @@ interface ApiKey {
  
 export const Header: React.FC<HeaderProps> = ({ toggleChat }) => {
   const location = useLocation();
+  const history = useHistory(); // <-- useHistory for navigation
+
   const [isSearchFocused, setIsSearchFocused] = React.useState(false);
+  const [searchQuery, setSearchQuery] = React.useState("");
+  const [showResults, setShowResults] = React.useState(false);
   
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
   const [apiKeys, setApiKeys] = React.useState<ApiKey[]>([]);
@@ -145,6 +150,22 @@ export const Header: React.FC<HeaderProps> = ({ toggleChat }) => {
     return today.toISOString().split('T')[0];
   };
  
+  // Flatten nav items for search
+  const navItems = navCategories.flatMap(cat =>
+    cat.items.map(item => ({
+      id: item.id,
+      name: item.name,
+      icon: item.icon,
+      path: item.path,
+      category: cat.name
+    }))
+  );
+
+  const filteredNavItems = navItems.filter(
+    item => item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            item.category.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+ 
   return (
     <>
       <motion.header
@@ -171,19 +192,54 @@ export const Header: React.FC<HeaderProps> = ({ toggleChat }) => {
           </motion.h1>
         </div>
         
-        <div className="hidden md:flex flex-1 max-w-md mx-6">
+        <div className="hidden md:flex flex-1 max-w-md mx-6 relative">
           <Input
-            placeholder="Search resources..."
+            placeholder="Search resources, tabs..."
             startContent={<Icon icon="lucide:search" className="text-foreground-400" />}
             size="sm"
             className={`transition-all duration-300 ${isSearchFocused ? 'shadow-md' : ''}`}
-            onFocus={() => setIsSearchFocused(true)}
-            onBlur={() => setIsSearchFocused(false)}
+            value={searchQuery}
+            onFocus={() => {
+              setIsSearchFocused(true);
+              setShowResults(true);
+            }}
+            onBlur={() => {
+              setIsSearchFocused(false);
+              setTimeout(() => setShowResults(false), 150); // allow click
+            }}
+            onChange={e => {
+              setSearchQuery(e.target.value);
+              setShowResults(true);
+            }}
           />
+          {showResults && searchQuery && (
+            <div className="absolute top-full left-0 w-full bg-white shadow-lg rounded-md z-10 mt-1 max-h-60 overflow-auto">
+              {filteredNavItems.length === 0 ? (
+                <div className="p-3 text-gray-500">No results found</div>
+              ) : (
+                filteredNavItems.map(item => (
+                  <div
+                    key={item.id}
+                    className="flex items-center gap-2 px-4 py-2 hover:bg-primary-50 cursor-pointer"
+                    onMouseDown={() => {
+                      setShowResults(false);
+                      history.push(item.path); // <-- Use history.push for navigation
+                    }}
+                  >
+                    <Icon icon={item.icon} className="text-primary" />
+                    <div>
+                      <div className="font-medium">{item.name}</div>
+                      <div className="text-xs text-gray-400">{item.category}</div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
         </div>
         
         <div className="flex items-center gap-2">
-          <Button
+          {/* <Button
             color="primary"
             variant="flat"
             startContent={<Icon icon="lucide:message-square" />}
@@ -191,18 +247,18 @@ export const Header: React.FC<HeaderProps> = ({ toggleChat }) => {
             className="hidden md:flex"
           >
             AI Assistant
-          </Button>
-          
+          </Button> */}
+{/*           
           <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
             <Button isIconOnly variant="ghost" aria-label="Notifications">
               <Icon icon="lucide:bell" className="text-xl" />
             </Button>
-          </motion.div>
+          </motion.div> */}
           
           <Dropdown>
             <DropdownTrigger>
               <Avatar
-                src="https://img.heroui.chat/image/avatar?w=200&h=200&u=admin"
+                // src="https://img.heroui.chat/image/avatar?w=200&h=200&u=admin"
                 size="sm"
                 className="cursor-pointer"
               />
@@ -211,9 +267,9 @@ export const Header: React.FC<HeaderProps> = ({ toggleChat }) => {
               <DropdownItem key="profile" startContent={<Icon icon="lucide:user" />}>
                 Profile
               </DropdownItem>
-              <DropdownItem key="settings" startContent={<Icon icon="lucide:settings" />}>
+              {/* <DropdownItem key="settings" startContent={<Icon icon="lucide:settings" />}>
                 Settings
-              </DropdownItem>
+              </DropdownItem> */}
               <DropdownItem
                 key="api-keys"
                 startContent={<Icon icon="lucide:key" />}
@@ -221,12 +277,12 @@ export const Header: React.FC<HeaderProps> = ({ toggleChat }) => {
               >
                 Webhook API Keys
               </DropdownItem>
-              <DropdownItem key="help" startContent={<Icon icon="lucide:help-circle" />}>
+              {/* <DropdownItem key="help" startContent={<Icon icon="lucide:help-circle" />}>
                 Help & Documentation
               </DropdownItem>
               <DropdownItem key="feedback" startContent={<Icon icon="lucide:message-square" />}>
                 Send Feedback
-              </DropdownItem>
+              </DropdownItem> */}
               <DropdownItem
                 key="logout"
                 className="text-danger"
@@ -377,5 +433,4 @@ export const Header: React.FC<HeaderProps> = ({ toggleChat }) => {
     </>
   );
 };
- 
- 
+

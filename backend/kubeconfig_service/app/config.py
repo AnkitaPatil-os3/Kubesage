@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     # User service URL for authentication
     USER_SERVICE_URL: str = os.getenv("USER_SERVICE_URL")
 
+    # Prometheus URL for monitoring
+    PROMETHEUS_URL: str = os.getenv("PROMETHEUS_URL")
+    
      # LLM settings for K8s problem solving
     OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")
     OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")

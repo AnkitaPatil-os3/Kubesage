@@ -229,6 +229,7 @@ export const UsersAndRBAC: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
 
   const [showAddUser, setShowAddUser] = useState(false);
   const [newUser, setNewUser] = useState<NewUser>({
@@ -321,6 +322,7 @@ export const UsersAndRBAC: React.FC = () => {
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError(null);
     const token = getValidToken();
     if (!token) {
       setError("Token invalid");
@@ -341,9 +343,36 @@ export const UsersAndRBAC: React.FC = () => {
         },
         body: JSON.stringify(userPayload),
       });
-      const text = await res.text();
+      
       if (!res.ok) {
-        setError(`Add user failed: ${text}`);
+        let errorDetail = "Failed to add user";
+        try {
+          const errorData = await res.json();
+          errorDetail = errorData.detail || errorData.message || JSON.stringify(errorData);
+        } catch {
+          const text = await res.text();
+          errorDetail = text || "Unknown error";
+        }
+        
+        // Handle specific error cases - check for email/username conflicts first
+        const lowerErrorDetail = errorDetail.toLowerCase();
+        console.log("Backend error response:", errorDetail); // Debug logging
+        
+        if (lowerErrorDetail.includes("database") && (lowerErrorDetail.includes("connection") || lowerErrorDetail.includes("error") )) {
+          setError("Email already registered. Please use a different email address.");
+          setShowErrorModal(true);
+        } else if (lowerErrorDetail.includes("username") && (lowerErrorDetail.includes("already") || lowerErrorDetail.includes("exist") || lowerErrorDetail.includes("taken"))) {
+          setError("Username already taken. Please choose a different username.");
+          setShowErrorModal(true);
+        } else if (lowerErrorDetail.includes("database") || lowerErrorDetail.includes("session") || lowerErrorDetail.includes("connection")) {
+          // Handle database connection errors
+          setError("Database connection error. Please try again later.");
+          setShowErrorModal(true);
+        } else {
+          // Generic error handling
+          setError(`Failed to add user: ${errorDetail}`);
+          setShowErrorModal(true);
+        }
       } else {
         setShowAddUser(false);
         setNewUser({ username: "", email: "", password: "", first_name: "", last_name: "", is_active: true, roles: [] });
@@ -353,7 +382,7 @@ export const UsersAndRBAC: React.FC = () => {
         fetchUsers();
       }
     } catch {
-      setError("Network error adding user");
+      setError("Network error adding user. Please check your connection and try again.");
     } finally {
       setLoading(false);
     }
@@ -406,8 +435,11 @@ export const UsersAndRBAC: React.FC = () => {
       const text = await res.text();
       if (!res.ok) {
         setError(`Edit failed: ${text}`);
+        setShowErrorModal(true);
       } else {
         setShowEditUser(false);
+        setSuccessMessage("User updated successfully!");
+        setShowSuccessModal(true);
         fetchUsers();
       }
     } catch {
@@ -435,9 +467,12 @@ export const UsersAndRBAC: React.FC = () => {
       const text = await res.text();
       if (!res.ok) {
         setError(`Delete failed: ${text}`);
+        setShowErrorModal(true);
       } else {
         setShowDeleteConfirm(false);
         setSelectedUser(null);
+        setSuccessMessage("User deleted successfully!");
+        setShowSuccessModal(true);
         fetchUsers();
       }
     } catch {
@@ -463,7 +498,6 @@ export const UsersAndRBAC: React.FC = () => {
         </Button>
       </div>
 
-      {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
 
       <Card>
         <Table isStriped aria-label="User list">
@@ -841,6 +875,31 @@ export const UsersAndRBAC: React.FC = () => {
                 </ModalBody>
                 <ModalFooter>
                   <Button color="primary" onPress={() => setShowSuccessModal(false)}>
+                    OK
+                  </Button>
+                </ModalFooter>
+              </>
+            )}
+          </ModalContent>
+        </Modal>
+      )}
+
+      {showErrorModal && (
+        <Modal isOpen={showErrorModal} onOpenChange={setShowErrorModal} placement="top-center" size="sm">
+          <ModalContent>
+            {(onClose) => (
+              <>
+                <ModalHeader className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2">
+                    <Icon icon="lucide:alert-circle" className="text-danger text-xl" />
+                    <span className="text-danger">Error</span>
+                  </div>
+                </ModalHeader>
+                <ModalBody>
+                  <p className="text-foreground">{error}</p>
+                </ModalBody>
+                <ModalFooter>
+                  <Button color="danger" onPress={() => setShowErrorModal(false)}>
                     OK
                   </Button>
                 </ModalFooter>
