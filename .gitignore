@@ -1,0 +1,62 @@
+# Environment files
+*.env
+.env.local
+.env.production
+.env.staging
+
+# Python cache
+*/__pycache__
+*/app.__pycache__
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Logs
+*.log
+logs/
+
+# Configuration files (can contain secrets)
+*.yaml
+*.yml
+
+# Virtual environments
+myenv/
+venv/
+env/
+
+# Dependencies
+node_modules/
+*.egg-info/
+
+# SECURITY: Certificate and key files
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Build artifacts
+dist/
+build/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+.tmp/
+*.bak
+*.backup
